@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# Run the notebook server
+
+source setup
+ipython notebook --pylab=inline --profile=xframe
