@@ -272,6 +272,22 @@ class XArray(object):
             with impl_context():
                 self.__impl__.save_as_text(make_internal_url(filename))
 
+    def to_rdd(self,sc,number_of_partitions=4):
+        """
+        Convert the current XArray to the Spark RDD.
+
+        ----------
+        out: RDD
+
+        """
+
+        if type(number_of_partitions) is not int:
+            raise ValueError("number_of_partitions parameter expects an integer type")
+        if number_of_partitions == 0:
+            raise ValueError("number_of_partitions can not be initialized to zero")
+
+        return self.__impl__.to_rdd(number_of_partitions)
+
     def __repr__(self):
         """
         Returns a string description of the XArray.

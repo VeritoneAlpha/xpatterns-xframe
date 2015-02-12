@@ -3,6 +3,9 @@ This module provides an implementation of XFrame using pySpark RDDs.
 """
 from pyspark import StorageLevel
 from pyspark import SparkContext
+from pyspark.sql import *
+
+from xpatterns.commonImpl import CommonSparkContext
 import xpatterns as xp
 
 import sys
@@ -13,6 +16,10 @@ import json
 import random
 import numpy
 import array
+import pickle
+import errno
+import shutil
+import csv
 
 class CmpRows(object):
     """ Comparison wrapper for a rwo.
@@ -162,6 +169,14 @@ def agg_quantile(rows, cols):
     return None
 
 
+def delete_file_or_dir(path):
+    expected_errs = [errno.ENOENT]     # no such file or directory
+    try:
+        shutil.rmtree(path)
+    except OSError as err:
+        if err.errno not in expected_errs:
+            raise err
+
 class AggregatorPropertySet:
     """ Store aggregator properties for one aggregator. """
 
@@ -263,6 +278,15 @@ def name_col(existing_col_names, proposed_name):
         i += 1
     return candidate
 
+# TODO make a static function and move this to a base class
+# Safe version of zip.
+# This requires that left and right RDDs be of the same length, but
+#  not the same partition structure
+def safeZip(left, right):
+    ix_left = left.zipWithIndex().map(lambda row: (row[1], row[0]))
+    ix_right = right.zipWithIndex().map(lambda row: (row[1], row[0]))
+    return ix_left.join(ix_right).values()
+
 class StdXFrameImpl:
     """ Implementation for XFrame. """
 
@@ -281,7 +305,7 @@ class StdXFrameImpl:
         self.column_types = list(column_types)
 
         self.materialized = False
-        self.entry_trace = trace
+        self.entry_trace = False
         self.exit_trace = False
 
     def _rv(self, rdd, col_names=None, column_types=None):
@@ -296,6 +320,16 @@ class StdXFrameImpl:
         column_types = self.column_types if column_types is None else column_types
         return StdXFrameImpl(rdd, col_names, column_types)
 
+    def _reset():
+        self.rdd = None
+        self.col_names = []
+        self.column_types = []
+
+        self.materialized = False
+
+    def _persist(self):
+        self.rdd.persist(StorageLevel.MEMORY_ONLY)
+
     def _replace(self, rdd, col_names=None, column_types=None):
         """
         Replaces the existing RDD, column names, and column types with new values.
@@ -306,17 +340,24 @@ class StdXFrameImpl:
         self.rdd = rdd
         if col_names is not None: self.col_names = col_names
         if column_types is not None: self.column_types = column_types
+        self.materialized = False
         return self
+
+    def _count(self):
+#        self._persist()
+        count = self.rdd.count()     # action
+        self.materialized = True
+        return count
 
     def _entry(self, *args):
         """ Trace function entry. """
         if self.entry_trace:
-            print 'enter', inspect.stack()[1][3], args
+            print 'enter xFrame', inspect.stack()[1][3], args
 
     def _exit(self, *args):
         """ Trace function exit. """
         if self.exit_trace:
-            print 'exit', inspect.stack()[1][3], args
+            print 'exit xFrame', inspect.stack()[1][3], args
 
     # Load
     def load_from_dataframe(self, data):
@@ -327,23 +368,166 @@ class StdXFrameImpl:
         self._exit()
         raise NotImplementedError()
 
-    def load_from_xframe_index(self, internal_url):
-        self._entry(internal_url)
+    def load_from_xframe_index(self, path):
+        self._entry(path)
+        metadata_path = path + '.metadata'
+        with open(metadata_path) as f:
+            names, types = pickle.load(f)
+        sc = CommonSparkContext.Instance().sc
+        res = sc.pickleFile(path)
+        self._replace(res, names, types)
         self._exit()        
-        raise NotImplementedError()
+
+    def load_from_csv(self, path, parsing_config, type_hints):
+        """
+        Load RDD from a csv file
+        """
+        self._entry(path, parsing_config, type_hints)
+
+#        print 'parsing_config', parsing_config
+#        print 'type_hints', type_hints
+
+        def get_config(name):
+            return parsing_config[name] if name in parsing_config else None
+        row_limit = get_config('row_limit')
+        use_header = get_config('use_header')
+        comment_char = get_config('comment_char')
+        na_values = get_config('na_values')
+        if not type(na_values) == list:
+            na_values = [na_values]
+
+        sc = CommonSparkContext.Instance().sc
+        raw = sc.textFile(path)
+        #parsing_config 
+        # 'row_limit': 100, 
+        # 'use_header': True, 
+
+        # 'double_quote': True, 
+        # 'skip_initial_space': True, 
+        # 'delimiter': '\n', 
+        # 'quote_char': '"', 
+        # 'escape_char': '\\'
+
+        # 'comment_char': '', 
+        # 'na_values': ['NA'], 
+        # 'continue_on_failure': True, 
+        # 'store_errors': False, 
+
+        def apply_comment(line, comment_char):
+            return line.partition(comment_char)[0].rstrip()
+        if comment_char:
+            raw = raw.map(lambda line: apply_comment(line, comment_char), preservesPartitioning=True)
+
+        def to_format_params(config):
+            params = {}
+            parm_map = {
+                # parse_config: read_csv
+                'delimiter': 'delimiter',
+                'doublequote': 'doublequote',
+                'escape_char': 'escapechar',
+                'quote_char': 'quotechar',
+                'skip_initial_space': 'skipinitialspace'
+            }
+            for pc, rc in parm_map.iteritems():
+                if pc in config: params[rc] = config[pc]
+            return params
+        
+        params = to_format_params(parsing_config)
+        if row_limit:
+            if row_limit > 100:
+                pairs = raw.zipWithIndex()
+                pairs.persist(StorageLevel.MEMORY_ONLY)
+                filtered_pairs = pairs.filter(lambda x: x[1] < row_limit)
+                pairs.unpersist()
+                raw = filtered_pairs.keys()
+            else:
+                lines = raw.take(row_limit)
+                raw = sc.parallelize(lines)
+        # TODO extremely inefficient to create a reader for each line
+        # Use per partition operations to create a reader once per partition
+        # See p 106: Learning Spark
+        # See mapPartitions
+        def csv_to_array(line, params):
+            reader = csv.reader([line], **params)
+            return reader.next()
+        res = raw.map(lambda row: csv_to_array(row, params), preservesPartitioning=True)
+         
+        # use first row, if available, to make column names
+        first = res.first()
+        if use_header:
+            col_names = first
+            # take off first line
+            # TODO there must be a better way to strip one line
+            res = res.zipWithUniqueId()
+            res = res.filter(lambda kv: kv[1] != 0)
+            res = res.keys()
+        else:
+            col_names = ['X.{}'.format(i) for i in range(len(first))]
+
+        # Transform hints: __X{}__ ==> name.
+        # If it is not of this form, leave it alone.
+        def extract_index(s):
+            if s.startswith('__X') and s.endswith('__'):
+                index = s[3:-2]
+                return int(index)
+            return None
+        def map_col(col, col_names):
+            # Change key on hints from generated names __X<n>__
+            #   into the actual column name
+            index =  extract_index(col)
+            if index is None:
+                return col
+            return col_names[index]
+            
+        # get desired column types
+        if '__all_columns__' in type_hints:
+            # all cols are of the given type
+            typ = type_hints['__all_columns__']
+            types = [typ for i in first]
+        else:
+            # all cols are str, except the one(s) mentioned
+            types = [str for i in first]
+            # change generated hint key to actual column name
+            type_hints =  {map_col(col, self.col_names): typ for col, typ in type_hints.iteritems()}
+            for col in self.col_names:
+                if col in type_hints:
+                    types[self.col_names.index(col)] = type_hints[col]
+        column_types = types
+        
+        # apply na values
+        def apply_na(row, na_values):
+            return [None if val in na_values else val for val in row]
+        res = res.map(lambda row: apply_na(row, na_values), preservesPartitioning=True)
+
+        # cast to desired type
+        def cast_val(val, typ):
+            return None if val is None else typ(val)
+        def cast_row(row, types):
+#            return [typ(val) for val, typ in zip(row, types)]
+            return [cast_val(val, typ) for val, typ in zip(row, types)]
+
+        res = res.map(lambda row: cast_row(row, types), preservesPartitioning=True)
+        self._replace(res, col_names, column_types)
+
+        self._exit()
+        # returns a dict of errors
+        return {}
 
     # Save
-    def save(self, url):
+    def save(self, path):
         """
         Save to a file.  
 
         Saved in an efficient internal format, intended for reading back into an RDD.
         """
-        self._entry(url)
-        # TODO save col names and types
-        self.rdd.saveAsPickleFile(url)
+        self._entry(path)
+        metadata_path = path + '.metadata'
+        metadata = [self.col_names, self.column_types]
+        with open(metadata_path, 'w') as f:
+            pickle.dump(metadata, f)
+        delete_file_or_dir(path)
+        self.rdd.saveAsPickleFile(path)        # action ?
         self._exit()
-        raise NotImplementedError()
 
     def save_as_csv(self, url, **args):
         """
@@ -355,6 +539,38 @@ class StdXFrameImpl:
         raise NotImplementedError()
 
 
+    def to_schema_rdd(self, number_of_partitions):
+        """
+        Adds column name and type informaton to the rdd and returns it.
+        """
+        def translateType(typ):
+            if typ == str: return StringType()
+            if typ == bool: return BooleanType()
+            if typ == float: return FloatType()
+            if typ == int or typ == long: return IntegerType()
+            if typ == list: return ArrayType()
+            if typ == dict: return MapType()
+            return StringType()
+        self._entry(number_of_partitions)
+        fields = [StructField(name, translateType(typ), True) for name, typ in zip(self.col_names, self.column_types)]
+        schema = StructType(fields)
+        rdd = self.rdd.repartition(number_of_partitions)
+        sqlc = CommonSparkContext.Instance().sqlc
+        res = sqlc.applySchema(rdd, schema)
+        name = 'abc'
+        res.registerTempTable(name)
+        self._exit()
+        return res
+
+    def to_rdd(self, number_of_partitions):
+        """
+        Returns the internal rdd.
+        """
+        self._entry(number_of_partitions)
+        res = self.rdd.repartition(number_of_partitions)
+        self._exit()
+        return res
+
     # Table Information
     def num_rows(self):
         """
@@ -362,13 +578,11 @@ class StdXFrameImpl:
         """
         # TODO: this forces the RDD to be computed.
         # When it is used again, it must be recomputed.
-        # Consider persisting it.
         self._entry()
         if self.rdd is None: return 0
-        self.materialized = True
-        res = self.rdd.count()
-        self._exit(res)
-        return res
+        count = self._count()      # action
+        self._exit(count)
+        return count
 
     def num_columns(self):
         """
@@ -405,19 +619,32 @@ class StdXFrameImpl:
         # Returns an XFrame, otherwise we would use take(n)
         # TODO: this is really inefficient: it numbers the whole thing, and
         #  then filters most of it out.
+        # Maybe it would be better to use take(n) then parallelize ?
         self._entry(n)
+#        print self.rdd.toDebugString()
+        if n <= 100:
+            data = self.rdd.take(n)
+            sc = CommonSparkContext.Instance().sc
+            res = sc.parallelize(data)
+            self._exit(res)
+            return self._rv(res)
+        self._persist()
         pairs = self.rdd.zipWithIndex()
         pairs.persist(StorageLevel.MEMORY_ONLY)
         filtered_pairs = pairs.filter(lambda x: x[1] < n)
         pairs.unpersist()
         res = filtered_pairs.keys()
         self._exit(res)
+        # test
+        res.persist(StorageLevel.MEMORY_ONLY)
+        self.materialized = True
         return self._rv(res)
 
     def head_as_list(self, n):
         # Used in xframe when doing dry runs to determine type
         self._entry(n)
-        lst = self.rdd.take(n)
+        self._persist()
+        lst = self.rdd.take(n)      # action
         self._exit(lst)
         return lst
 
@@ -431,7 +658,7 @@ class StdXFrameImpl:
         start = pairs.count() - n
         filtered_pairs = pairs.filter(lambda x: x[1] >= start)
         pairs.unpersist()
-        res = filtered_pairs.map(lambda x: x[0])
+        res = filtered_pairs.map(lambda x: x[0], preservesPartitioning=True)
         self._exit(res)
         return self._rv(res)
 
@@ -458,11 +685,14 @@ class StdXFrameImpl:
         self._entry(fraction, seed)
         seed = seed if seed is not None else random.randint(0, sys.maxint)
         rng = random.Random(seed)
-        rand_col = self.rdd.map(lambda row: rng.uniform(0.0, 1.0))
+        rdd = self.rdd
+        self._persist()
+        rand_col = self.rdd.map(lambda row: rng.uniform(0.0, 1.0), preservesPartitioning=True)
+        # zip restrictions is met
         labeled_rdd = self.rdd.zip(rand_col)
         labeled_rdd.persist(StorageLevel.MEMORY_ONLY)
-        rdd1 = labeled_rdd.filter(lambda row: row[1] < fraction).map(lambda row: row[0])
-        rdd2 = labeled_rdd.filter(lambda row: row[1] >= fraction).map(lambda row: row[0])
+        rdd1 = labeled_rdd.filter(lambda row: row[1] < fraction).map(lambda row: row[0], preservesPartitioning=True)
+        rdd2 = labeled_rdd.filter(lambda row: row[1] >= fraction).map(lambda row: row[0], preservesPartitioning=True)
         labeled_rdd.unpersist()
         self._exit(rdd1, rdd2)
         return self._rv(rdd1), self._rv(rdd2)
@@ -474,8 +704,7 @@ class StdXFrameImpl:
         RDD, committing all lazy evaluated operations.
         """
         self._entry()
-        self.rdd.count()
-        self.materialized = True
+        self._count()
         self._exit()
 
     def is_materialized(self):
@@ -504,7 +733,7 @@ class StdXFrameImpl:
         """
         self._entry(column_name)
         col = self.col_names.index(column_name)
-        res = self.rdd.map(lambda row: row[col])
+        res = self.rdd.map(lambda row: row[col], preservesPartitioning=True)
         col_type = self.column_types[col]
         self._exit(res, col_type)
         return xp.stdXArrayImpl.StdXArrayImpl(res, col_type)
@@ -520,9 +749,8 @@ class StdXFrameImpl:
         cols = [self.col_names.index(key) for key in keylist]
         names = [self.col_names[col] for col in cols]
         types = [self.column_types[col] for col in cols]
-        res = self.rdd.map(lambda row: get_columns(row, cols))
+        res = self.rdd.map(lambda row: get_columns(row, cols), preservesPartitioning=True)
         self._exit(res, names, types)
-        tmp = self._rv(res, names, types)
         return self._rv(res, names, types)
 
     def add_column(self, data, name):
@@ -542,12 +770,12 @@ class StdXFrameImpl:
         self.column_types.append(data.elem_type)
         # zip the data into the rdd, then shift into the list
         if self.rdd is None:
-            res = data.rdd.map(lambda x: [x])
+            res = data.rdd.map(lambda x: [x], preservesPartitioning=True)
         else:
-            res = self.rdd.zip(data.rdd)
+            res = safeZip(self.rdd, data.rdd)
             def move_inside(old_val, new_elem):
                 return old_val + [new_elem]
-            res = res.map(lambda pair: move_inside(pair[0], pair[1]))
+            res = res.map(lambda pair: move_inside(pair[0], pair[1]), preservesPartitioning=True)
         self._exit(res)
         return self._replace(res)
 
@@ -563,10 +791,10 @@ class StdXFrameImpl:
         types = self.column_types + [col.__impl__.elem_type for col in cols]
         rdd = self.rdd
         for col in cols:
-            rdd = rdd.zip(col.__impl__.rdd)
+            rdd = safeZip(rdd, col.__impl__.rdd)
             def move_inside(old_val, new_elem):
                 return old_val + [new_elem]
-            rdd = rdd.map(lambda pair: move_inside(pair[0], pair[1]))
+            rdd = rdd.map(lambda pair: move_inside(pair[0], pair[1]), preservesPartitioning=True)
         self._exit(rdd, names, types)
         return self._replace(rdd, names, types)
 
@@ -582,8 +810,9 @@ class StdXFrameImpl:
         types = self.column_types + other.__impl__.column_types
         def merge(old_cols, new_cols):
             return old_cols + new_cols
-        rdd = self.rdd.zip(other.__impl__.rdd)
-        res = rdd.map(lambda pair: merge(pair[0], pair[1]))
+        # zip restriction: data must match in length and partition structure
+        rdd = safeZip(self.rdd, other.__impl__.rdd)
+        res = rdd.map(lambda pair: merge(pair[0], pair[1]), preservesPartitioning=True)
         self._exit(res, names, types)
         return self._replace(res, names, types)
 
@@ -600,7 +829,7 @@ class StdXFrameImpl:
         def pop_col(row, col):
             row.pop(col)
             return row
-        res = self.rdd.map(lambda row: pop_col(row, col))
+        res = self.rdd.map(lambda row: pop_col(row, col), preservesPartitioning=True)
         self._exit(res)
         return self._replace(res)
 
@@ -621,7 +850,7 @@ class StdXFrameImpl:
             for col in cols:
                 row.pop(col)
             return row
-        res = self.rdd.map(lambda row: pop_cols(row, cols))
+        res = self.rdd.map(lambda row: pop_cols(row, cols), preservesPartitioning=True)
         self._exit(res)
         return self._replace(res)
 
@@ -653,7 +882,7 @@ class StdXFrameImpl:
 #        types = list(self.column_types)
 #        types[col2] = self.column_types[col1]
 #        types[col1] = self.column_types[col2]
-        res = self.rdd.map(lambda row: swap_cols(row, col1, col2))
+        res = self.rdd.map(lambda row: swap_cols(row, col1, col2), preservesPartitioning=True)
         self._exit(res, names, types)
         return self._replace(res, names, types)
 
@@ -669,18 +898,29 @@ class StdXFrameImpl:
         self._exit()
 
     # Iteration
+
+    # Begin_iterator is called by a generator function, local to __iter__.
+        # It calls iterator_get_next to fetch a group of items, then returns them one by one
+        # using yield.  It keeps calling iterator_get_next as long as there are elements 
+        # remaining.  It seems like only one iterator at a time can be operating because
+        # the position is stored here.  Would it be better to let the caller handle the iter_pos?
+        #
+        # This uses zipWithIndex, which needs to process the whole data set.  
+        # Is it better to use take or collect ?  OR are they effectively the same since zipWithIndex 
+        # has just run?
     def begin_iterator(self):
+        # TODO: be sure to reset this when the RDD changes.
         self._entry()
         self._exit()
         self.iter_pos = -1
 
     def iterator_get_next(self, elems_at_a_time):
         self._entry(elems_at_a_time)
-        buf_rdd = self.rdd.zipWithIndex()
         low = self.iter_pos
         high = self.iter_pos + elems_at_a_time
+        buf_rdd = self.rdd.zipWithIndex()
         filtered_rdd = buf_rdd.filter(lambda row: row[1] >= low and row[1] < high)
-        trimmed_rdd = filtered_rdd.map(lambda row: row[0])
+        trimmed_rdd = filtered_rdd.map(lambda row: row[0], preservesPartitioning=True)
         iter_buf = trimmed_rdd.collect()
         self.iter_pos += elems_at_a_time
         self._exit(iter_buf)
@@ -693,7 +933,7 @@ class StdXFrameImpl:
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry(col)
-        res = col.__impl__.rdd.map(lambda item: [item])
+        res = col.__impl__.rdd.map(lambda item: [item], preservesPartitioning=True)
         self._exit(res)
         return self._replace(res)
 
@@ -711,7 +951,7 @@ class StdXFrameImpl:
         self._entry(fn, column_names, column_types, seed)
         names = self.col_names
         # fn needs the row as a dict
-        res = self.rdd.flatMap(lambda row: fn(dict(zip(names, row))))
+        res = self.rdd.flatMap(lambda row: fn(dict(zip(names, row))), preservesPartitioning=True)
         self._exit(res, column_names, column_types)
         return self._rv(res, column_names, column_types)
 
@@ -722,8 +962,13 @@ class StdXFrameImpl:
         where the corresponding row in the selector is non-zero.
         """
         self._entry(other)
-        pairs = self.rdd.zip(other.rdd)
-        res = pairs.filter(lambda p: p[1]).map(lambda p: p[0])
+        # zip restriction: data must match in length and partition structure
+
+        pairs = safeZip(self.rdd, other.rdd)
+
+        res = pairs.filter(lambda p: p[1]).map(lambda p: p[0], preservesPartitioning=True)
+#        print 'logical_filter after filter'
+#        print res.toDebugString()
         self._exit(res)
         return self._rv(res)
 
@@ -748,7 +993,7 @@ class StdXFrameImpl:
             if len(res) > 0 or drop_na:
                 return res
             return [subs_row(row, col, None)]
-        res = self.rdd.flatMap(lambda row: stack_row(row, col_num, drop_na))
+        res = self.rdd.flatMap(lambda row: stack_row(row, col_num, drop_na), preservesPartitioning=True)
 
         column_names = list(self.col_names)
         new_name = new_column_names[0]
@@ -820,7 +1065,7 @@ class StdXFrameImpl:
             if x < start or x >= stop: return False
             return (x - start) % step == 0
         pairs = self.rdd.zipWithIndex()
-        res = pairs.filter(lambda x: select_row(x[1], start, step, stop)).map(lambda x: x[0])
+        res = pairs.filter(lambda x: select_row(x[1], start, step, stop)).map(lambda x: x[0], preservesPartitioning=True)
         self._exit(res)
         return self._rv(res)
 
@@ -876,7 +1121,7 @@ class StdXFrameImpl:
         names.insert(0, column_name)
         types = list(self.column_types)
         types.insert(0, int)
-        res = self.rdd.zipWithIndex().map(lambda row: pull_up(row, start))
+        res = self.rdd.zipWithIndex().map(lambda row: pull_up(row, start), preservesPartitioning=True)
         self._exit(res, names, types)
         return self._rv(res, names, types)
 
@@ -905,7 +1150,7 @@ class StdXFrameImpl:
         """
         self._entry(columns, dict_keys, dtype, fill_na)
         cols = [self.col_names.index(col) for col in columns]
-        keys = self.rdd.map(lambda row: [row[col] for col in cols])
+        keys = self.rdd.map(lambda row: [row[col] for col in cols], preservesPartitioning=True)
 
         def substitute_missing(v, fill_na):
             return fill_na if is_missing(v) and fill_na else v
@@ -922,12 +1167,12 @@ class StdXFrameImpl:
             return d
 
         if dtype == list:
-            res = keys.map(lambda row: pack_row_list(row, fill_na))
+            res = keys.map(lambda row: pack_row_list(row, fill_na), preservesPartitioning=True)
         elif dtype == array.array:
             typecode = 'd'
-            res = keys.map(lambda row: pack_row_array(row, fill_na, typecode))
+            res = keys.map(lambda row: pack_row_array(row, fill_na, typecode), preservesPartitioning=True)
         elif dtype == dict:
-            res = keys.map(lambda row: pack_row_dict(row, dict_keys, fill_na))
+            res = keys.map(lambda row: pack_row_dict(row, dict_keys, fill_na), preservesPartitioning=True)
         else:
             raise NotImplementedError
         self._exit(res, dtype)
@@ -944,7 +1189,7 @@ class StdXFrameImpl:
         self._entry(fn, dtype, seed)
         names = self.col_names
         # fn needs the row as a dict
-        res = self.rdd.map(lambda row: dtype(fn(dict(zip(names, row)))))
+        res = self.rdd.map(lambda row: dtype(fn(dict(zip(names, row)))), preservesPartitioning=True)
         self._exit(res, dtype)
         return xp.stdXArrayImpl.StdXArrayImpl(res, dtype)
 
@@ -1002,11 +1247,11 @@ class StdXFrameImpl:
         def make_key(row, key_cols):
             key = [row[col] for col in key_cols]
             return json.dumps(key)
-        keyed_rdd = self.rdd.map(lambda row: (make_key(row, key_cols), row))
+        keyed_rdd = self.rdd.map(lambda row: (make_key(row, key_cols), row), preservesPartitioning=True)
 #        print 'keyed_rdd', keyed_rdd.collect()
 
         grouped = keyed_rdd.groupByKey()
-        grouped = grouped.map(lambda pair: (json.loads(pair[0]), pair[1]))
+        grouped = grouped.map(lambda pair: (json.loads(pair[0]), pair[1]), preservesPartitioning=True)
         # (key, [row ...]) ...
 #        print 'grouped', grouped.collect()
 #        print 'flattened', grouped.map(lambda (x, y): (x, list(y))).collect()
@@ -1017,12 +1262,12 @@ class StdXFrameImpl:
             return [aggregator(rows, cols) 
                      for aggregator, cols in zip(aggregators, group_cols)]
         aggregators = [aggregator_properties[op].agg_function for op in group_ops]
-        aggregates = grouped.map(lambda (x, y): (x, build_aggregates(y, aggregators, group_cols)))
+        aggregates = grouped.map(lambda (x, y): (x, build_aggregates(y, aggregators, group_cols)), preservesPartitioning=True)
 #        print 'aggregates', aggregates.collect()
         def concatenate(old_vals, new_vals):
             return old_vals + new_vals
         
-        res = aggregates.map(lambda pair: concatenate(pair[0], pair[1]))
+        res = aggregates.map(lambda pair: concatenate(pair[0], pair[1]), preservesPartitioning=True)
         self._exit(res, new_col_names, new_col_types)
         return self._rv(res, new_col_names, new_col_types)
 
@@ -1100,8 +1345,8 @@ class StdXFrameImpl:
                 return json.dumps(key)
 
             # add keys to left and right
-            keyed_left = self.rdd.map(lambda row: (build_key(row, left_key_indexes), row))
-            keyed_right = right.rdd.map(lambda row: (build_key(row, right_key_indexes), row))
+            keyed_left = self.rdd.map(lambda row: (build_key(row, left_key_indexes), row), preservesPartitioning=True)
+            keyed_right = right.rdd.map(lambda row: (build_key(row, right_key_indexes), row), preservesPartitioning=True)
         
             # remove redundant key fields from the right
             def fixup_right(row, indexes):
@@ -1109,7 +1354,7 @@ class StdXFrameImpl:
                 for i in indexes:
                     val.pop(i)
                 return (row[0], val)
-            keyed_right = keyed_right.map(lambda row: fixup_right(row, right_key_indexes))
+            keyed_right = keyed_right.map(lambda row: fixup_right(row, right_key_indexes), preservesPartitioning=True)
 
             if how == 'inner':
                 joined = keyed_left.join(keyed_right)
@@ -1119,10 +1364,10 @@ class StdXFrameImpl:
                 joined = keyed_left.rightOuterJoin(keyed_right)
 
             # throw away key now
-            pairs = joined.map(lambda row: row[1])
+            pairs = joined.map(lambda row: row[1], preservesPartitioning=True)
 #            print 'result pairs', pairs.collect()
 
-        res = pairs.map(lambda row: combine_results(row[0], row[1], left_count, right_count))
+        res = pairs.map(lambda row: combine_results(row[0], row[1], left_count, right_count), preservesPartitioning=True)
 #        print
 #        print 'res', res.collect()
 #        print 'new_col_names', new_col_names
@@ -1138,9 +1383,9 @@ class StdXFrameImpl:
         """
 
         self._entry()
-        as_json = self.rdd.map(lambda row: json.dumps(row))
+        as_json = self.rdd.map(lambda row: json.dumps(row), preservesPartitioning=True)
         unique_rows = as_json.distinct()
-        res = unique_rows.map(lambda s: json.loads(s))
+        res = unique_rows.map(lambda s: json.loads(s), preservesPartitioning=True)
         self._exit(res)
         return self._rv(res)
 

@@ -3,6 +3,7 @@ import math
 import copy
 from datetime import datetime
 import array
+import pickle
 
  # Configure the necessary Spark environment
 import os
@@ -36,10 +37,24 @@ class TestXFrameConstructor(unittest.TestCase):
         pass
 
     def test_construct_auto_str_csv(self):
-        pass
+        path = 'test-frame.csv'
+        res = XFrame(path)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual([1, 'a'], res[0])
+        self.assertEqual([2, 'b'], res[1])
+        self.assertEqual([3, 'c'], res[2])
 
     def test_construct_auto_str_tsv(self):
-        pass
+        path = 'test-frame.tsv'
+        res = XFrame(path)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual([1, 'a'], res[0])
+        self.assertEqual([2, 'b'], res[1])
+        self.assertEqual([3, 'c'], res[2])
 
     def test_construct_auto_str_txt(self):
         pass
@@ -81,6 +96,17 @@ class TestXFrameConstructor(unittest.TestCase):
         self.assertEqual([int, str], t.column_types())
         self.assertEqual(['id', 'val'], t.column_names())
 
+    def test_construct_binary(self):
+        # make binary file
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        path = 'tmp-frame'
+        t.save(path, format='binary')
+        res = XFrame(path)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual([1, 'a'], res[0])
+
 class TestXFrameReadCsvWithErrors(unittest.TestCase):
     """
     Tests XFrame read_csv_with_errors
@@ -95,7 +121,136 @@ class TestXFrameReadCsv(unittest.TestCase):
     """
 
     def test_read_csv(self):
-        pass
+        path = 'test-frame.csv'
+        res = XFrame.read_csv(path, verbose=False)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual([1, 'a'], res[0])
+        self.assertEqual([2, 'b'], res[1])
+        self.assertEqual([3, 'c'], res[2])
+
+    def test_read_csv_verbose(self):
+        path = 'test-frame.csv'
+        res = XFrame.read_csv(path)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual([1, 'a'], res[0])
+        self.assertEqual([2, 'b'], res[1])
+        self.assertEqual([3, 'c'], res[2])
+
+    def test_read_csv_delim(self):
+        path = 'test-frame.psv'
+        res = XFrame.read_csv(path, delimiter='|', verbose=False)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual([1, 'a'], res[0])
+        self.assertEqual([2, 'b'], res[1])
+        self.assertEqual([3, 'c'], res[2])
+
+    def test_read_csv_no_header(self):
+        path = 'test-frame-no-header.csv'
+        res = XFrame.read_csv(path, header=False, verbose=False)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['X.0', 'X.1'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual([1, 'a'], res[0])
+        self.assertEqual([2, 'b'], res[1])
+        self.assertEqual([3, 'c'], res[2])
+
+    def test_read_csv_comment(self):
+        path = 'test-frame-comment.csv'
+        res = XFrame.read_csv(path, comment_char='#', verbose=False)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual([1, 'a'], res[0])
+        self.assertEqual([2, 'b'], res[1])
+        self.assertEqual([3, 'c'], res[2])
+
+    def test_read_csv_escape(self):
+        path = 'test-frame-escape.csv'
+        res = XFrame.read_csv(path, verbose=False)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual([1, 'a,a'], res[0])
+        self.assertEqual([2, 'b,b'], res[1])
+        self.assertEqual([3, 'c,c'], res[2])
+
+    def test_read_csv_escape_custom(self):
+        path = 'test-frame-escape-custom.csv'
+        res = XFrame.read_csv(path, escape_char='$', verbose=False)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual([1, 'a,a'], res[0])
+        self.assertEqual([2, 'b,b'], res[1])
+        self.assertEqual([3, 'c,c'], res[2])
+
+    def test_read_csv_initial_space(self):
+        path = 'test-frame-initial_space.csv'
+        res = XFrame.read_csv(path, skip_initial_space=True, verbose=False)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual([1, 'a'], res[0])
+        self.assertEqual([2, 'b'], res[1])
+        self.assertEqual([3, 'c'], res[2])
+
+    def test_read_csv_hints_type(self):
+        path = 'test-frame.csv'
+        res = XFrame.read_csv(path, column_type_hints=str, verbose=False)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([str, str], res.column_types())
+        self.assertEqual(['1', 'a'], res[0])
+        self.assertEqual(['2', 'b'], res[1])
+        self.assertEqual(['3', 'c'], res[2])
+
+    def test_read_csv_hints_list(self):
+        path = 'test-frame-extra.csv'
+        res = XFrame.read_csv(path, column_type_hints=[str, str, int], verbose=False)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val1', 'val2'], res.column_names())
+        self.assertEqual([str, str, int], res.column_types())
+        self.assertEqual(['1', 'a', 10], res[0])
+        self.assertEqual(['2', 'b', 20], res[1])
+        self.assertEqual(['3', 'c', 30], res[2])
+
+    def test_read_csv_hints_dict(self):
+        path = 'test-frame-extra.csv'
+        res = XFrame.read_csv(path, column_type_hints={'val2': int}, verbose=False)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val1', 'val2'], res.column_names())
+        self.assertEqual([str, str, int], res.column_types())
+        self.assertEqual(['1', 'a', 10], res[0])
+        self.assertEqual(['2', 'b', 20], res[1])
+        self.assertEqual(['3', 'c', 30], res[2])
+
+    def test_read_csv_na(self):
+        path = 'test-frame-na.csv'
+        res = XFrame.read_csv(path, na_values='None', verbose=False)
+        print res
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual([1, 'NA'], res[0])
+        self.assertEqual([None, 'b'], res[1])
+        self.assertEqual([3, 'c'], res[2])
+
+    def test_read_csv_na_mult(self):
+        path = 'test-frame-na.csv'
+        res = XFrame.read_csv(path, na_values=['NA', 'None'], verbose=False)
+        print res
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual([1, None], res[0])
+        self.assertEqual([None, 'b'], res[1])
+        self.assertEqual([3, 'c'], res[2])
 
 class TestXFrameToSchemaRdd(unittest.TestCase):
     """
@@ -450,8 +605,14 @@ class TestXFrameSaveBinary(unittest.TestCase):
 
     def test_save(self):
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
-        path = 'tmp_frame_csv'
+        path = 'tmp-frame'
         t.save(path, format='binary')
+        with open(path + '.metadata') as f:
+            metadata = pickle.load(f)
+        print metadata
+        self.assertEqual([['id', 'val'], [int,  str]], metadata)
+        # TODO find some way to check the data
+
 
 class TestXFrameSaveCSV(unittest.TestCase):
     """

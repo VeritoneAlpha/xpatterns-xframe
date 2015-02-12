@@ -65,6 +65,15 @@ def delete_file_or_dir(path):
         if err.errno not in expected_errs:
             raise err
 
+# TODO make a static function and move this to a base class
+# Safe version of zip.
+# This requires that left and right RDDs be of the same length, but
+#  not the same partition structure
+def safeZip(left, right):
+    ix_left = left.zipWithIndex().map(lambda row: (row[1], row[0]))
+    ix_right = right.zipWithIndex().map(lambda row: (row[1], row[0]))
+    return ix_left.join(ix_right).values()
+
 class StdXArrayImpl:
     # What is missing:
     # sum over arrays
@@ -80,7 +89,7 @@ class StdXArrayImpl:
         self.rdd = rdd
         self.elem_type = elem_type
         self.materialized = False
-        self.entry_trace = trace
+        self.entry_trace = False
         self.exit_trace = False
 
     def _rv(self, rdd, typ=None):
@@ -95,13 +104,27 @@ class StdXArrayImpl:
         """
         return StdXFrameImpl(rdd, col_names, types)
 
+    def _persist(self):
+        self.rdd.persist(StorageLevel.MEMORY_ONLY)
+
+    def _replace(self, rdd, dtype):
+        self.rdd = rdd
+        self.elem_type = dtype
+        self.materialized = False
+
+    def _count(self):
+        self._persist()
+        count = self.rdd.count()     # action
+        self.materialized = True
+        return count
+
     def _entry(self, *args):
         if self.entry_trace:
-            print 'enter', inspect.stack()[1][3], args
+            print 'enter xArray', inspect.stack()[1][3], args
 
     def _exit(self):
         if self.exit_trace:
-            print 'exit', inspect.stack()[1][3]
+            print 'exit xArray', inspect.stack()[1][3]
         pass
 
     @staticmethod
@@ -147,7 +170,7 @@ class StdXArrayImpl:
 
         if dtype in (int, float, str, list, dict, datetime.datetime):
             raw_rdd = sc.parallelize(values)
-            rdd = raw_rdd.map(lambda x: do_cast(x, dtype, ignore_cast_failure))
+            rdd = raw_rdd.map(lambda x: do_cast(x, dtype, ignore_cast_failure), preservesPartitioning=True)
             if not ignore_cast_failure:
                 errs = len(rdd.filter(lambda x: x is ValueError).take(1)) == 1
                 if errs: raise ValueError
@@ -156,8 +179,7 @@ class StdXArrayImpl:
         else:
             raise ValueError('load_from_iterable: dtype not allowed {}'.format(dtype))
         
-        self.rdd = rdd
-        self.elem_type = dtype
+        self._replace(rdd, dtype)
         self._exit()
 
     def load_from_const(self, value, size):
@@ -166,8 +188,7 @@ class StdXArrayImpl:
         """
         values = [ value for i in range(0, size)]
         sc = CommonSparkContext.Instance().sc
-        self.rdd = sc.parallelize(values)
-        self.elem_type = type(value)
+        self._replace(sc.parallelize(values), type(value))
 
     def load_autodetect(self, path, dtype):
         """
@@ -217,11 +238,10 @@ class StdXArrayImpl:
 
         if dtype != str:
             if dtype in (list, dict):
-                res = res.map(lambda x: ast.literal_eval(x))
+                res = res.map(lambda x: ast.literal_eval(x), preservesPartitioning=True)
             else:
-                res = res.map(lambda x: dtype(x))
-        self.rdd = res
-        self.elem_type = dtype
+                res = res.map(lambda x: dtype(x), preservesPartitioning=True)
+        self._replace(res, dtype)
         self._exit()
 
 
@@ -241,7 +261,7 @@ class StdXArrayImpl:
         self._entry(path)
         # this only works for local files
         delete_file_or_dir(path)
-        self.rdd.saveAsPickleFile(path)
+        self.rdd.saveAsPickleFile(path)          # action ?
         metadata = self.elem_type
         with open(os.path.join(path, 'metadata'), 'w') as md:
             pickle.dump(metadata, md)
@@ -254,11 +274,20 @@ class StdXArrayImpl:
         self._entry(path)
         # this only works for local files
         delete_file_or_dir(path)
-        self.rdd.saveAsTextFile(path)
+        self.rdd.saveAsTextFile(path)           # action ?
         metadata = self.elem_type
         with open(os.path.join(path, 'metadata'), 'w') as md:
             pickle.dump(metadata, md)
         self._exit()
+
+    def to_rdd(number_of_partitions):
+        """
+        Returns the internal rdd.
+        """
+        self._entry(number_or_partitions)
+        res = self._rdd.repartition(number_of_partitions)
+        self._exit()
+        return res
 
     # Array Information
     def size(self):
@@ -266,9 +295,9 @@ class StdXArrayImpl:
         Returns the number of rows in the RDD.
         """
         self._entry()
-        self.materialized = True
+        count =  self._count()             # action
         self._exit()
-        return self.rdd.count()
+        return count
 
     def dtype(self):
         """
@@ -281,17 +310,20 @@ class StdXArrayImpl:
     # Get Data
     def head(self, n):
         self._entry(n)
+        # test
+        self._persist()
         pairs = self.rdd.zipWithIndex()
         pairs.persist(StorageLevel.MEMORY_ONLY)
         filtered_pairs = pairs.filter(lambda x: x[1] < n)
         pairs.unpersist()
-        res = filtered_pairs.map(lambda x: x[0])
+        res = filtered_pairs.map(lambda x: x[0], preservesPartitioning=True)
         self._exit()
         return self._rv(res)
 
     def head_as_list(self, n):
         self._entry(n)
-        lst = self.rdd.take(n)
+        self.rdd.persist(StorageLevel.MEMORY_ONLY)
+        lst = self.rdd.take(n)     # action
         self._exit()
         return lst
 
@@ -302,7 +334,7 @@ class StdXArrayImpl:
         start = pairs.count() - n
         filtered_pairs = pairs.filter(lambda x: x[1] >= start)
         pairs.unpersist()
-        res = filtered_pairs.map(lambda x: x[0])
+        res = filtered_pairs.map(lambda x: x[0], preservesPartitioning=True)
         self._exit()
         return self._rv(res)
 
@@ -316,7 +348,7 @@ class StdXArrayImpl:
         """
         self._entry(topk, reverse)
         if topk == 0:
-            res = self.rdd.map(lambda x: 0)
+            res = self.rdd.map(lambda x: 0, preservesPartitioning=True)
         else:
             pairs = self.rdd.zipWithIndex()
             # we are going to use this twice
@@ -329,7 +361,7 @@ class StdXArrayImpl:
                 order_fn = lambda x: RCmp(x)
             top_pairs = pairs.takeOrdered(topk, lambda x: order_fn(x[0]))
             top_ranks = [x[1] for x in top_pairs]
-            res = pairs.map(lambda x: x[1] in top_ranks)
+            res = pairs.map(lambda x: x[1] in top_ranks, preservesPartitioning=True)
             pairs.unpersist()
         self._exit()
         return self._rv(res)
@@ -341,8 +373,7 @@ class StdXArrayImpl:
         RDD, committing all lazy evaluated operations.
         """
         self._entry()
-        self.rdd.count()
-        self.materialized = True
+        self._count()       # action
         self._exit()
 
     def is_materialized(self):
@@ -368,7 +399,7 @@ class StdXArrayImpl:
         low = self.iter_pos
         high = self.iter_pos + elems_at_a_time
         filtered_rdd = buf_rdd.filter(lambda row: row[1] >= low and row[1] < high)
-        trimmed_rdd = filtered_rdd.map(lambda row: row[0])
+        trimmed_rdd = filtered_rdd.map(lambda row: row[0], preservesPartitioning=True)
         iter_buf = trimmed_rdd.collect()
         self.iter_pos += elems_at_a_time
         self._exit()
@@ -381,38 +412,38 @@ class StdXArrayImpl:
         """
         self._entry(other, op)
         res_type = self.elem_type
-        pairs = self.rdd.zip(other.rdd)
+        pairs = safeZip(self.rdd, other.rdd)
         if op == '+':
-            res = pairs.map(lambda x: x[0] + x[1])
+            res = pairs.map(lambda x: x[0] + x[1], preservesPartitioning=True)
         elif op == '-':
-            res = pairs.map(lambda x: x[0] - x[1])
+            res = pairs.map(lambda x: x[0] - x[1], preservesPartitioning=True)
         elif op == '*':
-            res = pairs.map(lambda x: x[0] * x[1])
+            res = pairs.map(lambda x: x[0] * x[1], preservesPartitioning=True)
         elif op == '/':
-            res = pairs.map(lambda x: x[0] / x[1])
+            res = pairs.map(lambda x: x[0] / x[1], preservesPartitioning=True)
         elif op == '<':
-            res = pairs.map(lambda x: x[0] < x[1])
+            res = pairs.map(lambda x: x[0] < x[1], preservesPartitioning=True)
             res_type = int
         elif op == '>':
-            res = pairs.map(lambda x: x[0] > x[1])
+            res = pairs.map(lambda x: x[0] > x[1], preservesPartitioning=True)
             res_type = int
         elif op == '<=':
-            res = pairs.map(lambda x: x[0] <= x[1])
+            res = pairs.map(lambda x: x[0] <= x[1], preservesPartitioning=True)
             res_type = int
         elif op == '>=':
-            res = pairs.map(lambda x: x[0] >= x[1])
+            res = pairs.map(lambda x: x[0] >= x[1], preservesPartitioning=True)
             res_type = int
         elif op == '==':
-            res = pairs.map(lambda x: x[0] == x[1])
+            res = pairs.map(lambda x: x[0] == x[1], preservesPartitioning=True)
             res_type = int
         elif op == '!=':
-            res = pairs.map(lambda x: x[0] != x[1])
+            res = pairs.map(lambda x: x[0] != x[1], preservesPartitioning=True)
             res_type = int
         elif op == '&':
-            res = pairs.map(lambda x: x[0] and x[1])
+            res = pairs.map(lambda x: x[0] and x[1], preservesPartitioning=True)
             res_type = int
         elif op == '|':
-            res = pairs.map(lambda x: x[0] or x[1])
+            res = pairs.map(lambda x: x[0] or x[1], preservesPartitioning=True)
             res_type = int
         else:
             raise NotImplementedError(op)
@@ -426,31 +457,35 @@ class StdXArrayImpl:
         self._entry(other, op)
         res_type = self.elem_type
         if op == '+':
-            res = self.rdd.map(lambda x: x + other)
+            res = self.rdd.map(lambda x: x + other, preservesPartitioning=True)
         elif op == '-':
-            res = self.rdd.map(lambda x: x - other)
+            res = self.rdd.map(lambda x: x - other, preservesPartitioning=True)
         elif op == '*':
-            res = self.rdd.map(lambda x: x * other)
+            res = self.rdd.map(lambda x: x * other, preservesPartitioning=True)
         elif op == '/':
-            res = self.rdd.map(lambda x: x / other)
+            res = self.rdd.map(lambda x: x / other, preservesPartitioning=True)
         elif op == '**':
-            res = self.rdd.map(lambda x: x ** other)
+            res = self.rdd.map(lambda x: x ** other, preservesPartitioning=True)
         elif op == '<':
-            res = self.rdd.map(lambda x: x < other)
+            res = self.rdd.map(lambda x: x < other, preservesPartitioning=True)
             res_type = int
         elif op == '>':
-            res = self.rdd.map(lambda x: x > other)
+            res = self.rdd.map(lambda x: x > other, preservesPartitioning=True)
         elif op == '<=':
-            res = self.rdd.map(lambda x: x <= other)
+            res = self.rdd.map(lambda x: x <= other, preservesPartitioning=True)
             res_type = int
         elif op == '>=':
-            res = self.rdd.map(lambda x: x >= other)
+            res = self.rdd.map(lambda x: x >= other, preservesPartitioning=True)
             res_type = int
         elif op == '==':
-            res = self.rdd.map(lambda x: x == other)
+#            print 'binary_op before map'
+#            print self.rdd.toDebugString()
+            res = self.rdd.map(lambda x: x == other, preservesPartitioning=True)
+#            print 'binary_op after map'
+#            print res.toDebugString()
             res_type = int
         elif op == '!=':
-            res = self.rdd.map(lambda x: x != other)
+            res = self.rdd.map(lambda x: x != other, preservesPartitioning=True)
             res_type = int
         else:
             raise NotImplementedError(op)
@@ -463,13 +498,13 @@ class StdXArrayImpl:
         """
         self._entry(other, op)
         if op == '+':
-            res = self.rdd.map(lambda x: other + x)
+            res = self.rdd.map(lambda x: other + x, preservesPartitioning=True)
         elif op == '-':
-            res = self.rdd.map(lambda x: other - x)
+            res = self.rdd.map(lambda x: other - x, preservesPartitioning=True)
         elif op == '*':
-            res = self.rdd.map(lambda x: other * x)
+            res = self.rdd.map(lambda x: other * x, preservesPartitioning=True)
         elif op == '/':
-            res = self.rdd.map(lambda x: other / x)
+            res = self.rdd.map(lambda x: other / x, preservesPartitioning=True)
         else:
             raise NotImplementedError(op)
         self._exit()
@@ -493,8 +528,8 @@ class StdXArrayImpl:
         Self and other are of the same length.
         """
         self._entry(other)
-        pairs = self.rdd.zip(other.rdd)
-        res = pairs.filter(lambda p: p[1]).map(lambda p: p[0])
+        pairs = safeZip(self.rdd, other.rdd)
+        res = pairs.filter(lambda p: p[1]).map(lambda p: p[0], preservesPartitioning=True)
         self._exit()
         return self._rv(res)
 
@@ -507,7 +542,7 @@ class StdXArrayImpl:
             if x < start or x >= stop: return False
             return (x - start) % step == 0
         pairs = self.rdd.zipWithIndex()
-        res = pairs.filter(lambda x: select_row(x[1], start, step, stop)).map(lambda x: x[0])
+        res = pairs.filter(lambda x: select_row(x[1], start, step, stop)).map(lambda x: x[0], preservesPartitioning=True)
         self._exit()
         return self._rv(res)
 
@@ -531,9 +566,9 @@ class StdXArrayImpl:
             except IndexError:
                 return None
         if start == end - 1:
-            res = self.rdd.map(lambda x: slice_start(x, start))
+            res = self.rdd.map(lambda x: slice_start(x, start), preservesPartitioning=True)
         else:
-            res = self.rdd.map(lambda x: slice_start_end(x, start, end))
+            res = self.rdd.map(lambda x: slice_start_end(x, start, end), preservesPartitioning=True)
         self._exit()
         return self._rv(res)
 
@@ -597,7 +632,7 @@ class StdXArrayImpl:
             except TypeError:
                 return TypeError
 
-        res = self.rdd.map(lambda x: apply_and_cast(x, fn, dtype, skip_undefined))
+        res = self.rdd.map(lambda x: apply_and_cast(x, fn, dtype, skip_undefined), preservesPartitioning=True)
         # search for type error and throw exception
         if len(res.filter(lambda x: x is TypeError).take(1)) == 1: 
             raise ValueError
@@ -609,7 +644,7 @@ class StdXArrayImpl:
         Create a new rdd with all values cast to the given type. Throws an
         exception if the types are not castable to the given type.
         """
-        # can parse strings that look likeeee list and dict into corresponding types
+        # can parse strings that look like list and dict into corresponding types
         # does not do this now
         self._entry(dtype, undefined_on_failure)
         def convert_type(x, dtype):
@@ -619,7 +654,7 @@ class StdXArrayImpl:
                 res = ast.literal_eval(x)
                 if isinstance(res, dtype): return res
             raise ValueError
-        res = self.rdd.map(lambda x: convert_type(x, dtype))
+        res = self.rdd.map(lambda x: convert_type(x, dtype), preservesPartitioning=True)
         self._exit()
         return self._rv(res, dtype)
 
@@ -639,9 +674,9 @@ class StdXArrayImpl:
         def clip_list(x, lower, upper):
             return [ clip_val(v, lower, upper) for v in x]
         if self.elem_type == list:
-            res = self.rdd.map(lambda x: clip_list(x, lower, upper))
+            res = self.rdd.map(lambda x: clip_list(x, lower, upper), preservesPartitioning=True)
         else:
-            res = self.rdd.map(lambda x: clip_val(x, lower, upper))
+            res = self.rdd.map(lambda x: clip_val(x, lower, upper), preservesPartitioning=True)
         self._exit()
         return self._rv(res)
 
@@ -719,10 +754,10 @@ class StdXArrayImpl:
             return None if x is None else dtype(x)
         def cast_row(row, column_types):
             return [cast_elem(x, dtype) for x, dtype in zip(row, column_types)]
-        res = self.rdd.map(lambda row: extend(row, n_cols, na_value))
-        res = res.map(lambda row: select_elems(row, limit))
-        res = res.map(lambda row: narrow(row, n_cols))
-        res = res.map(lambda row: cast_row(row, column_types))
+        res = self.rdd.map(lambda row: extend(row, n_cols, na_value), preservesPartitioning=True)
+        res = res.map(lambda row: select_elems(row, limit), preservesPartitioning=True)
+        res = res.map(lambda row: narrow(row, n_cols), preservesPartitioning=True)
+        res = res.map(lambda row: cast_row(row, column_types), preservesPartitioning=True)
         self._exit()
         return self._rv_frame(res, column_names, column_types)
 
@@ -765,8 +800,9 @@ class StdXArrayImpl:
         Returns True on an empty RDD.
         """
         self._entry()
-        self.materialized = True
-        if self.rdd.count() == 0: return True
+        count = self._count()     # action
+        if count == 0:
+            return True
         def do_all(val1, val2):
             if isinstance(val1, float) and math.isnan(val1): val1 = False
             if isinstance(val2, float) and math.isnan(val2): val2 = False
@@ -776,7 +812,7 @@ class StdXArrayImpl:
         def combine(acc1, acc2): 
             return acc1 and acc2
         self._exit()
-        return self.rdd.aggregate(True, do_all, combine)
+        return self.rdd.aggregate(True, do_all, combine)       # action
 
     def any(self):
         """
@@ -787,8 +823,9 @@ class StdXArrayImpl:
         Returns False on an empty RDD.
         """
         self._entry()
-        self.materialized = True
-        if self.rdd.count() == 0: return False
+        count = self._count()     # action
+        if count == 0:
+            return False
         def do_any(val1, val2):
             if isinstance(val1, float) and math.isnan(val1): val1 = False
             if isinstance(val2, float) and math.isnan(val2): val2 = False
@@ -798,7 +835,7 @@ class StdXArrayImpl:
         def combine(acc1, acc2): 
             return acc1 or acc2
         self._exit()
-        res = self.rdd.aggregate(False, do_any, combine)
+        res = self.rdd.aggregate(False, do_any, combine)    # action
         return bool(res)
 
     def max(self):
@@ -809,13 +846,13 @@ class StdXArrayImpl:
         RDD with non-numeric type.
         """
         self._entry()
-        self.materialized = True
-        if self.rdd.count() == 0:
+        count = self._count()     # action
+        if count == 0:     # action
             return None
         if not self.elem_type in  (int, long, float):
             raise TypeError('max: non numeric type')
         self._exit()
-        return self.rdd.max()
+        return self.rdd.max()          # action
 
     def min(self):
         """
@@ -825,13 +862,13 @@ class StdXArrayImpl:
         RDD with non-numeric type.
         """
         self._entry()
-        self.materialized = True
-        if self.rdd.count() == 0:
+        count = self._count()     # action
+        if count == 0:     # action
             return None
         if not self.elem_type in  (int, long, float):
             raise TypeError('sum: non numeric type')
         self._exit()
-        return self.rdd.min()
+        return self.rdd.min()      # action
 
     def sum(self):
         """
@@ -844,14 +881,14 @@ class StdXArrayImpl:
         overflow without warning.
         """
         self._entry()
-        self.materialized = True
-        if self.rdd.count() == 0:
+        count = self._count()     # action
+        if count == 0:     # action
             return None
 
         if not self.elem_type in (int, long, float):
             raise TypeError('sum: non numeric type')
         self._exit()
-        return self.rdd.sum()
+        return self.rdd.sum()    # action
 
     def mean(self):
         """
@@ -861,13 +898,13 @@ class StdXArrayImpl:
         RDD with non-numeric type.
         """
         self._entry()
-        self.materialized = True
-        if self.rdd.count() == 0:
+        count = self._count()     # action
+        if count == 0:     # action
             return None
         if not self.elem_type in (int, long, float):
             raise TypeError('mean: non numeric type')
         self._exit()
-        return self.rdd.mean()
+        return self.rdd.mean()       # action
 
     def std(self, ddof):
         """
@@ -877,18 +914,18 @@ class StdXArrayImpl:
         RDD with non-numeric type or if `ddof` >= length of RDD.
         """
         self._entry(ddof)
-        self.materialized = True
-        if self.rdd.count() == 0:
+        count = self._count()     # action
+        if count == 0:      # action
             self._exit()
             return None
         if not self.elem_type in (int, long, float):
             raise TypeError('mean: non numeric type')
-        if ddof < 0 or ddof > 1 or ddof >= self.rdd.count():
+        if ddof < 0 or ddof > 1 or ddof >= count:
             raise ArgError('std: invalid ddof {}'.format(ddof))
         if ddof == 0:
             res = self.rdd.stdev()
         else:
-            res = self.rdd.sampleStdev()
+            res = self.rdd.sampleStdev()       # action
         self._exit()
         return res
 
@@ -900,17 +937,17 @@ class StdXArrayImpl:
         RDD with non-numeric type or if `ddof` >= length of XArray.
         """
         self._entry(ddof)
-        self.materialized = True
-        if self.rdd.count() == 0:
+        count = self._count()     # action
+        if count == 0:      # action
             return None
         if not self.elem_type in (int, long, float):
             raise TypeError('mean: non numeric type')
-        if ddof < 0 or ddof > 1 or ddof >= self.rdd.count():
+        if ddof < 0 or ddof > 1 or ddof >= count:
             raise ArgError('std: invalid ddof {}'.format(ddof))
         if ddof == 0:
-            res = self.rdd.variance()
+            res = self.rdd.variance()     # action
         else:
-            res = self.rdd.sampleVariance()
+            res = self.rdd.sampleVariance()     # action
         self._exit()
         return res
 
@@ -920,7 +957,8 @@ class StdXArrayImpl:
         """
         self._entry()
         self.materialized = True
-        res = self.rdd.aggregate(0,
+        self._persist()
+        res = self.rdd.aggregate(0,             # action
                            lambda acc, v: acc + 1 if is_missing(v) else acc,
                            lambda acc1, acc2: acc1 + acc2)
         self._exit()
@@ -935,7 +973,8 @@ class StdXArrayImpl:
         def ne_zero(x):
             if is_missing(x): return False
             return x != 0
-        res = self.rdd.aggregate(0,
+        self._persist()
+        res = self.rdd.aggregate(0,            # action
                            lambda acc, v: acc + 1 if ne_zero(v) else acc,
                            lambda acc1, acc2: acc1 + acc2)
         self._exit()
@@ -954,7 +993,7 @@ class StdXArrayImpl:
         self._entry()
         if not self.elem_type in  (dict, array, list):
             raise TypeError('item_length: must be dict, array, or list {}'.format(self.elem_type))
-        res = self.rdd.map(lambda x: len(x) if x is not None else None)
+        res = self.rdd.map(lambda x: len(x) if x is not None else None, preservesPartitioning=True)
         self._exit()
         return self._rv(res)
 

@@ -6,6 +6,7 @@ XFrame acts similarly to pandas.DataFrame, but the data is completely immutable
 and is stored as Spark RDDs.
 """
 from xpatterns.stdXFrameImpl import StdXFrameImpl
+from xpatterns.stdXArrayImpl import infer_type_of_list
 from impl_context import debug_trace as impl_context
 from util import make_internal_url, split_path_elements
 from xpatterns.xarray import XArray, _create_sequential_xarray
@@ -36,8 +37,6 @@ FOOTER_STRS = ['Note: Only the head of the XFrame is printed.',
 LAZY_FOOTER_STRS = ['Note: Only the head of the XFrame is printed. This XFrame is lazily evaluated.',
                     'You can use len(xf) to force materialization.']
 
-def infer_type_of_list(data):
-    pass
 
 def load_xframe(filename):
     """
@@ -255,63 +254,49 @@ class XFrame(object):
 
     @staticmethod
     def _infer_column_types_from_lines(first_rows, delimiter, na_values):
+#        print 'first_rows **'
+#        print first_rows, delimiter
+#        print 'first rows names', first_rows.column_names()
         if (len(first_rows.column_names()) < 1):
           print "Insufficient number of columns to perform type inference"
           raise RuntimeError("Insufficient columns ")
         if len(first_rows) < 1:
           print "Insufficient number of rows to perform type inference"
           raise RuntimeError("Insufficient rows")
-        first_lines = [x.strip() for x in first_rows[first_rows.column_names()[0]]]
-        # replace with commas.
-        # special handling for space splits:
-        # merge multiple spaces into one
-        if (delimiter == ' '):
-          first_lines = [','.join(x.split()) for x in first_lines]
 
-        first_lines = ['[' + x.replace(delimiter, ",") + ']' for x in first_lines]
-        type_lines = xpatterns.XArray(first_lines).astype(list)
-        na_set = set(na_values)
-        all_column_values = [[None if type(t) is str and t in na_set else t for t in vals] for vals in type_lines]
-        all_column_type_hints = [[type(t) for t in vals] for vals in all_column_values]
-        # collect the hints
-        # if every line was inferred to have a different number of elements, die
-        if len(set(len(x) for x in all_column_type_hints)) != 1:
-            print "Unable to infer column types. Defaulting to str"
+        # TODO we need to fix up where delimiter is space
+
+        head = [first_rows[i] for i in range(len(first_rows))]
+#        print 'head'
+#        print head
+
+        def classify_type(s):
+            if s.isdigit(): return int
+            if s.replace('.', '0').isdigit(): return float
+            if s.startswith('['): return list
+            if s.startswith('{'): return dict
             return str
 
-        import types
-
-        column_type_hints = all_column_type_hints[0]
-        # now perform type combining across rows
-        for i in range(1, len(all_column_type_hints)):
-          currow = all_column_type_hints[i]
-          for j in range(len(column_type_hints)):
-            # combine types
-            d = set([currow[j], column_type_hints[j]])
-            if (len(d) == 1):
-              # easy case. both agree on the type
-              continue
-            if ((int in d) and (float in d)):
-              # one is an int, one is a float. its a float
-              column_type_hints[j] = float
-            elif ((array.array in d) and (list in d)):
-              # one is an array , one is a list. its a list
-              column_type_hints[j] = list
-            elif types.NoneType in d:
-              # one is a NoneType. assign to other type
-              if currow[j] != types.NoneType:
-                  column_type_hints[j] = currow[j]
-            else:
-              column_type_hints[j] = str
-        # final pass. everything whih is still NoneType is now a str
-        for i in range(len(column_type_hints)):
-          if column_type_hints[i] == types.NoneType:
-            column_type_hints[i] = str
+        def infer_type(col, na_values):
+            col = [val for val in col if not val in na_values]
+            types = [classify_type(val) for val in col if val is not None]
+            unique_types = set(types)
+            if len(unique_types) == 1:
+                dtype = types[0]
+            elif unique_types == {int, float}:
+                dtype = float
+            else: 
+                dtype = str
+            return dtype
+        n_cols = len(head[0])
+        cols = [[row[i] for row in head] for i in range(n_cols)]
+        types = [infer_type(col, na_values) for col in cols]
 
         # special handling for '\n'
-        if delimiter == '\n' and len(column_type_hints) != 1:
-          column_type_hints = [str]
+#        if delimiter == '\n' and len(column_type_hints) != 1:
+#          column_type_hints = [str]
 
+        column_type_hints = types
         return column_type_hints
 
     @classmethod
@@ -371,10 +356,14 @@ class XFrame(object):
         if column_type_hints is None:
             try:
                 # Get the first 100 rows (using all the desired arguments).
+                # first row may be excluded (based on heder setting)
                 first_rows = xpatterns.XFrame.read_csv(url, nrows=100,
+# this is now wrong -- does it matter?
                                  column_type_hints=str,
                                  header=header,
-                                 delimiter='\n',
+# this blocked accurate parsing by read_csv
+#                                 delimiter='\n',
+                                 delimiter=delimiter,
                                  comment_char=comment_char,
                                  escape_char=escape_char,
                                  double_quote=double_quote,
@@ -382,18 +371,21 @@ class XFrame(object):
                                  skip_initial_space=skip_initial_space)
                 column_type_hints = XFrame._infer_column_types_from_lines(first_rows, delimiter, na_values)
                 typelist = '[' + ','.join(t.__name__ for t in column_type_hints) + ']'
-                print "------------------------------------------------------"
-                print "Inferred types from first line of file as "
-                print "column_type_hints="+ typelist
-                print "If parsing fails due to incorrect types, you can correct"
-                print "the inferred type list above and pass it to read_csv in"
-                print "the column_type_hints argument"
-                print "------------------------------------------------------"
+                if verbose:
+                    print "------------------------------------------------------"
+                    print "Inferred types from first line of file as "
+                    print "column_type_hints="+ typelist
+                    print "If parsing fails due to incorrect types, you can correct"
+                    print "the inferred type list above and pass it to read_csv in"
+                    print "the column_type_hints argument"
+                    print "------------------------------------------------------"
                 column_type_inference_was_used = True
-            except:
+            except Exception as e:
                 # If the above fails, default back to str for all columns.
+                if verbose:
+                    print 'Error', e
+                    print 'Could not detect types. Using str for each column.'
                 column_type_hints = str
-                print 'Could not detect types. Using str for each column.'
 
         if type(column_type_hints) is type:
             type_hints = {'__all_columns__': column_type_hints}
@@ -413,7 +405,7 @@ class XFrame(object):
 
         try:
             with impl_context():
-                errors = impl.load_from_csvs(internal_url, parsing_config, type_hints)
+                errors = impl.load_from_csv(internal_url, parsing_config, type_hints)
         except:
             if column_type_inference_was_used:
                 # try again
@@ -422,12 +414,13 @@ class XFrame(object):
                 type_hints = {'__all_columns__': str}
                 try:
                     with impl_context():
-                        errors = impl.load_from_csvs(internal_url, parsing_config, type_hints)
+                        errors = impl.load_from_csv(internal_url, parsing_config, type_hints)
                 except:
                     raise
             else:
                 raise
 
+        xf = cls(_impl=impl)
         return (cls(_impl=impl), { f: XArray(_impl = es) for (f, es) in errors.iteritems() })
 
     @classmethod
@@ -793,7 +786,7 @@ class XFrame(object):
         Set error_bad_lines=False to skip bad lines
         """
 
-        return cls._read_csv_impl(url,
+        ret = cls._read_csv_impl(url,
                                   delimiter=delimiter,
                                   header=header,
                                   error_bad_lines=error_bad_lines,
@@ -806,10 +799,11 @@ class XFrame(object):
                                   na_values=na_values,
                                   nrows=nrows,
                                   verbose=verbose,
-                                  store_errors=False)[0]
+                                  store_errors=False)
+        return ret[0]
 
 
-    def to_schema_rdd(self, sc, sql, number_of_partitions=4):
+    def to_schema_rdd(self, number_of_partitions=4):
         """
         Convert the current XFrame to the Spark SchemaRDD.
 
@@ -817,10 +811,14 @@ class XFrame(object):
         out: SchemaRDD
         """
 
-        rdd = self.to_rdd(sc,number_of_partitions);
-        return None
+        if type(number_of_partitions) is not int:
+            raise ValueError("number_of_partitions parameter expects an integer type")
+        if number_of_partitions == 0:
+            raise ValueError("number_of_partitions can not be initialized to zero")
 
-    def to_rdd(self,sc,number_of_partitions=4):
+        return self.__impl__.to_schema_rdd(number_of_partitions)
+
+    def to_rdd(self, number_of_partitions=4):
         """
         Convert the current XFrame to the Spark RDD.
 
@@ -834,7 +832,7 @@ class XFrame(object):
         if number_of_partitions == 0:
             raise ValueError("number_of_partitions can not be initialized to zero")
 
-        return None
+        return self.__impl__.to_rdd(number_of_partitions)
 
     @classmethod
     def from_rdd(cls, rdd):
@@ -845,6 +843,7 @@ class XFrame(object):
         out : XFrame
         """
 
+        # TODO get rid of all of this
         checkRes = rdd.take(1);
 
         if len(checkRes) > 0 and checkRes[0].__class__.__name__ == 'Row' and rdd.__class__.__name__ != 'SchemaRDD':
@@ -1125,8 +1124,9 @@ class XFrame(object):
         where the corresponding row in the selector is non-zero.
         """
         if type(other) is XArray:
-            if len(other) != len(self):
-                raise IndexError("Cannot perform logical indexing on arrays of different length.")
+            # TODO this causes materialization -- either don't do this or persist the materialized results
+#            if len(other) != len(self):
+#                raise IndexError("Cannot perform logical indexing on arrays of different length.")
             with impl_context():
                 return XFrame(_impl=self.__impl__.logical_filter(other.__impl__))
 
