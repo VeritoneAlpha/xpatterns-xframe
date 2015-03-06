@@ -6,7 +6,6 @@ XArray acts similarly to pandas.Series but without indexing.
 The data is immutable, homogeneous, and is stored in a Spark RDD.
 """
 from xpatterns.stdXArrayImpl import StdXArrayImpl, infer_type_of_list
-from impl_context import debug_trace as impl_context
 from util import make_internal_url, split_path_elements
 import xpatterns as xp
 
@@ -33,8 +32,7 @@ def _create_sequential_xarray(size, start=0, reverse=False):
     if type(reverse) is not bool:
         raise TypeError("reverse must me bool")
 
-    with impl_context():
-        return XArray(_impl=StdXArrayImpl.create_sequential_xarray(size, start, reverse))
+    return XArray(_impl=StdXArrayImpl.create_sequential_xarray(size, start, reverse))
 
 class XArray(object):
     """
@@ -140,19 +138,24 @@ class XArray(object):
                     dtype = str
 
             if isinstance(data, pandas.Series):
-                with impl_context():
-                    self.__impl__.load_from_iterable(data.values, dtype, ignore_cast_failure)
+                self.__impl__.load_from_iterable(data.values, dtype, ignore_cast_failure)
             elif (isinstance(data, numpy.ndarray)) or isinstance(data, list) or isinstance(data, array.array):
-                with impl_context():
-                    self.__impl__.load_from_iterable(data, dtype, ignore_cast_failure)
+                self.__impl__.load_from_iterable(data, dtype, ignore_cast_failure)
             elif (isinstance(data, str)):
                 internal_url = make_internal_url(data)
-                with impl_context():
-                    self.__impl__.load_autodetect(internal_url, dtype)
+                self.__impl__.load_autodetect(internal_url, dtype)
             else:
                 raise TypeError("Unexpected data source. " \
                                 "Possible data source types are: list, " \
                                 "numpy.ndarray, pandas.Series, and string(url)")
+
+    @staticmethod
+    def set_trace(entry_trace=None, exit_trace=None):
+        StdXArrayImpl.set_trace(entry_trace, exit_trace)
+
+    @staticmethod
+    def set_trace(entry_trace=None, exit_trace=None):
+        xRdd.set_trace(entry_trace, exit_trace)
 
     @classmethod
     def from_const(cls, value, size):
@@ -182,8 +185,18 @@ class XArray(object):
     @classmethod
     def from_sequence(cls, *args):
         """
-        from_sequence(start=0, stop)
+        Constructs an XArray by generating a sequence of consecutive numbers.
 
+        Parameters
+        ----------
+        start : int, optional
+            The start of the sequence. The sequence will contain this value.
+
+        stop : int
+          The end of the sequence. The sequence will not contain this value.
+
+        Examples
+        --------
         >>> from_sequence(1000)
         Construct an XArray of integer values from 0 to 999
 
@@ -195,14 +208,6 @@ class XArray(object):
 
         This is equivalent, but more efficient than:
         >>> XArray(range(10, 1000))
-
-        Parameters
-        ----------
-        start : int, optional
-            The start of the sequence. The sequence will contain this value.
-
-        stop : int
-          The end of the sequence. The sequence will not contain this value.
 
         """
         start = None
@@ -234,8 +239,7 @@ class XArray(object):
         -----
         Meant for internal use only.
         """
-        with impl_context():
-            return self.__impl__.get_content_identifier()
+        return self.__impl__.get_content_identifier()
 
     def save(self, filename, format=None):
         """
@@ -266,11 +270,9 @@ class XArray(object):
             else:
                 format = 'binary'
         if format == 'binary':
-            with impl_context():
-                self.__impl__.save(make_internal_url(filename))
+            self.__impl__.save(make_internal_url(filename))
         elif format == 'text':
-            with impl_context():
-                self.__impl__.save_as_text(make_internal_url(filename))
+            self.__impl__.save_as_text(make_internal_url(filename))
 
     def to_rdd(self,sc,number_of_partitions=4):
         """
@@ -301,8 +303,7 @@ class XArray(object):
         """
         Returns a string containing the first 100 elements of the array.
         """
-        with impl_context():
-            h = self.__impl__.head_as_list(100)
+        h = self.__impl__.head_as_list(100)
         headln = str(h)
         if (self.size() > 100):
             # cut the last close bracket
@@ -347,11 +348,10 @@ class XArray(object):
         the new result. If other is an XArray, performs an element-wise
         addition of the two arrays.
         """
-        with impl_context():
-            if type(other) is XArray:
-                return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '+'))
-            else:
-                return XArray(_impl = self.__impl__.left_scalar_operator(other, '+'))
+        if type(other) is XArray:
+            return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '+'))
+        else:
+            return XArray(_impl = self.__impl__.left_scalar_operator(other, '+'))
 
     def __sub__(self, other):
         """
@@ -359,11 +359,10 @@ class XArray(object):
         the new result. If other is an XArray, performs an element-wise
         subtraction of the two arrays.
         """
-        with impl_context():
-            if type(other) is XArray:
-                return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '-'))
-            else:
-                return XArray(_impl = self.__impl__.left_scalar_operator(other, '-'))
+        if type(other) is XArray:
+            return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '-'))
+        else:
+            return XArray(_impl = self.__impl__.left_scalar_operator(other, '-'))
 
     def __mul__(self, other):
         """
@@ -371,11 +370,10 @@ class XArray(object):
         the new result. If other is an XArray, performs an element-wise
         multiplication of the two arrays.
         """
-        with impl_context():
-            if type(other) is XArray:
-                return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '*'))
-            else:
-                return XArray(_impl = self.__impl__.left_scalar_operator(other, '*'))
+        if type(other) is XArray:
+            return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '*'))
+        else:
+            return XArray(_impl = self.__impl__.left_scalar_operator(other, '*'))
 
     def __div__(self, other):
         """
@@ -383,20 +381,18 @@ class XArray(object):
         by the value, returning the result. If other is an XArray, performs
         an element-wise division of the two arrays.
         """
-        with impl_context():
-            if type(other) is XArray:
-                return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '/'))
-            else:
-                return XArray(_impl = self.__impl__.left_scalar_operator(other, '/'))
+        if type(other) is XArray:
+            return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '/'))
+        else:
+            return XArray(_impl = self.__impl__.left_scalar_operator(other, '/'))
 
     def __pow__(self, other):
         """
         Oher must be a scalar value, raises to the current array to thet power, returning
         the new result.
         """
-        with impl_context():
-            if type(other) in (int, long, float):
-                return XArray(_impl = self.__impl__.left_scalar_operator(other, '**'))
+        if type(other) in (int, long, float):
+            return XArray(_impl = self.__impl__.left_scalar_operator(other, '**'))
 
     def __lt__(self, other):
         """
@@ -404,11 +400,10 @@ class XArray(object):
         by the value, returning the result. If other is an XArray, performs
         an element-wise comparison of the two arrays.
         """
-        with impl_context():
-            if type(other) is XArray:
-                return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '<'))
-            else:
-                return XArray(_impl = self.__impl__.left_scalar_operator(other, '<'))
+        if type(other) is XArray:
+            return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '<'))
+        else:
+            return XArray(_impl = self.__impl__.left_scalar_operator(other, '<'))
 
     def __gt__(self, other):
         """
@@ -416,11 +411,10 @@ class XArray(object):
         by the value, returning the result. If other is an XArray, performs
         an element-wise comparison of the two arrays.
         """
-        with impl_context():
-            if type(other) is XArray:
-                return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '>'))
-            else:
-                return XArray(_impl = self.__impl__.left_scalar_operator(other, '>'))
+        if type(other) is XArray:
+            return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '>'))
+        else:
+            return XArray(_impl = self.__impl__.left_scalar_operator(other, '>'))
 
     def __le__(self, other):
         """
@@ -428,11 +422,10 @@ class XArray(object):
         by the value, returning the result. If other is an XArray, performs
         an element-wise comparison of the two arrays.
         """
-        with impl_context():
-            if type(other) is XArray:
-                return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '<='))
-            else:
-                return XArray(_impl = self.__impl__.left_scalar_operator(other, '<='))
+        if type(other) is XArray:
+            return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '<='))
+        else:
+            return XArray(_impl = self.__impl__.left_scalar_operator(other, '<='))
 
     def __ge__(self, other):
         """
@@ -440,43 +433,38 @@ class XArray(object):
         by the value, returning the result. If other is an XArray, performs
         an element-wise comparison of the two arrays.
         """
-        with impl_context():
-            if type(other) is XArray:
-                return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '>='))
-            else:
-                return XArray(_impl = self.__impl__.left_scalar_operator(other, '>='))
+        if type(other) is XArray:
+            return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '>='))
+        else:
+            return XArray(_impl = self.__impl__.left_scalar_operator(other, '>='))
 
     def __radd__(self, other):
         """
         Adds a scalar value to the current array.
         Returned array has the same type as the array on the right hand side
         """
-        with impl_context():
-            return XArray(_impl = self.__impl__.right_scalar_operator(other, '+'))
+        return XArray(_impl = self.__impl__.right_scalar_operator(other, '+'))
 
     def __rsub__(self, other):
         """
         Subtracts a scalar value from the current array.
         Returned array has the same type as the array on the right hand side
         """
-        with impl_context():
-            return XArray(_impl = self.__impl__.right_scalar_operator(other, '-'))
+        return XArray(_impl = self.__impl__.right_scalar_operator(other, '-'))
 
     def __rmul__(self, other):
         """
         Multiplies a scalar value to the current array.
         Returned array has the same type as the array on the right hand side
         """
-        with impl_context():
-            return XArray(_impl = self.__impl__.right_scalar_operator(other, '*'))
+        return XArray(_impl = self.__impl__.right_scalar_operator(other, '*'))
 
     def __rdiv__(self, other):
         """
         Divides a scalar value by each element in the array
         Returned array has the same type as the array on the right hand side
         """
-        with impl_context():
-            return XArray(_impl = self.__impl__.right_scalar_operator(other, '/'))
+        return XArray(_impl = self.__impl__.right_scalar_operator(other, '/'))
 
     def __eq__(self, other):
         """
@@ -484,11 +472,10 @@ class XArray(object):
         by the value, returning the new result. If other is an XArray, performs
         an element-wise comparison of the two arrays.
         """
-        with impl_context():
-            if type(other) is XArray:
-                return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '=='))
-            else:
-                return XArray(_impl = self.__impl__.left_scalar_operator(other, '=='))
+        if type(other) is XArray:
+            return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '=='))
+        else:
+            return XArray(_impl = self.__impl__.left_scalar_operator(other, '=='))
 
     def __ne__(self, other):
         """
@@ -496,19 +483,17 @@ class XArray(object):
         by the value, returning the new result. If other is an XArray, performs
         an element-wise comparison of the two arrays.
         """
-        with impl_context():
-            if type(other) is XArray:
-                return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '!='))
-            else:
-                return XArray(_impl = self.__impl__.left_scalar_operator(other, '!='))
+        if type(other) is XArray:
+            return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '!='))
+        else:
+            return XArray(_impl = self.__impl__.left_scalar_operator(other, '!='))
 
     def __and__(self, other):
         """
         Perform a logical element-wise 'and' against another XArray.
         """
         if type(other) is XArray:
-            with impl_context():
-                return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '&'))
+            return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '&'))
         else:
             raise TypeError("XArray can only perform logical and against another XArray")
 
@@ -518,8 +503,7 @@ class XArray(object):
         Perform a logical element-wise 'or' against another XArray.
         """
         if type(other) is XArray:
-            with impl_context():
-                return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '|'))
+            return XArray(_impl = self.__impl__.vector_operator(other.__impl__, '|'))
         else:
             raise TypeError("XArray can only perform logical or against another XArray")
 
@@ -536,8 +520,7 @@ class XArray(object):
         if type(other) is XArray:
             if len(other) != len(self):
                 raise IndexError("Cannot perform logical indexing on arrays of different length.")
-            with impl_context():
-                return XArray(_impl = self.__impl__.logical_filter(other.__impl__))
+            return XArray(_impl = self.__impl__.logical_filter(other.__impl__))
         elif type(other) is int:
             if other < 0:
                 other = len(self) + other
@@ -568,8 +551,7 @@ class XArray(object):
         For a XArray that is lazily evaluated, force persist this xarray
         to disk, committing all lazy evaluated operations.
         """
-        with impl_context():
-            self.__impl__.materialize()
+        self.__impl__.materialize()
 
     def __is_materialized__(self):
         """
@@ -703,8 +685,7 @@ class XArray(object):
         if end == None:
             end = start + 1
 
-        with impl_context():
-            return XArray(_impl=self.__impl__.vector_slice(start, end))
+        return XArray(_impl=self.__impl__.vector_slice(start, end))
 
     def _count_words(self, to_lower=True):
         """
@@ -718,8 +699,7 @@ class XArray(object):
         options["to_lower"] = to_lower == True
 
 
-        with impl_context():
-            return XArray(_impl=self.__impl__.count_bag_of_words(options))
+        return XArray(_impl=self.__impl__.count_bag_of_words(options))
 
     def _count_ngrams(self, n=2, method="word", to_lower=True, ignore_space=True):
         """
@@ -744,11 +724,9 @@ class XArray(object):
 
 
         if method == "word":
-            with impl_context():
-                return XArray(_impl=self.__impl__.count_ngrams(n, options ))
+            return XArray(_impl=self.__impl__.count_ngrams(n, options ))
         elif method == "character" :
-            with impl_context():
-                return XArray(_impl=self.__impl__.count_character_ngrams(n, options ))
+            return XArray(_impl=self.__impl__.count_character_ngrams(n, options ))
         else:
             raise ValueError("Invalid 'method' input  value. Please input either 'word' or 'character' ")
 
@@ -789,8 +767,7 @@ class XArray(object):
         if isinstance(keys, str) or (not hasattr(keys, "__iter__")):
             keys = [keys]
 
-        with impl_context():
-            return XArray(_impl=self.__impl__.dict_trim_by_keys(keys, exclude))
+        return XArray(_impl=self.__impl__.dict_trim_by_keys(keys, exclude))
 
     def dict_trim_by_values(self, lower=None, upper=None):
         """
@@ -839,8 +816,7 @@ class XArray(object):
         if None != upper and (not is_numeric_type(type(upper))):
             raise TypeError("upper bound has to be a numeric value")
 
-        with impl_context():
-            return XArray(_impl=self.__impl__.dict_trim_by_values(lower, upper))
+        return XArray(_impl=self.__impl__.dict_trim_by_values(lower, upper))
 
     def dict_keys(self):
         """
@@ -866,8 +842,7 @@ class XArray(object):
         Rows: 2
         [['this', 'is', 'dog'], ['this', 'are', 'cat']]
         """
-        with impl_context():
-            return XArray(_impl=self.__impl__.dict_keys())
+        return XArray(_impl=self.__impl__.dict_keys())
 
     def dict_values(self):
         """
@@ -894,8 +869,7 @@ class XArray(object):
         [[1, 5, 7], [2, 1, 5]]
 
         """
-        with impl_context():
-            return XArray(_impl=self.__impl__.dict_values())
+        return XArray(_impl=self.__impl__.dict_values())
 
     def dict_has_any_keys(self, keys):
         """
@@ -931,8 +905,7 @@ class XArray(object):
         if isinstance(keys, str) or (not hasattr(keys, "__iter__")):
             keys = [keys]
 
-        with impl_context():
-            return XArray(_impl=self.__impl__.dict_has_any_keys(keys))
+        return XArray(_impl=self.__impl__.dict_has_any_keys(keys))
 
     def dict_has_all_keys(self, keys):
         """
@@ -968,8 +941,7 @@ class XArray(object):
         if isinstance(keys, str) or (not hasattr(keys, "__iter__")):
             keys = [keys]
 
-        with impl_context():
-            return XArray(_impl=self.__impl__.dict_has_all_keys(keys))
+        return XArray(_impl=self.__impl__.dict_has_all_keys(keys))
 
     def apply(self, fn, dtype=None, skip_undefined=True, seed=None):
         """
@@ -1017,17 +989,14 @@ class XArray(object):
         """
         assert inspect.isfunction(fn), "Input must be a function"
 
-        with impl_context():
-            h = self.__impl__.head_as_list(100)
-        dryrun = [fn(i) for i in h if i is not None]
-        import traceback
         if dtype == None:
+            h = self.__impl__.head_as_list(100)
+            dryrun = [fn(i) for i in h if i is not None]
             dtype = infer_type_of_list(dryrun)
         if not seed:
             seed = time.time()
 
-        with impl_context():
-            return XArray(_impl=self.__impl__.transform(fn, dtype, skip_undefined, seed))
+        return XArray(_impl=self.__impl__.transform(fn, dtype, skip_undefined, seed))
 
 
     def filter(self, fn, skip_undefined=True, seed=None):
@@ -1068,8 +1037,7 @@ class XArray(object):
         if not seed:
             seed = time.time()
 
-        with impl_context():
-            return XArray(_impl=self.__impl__.filter(fn, skip_undefined, seed))
+        return XArray(_impl=self.__impl__.filter(fn, skip_undefined, seed))
 
 
     def sample(self, fraction, seed=None):
@@ -1104,8 +1072,7 @@ class XArray(object):
         if not seed:
             seed = int(time.time())
 
-        with impl_context():
-            return XArray(_impl=self.__impl__.sample(fraction, seed))
+        return XArray(_impl=self.__impl__.sample(fraction, seed))
 
     def _save_as_text(self, url):
         """
@@ -1148,8 +1115,7 @@ class XArray(object):
         >>> xpatterns.XArray([]).all()
         True
         """
-        with impl_context():
-            return self.__impl__.all()
+        return self.__impl__.all()
 
 
     def any(self):
@@ -1185,8 +1151,7 @@ class XArray(object):
         >>> xpatterns.XArray([]).any()
         False
         """
-        with impl_context():
-            return self.__impl__.any()
+        return self.__impl__.any()
 
 
     def max(self):
@@ -1210,8 +1175,7 @@ class XArray(object):
         >>> xpatterns.XArray([14, 62, 83, 72, 77, 96, 5, 25, 69, 66]).max()
         96
         """
-        with impl_context():
-            return self.__impl__.max()
+        return self.__impl__.max()
 
 
     def min(self):
@@ -1235,8 +1199,7 @@ class XArray(object):
         >>> xpatterns.XArray([14, 62, 83, 72, 77, 96, 5, 25, 69, 66]).min()
 
         """
-        with impl_context():
-            return self.__impl__.min()
+        return self.__impl__.min()
 
 
     def sum(self):
@@ -1254,8 +1217,7 @@ class XArray(object):
         out : type of XArray
             Sum of all values in XArray
         """
-        with impl_context():
-            return self.__impl__.sum()
+        return self.__impl__.sum()
 
     def mean(self):
         """
@@ -1269,8 +1231,7 @@ class XArray(object):
         out : float
             Mean of all values in XArray.
         """
-        with impl_context():
-            return self.__impl__.mean()
+        return self.__impl__.mean()
 
 
     def std(self, ddof=0):
@@ -1290,8 +1251,7 @@ class XArray(object):
         out : float
             The standard deviation of all the values.
         """
-        with impl_context():
-            return self.__impl__.std(ddof)
+        return self.__impl__.std(ddof)
 
 
     def var(self, ddof=0):
@@ -1311,8 +1271,7 @@ class XArray(object):
         out : float
             Variance of all values in XArray.
         """
-        with impl_context():
-            return self.__impl__.var(ddof)
+        return self.__impl__.var(ddof)
 
     def num_missing(self):
         """
@@ -1323,8 +1282,7 @@ class XArray(object):
         out : int
             Number of missing values.
         """
-        with impl_context():
-            return self.__impl__.num_missing()
+        return self.__impl__.num_missing()
 
     def nnz(self):
         """
@@ -1335,8 +1293,7 @@ class XArray(object):
         out : int
             Number of non-zero elements.
         """
-        with impl_context():
-            return self.__impl__.nnz()
+        return self.__impl__.nnz()
 
     def datetime_to_str(self,str_format="%Y-%m-%dT%H:%M:%S%ZP"):
         """
@@ -1374,8 +1331,7 @@ class XArray(object):
         if(self.dtype() != datetime.datetime):
             raise TypeError("datetime_to_str expects XArray of datetime as input XArray")
 
-        with impl_context():
-            return XArray(_impl=self.__impl__.datetime_to_str(str_format))
+        return XArray(_impl=self.__impl__.datetime_to_str(str_format))
 
     def str_to_datetime(self,str_format="%Y-%m-%dT%H:%M:%S%ZP"):
         """
@@ -1412,8 +1368,7 @@ class XArray(object):
         if(self.dtype() != str):
             raise TypeError("str_to_datetime expects XArray of str as input XArray")
 
-        with impl_context():
-            return XArray(_impl=self.__impl__.str_to_datetime(str_format))
+        return XArray(_impl=self.__impl__.str_to_datetime(str_format))
 
     def astype(self, dtype, undefined_on_failure=False):
         """
@@ -1461,8 +1416,7 @@ class XArray(object):
         [{1: 2, 3: 4}, {'a': 'b', 'c': 'd'}]
         """
 
-        with impl_context():
-            return XArray(_impl=self.__impl__.astype(dtype, undefined_on_failure))
+        return XArray(_impl=self.__impl__.astype(dtype, undefined_on_failure))
 
     def clip(self, lower=float('nan'), upper=float('nan')):
         """
@@ -1503,8 +1457,7 @@ class XArray(object):
         Rows: 3
         [2, 2, 2]
         """
-        with impl_context():
-            return XArray(_impl=self.__impl__.clip(lower, upper))
+        return XArray(_impl=self.__impl__.clip(lower, upper))
 
     def clip_lower(self, threshold):
         """
@@ -1534,8 +1487,7 @@ class XArray(object):
         Rows: 3
         [2, 2, 3]
         """
-        with impl_context():
-            return XArray(_impl=self.__impl__.clip(threshold, float('nan')))
+        return XArray(_impl=self.__impl__.clip(threshold, float('nan')))
 
 
     def clip_upper(self, threshold):
@@ -1565,8 +1517,7 @@ class XArray(object):
         Rows: 3
         [1, 2, 2]
         """
-        with impl_context():
-            return XArray(_impl=self.__impl__.clip(float('nan'), threshold))
+        return XArray(_impl=self.__impl__.clip(float('nan'), threshold))
 
     def tail(self, n=10):
         """
@@ -1582,8 +1533,7 @@ class XArray(object):
         out : XArray
             A new XArray which contains the last n rows of the current XArray.
         """
-        with impl_context():
-            return XArray(_impl=self.__impl__.tail(n))
+        return XArray(_impl=self.__impl__.tail(n))
 
 
     def dropna(self):
@@ -1600,8 +1550,7 @@ class XArray(object):
             The new XArray with missing values removed.
         """
 
-        with impl_context():
-            return XArray(_impl = self.__impl__.drop_missing_values())
+        return XArray(_impl = self.__impl__.drop_missing_values())
 
     def fillna(self, value):
         """
@@ -1623,8 +1572,7 @@ class XArray(object):
         out : XArray
             A new XArray with all missing values filled
         """
-        with impl_context():
-            return XArray(_impl = self.__impl__.fill_missing_values(value))
+        return XArray(_impl = self.__impl__.fill_missing_values(value))
 
     def topk_index(self, topk=10, reverse=False):
         """
@@ -1650,16 +1598,16 @@ class XArray(object):
         -----
         This is used internally by XFrame's topk function.
         """
-        with impl_context():
-            return XArray(_impl = self.__impl__.topk_index(topk, reverse))
+        return XArray(_impl = self.__impl__.topk_index(topk, reverse))
 
     def sketch_summary(self, background=False, sub_sketch_keys=None):
         """
         Summary statistics that can be calculated with one pass over the XArray.
 
-        Returns a Sketch object which can be further queried for many
+        Returns a xpatterns.Sketch object which can be further queried for many
         descriptive statistics over this XArray. Many of the statistics are
-        approximate. 
+        approximate. See the :class:`~xpatterns.Sketch` documentation for more
+        detail.
 
         Parameters
         ----------
@@ -1673,7 +1621,7 @@ class XArray(object):
             For XArray of dict type, also constructs sketches for a given set of keys,
             For XArray of array type, also constructs sketches for the given indexes.
             The sub sketches may be queried using:
-                 :py:func:`~graphlab.Sketch.element_sub_sketch()`
+                 :py:func:`~xpatterns.Sketch.element_sub_sketch()`
             Defaults to None in which case no subsketches will be constructed.
 
         Returns
@@ -1682,7 +1630,7 @@ class XArray(object):
             Sketch object that contains descriptive statistics for this XArray.
             Many of the statistics are approximate.
         """
-        from graphlab.data_structures.sketch import Sketch
+        from xpatterns.sketch import Sketch
         if (type(background) != bool):
             raise TypeError("'background' parameter has to be a boolean value")
         if (sub_sketch_keys != None):
@@ -1699,10 +1647,8 @@ class XArray(object):
                     "For dictionary types, sketch summary is computed by casting keys to string values.")
             if (self.dtype() == array.array and value_type != int):
                 raise TypeError("Only int value(s) can be passed to sub_sketch_keys for XArray of array type")
-        else:
-            sub_sketch_keys = list()
 
-        return Sketch(self, background, sub_sketch_keys = sub_sketch_keys)
+        return Sketch(self, background, sub_sketch_keys=sub_sketch_keys)
 
     def append(self, other):
         """
@@ -1739,8 +1685,7 @@ class XArray(object):
         if self.dtype() != other.dtype():
             raise RuntimeError("Data types in both XArrays have to be the same")
 
-        with impl_context():
-            return XArray(_impl = self.__impl__.append(other.__impl__))
+        return XArray(_impl = self.__impl__.append(other.__impl__))
 
     def unique(self):
         """
@@ -1759,8 +1704,7 @@ class XArray(object):
         --------
         XFrame.unique
         """
-        with impl_context():
-            return XArray(_impl = self.__impl__.unique())
+        return XArray(_impl = self.__impl__.unique())
 
     def item_length(self):
         """
@@ -1795,8 +1739,7 @@ class XArray(object):
         if (self.dtype() not in [list, dict, array.array]):
             raise TypeError("item_length() is only applicable for XArray of type list, dict and array.")
 
-        with impl_context():
-            return XArray(_impl = self.__impl__.item_length())
+        return XArray(_impl = self.__impl__.item_length())
 
     def split_datetime(self, column_name_prefix = "X", limit=None, tzone=False):
         """
@@ -1915,8 +1858,7 @@ class XArray(object):
             limit += ['tzone']
             column_types += [float]
 
-        with impl_context():
-           return xp.XFrame(_impl=self.__impl__.expand(column_name_prefix, limit, column_types))
+        return xp.XFrame(_impl=self.__impl__.expand(column_name_prefix, limit, column_types))
 
     def unpack(self, column_name_prefix = "X", column_types=None, na_value=None, limit=None):
         """
@@ -2134,8 +2076,7 @@ class XArray(object):
                 if column_types is None:
                     column_types = make_column_types(head_rows, limit)
 
-        with impl_context():
-            return xp.XFrame(_impl=self.__impl__.unpack(column_name_prefix, limit, column_types, na_value))
+        return xp.XFrame(_impl=self.__impl__.unpack(column_name_prefix, limit, column_types, na_value))
 
     def sort(self, ascending=True):
         """
@@ -2161,8 +2102,8 @@ class XArray(object):
         dtype: int
         Rows: 3
         [1, 2, 3]
+
         """
         if self.dtype() not in (int, float, str, datetime.datetime):
             raise TypeError("Only xarray with type (int, float, str, datetime.datetime) can be sorted")
-        with impl_context():
-            return XArray(_impl = self.__impl__.sort(ascending))
+        return XArray(_impl = self.__impl__.sort(ascending))

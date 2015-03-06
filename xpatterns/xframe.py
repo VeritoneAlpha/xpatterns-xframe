@@ -7,7 +7,6 @@ and is stored as Spark RDDs.
 """
 from xpatterns.stdXFrameImpl import StdXFrameImpl
 from xpatterns.stdXArrayImpl import infer_type_of_list
-from impl_context import debug_trace as impl_context
 from util import make_internal_url, split_path_elements
 from xpatterns.xarray import XArray, _create_sequential_xarray
 import xpatterns
@@ -71,10 +70,11 @@ def load_xframe(filename):
 
 class XFrame(object):
     """
-    A tabular, column-mutable dataframe object that can scale to big data. The
-    data in XFrame is stored row-wise in a Spark RDD.
-    memory size.  Each row of the RDD is a list, whose elements correspond
-    to the values in each column.  The column names are stored in the XFrame
+    A tabular, column-mutable dataframe object that can scale to big data. 
+    XFrame is able to hold data that are much larger than the machine's main
+    memory. The data in XFrame is stored row-wise in a Spark RDD.
+    Each row of the RDD is a list, whose elements correspond
+    to the values in each column.  The column names and types are stored in the XFrame
     instance, and give the mapping to the row list.
 
     An XFrame can be constructed from the following data
@@ -83,6 +83,8 @@ class XFrame(object):
     * csv file (comma separated value)
     * xframe directory archive (A directory where an xframe was saved
       previously)
+    * a spark RDD plus the column names and types
+    * a spark SchemaRdd
     * general text file (with csv parsing options, See :py:meth:`read_csv()`)
     * a Python dictionary
     * pandas.DataFrame
@@ -207,56 +209,59 @@ class XFrame(object):
             else:
                 _format = format
 
-
-            with impl_context():
-                if (_format == 'dataframe'):
-                    self.__impl__.load_from_dataframe(data)
-                elif (_format == 'xframe_obj'):
-                    for col in data.column_names():
-                        self.__impl__.add_column(data[col].__impl__, col)
-                elif (_format == 'xarray'):
-                    self.__impl__.add_column(data.__impl__, "")
-                elif (_format == 'array'):
-                    if len(data) > 0:
-                        unique_types = set([type(x) for x in data if x is not None])
-                        if len(unique_types) == 1 and XArray in unique_types:
-                            for arr in data:
-                                self.add_column(arr)
-                        elif XArray in unique_types:
-                            raise ValueError("Cannot create XFrame from mix of regular values and XArrays")
-                        else:
-                            self.__impl__.add_column(XArray(data).__impl__, "")
-                elif (_format == 'dict'):
-                    for key, val in iter(sorted(data.iteritems())):
-                        if (type(val) == XArray):
-                            self.__impl__.add_column(val.__impl__, key)
-                        else:
-                            self.__impl__.add_column(XArray(val).__impl__, key)
-                elif (_format == 'csv'):
-                    url = make_internal_url(data)
-                    tmpxf = XFrame.read_csv(url, delimiter=',', header=True)
-                    self.__impl__ = tmpxf.__impl__
-                elif (_format == 'tsv'):
-                    url = make_internal_url(data)
-                    tmpxf = XFrame.read_csv(url, delimiter='\t', header=True)
-                    self.__impl__ = tmpxf.__impl__
-                elif (_format == 'xframe'):
-                    url = make_internal_url(data)
-                    self.__impl__.load_from_xframe_index(url)
-                elif (_format == 'empty'):
-                    pass
-                else:
-                    raise ValueError('Unknown input type: ' + format)
+            if (_format == 'dataframe'):
+                self.__impl__.load_from_dataframe(data)
+            elif (_format == 'xframe_obj'):
+                for col in data.column_names():
+                    self.__impl__.add_column(data[col].__impl__, col)
+            elif (_format == 'xarray'):
+                self.__impl__.add_column(data.__impl__, "")
+            elif (_format == 'array'):
+                if len(data) > 0:
+                    unique_types = set([type(x) for x in data if x is not None])
+                    if len(unique_types) == 1 and XArray in unique_types:
+                        for arr in data:
+                            self.add_column(arr)
+                    elif XArray in unique_types:
+                        raise ValueError("Cannot create XFrame from mix of regular values and XArrays")
+                    else:
+                        self.__impl__.add_column(XArray(data).__impl__, "")
+            elif (_format == 'dict'):
+                for key, val in iter(sorted(data.iteritems())):
+                    if (type(val) == XArray):
+                        self.__impl__.add_column(val.__impl__, key)
+                    else:
+                        self.__impl__.add_column(XArray(val).__impl__, key)
+            elif (_format == 'csv'):
+                url = make_internal_url(data)
+                tmpxf = XFrame.read_csv(url, delimiter=',', header=True)
+                self.__impl__ = tmpxf.__impl__
+            elif (_format == 'tsv'):
+                url = make_internal_url(data)
+                tmpxf = XFrame.read_csv(url, delimiter='\t', header=True)
+                self.__impl__ = tmpxf.__impl__
+            elif (_format == 'xframe'):
+                url = make_internal_url(data)
+                self.__impl__.load_from_xframe_index(url)
+            elif (_format == 'empty'):
+                pass
+            else:
+                raise ValueError('Unknown input type: ' + format)
 
         xframe_size = -1
         if self.__has_size__():
           xframe_size = self.num_rows()
 
     @staticmethod
+    def set_trace(entry_trace=None, exit_trace=None):
+        StdXFrameImpl.set_trace(entry_trace, exit_trace)
+
+    @staticmethod
+    def set_trace(entry_trace=None, exit_trace=None):
+        xRdd.set_trace(entry_trace, exit_trace)
+
+    @staticmethod
     def _infer_column_types_from_lines(first_rows, delimiter, na_values):
-#        print 'first_rows **'
-#        print first_rows, delimiter
-#        print 'first rows names', first_rows.column_names()
         if (len(first_rows.column_names()) < 1):
           print "Insufficient number of columns to perform type inference"
           raise RuntimeError("Insufficient columns ")
@@ -264,11 +269,13 @@ class XFrame(object):
           print "Insufficient number of rows to perform type inference"
           raise RuntimeError("Insufficient rows")
 
-        # TODO we need to fix up where delimiter is space
+        col_names = first_rows.column_names()
+        def row_as_array(row, col_names):
+            return [row[col] for col in col_names]
+        head = [ row_as_array(row, col_names) for row in first_rows ]
 
-        head = [first_rows[i] for i in range(len(first_rows))]
-#        print 'head'
-#        print head
+        # do something for delimiter == space
+        # TODO -- there is a lot of other stuff in sframe.py -- see if we need it
 
         def classify_type(s):
             if s.isdigit(): return int
@@ -383,7 +390,7 @@ class XFrame(object):
             except Exception as e:
                 # If the above fails, default back to str for all columns.
                 if verbose:
-                    print 'Error', e
+                    print 'Error', type(e), e
                     print 'Could not detect types. Using str for each column.'
                 column_type_hints = str
 
@@ -404,8 +411,7 @@ class XFrame(object):
             suffix = url.split('://')[0]
 
         try:
-            with impl_context():
-                errors = impl.load_from_csv(internal_url, parsing_config, type_hints)
+            errors = impl.load_from_csv(internal_url, parsing_config, type_hints)
         except:
             if column_type_inference_was_used:
                 # try again
@@ -413,8 +419,7 @@ class XFrame(object):
                 print "Defaulting to column_type_hints=str"
                 type_hints = {'__all_columns__': str}
                 try:
-                    with impl_context():
-                        errors = impl.load_from_csv(internal_url, parsing_config, type_hints)
+                    errors = impl.load_from_csv(internal_url, parsing_config, type_hints)
                 except:
                     raise
             else:
@@ -803,6 +808,9 @@ class XFrame(object):
         return ret[0]
 
 
+    def dump_debug_info(self):
+        return self.__impl__.dump_debug_info()
+        
     def to_schema_rdd(self, number_of_partitions=4):
         """
         Convert the current XFrame to the Spark SchemaRDD.
@@ -1127,8 +1135,7 @@ class XFrame(object):
             # TODO this causes materialization -- either don't do this or persist the materialized results
 #            if len(other) != len(self):
 #                raise IndexError("Cannot perform logical indexing on arrays of different length.")
-            with impl_context():
-                return XFrame(_impl=self.__impl__.logical_filter(other.__impl__))
+            return XFrame(_impl=self.__impl__.logical_filter(other.__impl__))
 
     def dtype(self):
         """
@@ -1144,6 +1151,12 @@ class XFrame(object):
         column_types
         """
         return self.column_types()
+
+    def width(self):
+        """
+        Diagnostic: tne number of elements in each tuple.
+        """
+        return XArray(_impl=self.__impl__.width())
 
     def num_rows(self):
         """
@@ -1322,8 +1335,7 @@ class XFrame(object):
         ['134', '235', '361']
         """
         assert inspect.isfunction(fn), "Input must be a function"
-        with impl_context():
-            rows = self.__impl__.head_as_list(10)
+        rows = self.__impl__.head_as_list(10)
         names = self.__impl__.column_names()
         dryrun = [fn(dict(zip(names, row))) for row in rows]
         if dtype is None:
@@ -1332,8 +1344,7 @@ class XFrame(object):
         if not seed:
             seed = int(time.time())
 
-        with impl_context():
-            return XArray(_impl=self.__impl__.transform(fn, dtype, seed))
+        return XArray(_impl=self.__impl__.transform(fn, dtype, seed))
 
     def flat_map(self, column_names, fn, column_types='auto', seed=None):
         """
@@ -1404,8 +1415,7 @@ class XFrame(object):
         # determine the column_types
         if column_types == 'auto':
             types = set()
-            with impl_context():
-                rows = self.__impl__.head_as_list(10)
+            rows = self.__impl__.head_as_list(10)
             names = self.__impl__.column_names()
             results = [fn(dict(zip(names, row))) for row in rows]
             if not (results is None or type(results) == list):
@@ -1425,8 +1435,7 @@ class XFrame(object):
 
         assert type(column_types) is list
         assert len(column_types) == len(column_names), "Number of output columns must match the size of column names"
-        with impl_context():
-            return XFrame(_impl=self.__impl__.flat_map(fn, column_names, column_types, seed))
+        return XFrame(_impl=self.__impl__.flat_map(fn, column_names, column_types, seed))
 
     def sample(self, fraction, seed=None):
         """
@@ -1470,8 +1479,7 @@ class XFrame(object):
         if (self.num_rows() == 0 or self.num_cols() == 0):
             return self
         else:
-            with impl_context():
-                return XFrame(_impl=self.__impl__.sample(fraction, seed))
+            return XFrame(_impl=self.__impl__.sample(fraction, seed))
 
     def random_split(self, fraction, seed=None):
         """
@@ -1519,9 +1527,8 @@ class XFrame(object):
         except ValueError:
             raise ValueError('The \'seed\' parameter must be of type int.')
 
-        with impl_context():
-            impl_pair = self.__impl__.random_split(fraction, seed)
-            return (XFrame(data=[], _impl=impl_pair[0]), XFrame(data=[], _impl=impl_pair[1]))
+        impl_pair = self.__impl__.random_split(fraction, seed)
+        return (XFrame(data=[], _impl=impl_pair[0]), XFrame(data=[], _impl=impl_pair[1]))
 
     def topk(self, column_name, k=10, reverse=False):
         """
@@ -1626,15 +1633,14 @@ class XFrame(object):
         ## Save the XFrame
         url = make_internal_url(filename)
 
-        with impl_context():
-            if format is 'binary':
-                self.__impl__.save(url)
+        if format is 'binary':
+            self.__impl__.save(url)
 
-            elif format is 'csv':
-                assert filename.endswith(('.csv', '.csv.gz'))
-                self.__impl__.save_as_csv(url, {})
-            else:
-                raise ValueError("Unsupported format: {}".format(format))
+        elif format is 'csv':
+            assert filename.endswith(('.csv', '.csv.gz'))
+            self.__impl__.save_as_csv(url)
+        else:
+            raise ValueError("Unsupported format: {}".format(format))
 
     def select_column(self, column_name):
         """
@@ -1669,8 +1675,7 @@ class XFrame(object):
         """
         if not isinstance(column_name, str):
             raise TypeError("Invalid column_name type: must be str")
-        with impl_context():
-            return XArray(data=[], _impl=self.__impl__.select_column(column_name))
+        return XArray(data=[], _impl=self.__impl__.select_column(column_name))
 
     def select_columns(self, keylist):
         """
@@ -1723,8 +1728,7 @@ class XFrame(object):
                     raise ValueError("There are duplicate keys in key list: '" + key + "'")
 
         tmp = self.__impl__.select_columns(keylist)
-        with impl_context():
-            return XFrame(data=[], _impl=self.__impl__.select_columns(keylist))
+        return XFrame(data=[], _impl=self.__impl__.select_columns(keylist))
 
     def add_column(self, data, name=""):
         """
@@ -1772,8 +1776,7 @@ class XFrame(object):
             raise TypeError("Must give column as XArray")
         if not isinstance(name, str):
             raise TypeError("Invalid column name: must be str")
-        with impl_context():
-            self.__impl__.add_column(data.__impl__, name)
+        self.__impl__.add_column(data.__impl__, name)
         return self
 
     def add_columns(self, data, namelist=None):
@@ -1825,8 +1828,7 @@ class XFrame(object):
             for name in namelist:
                 if name in my_columns:
                     raise ValueError("Column '" + name + "' already exists in current XFrame")
-            with impl_context():
-                self.__impl__.add_columns_frame(data)
+            self.__impl__.add_columns_frame(data)
             return self
         else:
             if not hasattr(datalist, '__iter__'):
@@ -1841,8 +1843,7 @@ class XFrame(object):
             if len(namelist) != len(datalist):
                 raise ValueError('namelist length mismatch')
 
-            with impl_context():
-                self.__impl__.add_columns_array(datalist, namelist)
+            self.__impl__.add_columns_array(datalist, namelist)
             return self
 
     def remove_column(self, name):
@@ -1877,8 +1878,7 @@ class XFrame(object):
         """
         if name not in self.column_names():
             raise KeyError('Cannot find column %s' % name)
-        with impl_context():
-            self.__impl__.remove_column(name)
+        self.__impl__.remove_column(name)
         return self
 
     def remove_columns(self, column_names):
@@ -1915,8 +1915,7 @@ class XFrame(object):
         for name in column_names:
             if name not in self.column_names():
                 raise KeyError('Cannot find column %s' % name)
-        with impl_context():
-            self.__impl__.remove_columns(column_names)
+        self.__impl__.remove_columns(column_names)
         return self
 
     def swap_columns(self, column_1, column_2):
@@ -1956,8 +1955,7 @@ class XFrame(object):
         if column_2 not in self.column_names():
             raise KeyError('Cannot find column %s' % column_2)
 
-        with impl_context():
-            self.__impl__.swap_columns(column_1, column_2)
+        self.__impl__.swap_columns(column_1, column_2)
         return self
 
     def rename(self, names):
@@ -2001,9 +1999,8 @@ class XFrame(object):
         for k in names:
             if not k in all_columns:
                 raise ValueError('Cannot find column %s in the XFrame' % k)
-        with impl_context():
-            for k in names:
-                self.__impl__.set_column_name(k, names[k])
+        for k in names:
+            self.__impl__.set_column_name(k, names[k])
         return self
 
     def __getitem__(self, key):
@@ -2052,7 +2049,7 @@ class XFrame(object):
                 stop = len(self) + stop
             return XFrame(_impl = self.__impl__.copy_range(start, step, stop))
         else:
-            raise TypeError("Invalid index type: must be XArray, int, list, slice, or str")
+            raise TypeError("Invalid index type: must be XArray, int, list, slice, or str: ({})".format(type(key)))
 
     def __setitem__(self, key, value):
         """
@@ -2075,27 +2072,18 @@ class XFrame(object):
 
             # set new column
             if not key in self.column_names():
-                with impl_context():
-                    self.add_column(sa_value, key)
+                self.add_column(sa_value, key)
             else:
                 # special case if replacing the only column.
                 # server would fail the replacement if the new column has different
                 # length than current one, which doesn't make sense if we are replacing
-                # the only column. To support this, we first take out the only column
-                # and then put it back if exception happens
+                # the only column. To support this, we call a different function in the 
+                # implementation.
                 single_column = (self.num_cols() == 1)
                 if (single_column):
-                    with impl_context():
-                        self.__impl__.replace_single_column(sa_value)
+                    self.__impl__.replace_single_column(sa_value)
                 else:
-                    # add the column to a unique column name.
-                    tmpname = '__' + '-'.join(self.column_names())
-                    self.add_column(sa_value, tmpname)
-
-                    # if add succeeded, remove the column name and rename tmpname->columnname.
-                    self.swap_columns(key, tmpname)
-                    self.remove_column(key)
-                    self.rename({tmpname: key})
+                    self.__impl__.replace_selected_column(key, sa_value)
 
         else:
             raise TypeError('Cannot set column with key type ' + str(type(key)))
@@ -2111,8 +2099,7 @@ class XFrame(object):
         For an XFrame that is lazily evaluated, force the persistence of the
         XFrame to disk, committing all lazy evaluated operations.
         """
-        with impl_context():
-            self.__impl__.materialize()
+        self.__impl__.materialize()
 
     def __is_materialized__(self):
         """
@@ -2138,8 +2125,8 @@ class XFrame(object):
             column_names = self.column_names()
             while(True):
                 for j in ret:
-#                    yield dict(zip(column_names, j))
-                    yield j
+                    yield dict(zip(column_names, j))
+#                    yield j
 
                 if len(ret) == elems_at_a_time:
                     ret = self.__impl__.iterator_get_next(elems_at_a_time)
@@ -2220,8 +2207,7 @@ class XFrame(object):
                                    ", the other is " + 
                                    str(other_column_types[i]))
 
-        with impl_context():
-            return XFrame(_impl=self.__impl__.append(other.__impl__))
+        return XFrame(_impl=self.__impl__.append(other.__impl__))
 
     def groupby(self, key_columns, operations, *args):
         """
@@ -2578,8 +2564,7 @@ class XFrame(object):
                     if col not in my_column_names:
                         raise KeyError("Column " + col + " does not exist in XFrame")
 
-        with impl_context():
-            return XFrame(_impl=self.__impl__.groupby_aggregate(key_columns_array, group_columns,
+        return XFrame(_impl=self.__impl__.groupby_aggregate(key_columns_array, group_columns,
                                                                   group_output_columns, group_ops))
 
     def join(self, right, on=None, how='inner'):
@@ -2711,8 +2696,7 @@ class XFrame(object):
         else:
             raise TypeError("Must pass a str, list, or dict of join keys")
 
-        with impl_context():
-            return XFrame(_impl=self.__impl__.join(right.__impl__, how, join_keys))
+        return XFrame(_impl=self.__impl__.join(right.__impl__, how, join_keys))
 
     def split_datetime(self, expand_column, column_name_prefix=None, limit=None, tzone=False):
         """
@@ -2748,7 +2732,7 @@ class XFrame(object):
             the given column replaced with a collection of expanded columns.
 
         Examples
-        ---------
+        --------
 
         >>> xf
         Columns:
@@ -2871,28 +2855,26 @@ class XFrame(object):
         existing_type = self.column_types()[self.column_names().index(column_name)]
         given_type = value_xf.column_types()[0]
         if given_type != existing_type:
-            raise TypeError("Type of given values does not match type of column '" +
-                column_name + "' in XFrame.")
+            raise TypeError("Type of given values ({}) does not match type of column '{}' ({}) in XFrame.".format(given_type, column_name, existing_type))
 
-        with impl_context():
-            if exclude:
-                id_name = "id"
-                # Make sure this name is unique so we know what to remove in
-                # the result
-                while id_name in existing_columns:
-                    id_name += "1"
-                value_xf = value_xf.add_row_number(id_name)
+        if exclude:
+            id_name = "id"
+            # Make sure this name is unique so we know what to remove in
+            # the result
+            while id_name in existing_columns:
+                id_name += "1"
+            value_xf = value_xf.add_row_number(id_name)
 
-                tmp = XFrame(_impl=self.__impl__.join(value_xf.__impl__,
-                                                     'left',
-                                                     {column_name:column_name}))
-                ret_xf = tmp[tmp[id_name] == None]
-                del ret_xf[id_name]
-                return ret_xf
-            else:
-                return XFrame(_impl=self.__impl__.join(value_xf.__impl__,
-                                                     'inner',
-                                                     {column_name:column_name}))
+            tmp = XFrame(_impl=self.__impl__.join(value_xf.__impl__,
+                                                  'left',
+                                                  {column_name:column_name}))
+            ret_xf = tmp[tmp[id_name] == None]
+            del ret_xf[id_name]
+            return ret_xf
+        else:
+            return XFrame(_impl=self.__impl__.join(value_xf.__impl__,
+                                                   'inner',
+                                                   {column_name:column_name}))
 
     def pack_columns(self, columns=None, column_prefix=None, dtype=list,
                      fill_na=None, remove_prefix=True, new_column_name=None):
@@ -3115,7 +3097,7 @@ class XFrame(object):
 
         else:
             dict_keys = columns
-
+            
         rest_columns = [name for name in self.column_names() if name not in columns]
         if new_column_name != None:
             if type(new_column_name) != str:
@@ -3126,8 +3108,7 @@ class XFrame(object):
             new_column_name = ""
 
         ret_sa = None
-        with impl_context():
-            ret_sa = XArray(_impl=self.__impl__.pack_columns(columns, dict_keys, dtype, fill_na))
+        ret_sa = XArray(_impl=self.__impl__.pack_columns(columns, dict_keys, dtype, fill_na))
 
         new_xf = self.select_columns(rest_columns)
         new_xf.add_column(ret_sa, new_column_name)
@@ -3442,11 +3423,10 @@ class XFrame(object):
             values = [v for v in itertools.chain.from_iterable(head_row)]
             new_column_type = [infer_type_of_list(values)]
 
-        with impl_context():
-            if stack_column_type == dict:
-                return XFrame(_impl=self.__impl__.stack_dict(column_name, new_column_name, new_column_type, drop_na))
-            else:
-                return XFrame(_impl=self.__impl__.stack_list(column_name, new_column_name, new_column_type, drop_na))
+        if stack_column_type == dict:
+            return XFrame(_impl=self.__impl__.stack_dict(column_name, new_column_name, new_column_type, drop_na))
+        else:
+            return XFrame(_impl=self.__impl__.stack_list(column_name, new_column_name, new_column_type, drop_na))
 
     def unstack(self, column, new_column_name=None):
         """
@@ -3525,19 +3505,18 @@ class XFrame(object):
 
         if new_column_name is None:
             new_column_name = 'unstack'
-        with impl_context():
-            if type(column) == str:
-                key_columns = [i for i in self.column_names() if i != column]
-                if new_column_name != None:
-                    return self.groupby(key_columns, {new_column_name : xpatterns.aggregate.CONCAT(column)})
-                else:
-                    return self.groupby(key_columns, xpatterns.aggregate.CONCAT(column))
-            elif len(column) == 2:
-                key_columns = [i for i in self.column_names() if i not in column]
-                if new_column_name != None:
-                    return self.groupby(key_columns, {new_column_name: xpatterns.aggregate.CONCAT(column[0], column[1])})
-                else:
-                    return self.groupby(key_columns, xpatterns.aggregate.CONCAT(column[0], column[1]))
+        if type(column) == str:
+            key_columns = [i for i in self.column_names() if i != column]
+            if new_column_name != None:
+                return self.groupby(key_columns, {new_column_name : xpatterns.aggregate.CONCAT(column)})
+            else:
+                return self.groupby(key_columns, xpatterns.aggregate.CONCAT(column))
+        elif len(column) == 2:
+            key_columns = [i for i in self.column_names() if i not in column]
+            if new_column_name != None:
+                return self.groupby(key_columns, {new_column_name: xpatterns.aggregate.CONCAT(column[0], column[1])})
+            else:
+                return self.groupby(key_columns, xpatterns.aggregate.CONCAT(column[0], column[1]))
 
     def unique(self):
         """
@@ -3584,8 +3563,7 @@ class XFrame(object):
         +----+-------+
         [4 rows x 2 columns]
         """
-        with impl_context():
-            return XFrame(_impl=self.__impl__.unique())
+        return XFrame(_impl=self.__impl__.unique())
 
     def sort(self, sort_columns, ascending=True):
         """
@@ -3723,8 +3701,7 @@ class XFrame(object):
             if (self[column].dtype() not in (str, int, float,datetime.datetime)):
                 raise TypeError("Only columns of type (str, int, float) can be sorted")
 
-        with impl_context():
-            return XFrame(_impl=self.__impl__.sort(sort_column_names, sort_column_orders))
+        return XFrame(_impl=self.__impl__.sort(sort_column_names, sort_column_orders))
 
     def dropna(self, columns=None, how='any'):
         """
@@ -3800,8 +3777,7 @@ class XFrame(object):
 
         (columns, all_behavior) = self.__dropna_errchk(columns, how)
 
-        with impl_context():
-            return XFrame(_impl=self.__impl__.drop_missing_values(columns, all_behavior, False))
+        return XFrame(_impl=self.__impl__.drop_missing_values(columns, all_behavior, False))
 
     def dropna_split(self, columns=None, how='any'):
         """
@@ -3867,8 +3843,7 @@ class XFrame(object):
         if len(xframe_tuple) != 2:
             raise RuntimeError("Did not return two XFrames!")
 
-        with impl_context():
-            return (XFrame(_impl=xframe_tuple[0]), XFrame(_impl=xframe_tuple[1]))
+        return (XFrame(_impl=xframe_tuple[0]), XFrame(_impl=xframe_tuple[1]))
 
     def __dropna_errchk(self, columns, how):
         if columns is None:
@@ -3993,8 +3968,7 @@ v        out : XFrame
         if column_name in self.column_names():
             raise RuntimeError("Column '" + column_name + "' already exists in the current XFrame")
 
-        with impl_context():
-            return XFrame(_impl=self.__impl__.add_row_number(column_name, start))
+        return XFrame(_impl=self.__impl__.add_row_number(column_name, start))
 
     @property
     def shape(self):

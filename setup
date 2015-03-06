@@ -10,5 +10,7 @@ export AWS_SECRET_ACCESS_KEY=Kna3u2W0fgfx6r8rWTDD6GyRFfXBjW8UgZVJfjMC
 ulimit -n 4096
 
 export LIB=`pwd`
-export PYTHONPATH=$LIB
+export COG_LIB=$LIB/cogno
+export PYTHONPATH=$LIB:$COG_LIB
 export PATH=$PATH:$LIB/bin
+export SPARK_HOME=/home/ubuntu/spark

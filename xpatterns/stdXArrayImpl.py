@@ -15,26 +15,11 @@ import pickle
 import sys
 import ast
 
-from pyspark import StorageLevel
-
-from xpatterns.commonImpl import CommonSparkContext
+from xpatterns.commonImpl import CommonSparkContext, safeZip, infer_type_of_list, persist_temp, persist_long
 from xpatterns.stdXFrameImpl import StdXFrameImpl
+from xpatterns.xRdd import xRdd
 
 __all__ = ['XArray']
-
-def infer_type_of_list(data):
-    """
-    Look through a list and get its data type.
-    Use the first type, and check to make sure the rest are of that type.
-    Missing values are skipped.
-    """
-    candidate = None
-    for d in data:
-        if d is None: continue
-        d_type = type(d)
-        if candidate is None: candidate = d_type
-        if d_type != candidate: raise TypeError('mixed types in list: {} {}'.format(d_type, candidate))
-    return candidate
 
 class RCmp(object):
     def __init__(self, obj):
@@ -65,32 +50,26 @@ def delete_file_or_dir(path):
         if err.errno not in expected_errs:
             raise err
 
-# TODO make a static function and move this to a base class
-# Safe version of zip.
-# This requires that left and right RDDs be of the same length, but
-#  not the same partition structure
-def safeZip(left, right):
-    ix_left = left.zipWithIndex().map(lambda row: (row[1], row[0]))
-    ix_right = right.zipWithIndex().map(lambda row: (row[1], row[0]))
-    return ix_left.join(ix_right).values()
-
 class StdXArrayImpl:
     # What is missing:
     # sum over arrays
     # datetime functions
     # text processing functions
     # array.array and numpy.array values
+    entry_trace = False
+    exit_trace = False
+    
+    def __init__(self, rdd=None, elem_type=None):
 
-    def __init__(self, rdd=None, elem_type=None, trace=False):
         # The RDD holds all the data for the XArray.  
         # The rows must be of a single type.
         # Types permitted include int, long, float, string, list, and dict.
         # We record the element type here.
+        self._entry(elem_type)
         self.rdd = rdd
         self.elem_type = elem_type
         self.materialized = False
-        self.entry_trace = False
-        self.exit_trace = False
+        self._exit()
 
     def _rv(self, rdd, typ=None):
         """
@@ -104,28 +83,29 @@ class StdXArrayImpl:
         """
         return StdXFrameImpl(rdd, col_names, types)
 
-    def _persist(self):
-        self.rdd.persist(StorageLevel.MEMORY_ONLY)
-
     def _replace(self, rdd, dtype):
         self.rdd = rdd
         self.elem_type = dtype
         self.materialized = False
 
     def _count(self):
-        self._persist()
         count = self.rdd.count()     # action
         self.materialized = True
         return count
 
     def _entry(self, *args):
-        if self.entry_trace:
+        if StdXArrayImpl.entry_trace:
             print 'enter xArray', inspect.stack()[1][3], args
 
     def _exit(self):
-        if self.exit_trace:
+        if StdXArrayImpl.exit_trace:
             print 'exit xArray', inspect.stack()[1][3]
         pass
+
+    @classmethod
+    def set_trace(cls, entry_trace=None, exit_trace=None):
+        cls.entry_trace = entry_trace or cls.entry_trace
+        cls.exit_trace = exit_trace or cls.exit_trace
 
     @staticmethod
     def create_sequential_xarray(size, start, reverse):
@@ -139,7 +119,7 @@ class StdXArrayImpl:
             stop = start - size
             step = -1
         sc = CommonSparkContext.Instance().sc
-        rdd = sc.parallelize(range(start, stop, step))
+        rdd = xRdd(sc.parallelize(range(start, stop, step)))
         return StdXArrayImpl(rdd, int)
 
     # Load
@@ -153,7 +133,7 @@ class StdXArrayImpl:
 
         sc = CommonSparkContext.Instance().sc
         if len(values) == 0:
-            self.rdd = sc.parallelize([])
+            self.rdd = xRdd(sc.parallelize([]))
             self.elem_type = dtype     # or should it be None ?
             self._exit()
             return
@@ -168,8 +148,8 @@ class StdXArrayImpl:
                 # TODO: this does not seem to cach as it should
                 return None if ignore_cast_failure else ValueError
 
-        if dtype in (int, float, str, list, dict, datetime.datetime):
-            raw_rdd = sc.parallelize(values)
+        if dtype in (int, float, str, bool, list, dict, datetime.datetime):
+            raw_rdd = xRdd(sc.parallelize(values))
             rdd = raw_rdd.map(lambda x: do_cast(x, dtype, ignore_cast_failure), preservesPartitioning=True)
             if not ignore_cast_failure:
                 errs = len(rdd.filter(lambda x: x is ValueError).take(1)) == 1
@@ -188,7 +168,7 @@ class StdXArrayImpl:
         """
         values = [ value for i in range(0, size)]
         sc = CommonSparkContext.Instance().sc
-        self._replace(sc.parallelize(values), type(value))
+        self._replace(xRdd(sc.parallelize(values)), type(value))
 
     def load_autodetect(self, path, dtype):
         """
@@ -202,7 +182,7 @@ class StdXArrayImpl:
         self._entry(path, dtype)
         # If the path is a directory, then look for sarray-data file in the directory.
         # If the path is a file, look for that file
-        # Usetype inference to determine the element type.
+        # Use type inference to determine the element type.
         # Passed-in dtype is always str and is ignored.
         def get_file_path(path):
             if os.path.isfile(path):
@@ -232,7 +212,7 @@ class StdXArrayImpl:
                 dtype = str
             return dtype
         sc = CommonSparkContext.Instance().sc
-        res = sc.textFile(path, use_unicode=False)
+        res = xRdd(sc.textFile(path, use_unicode=False))
         file_path = get_file_path(path)
         dtype = infer_type(res, dtype)
 
@@ -310,19 +290,15 @@ class StdXArrayImpl:
     # Get Data
     def head(self, n):
         self._entry(n)
-        # test
-        self._persist()
         pairs = self.rdd.zipWithIndex()
-        pairs.persist(StorageLevel.MEMORY_ONLY)
         filtered_pairs = pairs.filter(lambda x: x[1] < n)
-        pairs.unpersist()
         res = filtered_pairs.map(lambda x: x[0], preservesPartitioning=True)
         self._exit()
         return self._rv(res)
 
     def head_as_list(self, n):
         self._entry(n)
-        self.rdd.persist(StorageLevel.MEMORY_ONLY)
+
         lst = self.rdd.take(n)     # action
         self._exit()
         return lst
@@ -330,7 +306,7 @@ class StdXArrayImpl:
     def tail(self, n):
         self._entry(n)
         pairs = self.rdd.zipWithIndex()
-        pairs.persist(StorageLevel.MEMORY_ONLY)
+        persist_temp(pairs)
         start = pairs.count() - n
         filtered_pairs = pairs.filter(lambda x: x[1] >= start)
         pairs.unpersist()
@@ -352,7 +328,7 @@ class StdXArrayImpl:
         else:
             pairs = self.rdd.zipWithIndex()
             # we are going to use this twice
-            pairs.persist(StorageLevel.MEMORY_ONLY)
+            persist_temp(pairs)
             # takeOrdered always sorts ascending
             # topk needs to sort descending if reverse is False, ascending if True
             if reverse:
@@ -478,11 +454,7 @@ class StdXArrayImpl:
             res = self.rdd.map(lambda x: x >= other, preservesPartitioning=True)
             res_type = int
         elif op == '==':
-#            print 'binary_op before map'
-#            print self.rdd.toDebugString()
             res = self.rdd.map(lambda x: x == other, preservesPartitioning=True)
-#            print 'binary_op after map'
-#            print res.toDebugString()
             res_type = int
         elif op == '!=':
             res = self.rdd.map(lambda x: x != other, preservesPartitioning=True)
@@ -648,12 +620,20 @@ class StdXArrayImpl:
         # does not do this now
         self._entry(dtype, undefined_on_failure)
         def convert_type(x, dtype):
-            if dtype in (int, long, float, str):
-                return dtype(x)
-            elif dtype in (list, dict):
-                res = ast.literal_eval(x)
-                if isinstance(res, dtype): return res
-            raise ValueError
+            try:
+                if dtype in (int, long, float):
+                    x = 0 if x == '' else x
+                    return dtype(x)
+                elif dtype == str:
+                    return dtype(x)
+                elif dtype in (list, dict):
+                    res = ast.literal_eval(x)
+                    if isinstance(res, dtype): return res
+                raise ValueError
+            except ValueError as e:
+                if undefined_on_failure:
+                    return float('nan') if dtype == float else None
+                raise e
         res = self.rdd.map(lambda x: convert_type(x, dtype), preservesPartitioning=True)
         self._exit()
         return self._rv(res, dtype)
@@ -691,7 +671,6 @@ class StdXArrayImpl:
         type. If this fails, an error will be raised.
         """
         self._entry(value)
-        value = self.elem_type(value)
         res = self.rdd.map(lambda x: value if is_missing(x) else x)
         self._exit()
         return self._rv(res)
@@ -729,7 +708,10 @@ class StdXArrayImpl:
         n_cols = len(column_names)
 
         def select_elems(row, limit):
-            return [row[elem] if elem in row else None for elem in limit]
+            if type(row) == list:
+                return [row[elem] if 0 <= elem and elem < len(row) else None for elem in limit]
+            else:
+                return [row[elem] if elem in row else None for elem in limit]
         def extend(row, n_cols, na_value):
             if na_value is not None:
                 if isinstance(row, list):
@@ -885,7 +867,7 @@ class StdXArrayImpl:
         if count == 0:     # action
             return None
 
-        if not self.elem_type in (int, long, float):
+        if not self.elem_type in (int, long, float, bool):
             raise TypeError('sum: non numeric type')
         self._exit()
         return self.rdd.sum()    # action
@@ -957,7 +939,6 @@ class StdXArrayImpl:
         """
         self._entry()
         self.materialized = True
-        self._persist()
         res = self.rdd.aggregate(0,             # action
                            lambda acc, v: acc + 1 if is_missing(v) else acc,
                            lambda acc1, acc2: acc1 + acc2)
@@ -973,7 +954,6 @@ class StdXArrayImpl:
         def ne_zero(x):
             if is_missing(x): return False
             return x != 0
-        self._persist()
         res = self.rdd.aggregate(0,            # action
                            lambda acc, v: acc + 1 if ne_zero(v) else acc,
                            lambda acc1, acc2: acc1 + acc2)

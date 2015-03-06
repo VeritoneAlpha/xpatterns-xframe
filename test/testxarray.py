@@ -62,6 +62,18 @@ class TestXArrayConstructorLocal(unittest.TestCase):
         self.assertEqual(1.0, t[0])
         self.assertEqual(float, t.dtype())
 
+    def test_construct_list_bool_infer(self):
+        t = XArray([True, False])
+        self.assertEqual(2, len(t))
+        self.assertEqual(True, t[0])
+        self.assertEqual(bool, t.dtype())
+
+    def test_construct_list_bool(self):
+        t = XArray([True, False], dtype=bool)
+        self.assertEqual(2, len(t))
+        self.assertEqual(True, t[0])
+        self.assertEqual(bool, t.dtype())
+
     def test_construct_list_list_infer(self):
         t = XArray([[1, 2, 3], [10]])
         self.assertEqual(2, len(t))
@@ -117,7 +129,7 @@ class TestXArrayConstructorLocal(unittest.TestCase):
 
     def test_construct_list_no_dtype(self):
         with self.assertRaises(ValueError):
-            t = XArray([0, 1, 1], dtype=bool)
+            t = XArray([0, 1, 1], dtype=complex)
 
 class TestXArrayConstructorRange(unittest.TestCase):
     """ 
@@ -154,37 +166,37 @@ class TestXArrayConstructorLoad(unittest.TestCase):
     """
 
     def test_construct_local_file_int(self):
-        t = XArray('test-array-int')
+        t = XArray('files/test-array-int')
         self.assertEqual(4, len(t))
         self.assertEqual(int, t.dtype())
         self.assertEqual(1, t[0])
 
     def test_construct_local_file_float(self):
-        t = XArray('test-array-float')
+        t = XArray('files/test-array-float')
         self.assertEqual(4, len(t))
         self.assertEqual(float, t.dtype())
         self.assertEqual(1.0, t[0])
 
     def test_construct_local_file_str(self):
-        t = XArray('test-array-str')
+        t = XArray('files/test-array-str')
         self.assertEqual(4, len(t))
         self.assertEqual(str, t.dtype())
         self.assertEqual('a', t[0])
 
     def test_construct_local_file_list(self):
-        t = XArray('test-array-list')
+        t = XArray('files/test-array-list')
         self.assertEqual(4, len(t))
         self.assertEqual(list, t.dtype())
         self.assertEqual([1, 2], t[0])
 
     def test_construct_local_file_dict(self):
-        t = XArray('test-array-dict')
+        t = XArray('files/test-array-dict')
         self.assertEqual(4, len(t))
         self.assertEqual(dict, t.dtype())
         self.assertEqual({1: 'a', 2: 'b'}, t[0])
 
     def test_construct_local_file_int_subdir(self):
-        t = XArray('test-array-dir')
+        t = XArray('files/test-array-dir')
         self.assertEqual(4, len(t))
         self.assertEqual(int, t.dtype())
         self.assertEqual(1, t[0])
@@ -243,7 +255,7 @@ class TestXArraySaveBinary(unittest.TestCase):
     """
     def test_save(self):
         t = XArray([1, 2, 3])
-        path = 'tmp_array_binary'
+        path = 'files/tmp-array-binary'
         t.save(path, format='binary')
         # TODO open and read file and metadata ?
 
@@ -253,7 +265,7 @@ class TestXArraySaveText(unittest.TestCase):
     """
     def test_save(self):
         t = XArray([1, 2, 3])
-        path = 'tmp_array_text'
+        path = 'files/tmp-array-text'
         t.save(path, format='text')
         # TODO open and read file and metadata ?
 
@@ -822,10 +834,10 @@ class TestXArraySample(unittest.TestCase):
     def test_sample_seed(self):
         t = XArray(range(10))
         res = t.sample(0.3, seed=1)
-        # get 2, 4, 5, 6 with this seed
-        self.assertEqual(4, len(res))
-        self.assertEqual(2, res[0])
-        self.assertEqual(4, res[1])
+        # get 3, 6, 9 with this seed
+        self.assertEqual(3, len(res))
+        self.assertEqual(3, res[0])
+        self.assertEqual(6, res[1])
         
     def test_sample_zero(self):
         t = XArray(range(10))
@@ -1896,8 +1908,6 @@ class TestXArraySort(unittest.TestCase):
         t = XArray(['a', 'b', 'c'])
         res = t.sort(ascending=False)
         self.assertTrue(eq_list(['c', 'b', 'a'], res))
-
-
 
 
 if __name__ == '__main__':

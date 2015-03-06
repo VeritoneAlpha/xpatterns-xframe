@@ -23,6 +23,32 @@ import logging as _logging
 
 __LOGGER__ = _logging.getLogger(__name__)
 
+def get_credentials():
+    """
+    Returns the values stored in the AWS credential environment variables.
+    Returns the value stored in the AWS_ACCESS_KEY_ID environment variable and
+    the value stored in the AWS_SECRET_ACCESS_KEY environment variable.
+
+    Returns
+    -------
+    out : tuple [string]
+        The first string of the tuple is the value of the AWS_ACCESS_KEY_ID
+        environment variable. The second string of the tuple is the value of the
+        AWS_SECRET_ACCESS_KEY environment variable.
+
+
+    Examples
+    --------
+    >>> xpatterns.util.get_credentials()
+    ('RBZH792CTQPP7T435BGQ', '7x2hMqplWsLpU/qQCN6xAPKcmWo46TlPJXYTvKcv')
+    """
+
+    if (not 'AWS_ACCESS_KEY_ID' in _os.environ):
+        raise KeyError('No access key found. Please set the environment variable AWS_ACCESS_KEY_ID.')
+    if (not 'AWS_SECRET_ACCESS_KEY' in _os.environ):
+        raise KeyError('No secret key found. Please set the environment variable AWS_SECRET_ACCESS_KEY.')
+    return (_os.environ['AWS_ACCESS_KEY_ID'], _os.environ['AWS_SECRET_ACCESS_KEY'])
+
 def make_internal_url(url):
     """
     Takes a user input url string and translates into url relative to the server process.
@@ -75,8 +101,9 @@ def make_internal_url(url):
                 return url
             else:
             # s3 url does not contain secret key/id pair, query the environment variables
-                (k, v) = _get_aws_credentials()
-                return 's3://' + k + ':' + v + ':' + path
+                (k, v) = get_credentials()
+#                return 's3n://' + k + ':' + v + '@' + path
+                return 's3n://' + path
         elif protocol == 'remote':
         # url for files on the server
             path_on_server = path

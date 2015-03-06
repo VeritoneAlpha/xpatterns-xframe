@@ -8,16 +8,13 @@ Welcome to xFrame's documentation!
 
 Contents:
 
+This is the Atigeo xFrame library.
+
 .. toctree::
    :maxdepth: 2
 
-
-
-.. automodule:: xpatterns.xframe
-   :members:
-
-.. automodule:: xpatterns.xarray
-   :members:
+   xarray
+   xframe
 
 
 Indices and tables
