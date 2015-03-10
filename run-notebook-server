@@ -2,5 +2,6 @@
 
 # Run the notebook server
 
+## TODO if $1 is set, use that is the setup 
 source setup
-ipython notebook --pylab=inline --profile=xframe
+ipython notebook --profile=xframe

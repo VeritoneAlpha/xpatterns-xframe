@@ -17,7 +17,7 @@ import ast
 
 from xpatterns.commonImpl import CommonSparkContext, safeZip, infer_type_of_list, persist_temp, persist_long
 from xpatterns.stdXFrameImpl import StdXFrameImpl
-from xpatterns.xRdd import xRdd
+from xpatterns.xrdd import xRdd
 
 __all__ = ['XArray']
 
@@ -58,9 +58,9 @@ class StdXArrayImpl:
     # array.array and numpy.array values
     entry_trace = False
     exit_trace = False
+    perf_count = None
     
     def __init__(self, rdd=None, elem_type=None):
-
         # The RDD holds all the data for the XArray.  
         # The rows must be of a single type.
         # Types permitted include int, long, float, string, list, and dict.
@@ -94,8 +94,16 @@ class StdXArrayImpl:
         return count
 
     def _entry(self, *args):
+        stack = inspect.stack()
+        caller = stack[1]
+        called_by = stack[2]
         if StdXArrayImpl.entry_trace:
-            print 'enter xArray', inspect.stack()[1][3], args
+            print 'enter xArray', caller[3], args
+        if StdXArrayImpl.perf_count is not None:
+            my_fun = caller[3]
+            if not my_fun in StdXArrayImpl.perf_count:
+                StdXArrayImpl.perf_count[my_fun] = 0
+            StdXArrayImpl.perf_count[my_fun] += 1
 
     def _exit(self):
         if StdXArrayImpl.exit_trace:
@@ -106,6 +114,14 @@ class StdXArrayImpl:
     def set_trace(cls, entry_trace=None, exit_trace=None):
         cls.entry_trace = entry_trace or cls.entry_trace
         cls.exit_trace = exit_trace or cls.exit_trace
+
+    @classmethod
+    def set_perf_count(cls, enable=True):
+        cls.perf_count = {} if enable else None
+
+    @classmethod
+    def get_perf_count(cls):
+        return cls.perf_count
 
     @staticmethod
     def create_sequential_xarray(size, start, reverse):
@@ -601,13 +617,14 @@ class StdXArrayImpl:
             if is_missing(x) and skip_undefined: return None
             try:
                 return dtype(fn(x))
-            except TypeError:
+            except TypeError as e:
                 return TypeError
 
         res = self.rdd.map(lambda x: apply_and_cast(x, fn, dtype, skip_undefined), preservesPartitioning=True)
         # search for type error and throw exception
-        if len(res.filter(lambda x: x is TypeError).take(1)) == 1: 
-            raise ValueError
+        errs = res.filter(lambda x: x is TypeError).take(1)
+        if len(errs) > 0:
+            raise ValueError('type conversion failure')
         self._exit()
         return self._rv(res, dtype)
 

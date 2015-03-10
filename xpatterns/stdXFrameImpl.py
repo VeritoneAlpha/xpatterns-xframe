@@ -1,14 +1,6 @@
 """
 This module provides an implementation of XFrame using pySpark RDDs.
 """
-from pyspark import StorageLevel
-from pyspark import SparkContext
-from pyspark.sql import *
-
-from xpatterns.commonImpl import CommonSparkContext, safeZip, infer_type_of_list, persist_temp, persist_long
-import xpatterns as xp
-from xpatterns.xRdd import xRdd
-
 import sys
 import math
 import random
@@ -23,85 +15,17 @@ import shutil
 import csv
 import StringIO
 
-def infer_type(rdd):
-    h = rdd.take(100)      # action
-    dtype = infer_type_of_list(h)
-    return dtype
+from pyspark.sql import *
 
-class CmpRows(object):
-    """ Comparison wrapper for a rwo.
-
-    Rows can be sorted on one or more columns, and each one
-    may be ascending or descending.  
-    This class wraps the row, remembers the column indexes used for
-    comparing the rows, and each ones ascending/descending flag.
-    It provides the needed comparison functions for sorting.
-
-    Rows are assumed to be indexable collections of values.
-    Values may be any python type that itself is comparable.
-    The underlying python comparison functions are used on these values.
-    """
-    def __init__(self, row, indexes, ascending):
-        """ Instantiate a wrapped row. """
-        self.row = row
-        self.indexes = indexes
-        self.ascending = ascending
-
-    def less(self, other):
-        """ True if self is less than other.  
-
-        Comparison is reversed when a row is marked descending.
-        """
-        for index, ascending in zip(self.indexes, self.ascending):
-            left = self.row[index]
-            right = other.row[index]
-            if left < right: return ascending
-            if left > right: return not ascending
-        return False
-
-    def greater(self, other):
-        """ True if self is greater than other.  
-
-        Comparison is reversed when a row is marked descending.
-        """
-        for index, ascending in zip(self.indexes, self.ascending):
-            left = self.row[index]
-            right = other.row[index]
-            if left > right: return ascending
-            if left < right: return not ascending
-        return False
-
-    def equal(self, other):
-        """ True when self is equal to other.
-
-        Only comparison fields are used in this test.
-        """
-        for index in self.indexes:
-            left = self.row[index]
-            right = other.row[index]
-            if left > right: return False
-            if left < right: return False
-        return True
-    
-    # These are the comparison interface
-    def __lt__(self, other):
-        return self.less(other)
-    def __gt__(self, other):
-        return self.greater(other)
-    def __eq__(self, other):
-        return self.equal(other)
-    def __le__(self, other):
-        return selfless(other) or self.equal(other)
-    def __ge__(self, other):
-        return self.greater(other) or self.equal(other)
-    def __ne__(self, other):
-        return not self.equal(other)
+from xpatterns.commonImpl import CommonSparkContext, safeZip, infer_type_of_list, infer_type, persist_temp, persist_long
+import xpatterns as xp
+from xpatterns.xrdd import xRdd
+from xpatterns.cmp_rows import CmpRows
 
 # Define aggregator functions for groupby.
 # Each of these functions operates on a pyspark resultIterable
 #  produced by groupByKey and directly produces the aggregated result.
 
-#aggregator_functions = {}
 def agg_sum(rows, cols): 
     # cols: [src_col]
     vals = [row[cols[0]] for row in rows]
@@ -229,7 +153,6 @@ class AggregatorProperties:
     def add(self, aggregator_property_set):
         self.aggregator_properties[aggregator_property_set.name] = aggregator_property_set
 
-
     def __getitem__(self, op):
         if not op in self.aggregator_properties:
             raise ValueError('unrecognized aggregation operator: {}'.format(op))
@@ -257,7 +180,6 @@ aggregator_properties.add(AggregatorPropertySet('__builtin__quantile__', agg_qua
 
 
 # Helper functions
-
 def is_missing(x):
     """ Tests for missing values. """
     if x is None: return True
@@ -290,6 +212,7 @@ class StdXFrameImpl:
 
     entry_trace = False
     exit_trace = False
+    perf_count = None
 
     def __init__(self, rdd=None, col_names=None, column_types=None):
         """ Instantiate a XFrame implementation.
@@ -342,14 +265,23 @@ class StdXFrameImpl:
         return self
 
     def _count(self):
+        persist_long(self.rdd)
         count = self.rdd.count()     # action
         self.materialized = True
         return count
 
     def _entry(self, *args):
         """ Trace function entry. """
+        stack = inspect.stack()
+        caller = stack[1]
+        called_by = stack[2]
         if StdXFrameImpl.entry_trace:
-            print 'enter xFrame', inspect.stack()[1][3], args
+            print 'enter xFrame', caller[3], args, 'called by', called_by[3]
+        if StdXFrameImpl.perf_count:
+            my_fun = caller[3]
+            if not my_fun in StdXFrameImpl.perf_count:
+                StdXFrameImpl.perf_count[my_fun] = 0
+            StdXFrameImpl.perf_count[my_fun] += 1
 
     def _exit(self, *args):
         """ Trace function exit. """
@@ -360,6 +292,14 @@ class StdXFrameImpl:
     def set_trace(cls, entry_trace=None, exit_trace=None):
         cls.entry_trace = entry_trace or cls.entry_trace
         cls.exit_trace = exit_trace or cls.exit_trace
+
+    @classmethod
+    def set_perf_count(cls, enable=True):
+        cls.perf_count = {} if enable else None
+
+    @classmethod
+    def get_perf_count(cls):
+        return cls.perf_count
 
     # Load
     def load_from_dataframe(self, data):
@@ -384,6 +324,7 @@ class StdXFrameImpl:
         """
         Load RDD from a csv file
         """
+
         self._entry(path, parsing_config, type_hints)
 
         def get_config(name):
@@ -520,7 +461,10 @@ class StdXFrameImpl:
 
         # cast to desired type
         def cast_val(val, typ):
-            return None if val is None else typ(val)
+            if val is None: return None
+            if len(val) == 0: return 0
+            return typ(val)
+#            return None if val is None else typ(val)
         def cast_row(row, types):
             return [cast_val(val, typ) for val, typ in zip(row, types)]
 
@@ -1376,6 +1320,9 @@ class StdXFrameImpl:
             def build_key(row, indexes):
                 key = [row[i] for i in indexes]
                 return json.dumps(key)
+
+            if len(left_key_indexes) == 0 or len(right_key_indexes) == 0:
+                raise ValueError('empty join columns -- left: {} right: {}'.format(left_key_indexes, right_key_indexes))
 
             # add keys to left and right
             keyed_left = self.rdd.map(lambda row: (build_key(row, left_key_indexes), row), preservesPartitioning=True)

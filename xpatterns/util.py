@@ -1,6 +1,7 @@
 """
-This module defines top level utility functions for GraphLab.
+This module defines top level utility functions for XFrames.
 """
+
 import urllib as _urllib
 import urllib2 as _urllib2
 import sys as _sys
@@ -11,13 +12,6 @@ import bz2 as _bz2
 import tarfile as _tarfile
 import ConfigParser as _ConfigParser
 import itertools as _itertools
-
-#from graphlab.connect.aws._ec2 import get_credentials as _get_aws_credentials
-#import graphlab.connect as _mt
-#import graphlab.connect.main as _glconnect
-#import graphlab.connect.server as _server
-#import graphlab.version_info
-#from pkg_resources import parse_version
 
 import logging as _logging
 
@@ -60,7 +54,7 @@ def make_internal_url(url):
       Returns the absolute path after the "remote://" modifier.
       For example: "remote:///tmp/foo" -> "/tmp/foo".
     - URL to a s3 location begins with "s3://":
-      Returns the s3 URL with credentials filled in using graphlab.aws.get_aws_credential().
+      Returns the s3 URL with credentials filled in using xpatterns.aws.get_aws_credential().
       For example: "s3://mybucket/foo" -> "s3://$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY:mybucket/foo".
     - URL to other remote locations, e.g. http://, will remain as is.
     - Expands ~ to $HOME
@@ -177,12 +171,12 @@ def download_dataset(url_str, extract=True, force=False, output_dir="."):
         print "File is already downloaded."
 
 
-__GLCREATE_CURRENT_VERSION_URL__ = "http://graphlab.com/files/glcreate_current_version"
+__XFRAMES_CURRENT_VERSION_URL__ = "http://atigeo.com/files/xframes_current_version"
 
-def get_newest_version(timeout=5, _url=__GLCREATE_CURRENT_VERSION_URL__):
+def get_newest_version(timeout=5, _url=__XFRAMES_CURRENT_VERSION_URL__):
     """
-    Returns the version of GraphLab Create currently available from graphlab.com.
-    Will raise an exception if we are unable to reach the graphlab.com servers.
+    Returns the version of XPatterns XFrames currently available from atigeo.com.
+    Will raise an exception if we are unable to reach the atigeo.com servers.
 
     timeout: int
         How many seconds to wait for the remote server to respond
@@ -196,12 +190,12 @@ def get_newest_version(timeout=5, _url=__GLCREATE_CURRENT_VERSION_URL__):
     return version
 
 
-def perform_version_check(configfile=(_os.path.join(_os.path.expanduser("~"), ".graphlab", "config")),
-                          _url=__GLCREATE_CURRENT_VERSION_URL__,
+def perform_version_check(configfile=(_os.path.join(_os.path.expanduser("~"), ".xframes", "config")),
+                          _url=__XFRAMES_CURRENT_VERSION_URL__,
                           _outputstream=_sys.stderr):
     """
-    Checks if currently running version of GraphLab is less than the version
-    available from graphlab.com. Prints a message if the graphlab.com servers
+    Checks if currently running version of XFrames is less than the version
+    available from atigeo.com. Prints a message if the atigeo.com servers
     are reachable, and the current version is out of date. Does nothing
     otherwise.
 
@@ -227,11 +221,11 @@ def perform_version_check(configfile=(_os.path.join(_os.path.expanduser("~"), ".
     if not skip_version_check:
         try:
             latest_version = get_newest_version(timeout=1, _url=_url).strip()
-            if parse_version(latest_version) > parse_version(graphlab.version_info.version):
-                msg = ("A newer version of GraphLab Create (v%s) is available! "
+            if parse_version(latest_version) > parse_version(xframes.version_info.version):
+                msg = ("A newer version of XPatterns XFrames (v%s) is available! "
                        "Your current version is v%s.\n"
-                       "You can use pip to upgrade the graphlab-create package. "
-                       "For more information see http://graphlab.com/products/create/upgrade.") % (latest_version, graphlab.version_info.version)
+                       "You can use pip to upgrade the xpatterns package. "
+                       "For more information see http://atigeo.com/products/xframes/upgrade.") % (latest_version, xframes.version_info.version)
                 _outputstream.write(msg)
                 return True
         except:
@@ -301,13 +295,13 @@ def get_archive_type(path):
 
 def get_environment_config():
     """
-    Returns all the GraphLab configuration variables that can only be set
+    Returns all the XFrames configuration variables that can only be set
     via environment variables.
 
-    GRAPHLAB_FILEIO_WRITER_BUFFER_SIZE
+    XFRAMES_FILEIO_WRITER_BUFFER_SIZE
       The file write buffer size.
 
-    GRAPHLAB_FILEIO_READER_BUFFER_SIZE
+    XFRAMES_FILEIO_READER_BUFFER_SIZE
       The file read buffer size.
 
     OMP_NUM_THREADS
@@ -321,13 +315,14 @@ def get_environment_config():
     -------
     Returns a dictionary of {key:value,..}
     """
+    # TODO replace
     unity = _glconnect.get_unity()
     return unity.list_globals(False)
 
 def get_runtime_config():
     """
-    Returns all the GraphLab configuration variables that can be set at runtime.
-    See :py:func:`graphlab.set_runtime_config()` to set these values and for
+    Returns all the XFrames configuration variables that can be set at runtime.
+    See :py:func:`xpatterns.set_runtime_config()` to set these values and for
     documentation on the effect of each variable.
 
     Parameters
@@ -338,6 +333,7 @@ def get_runtime_config():
     -------
     Returns a dictionary of {key:value,..}
     """
+    # TODO replace
     unity = _glconnect.get_unity()
     return unity.list_globals(True)
 
@@ -345,7 +341,7 @@ def set_runtime_config(name, value):
     """
     Sets a runtime configuration value. These configuration values are also
     read from environment variables at program startup if available. See
-    :py:func:`graphlab.get_runtime_config()` to get the current values for
+    :py:func:`xpatterns.get_runtime_config()` to get the current values for
     each variable.
 
     The default configuration is conservatively defined for machines with about
@@ -353,32 +349,32 @@ def set_runtime_config(name, value):
 
     *Basic Configuration Variables*
 
-    GRAPHLAB_CACHE_FILE_LOCATIONS:
+    XFRAMES_CACHE_FILE_LOCATIONS:
       The directory in which intermediate SFrames/SArray are stored.
       For instance "/var/tmp".  Multiple directories can be specified separated
       by a colon (ex: "/var/tmp:/tmp") in which case intermediate SFrames will
       be striped across both directories (useful for specifying multiple disks).
       Defaults to /var/tmp if the directory exists, /tmp otherwise.
 
-    GRAPHLAB_FILEIO_MAXIMUM_CACHE_CAPACITY:
+    XFRAMES_FILEIO_MAXIMUM_CACHE_CAPACITY:
       The maximum amount of memory which will be occupied by *all* intermediate
       SFrames/SArrays. Once this limit is exceeded, SFrames/SArrays will be
       flushed out to temporary storage (as specified by
-      GRAPHLAB_CACHE_FILE_LOCATIONS). On large systems increasing this as well
-      as GRAPHLAB_FILEIO_MAXIMUM_CACHE_CAPACITY_PER_FILE can improve performance
+      XFRAMES_CACHE_FILE_LOCATIONS). On large systems increasing this as well
+      as XFRAMES_FILEIO_MAXIMUM_CACHE_CAPACITY_PER_FILE can improve performance
       significantly. Defaults to 2147483648 bytes (2GB).
 
-    GRAPHLAB_FILEIO_MAXIMUM_CACHE_CAPACITY_PER_FILE:
+    XFRAMES_FILEIO_MAXIMUM_CACHE_CAPACITY_PER_FILE:
       The maximum amount of memory which will be occupied by any individual
       intermediate SFrame/SArray. Once this limit is exceeded, the
       SFrame/SArray will be flushed out to temporary storage (as specified by
-      GRAPHLAB_CACHE_FILE_LOCATIONS). On large systems, increasing this as well
-      as GRAPHLAB_FILEIO_MAXIMUM_CACHE_CAPACITY can improve performance
+      XFRAMES_CACHE_FILE_LOCATIONS). On large systems, increasing this as well
+      as XFRAMES_FILEIO_MAXIMUM_CACHE_CAPACITY can improve performance
       significantly for large SFrames. Defaults to 134217728 bytes (128MB).
 
     *Advanced Configuration Variables*
 
-    GRAPHLAB_SFRAME_FILE_HANDLE_POOL_SIZE:
+    XFRAMES_SFRAME_FILE_HANDLE_POOL_SIZE:
       The maximum number of file handles to use when reading SFrames/SArrays.
       Once this limit is exceeded, file handles will be recycled, reducing
       performance. This limit should be rarely approached by most SFrame/SArray
@@ -387,14 +383,14 @@ def set_runtime_config(name, value):
       also need to increase the system file handle limit with "ulimit -n").
       Defaults to 128.
 
-    GRAPHLAB_SFRAME_IO_READ_LOCK
+    XFRAMES_SFRAME_IO_READ_LOCK
       Whether disk reads should be locked. Almost always necessary for magnetic
       disks for consistent performance. Can be disabled on SSDs. Defaults to
       True.
 
-    GRAPHLAB_SFRAME_DEFAULT_BLOCK_SIZE
+    XFRAMES_SFRAME_DEFAULT_BLOCK_SIZE
       The block size used by the SFrame file format. Increasing this will
-      increase throughput of single SArray accesses, but decrease throughput of
+      increase throughput of single XArray accesses, but decrease throughput of
       wide SFrame accesses. Defaults to 65536 bytes.
 
     ----------
@@ -412,6 +408,7 @@ def set_runtime_config(name, value):
     changed to the requested value.
 
     """
+    # TODO replace
     unity = _glconnect.get_unity()
     ret = unity.set_global(name, value)
     if ret != "":
@@ -491,47 +488,9 @@ def crossproduct(d):
     """
 
     _mt._get_metric_tracker().track('util.crossproduct')
-    from graphlab import SArray
+    from xpatterns import XArray
     d = [zip(d.keys(), x) for x in _itertools.product(*d.values())]
     sa = [{k:v for (k,v) in x} for x in d]
-    return SArray(sa).unpack(column_name_prefix='')
+    return XArray(sa).unpack(column_name_prefix='')
 
 
-class Singleton:
-    """
-    A non-thread-safe helper class to ease implementing singletons.
-    This should be used as a decorator -- not a metaclass -- to the
-    class that should be a singleton.
-
-    The decorated class can define one `__init__` function that
-    takes only the `self` argument. Other than that, there are
-    no restrictions that apply to the decorated class.
-
-    To get the singleton instance, use the `Instance` method. Trying
-    to use `__call__` will result in a `TypeError` being raised.
-
-    Limitations: The decorated class cannot be inherited from.
-
-    """
-
-    def __init__(self, decorated):
-        self._decorated = decorated
-
-    def Instance(self):
-        """
-        Returns the singleton instance. Upon its first call, it creates a
-        new instance of the decorated class and calls its `__init__` method.
-        On all subsequent calls, the already created instance is returned.
-
-        """
-        try:
-            return self._instance
-        except AttributeError:
-            self._instance = self._decorated()
-            return self._instance
-
-    def __call__(self):
-        raise TypeError('Singletons must be accessed through `Instance()`.')
-
-    def __instancecheck__(self, inst):
-        return isinstance(inst, self._decorated)

@@ -2,17 +2,23 @@
 This module provides an implementation of Sketch using pySpark RDDs.
 """
 
-from pyspark import StorageLevel
+import inspect
+import math
 
 from xpatterns.commonImpl import CommonSparkContext
 from xpatterns.stdXFrameImpl import StdXFrameImpl
-from xpatterns.xRdd import xRdd
+from xpatterns.xrdd import xRdd
 from xpatterns.dsq import QuantileAccumulator
 
 __all__ = ['Sketch']
 
 class NotReadyError(Exception):
     pass
+
+def is_missing(x):
+    if x is None: return True
+    if isinstance(x, float) and math.isnan(x): return True
+    return False
 
 class StdSketchImpl:
 
@@ -40,7 +46,7 @@ class StdSketchImpl:
         cls.exit_trace = exit_trace or cls.exit_trace
 
     def construct_from_xarray(self, xa, background=None, sub_sketch_keys=None):
-        self._entry(xa, background, sub_sketch_keys)
+        self._entry(background, sub_sketch_keys)
         if background:
             raise NotImplementedError('background mode not implemented')
         if sub_sketch_keys is not None:
@@ -48,13 +54,20 @@ class StdSketchImpl:
 
         # use xa to create the quantile accumulator
         # TODO calculate these in one pass
-        lower_bound = xa.rdd.min()
-        upper_bound = xa.rdd.max()
-        num_levels = 12
-        epsilon = 0.001
-        delta = 0.01
+        res = xa.rdd.filter(lambda x: not is_missing(x))
+        
+        lower_bound = res.rdd.min()
+        upper_bound = res.rdd.max()
+#       With these values, the system runs out of memory
+#        num_levels = 12
+#        epsilon = 0.001
+#        delta = 0.01
+#       With these, it is OK.
+        num_levels = 10
+        epsilon = 0.01
+        delta = 0.1
         self.accumulator = QuantileAccumulator(lower_bound, upper_bound, num_levels, epsilon, delta)
-        accumulators = xa.rdd.mapPartitions(self.accumulator)
+        accumulators = res.mapPartitions(self.accumulator)
         self.quantile_accum = accumulators.reduce(lambda x, y: x.merge(y))
         self.sketch_ready = True
         self._exit()
@@ -149,4 +162,3 @@ class StdSketchImpl:
 
     def cancel(self):
         pass
-

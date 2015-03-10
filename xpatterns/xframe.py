@@ -12,7 +12,7 @@ from xpatterns.xarray import XArray, _create_sequential_xarray
 import xpatterns
 
 import pandas
-#import graphlab.aggregate
+
 import array
 from prettytable import PrettyTable
 from textwrap import wrap
@@ -2003,6 +2003,18 @@ class XFrame(object):
             self.__impl__.set_column_name(k, names[k])
         return self
 
+    def __getattr__(self, key):
+        """
+        This method allows the dot notation to refer to columns.
+
+        It is a little simpler than the subscript notation, but it less general because the
+        column name has to be a python constant rather than a variable, and because it has to be
+        an acceptable python constant (cannot contain minus sign, cannot start with a number, etc.)
+        It is also only an alternative to the "select_column" form of subscript notation.
+        """
+        # This should never see a key that corresponds to an existing attribute.
+        return self.__getitem__(key)
+        
     def __getitem__(self, key):
         """
         This method does things based on the type of `key`.
@@ -2050,6 +2062,19 @@ class XFrame(object):
             return XFrame(_impl = self.__impl__.copy_range(start, step, stop))
         else:
             raise TypeError("Invalid index type: must be XArray, int, list, slice, or str: ({})".format(type(key)))
+
+    def __setattr__(self, key, value):
+        """
+        This method allows the dot notation to refer to columns on the left side.
+
+        It is a little simpler than the subscript notation, but it less general because the
+        column name has to be a python constant rather than a variable, and because it has to be
+        an acceptable python constant (cannot contain minus sign, cannot start with a number, etc.)
+        """
+        if key.startswith('_'):
+            self.__dict__[key] = value
+        else:
+            self.__setitem__(key, value)
 
     def __setitem__(self, key, value):
         """
@@ -2567,6 +2592,19 @@ class XFrame(object):
         return XFrame(_impl=self.__impl__.groupby_aggregate(key_columns_array, group_columns,
                                                                   group_output_columns, group_ops))
 
+    def group_by(self, key_columns, operations, *args):
+        """
+        Perform a group on the key_columns followed by aggregations on the
+        columns listed in operations.
+
+        Alternative spelling for groupby
+
+        See Also
+        --------
+        groupby
+        """
+        return self.groupby(key_columns, operations, *args)
+
     def join(self, right, on=None, how='inner'):
         """
         Merge two XFrames. Merges the current (left) XFrame with the given
@@ -2855,7 +2893,8 @@ class XFrame(object):
         existing_type = self.column_types()[self.column_names().index(column_name)]
         given_type = value_xf.column_types()[0]
         if given_type != existing_type:
-            raise TypeError("Type of given values ({}) does not match type of column '{}' ({}) in XFrame.".format(given_type, column_name, existing_type))
+            raise TypeError("Type of given values ({}) does not match type of column '{}' ({}) in XFrame."
+                            .format(given_type, column_name, existing_type))
 
         if exclude:
             id_name = "id"
@@ -2875,6 +2914,19 @@ class XFrame(object):
             return XFrame(_impl=self.__impl__.join(value_xf.__impl__,
                                                    'inner',
                                                    {column_name:column_name}))
+
+    def filterby(self, values, column_name, exclude=False):
+        """
+        Filter an XFrame by values inside an iterable object.
+
+        Alternative spelling for filter_by
+
+        See Also
+        --------
+        filter_by
+        """
+
+        return self.filter_by(values, column_name, exclude)
 
     def pack_columns(self, columns=None, column_prefix=None, dtype=list,
                      fill_na=None, remove_prefix=True, new_column_name=None):

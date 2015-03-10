@@ -173,6 +173,7 @@ class QuantileAccumulator(object):
         # domain
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
+        self.norm = upper_bound - lower_bound if upper_bound != lower_bound else 1
         
         # precision/sketch state
         self._num_levels = num_levels
@@ -186,8 +187,7 @@ class QuantileAccumulator(object):
     def increment(self, value):
         """Increment counter for value in the domain."""
         self.total += 1
-        normed_value = float(value - self.lower_bound) / (self.upper_bound -
-                                                           self.lower_bound)
+        normed_value = float(value - self.lower_bound) / self.norm
         for (level, sketch) in enumerate(self._sketches):
             key = QuantileAccumulator._index_at_level(normed_value, level)
             sketch.increment(key)
@@ -232,8 +232,7 @@ class QuantileAccumulator(object):
     
     def cdf(self, value):
         """Compute estimated CDF at value in domain."""
-        _norm = lambda x: float(x - self.lower_bound) / (self.upper_bound -
-                                                          self.lower_bound)
+        _norm = lambda x: float(x - self.lower_bound) / self.norm
         normed_value = _norm(value)
         return self._normed_cdf(normed_value)
     

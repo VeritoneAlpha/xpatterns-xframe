@@ -11,6 +11,8 @@ ulimit -n 4096
 
 export LIB=`pwd`
 export COG_LIB=$LIB/cogno
+export FILES_BASE=dec-13
+export XF_CONFIG=$LIB/cogno
 export PYTHONPATH=$LIB:$COG_LIB
 export PATH=$PATH:$LIB/bin
 export SPARK_HOME=/home/ubuntu/spark
