@@ -14,6 +14,7 @@ import sys
 sys.path.insert(0, '/home/ubuntu/spark/python')
 sys.path.insert(1, '/home/ubuntu/spark/python/lib/py4j-0.8.2.1-src.zip')
 
+from pyspark.sql.types import StructType, StructField, IntegerType, StringType
 
 # python testxframe.py
 # python -m unittest testxframe
@@ -38,7 +39,7 @@ class TestXFrameConstructor(unittest.TestCase):
 
     def test_construct_auto_str_csv(self):
         path = 'files/test-frame.csv'
-        res = XFrame(path)
+        res = XFrame(path, verbose=False)
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, str], res.column_types())
@@ -48,7 +49,17 @@ class TestXFrameConstructor(unittest.TestCase):
 
     def test_construct_auto_str_tsv(self):
         path = 'files/test-frame.tsv'
-        res = XFrame(path)
+        res = XFrame(path, verbose=False)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertEqual({'id': 3, 'val': 'c'}, res[2])
+
+    def test_construct_auto_str_psv(self):
+        path = 'files/test-frame.psv'
+        res = XFrame(path, verbose=False)
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, str], res.column_types())
@@ -57,39 +68,54 @@ class TestXFrameConstructor(unittest.TestCase):
         self.assertEqual({'id': 3, 'val': 'c'}, res[2])
 
     def test_construct_auto_str_txt(self):
+        # construct and XFrame given a text file
+        # interpret as csv
         pass
 
     def test_construct_auto_str_xframe(self):
+        # construct and XFrame given a file with unrecognized file extension
+        # this refers to a graphlab internal file, and might be reinterpreted as reading from a 
+        # spark internal checkpoint file
         pass
 
     def test_construct_xarray(self):
+        # construct and XFrame given an XArray
         pass
 
     def test_construct_xframe(self):
+        # construct an XFrame given another XFrame
         pass
 
     def test_construct_iteritems(self):
+        # construct an XFrame from an object that has iteritems
         pass
 
     def test_construct_iter(self):
+        # construct an XFrame from an object that has __iter__
         pass
 
     def test_construct_none(self):
+        # construct an empty XFrame
         pass
 
     def test_construct_array(self):
+        # construct an XFrame from an array
         pass
 
     def test_construct_dict_int(self):
+        # construct an XFrame from a dict of int
         pass
 
     def test_construct_dict_float(self):
+        # construct an XFrame from a dict of float
         pass
 
     def test_construct_dict_str(self):
+        # construct an XFrame from a dict of str
         pass
 
     def test_construct_dict_int_str(self):
+        # construct an XFrame from a dict of int and str
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         self.assertEqual(3, len(t))
         t = t.sort('id')
@@ -102,11 +128,32 @@ class TestXFrameConstructor(unittest.TestCase):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         path = 'files/tmp-frame'
         t.save(path, format='binary')    ### File does not necessarily save in order
-        res = XFrame(path).sort('id')    ### so let's sort ifter we read it back
+        res = XFrame(path).sort('id')    ### so let's sort after we read it back
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, str], res.column_types())
         self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+
+    def test_construct_rdd(self):
+        sc = XFrame.spark_context()
+        rdd = sc.parallelize([(1, 'a'), (2, 'b'), (3, 'c')])
+        res = XFrame(rdd)
+        self.assertEqual(3, len(res))
+        self.assertEqual({'X.0': 1, 'X.1': 'a'}, res[0])
+        self.assertEqual({'X.0': 2, 'X.1': 'b'}, res[1])
+
+    def test_construct_spark_dataframe(self):
+        sc = XFrame.spark_context()
+        rdd = sc.parallelize([(1, 'a'), (2, 'b'), (3, 'c')])
+        fields = [StructField('id', IntegerType(), True), StructField('val', StringType(), True)]
+        schema = StructType(fields)
+        sqlc = XFrame.sql_context()
+        s_rdd = sqlc.applySchema(rdd, schema)
+        res = XFrame(s_rdd)
+        self.assertEqual(3, len(res))
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
 
 class TestXFrameReadCsvWithErrors(unittest.TestCase):
     """
@@ -251,13 +298,164 @@ class TestXFrameReadCsv(unittest.TestCase):
         self.assertEqual({'id': None, 'val': 'b'}, res[1])
         self.assertEqual({'id': 3, 'val': 'c'}, res[2])
 
-class TestXFrameToSchemaRdd(unittest.TestCase):
+class TestXFrameReadParquet(unittest.TestCase):
     """
-    Tests XFrame to_schema_rdd
+    Tests XFrame read_parquet
     """
 
-    def test_to_schema_rdd(self):
-        pass
+    def test_read_parquet_str(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        path = 'files/tmp-frame-parquet'
+        t.save(path, format='parquet')
+
+        res = XFrame('files/tmp-frame-parquet.parquet')
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertEqual({'id': 3, 'val': 'c'}, res[2])
+
+    def test_read_parquet_bool(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [True, False, True]})
+        path = 'files/tmp-frame-parquet'
+        t.save(path, format='parquet')
+
+        res = XFrame('files/tmp-frame-parquet.parquet')
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, bool], res.column_types())
+        self.assertEqual({'id': 1, 'val': True}, res[0])
+        self.assertEqual({'id': 2, 'val': False}, res[1])
+        self.assertEqual({'id': 3, 'val': True}, res[2])
+
+    def test_read_parquet_int(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [10, 20, 30]})
+        path = 'files/tmp-frame-parquet'
+        t.save(path, format='parquet')
+
+        res = XFrame('files/tmp-frame-parquet.parquet')
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, int], res.column_types())
+        self.assertEqual({'id': 1, 'val': 10}, res[0])
+        self.assertEqual({'id': 2, 'val': 20}, res[1])
+        self.assertEqual({'id': 3, 'val': 30}, res[2])
+
+    def test_read_parquet_float(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [1.0, 2.0, 3.0]})
+        path = 'files/tmp-frame-parquet'
+        t.save(path, format='parquet')
+
+        res = XFrame('files/tmp-frame-parquet.parquet')
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, float], res.column_types())
+        self.assertEqual({'id': 1, 'val': 1.0}, res[0])
+        self.assertEqual({'id': 2, 'val': 2.0}, res[1])
+        self.assertEqual({'id': 3, 'val': 3.0}, res[2])
+
+    def test_read_parquet_list(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [[1, 1], [2, 2], [3, 3]]})
+        path = 'files/tmp-frame-parquet'
+        t.save(path, format='parquet')
+
+        res = XFrame('files/tmp-frame-parquet.parquet')
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, list], res.column_types())
+        self.assertEqual({'id': 1, 'val': [1, 1]}, res[0])
+        self.assertEqual({'id': 2, 'val': [2, 2]}, res[1])
+        self.assertEqual({'id': 3, 'val': [3, 3]}, res[2])
+
+    def test_read_parquet_dict(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [{1: 1}, {2: 2}, {3: 3}]})
+        path = 'files/tmp-frame-parquet'
+        t.save(path, format='parquet')
+
+        res = XFrame('files/tmp-frame-parquet.parquet')
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, dict], res.column_types())
+        self.assertEqual({'id': 1, 'val': {1: 1}}, res[0])
+        self.assertEqual({'id': 2, 'val': {2: 2}}, res[1])
+        self.assertEqual({'id': 3, 'val': {3: 3}}, res[2])
+
+class TestXFrameToSparkDataFrame(unittest.TestCase):
+    """
+    Tests XFrame to_spark_dataframe
+    """
+
+    def test_to_spark_dataframe_str(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        srdd = t.to_spark_dataframe('tmp_tbl')
+        sqlc = XFrame.sql_context()
+        results = sqlc.sql('SELECT * FROM tmp_tbl ORDER BY id')
+        self.assertEqual(3, results.count())
+        row = results.collect()[0]
+        self.assertEqual(1, row.id)
+        self.assertEqual('a', row.val)
+
+    def test_to_spark_dataframe_bool(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [True, False, True]})
+        srdd = t.to_spark_dataframe('tmp_tbl')
+        sqlc = XFrame.sql_context()
+        results = sqlc.sql('SELECT * FROM tmp_tbl ORDER BY id')
+        self.assertEqual(3, results.count())
+        row = results.collect()[0]
+        self.assertEqual(1, row.id)
+        self.assertEqual(True, row.val)
+
+    def test_to_spark_dataframe_float(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [1.0, 2.0, 3.0]})
+        srdd = t.to_spark_dataframe('tmp_tbl')
+        sqlc = XFrame.sql_context()
+        results = sqlc.sql('SELECT * FROM tmp_tbl ORDER BY id')
+        self.assertEqual(3, results.count())
+        row = results.collect()[0]
+        self.assertEqual(1, row.id)
+        self.assertEqual(1.0, row.val)
+
+    def test_to_spark_dataframe_int(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [1, 2, 3]})
+        srdd = t.to_spark_dataframe('tmp_tbl')
+        sqlc = XFrame.sql_context()
+        results = sqlc.sql('SELECT * FROM tmp_tbl ORDER BY id')
+        self.assertEqual(3, results.count())
+        row = results.collect()[0]
+        self.assertEqual(1, row.id)
+        self.assertEqual(1, row.val)
+
+    def test_to_spark_dataframe_list(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [[1, 1],  [2, 2], [3, 3]]})
+        srdd = t.to_spark_dataframe('tmp_tbl')
+        sqlc = XFrame.sql_context()
+        results = sqlc.sql('SELECT * FROM tmp_tbl ORDER BY id')
+        self.assertEqual(3, results.count())
+        row = results.collect()[0]
+        self.assertEqual(1, row.id)
+        self.assertEqual([1, 1], row.val)
+
+    def test_to_spark_dataframe_list_bad(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [[[1], 1],  [[2], 2], [[3], 3]]})
+        with self.assertRaises(ValueError):
+            srdd = t.to_spark_dataframe('tmp_tbl')
+
+    def test_to_spark_dataframe_map(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [{'x': 1},  {'y': 2}, {'z': 3}]})
+        srdd = t.to_spark_dataframe('tmp_tbl')
+        sqlc = XFrame.sql_context()
+        results = sqlc.sql('SELECT * FROM tmp_tbl ORDER BY id')
+        self.assertEqual(3, results.count())
+        row = results.collect()[0]
+        self.assertEqual(1, row.id)
+        expected = {'x': 1}
+        self.assertEqual(expected, row.val)
+
+    def test_to_spark_dataframe_map_bad(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [None,  {'y': 2}, {'z': 3}]})
+        with self.assertRaises(ValueError):
+            srdd = t.to_spark_dataframe('tmp_tbl')
 
 class TestXFrameToRdd(unittest.TestCase):
     """
@@ -269,11 +467,73 @@ class TestXFrameToRdd(unittest.TestCase):
 
 class TestXFrameFromRdd(unittest.TestCase):
     """
-    Tests XFrame from_rdd
+    Tests XFrame from_rdd with regular rdd
     """
 
     def test_from_rdd(self):
-        pass
+        sc = XFrame.spark_context()
+        rdd = sc.parallelize([(1, 'a'), (2, 'b'), (3, 'c')])
+        res = XFrame.from_rdd(rdd)
+        self.assertEqual(3, len(res))
+        self.assertEqual({'X.0': 1, 'X.1': 'a'}, res[0])
+        self.assertEqual({'X.0': 2, 'X.1': 'b'}, res[1])
+
+    def test_from_rdd_names(self):
+        sc = XFrame.spark_context()
+        rdd = sc.parallelize([(1, 'a'), (2, 'b'), (3, 'c')])
+        res = XFrame.from_rdd(rdd, names=('id', 'val'))
+        self.assertEqual(3, len(res))
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
+
+    def test_from_rdd_types(self):
+        sc = XFrame.spark_context()
+        rdd = sc.parallelize([(None, 'a'), (2, 'b'), (3, 'c')])
+        res = XFrame.from_rdd(rdd, types=(int, str))
+        self.assertEqual(3, len(res))
+        self.assertEqual((int, str), res.column_types())
+        self.assertEqual({'X.0': None, 'X.1': 'a'}, res[0])
+        self.assertEqual({'X.0': 2, 'X.1': 'b'}, res[1])
+
+    def test_from_rdd_names_types(self):
+        sc = XFrame.spark_context()
+        rdd = sc.parallelize([(None, 'a'), (2, 'b'), (3, 'c')])
+        res = XFrame.from_rdd(rdd, names = ('id', 'val'), types=(int, str))
+        self.assertEqual(3, len(res))
+        self.assertEqual((int, str), res.column_types())
+        self.assertEqual({'id': None, 'val': 'a'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
+
+    def test_from_rdd_names_bad(self):
+        sc = XFrame.spark_context()
+        rdd = sc.parallelize([(1, 'a'), (2, 'b'), (3, 'c')])
+        with self.assertRaises(ValueError):
+            res = XFrame.from_rdd(rdd, names=('id', ))
+
+    def test_from_rdd_types_bad(self):
+        sc = XFrame.spark_context()
+        rdd = sc.parallelize([(None, 'a'), (2, 'b'), (3, 'c')])
+        with self.assertRaises(ValueError):
+            res = XFrame.from_rdd(rdd, types=(int, ))
+
+class TestXFrameFromSparkDataFrame(unittest.TestCase):
+    """
+    Tests XFrame from_rdd with spark dataframe
+    """
+
+    def test_from_rdd(self):
+        sc = XFrame.spark_context()
+        rdd = sc.parallelize([(1, 'a'), (2, 'b'), (3, 'c')])
+        fields = [StructField('id', IntegerType(), True), StructField('val', StringType(), True)]
+        schema = StructType(fields)
+        sqlc = XFrame.sql_context()
+        s_rdd = sqlc.applySchema(rdd, schema)
+
+        res = XFrame.from_rdd(s_rdd)
+        self.assertEqual(3, len(res))
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
 
 class TestXFramePrintRows(unittest.TestCase):
     """
@@ -419,14 +679,63 @@ class TestXFrameTail(unittest.TestCase):
         self.assertTrue(eq_array([2, 3], tl['id']))
         self.assertTrue(eq_array(['b', 'c'], tl['val']))
 
-class TestXFrameToDataframe(unittest.TestCase):
+class TestXFrameToPandasDataframe(unittest.TestCase):
     """
-    Tests XFrame to_dataframe
+    Tests XFrame to_pandas_dataframe
     """
 
-    # TODO: need to implement
-    def test_to_dataframe(self):
-        pass
+    def test_to_pandas_dataframe_str(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        df = t.to_pandas_dataframe()
+        self.assertEqual(3, len(df))
+        self.assertEqual(1, df['id'][0])
+        self.assertEqual(2, df['id'][1])
+        self.assertEqual('a', df['val'][0])
+
+    def test_to_pandas_dataframe_bool(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [True, False, True]})
+        df = t.to_pandas_dataframe()
+        self.assertEqual(3, len(df))
+        self.assertEqual(1, df['id'][0])
+        self.assertEqual(2, df['id'][1])
+        self.assertEqual(True, df['val'][0])
+        self.assertEqual(False, df['val'][1])
+
+    def test_to_pandas_dataframe_float(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [1.0, 2.0, 3.0]})
+        df = t.to_pandas_dataframe()
+        self.assertEqual(3, len(df))
+        self.assertEqual(1, df['id'][0])
+        self.assertEqual(2, df['id'][1])
+        self.assertEqual(1.0, df['val'][0])
+        self.assertEqual(2.0, df['val'][1])
+
+    def test_to_pandas_dataframe_int(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [1, 2, 3]})
+        df = t.to_pandas_dataframe()
+        self.assertEqual(3, len(df))
+        self.assertEqual(1, df['id'][0])
+        self.assertEqual(2, df['id'][1])
+        self.assertEqual(1, df['val'][0])
+        self.assertEqual(2, df['val'][1])
+
+    def test_to_pandas_dataframe_list(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [[1, 1],  [2, 2], [3, 3]]})
+        df = t.to_pandas_dataframe()
+        self.assertEqual(3, len(df))
+        self.assertEqual(1, df['id'][0])
+        self.assertEqual(2, df['id'][1])
+        self.assertEqual([1, 1], df['val'][0])
+        self.assertEqual([2, 2], df['val'][1])
+
+    def test_to_pandas_dataframe_map(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [{'x': 1},  {'y': 2}, {'z': 3}]})
+        df = t.to_pandas_dataframe()
+        self.assertEqual(3, len(df))
+        self.assertEqual(1, df['id'][0])
+        self.assertEqual(2, df['id'][1])
+        self.assertEqual({'x': 1}, df['val'][0])
+        self.assertEqual({'y': 2}, df['val'][1])
 
 
 class TestXFrameApply(unittest.TestCase):
@@ -622,6 +931,16 @@ class TestXFrameSaveCSV(unittest.TestCase):
         path = 'files/tmp-frame-csv'
         with self.assertRaises(NotImplementedError):
             t.save(path, format='csv')
+
+class TestXFrameSaveParquet(unittest.TestCase):
+    """
+    Tests XFrame save for parquet files
+    """
+    def test_save(self):
+        t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
+        path = 'files/tmp-frame-parquet'
+        t.save(path, format='parquet')
+        # TODO verify
 
 
 class TestXFrameSelectColumn(unittest.TestCase):
@@ -915,6 +1234,16 @@ class TestXFrameGetitem(unittest.TestCase):
 
 
 
+class TestXFrameGetattr(unittest.TestCase):
+    """
+    Tests XFrame __getattr__
+    """
+
+    def test_getattr(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.id
+        self.assertTrue(eq_array([1, 2, 3], res))
+
 class TestXFrameSetitem(unittest.TestCase):
     """
     Tests XFrame __setitem__
@@ -967,6 +1296,23 @@ class TestXFrameSetitem(unittest.TestCase):
         self.assertEqual(4, len(t))
         self.assertEqual({'val': 2.0}, t[1])
 
+
+class TestXFrameSetattr(unittest.TestCase):
+    """
+    Tests XFrame __setattr__
+    """
+
+    def test_setitem_const(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        t.x = 5.0
+        self.assertEqual(['id', 'val', 'x'], t.column_names())
+        self.assertEqual({'id': 2, 'val': 'b', 'x': 5.0}, t[1])
+
+    def test_setitem_str_iter_replace(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        t.val = [1.0, 2.0, 3.0]
+        self.assertEqual(['id', 'val'], t.column_names())
+        self.assertEqual({'id': 2, 'val': 2.0}, t[1])
 
 class TestXFrameDelitem(unittest.TestCase):
     """
@@ -1927,7 +2273,6 @@ class TestXFramePackColumnsArray(unittest.TestCase):
     def test_pack_columns(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': [10, 20, 30, 40]})
         res = t.pack_columns(columns=['id', 'val'], new_column_name='new', dtype=array.array)
-        print res
         self.assertEqual(4, len(res))
         self.assertEqual(1, res.num_columns())
         self.assertEqual([array.array], res.dtype())
@@ -2464,6 +2809,28 @@ class TestXFrameShape(unittest.TestCase):
     def test_shape_empty(self):
         t = XFrame()
         self.assertEqual((0, 0), t.shape)
+
+class TestXFrameSql(unittest.TestCase):
+    """
+    Tests XFrame sql
+    """
+
+    def test_sql(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.sql("SELECT * FROM xframe WHERE id > 1")
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 2, 'val': 'b'}, res[0])
+        self.assertEqual({'id': 3, 'val': 'c'}, res[1])
+
+    def test_sql_name(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.sql("SELECT * FROM tmp_tbl WHERE id > 1", table_name='tmp_tbl')
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 2, 'val': 'b'}, res[0])
+        self.assertEqual({'id': 3, 'val': 'c'}, res[1])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -7,7 +7,6 @@ import random
 import inspect
 import json
 import random
-import numpy
 import array
 import pickle
 import errno
@@ -16,90 +15,20 @@ import csv
 import StringIO
 
 from pyspark.sql import *
+from pyspark.sql.types import StringType, BooleanType, \
+    DoubleType, FloatType, \
+    ShortType, IntegerType, LongType, \
+    ArrayType, MapType, \
+    StructField, StructType
 
-from xpatterns.commonImpl import CommonSparkContext, safeZip, infer_type_of_list, infer_type, persist_temp, persist_long
+from xpatterns.common_impl import CommonSparkContext, safe_zip, infer_type_of_list, infer_type, persist_temp, persist_long
 import xpatterns as xp
-from xpatterns.xrdd import xRdd
+from xpatterns.xrdd import XRdd
 from xpatterns.cmp_rows import CmpRows
-
-# Define aggregator functions for groupby.
-# Each of these functions operates on a pyspark resultIterable
-#  produced by groupByKey and directly produces the aggregated result.
-
-def agg_sum(rows, cols): 
-    # cols: [src_col]
-    vals = [row[cols[0]] for row in rows]
-    return sum(vals)
-
-def agg_argmax(rows, cols): 
-    # cols: [agg_col, out_col]
-    vals = [row[cols[0]] for row in rows]
-    row_index = vals.index(max(vals))
-    vals = [row[cols[1]] for row in rows]
-    return vals[row_index]
-
-def agg_argmin(rows, cols): 
-    # cols: [agg_col, out_col]
-    vals = [row[cols[0]] for row in rows]
-    row_index = vals.index(min(vals))
-    vals = [row[cols[1]] for row in rows]
-    return vals[row_index]
-
-def agg_max(rows, cols): 
-    # cols: [src_col]
-    vals = [row[cols[0]] for row in rows]
-    return max(vals)
-
-def agg_min(rows, cols): 
-    # cols: [src_col]
-    vals = [row[cols[0]] for row in rows]
-    return min(vals)
-
-def agg_count(rows, cols): 
-    # cols: []
-    return len(rows)
-
-def agg_avg(rows, cols): 
-    # cols: [src_col]
-    vals = [row[cols[0]] for row in rows]
-    return numpy.mean(vals)
-
-def agg_var(rows, cols): 
-    # cols: [src_col]
-    vals = [row[cols[0]] for row in rows]
-    return numpy.var(vals)
-
-def agg_std(rows, cols): 
-    # cols: [src_col]
-    vals = [row[cols[0]] for row in rows]
-    return numpy.std(vals)
-
-def agg_select_one(rows, cols):
-    # cols: [src_col, seed]
-    num_rows = len(rows)
-    seed = cols[1]
-    random.seed(seed)
-    row_index = random.randint(0, num_rows-1)
-    vals = [row[cols[0]] for row in rows]
-    val = vals[row_index]
-    return val
-
-def agg_concat_list(rows, cols): 
-    # cols: [src_col]
-    vals = [row[cols[0]] for row in rows]
-    return vals
-
-def agg_concat_dict(rows, cols): 
-    # cols: [src_col dict_value_column]
-    vals = {row[cols[0]]: row[cols[1]] for row in rows}
-    return vals
-
-def agg_quantile(rows, cols): 
-    # cols: [src_col, quantile]
-    # cols: [src_col, [quantile ...]]
-    return None
+from xpatterns.aggregator_impl import aggregator_properties
 
 
+# Helper functions
 def delete_file_or_dir(path):
     expected_errs = [errno.ENOENT]     # no such file or directory
     try:
@@ -108,78 +37,6 @@ def delete_file_or_dir(path):
         if err.errno not in expected_errs:
             raise err
 
-class AggregatorPropertySet:
-    """ Store aggregator properties for one aggregator. """
-
-    def __init__(self, name, agg_function, default_col_name, output_type):
-        """ 
-        Create a new instance.
-
-        Parameters
-        ----------
-        name: str
-            The aggregator internal name.
-
-        agg_function: func(rows, cols)
-            The agregator function.  
-            This is given a pyspark resultIterable produced by groupByKey
-               and containing the rows matching a single group.
-            It's responsibility is to compute and return the aggregate value for thhe group.
-
-        default_col_name: str
-            The name of the aggregate column, if not supplied explicitly.
-    
-        output_type: type or int
-            If a type is given, use that type as the output column type.
-            If an integer is given, then the output type is the same as the
-                input type of the column indexed by the integer.
-        """
-
-        self.name = name
-        self.agg_function = agg_function
-        self.default_col_name = default_col_name
-        self.output_type = output_type
-
-    def get_output_type(self, input_type):
-        candidate = self.output_type
-        if type(candidate) is int: return input_type[candidate]
-        return candidate
-
-class AggregatorProperties:
-    """ Manage aggregator properties for all known aggregators. """
-    def __init__(self):
-        self.aggregator_properties = {}
-
-    def add(self, aggregator_property_set):
-        self.aggregator_properties[aggregator_property_set.name] = aggregator_property_set
-
-    def __getitem__(self, op):
-        if not op in self.aggregator_properties:
-            raise ValueError('unrecognized aggregation operator: {}'.format(op))
-        return self.aggregator_properties[op]
-
-aggregator_properties = AggregatorProperties()
-
-aggregator_properties.add(AggregatorPropertySet('__builtin__sum__', agg_sum, 'sum', int))
-aggregator_properties.add(AggregatorPropertySet('__builtin__argmax__', agg_argmax, 'argmax', 1))
-aggregator_properties.add(AggregatorPropertySet('__builtin__argmin__', agg_argmin, 'argmin', 1))
-aggregator_properties.add(AggregatorPropertySet('__builtin__max__', agg_max, 'max', 0))
-aggregator_properties.add(AggregatorPropertySet('__builtin__min__', agg_min, 'min', 0))
-aggregator_properties.add(AggregatorPropertySet('__builtin__count__', agg_count, 'count', int))
-aggregator_properties.add(AggregatorPropertySet('__builtin__avg__', agg_avg, 'avg', float))
-aggregator_properties.add(AggregatorPropertySet('__builtin__mean__', agg_avg, 'mean', float))
-aggregator_properties.add(AggregatorPropertySet('__builtin__var__', agg_var, 'var', float))
-aggregator_properties.add(AggregatorPropertySet('__builtin__variance__', agg_var, 'variance', float))
-aggregator_properties.add(AggregatorPropertySet('__builtin__std__', agg_std, 'std', float))
-aggregator_properties.add(AggregatorPropertySet('__builtin__stdv__', agg_std, 'stdv', float))
-aggregator_properties.add(AggregatorPropertySet('__builtin__select_one__', agg_select_one, 'select_one', 0))
-aggregator_properties.add(AggregatorPropertySet('__builtin__concat__list__', agg_concat_list, 'concat', list))
-aggregator_properties.add(AggregatorPropertySet('__builtin__concat__dict__', agg_concat_dict, 'concat', dict))
-aggregator_properties.add(AggregatorPropertySet('__builtin__quantile__', agg_quantile, 'quantile', float))
-
-
-
-# Helper functions
 def is_missing(x):
     """ Tests for missing values. """
     if x is None: return True
@@ -207,7 +64,39 @@ def name_col(existing_col_names, proposed_name):
         i += 1
     return candidate
 
-class StdXFrameImpl:
+def to_ptype(schema_type):
+    if isinstance(schema_type, BooleanType): return bool
+    elif isinstance(schema_type, IntegerType): return int
+    elif isinstance(schema_type, ShortType): return int
+    elif isinstance(schema_type, LongType): return long
+    elif isinstance(schema_type, DoubleType): return float
+    elif isinstance(schema_type, FloatType): return float
+    elif isinstance(schema_type, StringType): return str
+    elif isinstance(schema_type, ArrayType): return list
+    elif isinstance(schema_type, MapType): return dict
+    else: return str
+
+def to_schema_type(typ, elem):
+    if typ == str: return StringType()
+    if typ == bool: return BooleanType()
+    if typ == float: return FloatType()
+    if typ == int or typ == long: return IntegerType()
+    if typ == list: 
+        if elem is None or len(elem) == 0:
+            raise ValueError('frame not compatible with Spark DataFrame')
+        a_type = to_schema_type(type(elem[0]), None)
+        # todo set valueContainsNull correctly
+        return ArrayType(a_type)
+    if typ == dict: 
+        if elem is None or len(elem) == 0:
+            raise ValueError('frame not compatible with Spark DataFrame')
+        key_type = to_schema_type(type(elem.keys()[0]), None)
+        val_type = to_schema_type(type(elem.values()[0]), None)
+        # todo set valueContainsNull correctly
+        return MapType(key_type, val_type)
+    return StringType()
+
+class XFrameImpl:
     """ Implementation for XFrame. """
 
     entry_trace = False
@@ -234,7 +123,7 @@ class StdXFrameImpl:
 
     def _rv(self, rdd, col_names=None, column_types=None):
         """
-        Return a new StdXFrameImpl containing the RDD, column names, and column types.
+        Return a new XFrameImpl containing the RDD, column names, and column types.
 
         Column names and types default to the existing ones.
         This is typically used when a function returns a new XFrame.
@@ -242,7 +131,7 @@ class StdXFrameImpl:
         # only use defaults if values are None, not []
         col_names = self.col_names if col_names is None else col_names
         column_types = self.column_types if column_types is None else column_types
-        return StdXFrameImpl(rdd, col_names, column_types)
+        return XFrameImpl(rdd, col_names, column_types)
 
     def _reset():
         self.rdd = None
@@ -270,22 +159,24 @@ class StdXFrameImpl:
         self.materialized = True
         return count
 
-    def _entry(self, *args):
+    @classmethod
+    def _entry(cls, *args):
         """ Trace function entry. """
         stack = inspect.stack()
         caller = stack[1]
         called_by = stack[2]
-        if StdXFrameImpl.entry_trace:
+        if cls.entry_trace:
             print 'enter xFrame', caller[3], args, 'called by', called_by[3]
-        if StdXFrameImpl.perf_count:
+        if cls.perf_count:
             my_fun = caller[3]
-            if not my_fun in StdXFrameImpl.perf_count:
-                StdXFrameImpl.perf_count[my_fun] = 0
-            StdXFrameImpl.perf_count[my_fun] += 1
+            if not my_fun in XFrameImpl.perf_count:
+                cls.perf_count[my_fun] = 0
+            cls.perf_count[my_fun] += 1
 
-    def _exit(self, *args):
+    @classmethod
+    def _exit(cls, *args):
         """ Trace function exit. """
-        if StdXFrameImpl.exit_trace:
+        if cls.exit_trace:
             print 'exit xFrame', inspect.stack()[1][3], args
 
     @classmethod
@@ -301,30 +192,60 @@ class StdXFrameImpl:
     def get_perf_count(cls):
         return cls.perf_count
 
+    @staticmethod
+    def spark_context():
+        return CommonSparkContext.Instance().sc
+
+    @staticmethod
+    def sql_context():
+        return CommonSparkContext.Instance().sqlc
+
     # Load
-    def load_from_dataframe(self, data):
+    @classmethod
+    def xframe_from_pandas_dataframe(cls, data):
         """
-        Load RDD from a pandas DataFrame.
+        Create XFrame from a pandas.DataFrame.
+        """
+        cls._entry(data)
+        raise NotImplementedError()
+        cls._exit()
+
+    def load_from_pandas_dataframe(self, data):
+        """
+        Load from a pandas.DataFrame.
         """
         self._entry(data)
+        xf = self.xframe_from_pandas_dataframe(data)
         self._exit()
-        raise NotImplementedError()
-
-    def load_from_xframe_index(self, path):
-        self._entry(path)
+        self._replace(xf.rdd, xf.col_names, xf.column_types)
+        
+    @classmethod
+    def xframe_from_xframe_index(cls, path):
+        """
+        Create XFrame from a saved xframe.
+        """
+        cls._entry(path)
         metadata_path = path + '.metadata'
         with open(metadata_path) as f:
             names, types = pickle.load(f)
         sc = CommonSparkContext.Instance().sc
-        res = xRdd(sc.pickleFile(path))
-        self._replace(res, names, types)
+        res = XRdd(sc.pickleFile(path))
+        cls._exit()        
+        return cls(res.rdd, names, types)
+
+    def load_from_xframe_index(self, path):
+        """
+        Load from a saved xframe.
+        """
+        self._entry(path)
+        xf = self.xframe_from_xframe_index(path)
+        self._replace(xf.rdd, xf.col_names, xf.column_types)
         self._exit()        
 
     def load_from_csv(self, path, parsing_config, type_hints):
         """
         Load RDD from a csv file
         """
-
         self._entry(path, parsing_config, type_hints)
 
         def get_config(name):
@@ -337,7 +258,7 @@ class StdXFrameImpl:
             na_values = [na_values]
 
         sc = CommonSparkContext.Instance().sc
-        raw = xRdd(sc.textFile(path))
+        raw = XRdd(sc.textFile(path))
         #parsing_config 
         # 'row_limit': 100, 
         # 'use_header': True, 
@@ -356,7 +277,8 @@ class StdXFrameImpl:
         def apply_comment(line, comment_char):
             return line.partition(comment_char)[0].rstrip()
         if comment_char:
-            raw = raw.map(lambda line: apply_comment(line, comment_char), preservesPartitioning=True)
+            raw = raw.map(lambda line: apply_comment(line, comment_char), 
+                          preservesPartitioning=True)
 
         def to_format_params(config):
             params = {}
@@ -382,7 +304,7 @@ class StdXFrameImpl:
                 raw = filtered_pairs.keys()
             else:
                 lines = raw.take(row_limit)
-                raw = xRdd(sc.parallelize(lines))
+                raw = XRdd(sc.parallelize(lines))
 
         # TODO extremely inefficient to create a reader for each line
         # Use per partition operations to create a reader once per partition
@@ -464,7 +386,6 @@ class StdXFrameImpl:
             if val is None: return None
             if len(val) == 0: return 0
             return typ(val)
-#            return None if val is None else typ(val)
         def cast_row(row, types):
             return [cast_val(val, typ) for val, typ in zip(row, types)]
 
@@ -477,6 +398,24 @@ class StdXFrameImpl:
         self._exit()
         # returns a dict of errors
         return {}
+
+
+    def load_from_parquet(self, path):
+        """
+        Load RDD from a parquet file
+        """
+        self._entry(path)
+        sqlc = CommonSparkContext.Instance().sqlc
+        s_rdd = sqlc.parquetFile(path)
+        schema = s_rdd.schema
+        col_names = [str(col.name) for col in schema.fields]
+        col_types = [to_ptype(col.dataType) for col in schema.fields]
+
+        def row_to_list(row):
+            return [ row[i] for i in range(len(row))]
+        rdd = s_rdd.map(row_to_list)
+        self._exit()
+        return self._replace(rdd, col_names, col_types)
 
     # Save
     def save(self, path):
@@ -504,31 +443,103 @@ class StdXFrameImpl:
         raise NotImplementedError()
 
 
+    def save_as_parquet(self, url, number_of_partitions):
+        """
+        Save to a parquet file.
+        """
+        self._entry(url, number_of_partitions)
+        delete_file_or_dir(url)
+        dataframe = self.to_spark_dataframe(table_name=None, 
+                                number_of_partitions=number_of_partitions)
+        dataframe.saveAsParquetFile(url)
+        self._exit()
+
+
     def dump_debug_info(self):
         return self.rdd.toDebugString()
 
-    def to_schema_rdd(self, number_of_partitions):
+    def from_rdd(self, rdd, names=None, types=None):
+        first_row = rdd.take(1)[0]
+        if not names is None:
+            if len(names) != len(first_row):
+                raise ValueError('length of names does not match RDD')
+        if not types is None:
+            if len(types) != len(first_row):
+                raise ValueError('length of types does not match RDD')
+        xf_names = names or [ 'X.{}'.format(i) for i in range(len(first_row))]
+        xf_types = types or [type(elem) for elem in first_row]
+        # TODO sniff types using more of the rdd
+        return self._replace(rdd, xf_names, xf_types)
+
+    @classmethod
+    def xframe_from_spark_dataframe(cls, rdd):
+        first_row = rdd.take(1)[0]
+        xf_names = None
+        if hasattr(first_row, 'keys'):
+            xf_names = first_row.keys()
+        else:
+            xf_names = first_row.__FIELDS__
+
+        xf_names = [str(i) for i in xf_names]
+        schema = rdd.schema
+        xf_types = [to_ptype(col.dataType) for col in schema.fields]
+
+        def row_to_list(row):
+            return [ row[i] for i in range(len(row))]
+        xf_rdd = rdd.map(row_to_list)
+        return XFrameImpl(xf_rdd, xf_names, xf_types)
+
+    def from_spark_dataframe(self, rdd):
+        res = XFrameImpl.xframe_from_spark_dataframe(rdd)
+        return self._replace(res.rdd, res.col_names, res.column_types)
+
+    def to_spark_dataframe(self, table_name, number_of_partitions):
         """
         Adds column name and type informaton to the rdd and returns it.
         """
-        def translateType(typ):
-            if typ == str: return StringType()
-            if typ == bool: return BooleanType()
-            if typ == float: return FloatType()
-            if typ == int or typ == long: return IntegerType()
-            if typ == list: return ArrayType()
-            if typ == dict: return MapType()
-            return StringType()
-        self._entry(number_of_partitions)
-        fields = [StructField(name, translateType(typ), True) for name, typ in zip(self.col_names, self.column_types)]
+        # TODO: add the option to give schema type hints, or look further to find
+        #   types for list and dict
+
+        self._entry(table_name, number_of_partitions)
+        first_row = self.head_as_list(1)[0]
+        fields = [StructField(name, to_schema_type(typ, first_row[i]), True) 
+                  for i, (name, typ) in enumerate(zip(self.col_names, self.column_types))]
         schema = StructType(fields)
         rdd = self.rdd.repartition(number_of_partitions)
         sqlc = CommonSparkContext.Instance().sqlc
         res = sqlc.applySchema(rdd.rdd, schema)
-        name = 'abc'
-        res.registerTempTable(name)
+        if table_name is not None:
+            res.registerTempTable(table_name)
         self._exit()
         return res
+
+    def to_spark_dataframe(self, table_name, number_of_partitions):
+        """
+        Adds column name and type information to the rdd and returns it.
+        """
+        # TODO: add the option to give schema type hints, or look further to find
+        #   types for list and dict
+
+        self._entry(table_name, number_of_partitions)
+        first_row = self.head_as_list(1)[0]
+        fields = [StructField(name, to_schema_type(typ, first_row[i]), True) 
+                  for i, (name, typ) in enumerate(zip(self.col_names, self.column_types))]
+        schema = StructType(fields)
+        rdd = self.rdd.repartition(number_of_partitions)
+        sqlc = CommonSparkContext.Instance().sqlc
+        res = sqlc.applySchema(rdd.rdd, schema)
+        if name is not None:
+            res.registerTempTable(table_name)
+        self._exit()
+        return res
+
+    @staticmethod
+    def spark_context():
+        return CommonSparkContext.Instance().sc
+
+    @staticmethod
+    def spark_sqlcontext():
+        return CommonSparkContext.Instance().sqlc
 
     def to_rdd(self, number_of_partitions):
         """
@@ -546,7 +557,7 @@ class StdXFrameImpl:
         """
         if self.rdd is None: return 0
         res = self.rdd.map(lambda row: len(row))
-        return xp.stdXArrayImpl.StdXArrayImpl(res, int)
+        return xp.xarray_impl.XArrayImpl(res, int)
 
     def num_rows(self):
         """
@@ -600,7 +611,7 @@ class StdXFrameImpl:
         if n <= 100:
             data = self.rdd.take(n)
             sc = CommonSparkContext.Instance().sc
-            res = xRdd(sc.parallelize(data))
+            res = XRdd(sc.parallelize(data))
             self._exit(res)
             return self._rv(res)
         pairs = self.rdd.zipWithIndex()
@@ -658,7 +669,7 @@ class StdXFrameImpl:
         rng = random.Random(seed)
         rdd = self.rdd
         rand_col = self.rdd.map(lambda row: rng.uniform(0.0, 1.0), preservesPartitioning=True)
-        labeled_rdd = safeZip(self.rdd, rand_col)
+        labeled_rdd = safe_zip(self.rdd, rand_col)
         rdd1 = labeled_rdd.filter(lambda row: row[1] < fraction).map(
             lambda row: row[0], preservesPartitioning=True)
         rdd2 = labeled_rdd.filter(lambda row: row[1] >= fraction).map(
@@ -709,7 +720,7 @@ class StdXFrameImpl:
         res = self.rdd.map(lambda row: row[col], preservesPartitioning=True)
         col_type = self.column_types[col]
         self._exit(res, col_type)
-        return xp.stdXArrayImpl.StdXArrayImpl(res, col_type)
+        return xp.xarray_impl.XArrayImpl(res, col_type)
 
     def select_columns(self, keylist):
         """
@@ -745,7 +756,7 @@ class StdXFrameImpl:
         if self.rdd is None:
             res = data.rdd.map(lambda x: [x], preservesPartitioning=True)
         else:
-            res = safeZip(self.rdd, data.rdd)
+            res = safe_zip(self.rdd, data.rdd)
             def move_inside(old_val, new_elem):
                 return old_val + [new_elem]
             res = res.map(lambda pair: move_inside(pair[0], pair[1]), preservesPartitioning=True)
@@ -764,7 +775,7 @@ class StdXFrameImpl:
         types = self.column_types + [col.__impl__.elem_type for col in cols]
         rdd = self.rdd
         for col in cols:
-            rdd = safeZip(rdd, col.__impl__.rdd)
+            rdd = safe_zip(rdd, col.__impl__.rdd)
             def move_inside(old_val, new_elem):
                 return old_val + [new_elem]
             rdd = rdd.map(lambda pair: move_inside(pair[0], pair[1]), preservesPartitioning=True)
@@ -784,7 +795,7 @@ class StdXFrameImpl:
         def merge(old_cols, new_cols):
             return old_cols + new_cols
         # zip restriction: data must match in length and partition structure
-        rdd = safeZip(self.rdd, other.__impl__.rdd)
+        rdd = safe_zip(self.rdd, other.__impl__.rdd)
         res = rdd.map(lambda pair: merge(pair[0], pair[1]), preservesPartitioning=True)
         self._exit(res, names, types)
         return self._replace(res, names, types)
@@ -916,7 +927,7 @@ class StdXFrameImpl:
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry(col)
-        rdd = safeZip(self.rdd, col.__impl__.rdd)
+        rdd = safe_zip(self.rdd, col.__impl__.rdd)
         col_num = self.col_names.index(column_name)
         def replace_col(row_col, col_num):
             row = row_col[0]
@@ -956,7 +967,7 @@ class StdXFrameImpl:
         self._entry(other)
         # zip restriction: data must match in length and partition structure
 
-        pairs = safeZip(self.rdd, other.rdd)
+        pairs = safe_zip(self.rdd, other.rdd)
 
         res = pairs.filter(lambda p: p[1]).map(lambda p: p[0], preservesPartitioning=True)
         self._exit(res)
@@ -1167,7 +1178,7 @@ class StdXFrameImpl:
         else:
             raise NotImplementedError
         self._exit(res, dtype)
-        return xp.stdXArrayImpl.StdXArrayImpl(res, dtype)
+        return xp.xarray_impl.XArrayImpl(res, dtype)
 
     def transform(self, fn, dtype, seed):
         """
@@ -1182,7 +1193,7 @@ class StdXFrameImpl:
         # fn needs the row as a dict
         res = self.rdd.map(lambda row: dtype(fn(dict(zip(names, row)))), preservesPartitioning=True)
         self._exit(res, dtype)
-        return xp.stdXArrayImpl.StdXArrayImpl(res, dtype)
+        return xp.xarray_impl.XArrayImpl(res, dtype)
 
     # Group, Join, and Sort
     def groupby_aggregate(self, key_columns_array, group_columns, group_output_columns, group_ops):
@@ -1380,5 +1391,11 @@ class StdXFrameImpl:
         self._exit(res)
         return self._rv(res)
 
-
-
+    def sql(self, sql_statement, table_name):
+        self._entry(sql_statement, table_name)
+        s_rdd = self.to_spark_dataframe(table_name, 8)
+        sqlc = CommonSparkContext.Instance().sqlc
+        s_res = sqlc.sql(sql_statement)
+        res = XFrameImpl.xframe_from_spark_dataframe(s_res)
+        self._exit()
+        return res

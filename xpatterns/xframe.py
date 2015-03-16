@@ -5,14 +5,6 @@ ability to create, access and manipulate a remote scalable dataframe object.
 XFrame acts similarly to pandas.DataFrame, but the data is completely immutable
 and is stored as Spark RDDs.
 """
-from xpatterns.stdXFrameImpl import StdXFrameImpl
-from xpatterns.stdXArrayImpl import infer_type_of_list
-from util import make_internal_url, split_path_elements
-from xpatterns.xarray import XArray, _create_sequential_xarray
-import xpatterns
-
-import pandas
-
 import array
 from prettytable import PrettyTable
 from textwrap import wrap
@@ -22,11 +14,19 @@ import time
 import itertools
 import os
 import sys
-import tempfile
-import glob
-import subprocess
-import uuid
-import platform
+#import tempfile
+#import glob
+#import subprocess
+#import uuid
+#import platform
+
+import pandas
+
+from xpatterns.xframe_impl import XFrameImpl
+from xpatterns.xarray_impl import infer_type_of_list
+from util import make_internal_url, split_path_elements
+from xpatterns.xarray import XArray, _create_sequential_xarray
+import xpatterns
 
 __all__ = ['XFrame']
 
@@ -35,38 +35,6 @@ FOOTER_STRS = ['Note: Only the head of the XFrame is printed.',
 
 LAZY_FOOTER_STRS = ['Note: Only the head of the XFrame is printed. This XFrame is lazily evaluated.',
                     'You can use len(xf) to force materialization.']
-
-
-def load_xframe(filename):
-    """
-    Load an XFrame. The filename extension is used to determine the format
-    automatically. This function is particularly useful for XFrames previously
-    saved in binary format. For CSV imports the ``XFrame.read_csv`` function
-    provides greater control. If the XFrame is in binary format, ``filename`` is
-    actually a directory, created when the XFrame is saved.
-
-    Parameters
-    ----------
-    filename : string
-        Location of the file to load. Can be a local path or a remote URL.
-
-    Returns
-    -------
-    out : XFrame
-
-    See Also
-    --------
-    XFrame.save, XFrame.read_csv
-
-    Examples
-    --------
-    >>> sf = xpatterns.XFrame({'id':[1,2,3], 'val':['A','B','C']})
-    >>> sf.save('my_xframe')        # 'my_xframe' is a directory
-    >>> sf_loaded = xpatterns.load_xframe('my_xframe')
-    """
-    sf = XFrame(data=filename)
-    return sf
-
 
 class XFrame(object):
     """
@@ -84,8 +52,9 @@ class XFrame(object):
     * xframe directory archive (A directory where an xframe was saved
       previously)
     * a spark RDD plus the column names and types
-    * a spark SchemaRdd
+    * a spark.DataFrame
     * general text file (with csv parsing options, See :py:meth:`read_csv()`)
+    * parquet file
     * a Python dictionary
     * pandas.DataFrame
     * JSON
@@ -105,9 +74,9 @@ class XFrame(object):
 
     Parameters
     ----------
-    data : array | pandas.DataFrame | string | dict, optional
+    data : array | pandas.DataFrame | spark.rdd | spark.DataFrame | string | dict, optional
         The actual interpretation of this field is dependent on the ``format``
-        parameter. If ``data`` is an array or Pandas DataFrame, the contents are
+        parameter. If ``data`` is an array, Pandas DataFrame or Spark RDD, the contents are
         stored in the XFrame. If ``data`` is a string, it is interpreted as a
         file. Files can be read from local file system or urls (local://,
         hdfs://, s3://, http://, or remote://).
@@ -124,16 +93,27 @@ class XFrame(object):
         - "array"
         - "dict"
         - "xarray"
-        - "dataframe"
+        - "pandas.dataframe"
         - "csv"
         - "tsv"
+        - "psv"
+        - "parquet"
+        - "rdd"
+        - "spark.dataframe"
         - "xframe".
+
+    verbose : bool, optional
+        If reading a file, and True, print the progress.
 
     See Also
     --------
     read_csv:
         Create a new XFrame from a csv file. Preferred for text and CSV formats,
         because it has a lot more options for controlling the parser.
+
+    from_rdd:
+        Create a new XFrame from a Spark RDD or Spark DataFrame.  
+        From_rdd is preferred because the column names and types can be specified.
 
     save : Save an XFrame for later use.
 
@@ -162,18 +142,18 @@ class XFrame(object):
     ...     column_type_hints={'user_id': int})
     """
 
-    def __init__(self, data=None, format='auto', _impl=None):
+    def __init__(self, data=None, format='auto', _impl=None, verbose=True):
         """__init__(data=list(), format='auto')
-        Construct a new XFrame from a url or a pandas.DataFrame.
+        Construct a new XFrame from a url, a pandas.DataFrame or a spark RDD or DataFrame.
         """
         if (_impl):
             self.__impl__ = _impl
         else:
-            self.__impl__ = StdXFrameImpl()
+            self.__impl__ = XFrameImpl()
             _format = None
             if (format == 'auto'):
                 if (isinstance(data, pandas.DataFrame)):
-                    _format = 'dataframe'
+                    _format = 'pandas.dataframe'
                 elif (isinstance(data, str) or isinstance(data, unicode)):
 
                     if data.find('://') == -1:
@@ -185,12 +165,17 @@ class XFrame(object):
                         _format = 'csv'
                     elif data.endswith(('.tsv', '.tsv.gz')):
                         _format = 'tsv'
+                    elif data.endswith(('.psv', '.psv.gz')):
+                        _format = 'psv'
+                    elif data.endswith('.parquet'):
+                        _format = 'parquet'
                     elif data.endswith(('.txt', '.txt.gz')):
                         print "Assuming file is csv. For other delimiters, " + \
                             "please use `XFrame.read_csv`."
                         _format = 'csv'
                     else:
                         _format = 'xframe'
+
                 elif type(data) == XArray:
                     _format = 'xarray'
 
@@ -202,15 +187,23 @@ class XFrame(object):
 
                 elif hasattr(data, '__iter__'):
                     _format = 'array'
+
                 elif data is None:
                     _format = 'empty'
+
+                elif str(type(data)) ==  "<class 'pyspark.sql.dataframe.DataFrame'>":
+                    _format = 'spark.dataframe'
+
+                elif str(type(data)) ==  "<class 'pyspark.rdd.RDD'>":
+                    _format = 'rdd'
+
                 else:
                     raise ValueError('Cannot infer input type for data ' + str(data))
             else:
                 _format = format
 
-            if (_format == 'dataframe'):
-                self.__impl__.load_from_dataframe(data)
+            if (_format == 'pandas_dataframe'):
+                self.__impl__.load_from_pandas_dataframe(data)
             elif (_format == 'xframe_obj'):
                 for col in data.column_names():
                     self.__impl__.add_column(data[col].__impl__, col)
@@ -234,15 +227,27 @@ class XFrame(object):
                         self.__impl__.add_column(XArray(val).__impl__, key)
             elif (_format == 'csv'):
                 url = make_internal_url(data)
-                tmpxf = XFrame.read_csv(url, delimiter=',', header=True)
+                tmpxf = XFrame.read_csv(url, delimiter=',', header=True, verbose=verbose)
                 self.__impl__ = tmpxf.__impl__
             elif (_format == 'tsv'):
                 url = make_internal_url(data)
-                tmpxf = XFrame.read_csv(url, delimiter='\t', header=True)
+                tmpxf = XFrame.read_csv(url, delimiter='\t', header=True, verbose=verbose)
+                self.__impl__ = tmpxf.__impl__
+            elif (_format == 'psv'):
+                url = make_internal_url(data)
+                tmpxf = XFrame.read_csv(url, delimiter='|', header=True, verbose=verbose)
+                self.__impl__ = tmpxf.__impl__
+            elif (_format == 'parquet'):
+                url = make_internal_url(data)
+                tmpxf = XFrame.read_parquet(url, verbose=verbose)
                 self.__impl__ = tmpxf.__impl__
             elif (_format == 'xframe'):
                 url = make_internal_url(data)
                 self.__impl__.load_from_xframe_index(url)
+            elif _format == 'spark.dataframe':
+                self.__impl__.from_spark_dataframe(data)
+            elif _format == 'rdd':
+                self.__impl__.from_rdd(data)
             elif (_format == 'empty'):
                 pass
             else:
@@ -254,7 +259,7 @@ class XFrame(object):
 
     @staticmethod
     def set_trace(entry_trace=None, exit_trace=None):
-        StdXFrameImpl.set_trace(entry_trace, exit_trace)
+        XFrameImpl.set_trace(entry_trace, exit_trace)
 
     @staticmethod
     def set_trace(entry_trace=None, exit_trace=None):
@@ -307,6 +312,37 @@ class XFrame(object):
         return column_type_hints
 
     @classmethod
+    def load(cls, filename):
+        """
+        Load an XFrame. The filename extension is used to determine the format
+        automatically. This function is particularly useful for XFrames previously
+        saved in binary format. For CSV imports the ``XFrame.read_csv`` function
+        provides greater control. If the XFrame is in binary format, ``filename`` is
+        actually a directory, created when the XFrame is saved.
+
+        Parameters
+        ----------
+        filename : string
+            Location of the file to load. Can be a local path or a remote URL.
+
+        Returns
+        -------
+        out : XFrame
+
+        See Also
+        --------
+        XFrame.save, XFrame.read_csv
+
+        Examples
+        --------
+        >>> sf = xpatterns.XFrame({'id':[1,2,3], 'val':['A','B','C']})
+        >>> sf.save('my_xframe')        # 'my_xframe' is a directory
+        >>> sf_loaded = xpatterns.XFrame.load('my_xframe')
+        """
+        sf = cls(data=filename)
+        return sf
+
+    @classmethod
     def _read_csv_impl(cls,
                        url,
                        delimiter=',',
@@ -354,7 +390,7 @@ class XFrame(object):
         if nrows != None:
           parsing_config["row_limit"] = nrows
 
-        impl = StdXFrameImpl()
+        impl = XFrameImpl()
         internal_url = make_internal_url(url)
 
         # Attempt to automatically detect the column types. Either produce a
@@ -808,115 +844,43 @@ class XFrame(object):
         return ret[0]
 
 
+    @classmethod
+    def read_parquet(cls, url, verbose=True):
+        """
+        Constructs an XFrame from a parquet file.
+
+        Parameters
+        ----------
+        url : string
+            Location of the parquet file to load. 
+
+        verbose : bool, optional
+            If True, print the progress.
+
+        Returns
+        -------
+        out : XFrame
+
+        See Also
+        --------
+        XFrame
+
+        """
+        impl = XFrameImpl()
+        impl.load_from_parquet(url)
+        return cls(_impl=impl)
+
     def dump_debug_info(self):
         return self.__impl__.dump_debug_info()
         
-    def to_schema_rdd(self, number_of_partitions=4):
-        """
-        Convert the current XFrame to the Spark SchemaRDD.
 
-        ----------
-        out: SchemaRDD
-        """
+    @staticmethod
+    def spark_context():
+        return XFrameImpl.spark_context()
 
-        if type(number_of_partitions) is not int:
-            raise ValueError("number_of_partitions parameter expects an integer type")
-        if number_of_partitions == 0:
-            raise ValueError("number_of_partitions can not be initialized to zero")
-
-        return self.__impl__.to_schema_rdd(number_of_partitions)
-
-    def to_rdd(self, number_of_partitions=4):
-        """
-        Convert the current XFrame to the Spark RDD.
-
-        ----------
-        out: RDD
-
-        """
-
-        if type(number_of_partitions) is not int:
-            raise ValueError("number_of_partitions parameter expects an integer type")
-        if number_of_partitions == 0:
-            raise ValueError("number_of_partitions can not be initialized to zero")
-
-        return self.__impl__.to_rdd(number_of_partitions)
-
-    @classmethod
-    def from_rdd(cls, rdd):
-        """
-        Convert a Spark RDD into a Xpatterns XFrame.
-
-        -------
-        out : XFrame
-        """
-
-        # TODO get rid of all of this
-        checkRes = rdd.take(1);
-
-        if len(checkRes) > 0 and checkRes[0].__class__.__name__ == 'Row' and rdd.__class__.__name__ != 'SchemaRDD':
-            raise Exception("Conversion from RDD(pyspark.sql.Row) to XFrame not supported. Please call inferSchema(RDD) first.")
-
-        if(rdd._jrdd_deserializer.__class__.__name__ == 'UTF8Deserializer'):
-            return XFrame.__from_UTF8Deserialized_rdd__(rdd)
-
-        xf_names = None
-        if(str(type(rdd)) ==  "<class 'pyspark.sql.SchemaRDD'>"):
-            first_row = rdd.take(1)[0]
-            if hasattr(first_row, 'keys'):
-              xf_names = first_row.keys()
-            else:
-              xf_names = first_row.__FIELDS__
-
-            xf_names = [str(i) for i in xf_names]
-
-
-        cur_sc = rdd.ctx
-
-        tmp_loc = XFrame.__get_staging_dir__(cur_sc)
-
-        if tmp_loc is None:
-            raise RuntimeError("Could not determine staging directory for XFrame files.")
-
-        mode = "batch"
-        if(rdd._jrdd_deserializer.__class__.__name__ == 'PickleSerializer'):
-            mode = "pickle"
-
-        if cur_sc.master[0:5] == 'local':
-            t = cur_sc._jvm.org.graphlab.create.GraphLabUtil.byteToString(rdd._jrdd).pipe(BINARY_PATHS['RDD_XFRAME_PATH'] + " " + tmp_loc + " " + mode)
-        else:
-            t = cur_sc._jvm.org.graphlab.create.GraphLabUtil.byteToString(rdd._jrdd).pipe("./" + RDD_SFRAME_PICKLE + " " + tmp_loc + " " + mode)
-
-        # We get the location of an XFrame index file per Spark partition in
-        # the result.  We assume that this is in partition order.
-        res = t.collect()
-
-        out_xf = cls()
-        sframe_list = []
-        for url in res:
-            xf = XFrame()
-            xf.__impl__.load_from_xframe_index(make_internal_url(url))
-            xf.__impl__.delete_on_close()
-            out_xf_coltypes = out_xf.column_types()
-            if(len(out_xf_coltypes) != 0):
-                xf_coltypes = xf.column_types()
-                xf_temp_names = xf.column_names()
-                out_xf_temp_names = out_xf.column_names()
-
-                for i in range(len(xf_coltypes)):
-                    if xf_coltypes[i] != out_xf_coltypes[i]:
-                        xf[xf_temp_names[i]] = xf[xf_temp_names[i]].astype(str)
-                        out_xf[out_xf_temp_names[i]] = out_xf[out_xf_temp_names[i]].astype(str)
-            out_xf = out_xf.append(xf)
-
-        out_xf.__impl__.delete_on_close()
-
-        if xf_names is not None:
-            out_names = out_xf.column_names()
-            if(set(out_names) != set(xf_names)):
-                out_xf = out_xf.rename(dict(zip(out_names, xf_names)))
-
-        return out_xf
+    @staticmethod
+    def sql_context():
+        return XFrameImpl.sql_context()
 
 
     def __get_column_description__(self):
@@ -1253,26 +1217,6 @@ class XFrame(object):
         """
         return XFrame(_impl=self.__impl__.head(n))
 
-    def to_dataframe(self):
-        """
-        Convert this XFrame to pandas.DataFrame.
-
-        This operation will construct a pandas.DataFrame in memory. Care must
-        be taken when size of the returned object is big.
-
-        Returns
-        -------
-        out : pandas.DataFrame
-            The dataframe which contains all rows of XFrame
-        """
-        df = pandas.DataFrame()
-        for i in range(self.num_columns()):
-            column_name = self.column_names()[i]
-            df[column_name] = list(self[column_name])
-            if len(df[column_name]) == 0:
-                df[column_name] = df[column_name].astype(self.column_types()[i])
-        return df
-
     def tail(self, n=10):
         """
         The last n rows of the XFrame.
@@ -1292,6 +1236,85 @@ class XFrame(object):
         head, print_rows
         """
         return XFrame(_impl=self.__impl__.tail(n))
+
+    def to_pandas_dataframe(self):
+        """
+        Convert this XFrame to pandas.DataFrame.
+
+        This operation will construct a pandas.DataFrame in memory. Care must
+        be taken when size of the returned object is big.
+
+        Returns
+        -------
+        out : pandas.DataFrame
+            The dataframe which contains all rows of XFrame
+        """
+        df = pandas.DataFrame()
+        for i in range(self.num_columns()):
+            column_name = self.column_names()[i]
+            df[column_name] = list(self[column_name])
+            if len(df[column_name]) == 0:
+                df[column_name] = df[column_name].astype(self.column_types()[i])
+        return df
+
+    def to_spark_dataframe(self, table_name=None, number_of_partitions=4):
+        """
+        Convert the current XFrame to a Spark DataFrame.
+
+        Parameters
+        ----------
+        table_name: str, optional
+            If given, name the temporary table.
+
+        number_of_partitions: int, optional
+            The number of partitions to create.
+
+        Returns
+        -------
+        out: spark.DataFrame
+        """
+        return self.__impl__.to_spark_dataframe(table_name, number_of_partitions)
+
+
+    @classmethod
+    def from_rdd(cls, rdd, names=None, types=None):
+        """
+        Create a XFrame from a spark RDD or spark DataFrame.
+
+        Parameters
+        ----------
+        rdd: spark.RDD or spark.DataFrame
+            Data used to populate the XFrame
+
+        Notes
+        -----
+        rdd
+            The spark.RDD or spark.DataFrame to use as the source of the XFrame.
+
+        names : list of string, optional
+            The column names to use.  Ignored for Spark DataFrames.
+
+        types : list of type, optional
+            The column types to use.  Ignored for Spark DataFrames.
+
+        Returns
+        -------
+        out : XFrame
+        """
+        checkRes = rdd.take(1);
+
+        if len(checkRes) > 0 \
+                and checkRes[0].__class__.__name__ == 'Row' \
+                and rdd.__class__.__name__ != 'DataFrame':
+            raise Exception("Conversion from RDD(pyspark.sql.Row) to XFrame not supported. Please call inferSchema(RDD) first.")
+        xf = cls()
+        if str(type(rdd)) ==  "<class 'pyspark.sql.dataframe.DataFrame'>":
+            xf.__impl__.from_spark_dataframe(rdd)
+        elif str(type(rdd)) ==  "<class 'pyspark.rdd.RDD'>":
+            xf.__impl__.from_rdd(rdd, names, types)
+        else:
+            raise ValueError('argument is not an RDD')
+        return xf
 
     def apply(self, fn, dtype=None, seed=None):
         """
@@ -1598,16 +1621,17 @@ class XFrame(object):
             remote URL. If the format is 'binary', a directory will be created
             at the location which will contain the xframe.
 
-        format : {'binary', 'csv'}, optional
+        format : {'binary', 'csv', 'parquet'}, optional
             Format in which to save the XFrame. Binary saved XFrames can be
             loaded much faster and without any format conversion losses. If not
             given, will try to infer the format from filename given. If file
-            name ends with 'csv' or '.csv.gz', then save as 'csv' format,
-            otherwise save as 'binary' format.
+            name ends with 'csv' or '.csv.gz', then save as 'csv' format.
+            If the file ends with 'parquet', then save as parquet file.
+            Otherwise save as 'binary' format.
 
         See Also
         --------
-        load_xframe, XFrame
+        XFrame.load, XFrame
 
         Examples
         --------
@@ -1621,14 +1645,20 @@ class XFrame(object):
         if format == None:
             if filename.endswith(('.csv', '.csv.gz')):
                 format = 'csv'
+            elif filename.endswith('.parquet'):
+                format = 'parquet'
             else:
                 format = 'binary'
         else:
             if format is 'csv':
                 if not filename.endswith(('.csv', '.csv.gz')):
                     filename = filename + '.csv'
+            elif format is 'parquet':
+                if not filename.endswith('.parquet'):
+                    filename = filename + '.parquet'
             elif format is not 'binary':
-                raise ValueError("Invalid format: {}. Supported formats are 'csv' and 'binary'".format(format))
+                raise ValueError("Invalid format: {}. Supported formats are 'csv', 'parquet', and 'binary'"
+                                 .format(format))
 
         ## Save the XFrame
         url = make_internal_url(filename)
@@ -1639,6 +1669,9 @@ class XFrame(object):
         elif format is 'csv':
             assert filename.endswith(('.csv', '.csv.gz'))
             self.__impl__.save_as_csv(url)
+        elif format is 'parquet':
+            assert filename.endswith(('.parquet'))
+            self.__impl__.save_as_parquet(url, number_of_partitions=8)
         else:
             raise ValueError("Unsupported format: {}".format(format))
 
@@ -4021,6 +4054,45 @@ v        out : XFrame
             raise RuntimeError("Column '" + column_name + "' already exists in the current XFrame")
 
         return XFrame(_impl=self.__impl__.add_row_number(column_name, start))
+
+    def sql(self, sql_statement, table_name='xframe'):
+        """
+        Executes the given sql statement over the data in the table.
+        Returns a new XFrame with the results.
+
+        Parameters
+        ----------
+        sql_statement : str
+            The statement to execute.
+
+            The statement is executed by the Spark Sql query processor.  See the SparkSql
+            documentation for details.  XFrame column names and types are translated to Spark
+            for query processing.
+
+        table_name : str, optional
+            The table name to create, referred to in the sql statement.
+            Defaulst to 'xframe'.
+
+        Returns
+        -------
+        out : XFrame
+            The new XFrame with the results.
+
+
+        Examples
+        --------
+        >>> xf = xpatterns.XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        >>> xf.sql("SELECT * FROM xframe WHERE id > 1"
+        +----+--------+
+        | id |  val   |
+        +----+--------+
+        | 2  |   'b'  |
+        | 3  |   'c'  |
+        +----+-----  -+
+        [3 rows x 2 columns]
+        """
+        return XFrame(_impl=self.__impl__.sql(sql_statement, table_name=table_name))
+
 
     @property
     def shape(self):

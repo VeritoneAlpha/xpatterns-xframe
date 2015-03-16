@@ -5,7 +5,7 @@ ability to create, access and manipulate a remote scalable array object.
 XArray acts similarly to pandas.Series but without indexing.
 The data is immutable, homogeneous, and is stored in a Spark RDD.
 """
-from xpatterns.stdXArrayImpl import StdXArrayImpl, infer_type_of_list
+from xpatterns.xarray_impl import XArrayImpl, infer_type_of_list
 from util import make_internal_url, split_path_elements
 import xpatterns as xp
 
@@ -32,7 +32,7 @@ def _create_sequential_xarray(size, start=0, reverse=False):
     if type(reverse) is not bool:
         raise TypeError("reverse must me bool")
 
-    return XArray(_impl=StdXArrayImpl.create_sequential_xarray(size, start, reverse))
+    return XArray(_impl=XArrayImpl.create_sequential_xarray(size, start, reverse))
 
 class XArray(object):
     """
@@ -102,7 +102,7 @@ class XArray(object):
         elif type(data) == XArray:
             self.__impl__ = data.__impl__
         else:
-            self.__impl__ = StdXArrayImpl()
+            self.__impl__ = XArrayImpl()
             # we need to perform type inference
             if dtype is None:
                 if (isinstance(data, list)):
@@ -151,7 +151,7 @@ class XArray(object):
 
     @staticmethod
     def set_trace(entry_trace=None, exit_trace=None):
-        StdXArrayImpl.set_trace(entry_trace, exit_trace)
+        XArrayImpl.set_trace(entry_trace, exit_trace)
 
     @staticmethod
     def set_trace(entry_trace=None, exit_trace=None):
@@ -178,7 +178,7 @@ class XArray(object):
         assert type(size) is int and size >= 0, "size must be a positive int"
         if (type(value) not in set([int, float, str, array.array, list, dict])):
             raise TypeError('Cannot create xarray of value type %s' % str(type(value)))
-        impl = StdXArrayImpl()
+        impl = XArrayImpl()
         impl.load_from_const(value, size)
         return cls(_impl=impl)
 

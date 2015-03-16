@@ -1,13 +1,17 @@
 """
-Wrapped RDD to print trace.
+Wrapper for RDD.
+
+Wrapped functions allow entry and exit tracing and keeps perf counts.
 """
+
+# This class includes only functions that are actually called in the impl classes.
+# If new RDD functions are called, they must be added here.
 
 import inspect
 
-from pyspark import SparkContext
 from pyspark.sql import *
 
-class xRdd:
+class XRdd:
     entry_trace = False
     exit_trace = False
     perf_count = None
@@ -22,17 +26,17 @@ class xRdd:
         stack = inspect.stack()
         caller = stack[1]
         called_by = stack[2]
-        if xRdd.entry_trace:
+        if XRdd.entry_trace:
             print 'enter RDD', caller[3], args, 'called by', called_by[3]
-        if xRdd.perf_count is not None:
+        if XRdd.perf_count is not None:
             my_fun = caller[3]
-            if not my_fun in xRdd.perf_count:
-                xRdd.perf_count[my_fun] = 0
-            xRdd.perf_count[my_fun] += 1
+            if not my_fun in XRdd.perf_count:
+                XRdd.perf_count[my_fun] = 0
+            XRdd.perf_count[my_fun] += 1
 
     def _exit(self, *args):
         """ Trace function exit. """
-        if xRdd.exit_trace:
+        if XRdd.exit_trace:
             print 'exit RDD', inspect.stack()[1][3], args
 
     @classmethod
@@ -180,130 +184,130 @@ class xRdd:
         self._entry()
         res = self.rdd.repartition(number_of_partitions)
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
 
     def map(self, fn, preservesPartitioning=False):
         self._entry(preservesPartitioning)
         res = self.rdd.map(fn, preservesPartitioning)
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
 
     def mapPartitions(self, fn, preservesPartitioning=False):
         self._entry(preservesPartitioning)
         res = self.rdd.mapPartitions(fn, preservesPartitioning)
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
 
     def mapValues(self, fn):
         self._entry()
         res = self.rdd.mapValues(fn)
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
 
     def flatMap(self, fn, preservesPartitioning=False):
         self._entry(preservesPartitioning)
         res = self.rdd.flatMap(fn, preservesPartitioning)
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
 
     def zipWithIndex(self):
         self._entry()
         res = self.rdd.zipWithIndex()
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
 
     def zipWithUniqueId(self):
         self._entry()
         res = self.rdd.zipWithUniqueId()
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
 
     def filter(self, fn):
         self._entry()
         res = self.rdd.filter(fn)
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
 
     def distinct(self):
         self._entry()
         res = self.rdd.distinct()
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
 
     def keys(self):
         self._entry()
         res = self.rdd.keys()
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
         
     def values(self):
         self._entry()
         res = self.rdd.values()
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
         
     def repartition(self, number_of_partitions):
         self._entry(number_of_partitions)
         res = self.rdd.repartition(number_of_partitions)
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
 
     def sample(self, withReplacement, fraction, seed=None):
         self._entry(withReplacement, fraction, seed)
         res = self.rdd.sample(withReplacement, fraction, seed)
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
 
     def zip(self, other):
         self._entry()
         res = self.rdd.zip(other.rdd)
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
 
     def union(self, other):
         self._entry(other)
         res = self.rdd.union(other.rdd)
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
 
     def groupByKey(self):
         self._entry()
         res = self.rdd.groupByKey()
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
 
     def cartesian(self, right):
         self._entry()
         res = self.rdd.cartesian(right.rdd)
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
         
     def join(self, right):
         self._entry()
         res = self.rdd.join(right.rdd)
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
         
     def leftOuterJoin(self, right):
         self._entry()
         res = self.rdd.leftOuterJoin(right.rdd)
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
         
     def rightOuterJoin(self, right):
         self._entry()
         res = self.rdd.rightOuterJoin(right.rdd)
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
         
     def sortBy(self, keyfunc, ascending=True, numPartitions=None):
         self._entry()
         res = self.rdd.sortBy(keyfunc, ascending, numPartitions)
         self._exit()
-        return xRdd(res)
+        return XRdd(res)
 
     def sortByKey(self, ascending=True, numPartitions=None, keyfunc=lambda x: x):
         self._entry()
         res = self.rdd.sortByKey(ascending, numPartitions, keyfunc)
         self._exit()
-        return xRdd(res)
+        return XRdd(res)

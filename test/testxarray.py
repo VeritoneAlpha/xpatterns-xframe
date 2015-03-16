@@ -934,7 +934,6 @@ class TestXArrayAll(unittest.TestCase):
     def test_all_empty(self):
         t = XArray([])
         self.assertTrue(t.all())
-        pass
 
 class TestXArrayAny(unittest.TestCase):
     """ 
@@ -1057,7 +1056,6 @@ class TestXArrayAny(unittest.TestCase):
     def test_any_empty(self):
         t = XArray([])
         self.assertFalse(t.any())
-        pass
 
 class TestXArrayMax(unittest.TestCase):
     """ 

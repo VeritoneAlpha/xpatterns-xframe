@@ -10,4 +10,4 @@ __all__ = ['xframe', 'xarray']
 
 
 from xpatterns.xarray import XArray
-from xpatterns.xframe import XFrame, load_xframe
+from xpatterns.xframe import XFrame

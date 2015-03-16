@@ -15,13 +15,17 @@ import pickle
 import sys
 import ast
 
-from xpatterns.commonImpl import CommonSparkContext, safeZip, infer_type_of_list, persist_temp, persist_long
-from xpatterns.stdXFrameImpl import StdXFrameImpl
-from xpatterns.xrdd import xRdd
+from xpatterns.common_impl import CommonSparkContext, safe_zip, infer_type_of_list, persist_temp, persist_long
+from xpatterns.xframe_impl import XFrameImpl
+from xpatterns.xrdd import XRdd
 
 __all__ = ['XArray']
 
-class RCmp(object):
+class ReverseCmp(object):
+    """ Reverse comparison.
+
+    Wraps a comparable class so that comparisons are reversed.
+    """
     def __init__(self, obj):
         self.obj = obj
     def __lt__(self, other):
@@ -37,12 +41,15 @@ class RCmp(object):
     def __ne__(self, other):
         return self.obj != other.obj
 
-def is_missing(x):
+######################
+## Helper Functions ##
+######################
+def _is_missing(x):
     if x is None: return True
     if isinstance(x, float) and math.isnan(x): return True
     return False
 
-def delete_file_or_dir(path):
+def _delete_file_or_dir(path):
     expected_errs = [errno.ENOENT]     # no such file or directory
     try:
         shutil.rmtree(path)
@@ -50,7 +57,7 @@ def delete_file_or_dir(path):
         if err.errno not in expected_errs:
             raise err
 
-class StdXArrayImpl:
+class XArrayImpl:
     # What is missing:
     # sum over arrays
     # datetime functions
@@ -73,15 +80,15 @@ class StdXArrayImpl:
 
     def _rv(self, rdd, typ=None):
         """
-        Return a new StdXArrayImpl containing the rdd and element type
+        Return a new XArrayImpl containing the rdd and element type
         """
-        return StdXArrayImpl(rdd, typ or self.elem_type)
+        return XArrayImpl(rdd, typ or self.elem_type)
 
     def _rv_frame(self, rdd, col_names, types):
         """
-        Return a new StdXFrameImpl containing the rdd, column names, and element types
+        Return a new XFrameImpl containing the rdd, column names, and element types
         """
-        return StdXFrameImpl(rdd, col_names, types)
+        return XFrameImpl(rdd, col_names, types)
 
     def _replace(self, rdd, dtype):
         self.rdd = rdd
@@ -97,16 +104,16 @@ class StdXArrayImpl:
         stack = inspect.stack()
         caller = stack[1]
         called_by = stack[2]
-        if StdXArrayImpl.entry_trace:
+        if XArrayImpl.entry_trace:
             print 'enter xArray', caller[3], args
-        if StdXArrayImpl.perf_count is not None:
+        if XArrayImpl.perf_count is not None:
             my_fun = caller[3]
-            if not my_fun in StdXArrayImpl.perf_count:
-                StdXArrayImpl.perf_count[my_fun] = 0
-            StdXArrayImpl.perf_count[my_fun] += 1
+            if not my_fun in XArrayImpl.perf_count:
+                XArrayImpl.perf_count[my_fun] = 0
+            XArrayImpl.perf_count[my_fun] += 1
 
     def _exit(self):
-        if StdXArrayImpl.exit_trace:
+        if XArrayImpl.exit_trace:
             print 'exit xArray', inspect.stack()[1][3]
         pass
 
@@ -135,8 +142,8 @@ class StdXArrayImpl:
             stop = start - size
             step = -1
         sc = CommonSparkContext.Instance().sc
-        rdd = xRdd(sc.parallelize(range(start, stop, step)))
-        return StdXArrayImpl(rdd, int)
+        rdd = XRdd(sc.parallelize(range(start, stop, step)))
+        return XArrayImpl(rdd, int)
 
     # Load
     def load_from_iterable(self, values, dtype, ignore_cast_failure):
@@ -149,13 +156,13 @@ class StdXArrayImpl:
 
         sc = CommonSparkContext.Instance().sc
         if len(values) == 0:
-            self.rdd = xRdd(sc.parallelize([]))
+            self.rdd = XRdd(sc.parallelize([]))
             self.elem_type = dtype     # or should it be None ?
             self._exit()
             return
         dtype = dtype or infer_type_of_list(values[0:100])
         def do_cast(x, dtype, ignore_cast_failure):
-            if is_missing(x): return x
+            if _is_missing(x): return x
             if type(x) == dtype:
                 return x
             try:
@@ -165,7 +172,7 @@ class StdXArrayImpl:
                 return None if ignore_cast_failure else ValueError
 
         if dtype in (int, float, str, bool, list, dict, datetime.datetime):
-            raw_rdd = xRdd(sc.parallelize(values))
+            raw_rdd = XRdd(sc.parallelize(values))
             rdd = raw_rdd.map(lambda x: do_cast(x, dtype, ignore_cast_failure), preservesPartitioning=True)
             if not ignore_cast_failure:
                 errs = len(rdd.filter(lambda x: x is ValueError).take(1)) == 1
@@ -184,7 +191,7 @@ class StdXArrayImpl:
         """
         values = [ value for i in range(0, size)]
         sc = CommonSparkContext.Instance().sc
-        self._replace(xRdd(sc.parallelize(values)), type(value))
+        self._replace(XRdd(sc.parallelize(values)), type(value))
 
     def load_autodetect(self, path, dtype):
         """
@@ -228,7 +235,7 @@ class StdXArrayImpl:
                 dtype = str
             return dtype
         sc = CommonSparkContext.Instance().sc
-        res = xRdd(sc.textFile(path, use_unicode=False))
+        res = XRdd(sc.textFile(path, use_unicode=False))
         file_path = get_file_path(path)
         dtype = infer_type(res, dtype)
 
@@ -256,7 +263,7 @@ class StdXArrayImpl:
         """
         self._entry(path)
         # this only works for local files
-        delete_file_or_dir(path)
+        _delete_file_or_dir(path)
         self.rdd.saveAsPickleFile(path)          # action ?
         metadata = self.elem_type
         with open(os.path.join(path, 'metadata'), 'w') as md:
@@ -269,7 +276,7 @@ class StdXArrayImpl:
         """
         self._entry(path)
         # this only works for local files
-        delete_file_or_dir(path)
+        _delete_file_or_dir(path)
         self.rdd.saveAsTextFile(path)           # action ?
         metadata = self.elem_type
         with open(os.path.join(path, 'metadata'), 'w') as md:
@@ -350,7 +357,7 @@ class StdXArrayImpl:
             if reverse:
                 order_fn = lambda x: x
             else:
-                order_fn = lambda x: RCmp(x)
+                order_fn = lambda x: ReverseCmp(x)
             top_pairs = pairs.takeOrdered(topk, lambda x: order_fn(x[0]))
             top_ranks = [x[1] for x in top_pairs]
             res = pairs.map(lambda x: x[1] in top_ranks, preservesPartitioning=True)
@@ -404,7 +411,7 @@ class StdXArrayImpl:
         """
         self._entry(other, op)
         res_type = self.elem_type
-        pairs = safeZip(self.rdd, other.rdd)
+        pairs = safe_zip(self.rdd, other.rdd)
         if op == '+':
             res = pairs.map(lambda x: x[0] + x[1], preservesPartitioning=True)
         elif op == '-':
@@ -516,7 +523,7 @@ class StdXArrayImpl:
         Self and other are of the same length.
         """
         self._entry(other)
-        pairs = safeZip(self.rdd, other.rdd)
+        pairs = safe_zip(self.rdd, other.rdd)
         res = pairs.filter(lambda p: p[1]).map(lambda p: p[0], preservesPartitioning=True)
         self._exit()
         return self._rv(res)
@@ -586,7 +593,7 @@ class StdXArrayImpl:
         float('nan').
         """
         self._entry()
-        res = self.rdd.filter(lambda x: not is_missing(x))
+        res = self.rdd.filter(lambda x: not _is_missing(x))
         self._exit()
         return self._rv(res)
 
@@ -614,7 +621,7 @@ class StdXArrayImpl:
         """
         self._entry(fn, dtype, skip_undefined, seed)
         def apply_and_cast(x, fn, dtype, skip_undefined):
-            if is_missing(x) and skip_undefined: return None
+            if _is_missing(x) and skip_undefined: return None
             try:
                 return dtype(fn(x))
             except TypeError as e:
@@ -688,7 +695,7 @@ class StdXArrayImpl:
         type. If this fails, an error will be raised.
         """
         self._entry(value)
-        res = self.rdd.map(lambda x: value if is_missing(x) else x)
+        res = self.rdd.map(lambda x: value if _is_missing(x) else x)
         self._exit()
         return self._rv(res)
 
@@ -732,9 +739,9 @@ class StdXArrayImpl:
         def extend(row, n_cols, na_value):
             if na_value is not None:
                 if isinstance(row, list):
-                    row = [na_value if is_missing(x) else x for x in row]
+                    row = [na_value if _is_missing(x) else x for x in row]
                 else:
-                    row = { x: na_value if is_missing(row[x]) else row[x] for x in row}
+                    row = { x: na_value if _is_missing(row[x]) else row[x] for x in row}
             if len(row) < n_cols:
                 if isinstance(row, list):
                     for i in range(len(row), n_cols):
@@ -957,7 +964,7 @@ class StdXArrayImpl:
         self._entry()
         self.materialized = True
         res = self.rdd.aggregate(0,             # action
-                           lambda acc, v: acc + 1 if is_missing(v) else acc,
+                           lambda acc, v: acc + 1 if _is_missing(v) else acc,
                            lambda acc1, acc2: acc1 + acc2)
         self._exit()
         return res
@@ -969,7 +976,7 @@ class StdXArrayImpl:
         self._entry()
         self.materialized = True
         def ne_zero(x):
-            if is_missing(x): return False
+            if _is_missing(x): return False
             return x != 0
         res = self.rdd.aggregate(0,            # action
                            lambda acc, v: acc + 1 if ne_zero(v) else acc,

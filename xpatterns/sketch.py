@@ -1,8 +1,9 @@
 import operator
+from math import sqrt
+
 from xpatterns.xarray import XArray
 from xpatterns.xframe import XFrame
-from xpatterns.stdSketchImpl import StdSketchImpl
-from math import sqrt
+from xpatterns.sketch_impl import SketchImpl
 
 __all__ = ['Sketch']
 
