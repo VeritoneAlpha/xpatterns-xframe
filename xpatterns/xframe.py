@@ -14,15 +14,11 @@ import time
 import itertools
 import os
 import sys
-#import tempfile
-#import glob
-#import subprocess
-#import uuid
-#import platform
 
 import pandas
 
 from xpatterns.xframe_impl import XFrameImpl
+from xpatterns.xplot import XPlot
 from xpatterns.xarray_impl import infer_type_of_list
 from util import make_internal_url, split_path_elements
 from xpatterns.xarray import XArray, _create_sequential_xarray
@@ -4106,4 +4102,13 @@ v        out : XFrame
         >>> xf.shape
         (3, 2)
         """
-        return (self.num_rows(), self.num_cols())
+        return self.num_rows(), self.num_cols()
+
+    @property
+    def plot(self):
+        """
+        Create XFrame plotter.
+        """
+
+        return XPlot(self)
+

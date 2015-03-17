@@ -145,7 +145,7 @@ class Sketch(object):
         if (_impl):
             self.__impl__ = _impl
         else:
-            self.__impl__ = StdSketchImpl()
+            self.__impl__ = SketchImpl()
             if not isinstance(array, XArray):
                 raise TypeError("Sketch object can only be constructed from XArrays")
 

@@ -3,7 +3,6 @@ This module provides aggregator properties, used to define aggregators for group
 """
 
 import random
-
 import numpy
 
 # Each of these functions operates on a pyspark resultIterable
@@ -80,6 +79,7 @@ def agg_concat_dict(rows, cols):
 def agg_quantile(rows, cols): 
     # cols: [src_col, quantile]
     # cols: [src_col, [quantile ...]]
+    # not imlemented
     return None
 
 

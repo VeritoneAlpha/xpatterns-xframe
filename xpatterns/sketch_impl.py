@@ -56,8 +56,8 @@ class SketchImpl:
         # TODO calculate these in one pass
         res = xa.rdd.filter(lambda x: not is_missing(x))
         
-        lower_bound = res.rdd.min()
-        upper_bound = res.rdd.max()
+        lower_bound = res.min()
+        upper_bound = res.max()
 #       With these values, the system runs out of memory
 #        num_levels = 12
 #        epsilon = 0.001

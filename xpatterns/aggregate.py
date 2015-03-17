@@ -1,6 +1,6 @@
 import os
 
-#:Builtin SUM aggregator for groupby
+# Builtin aggregators for groupby
 
 def SUM(src_column):
   """

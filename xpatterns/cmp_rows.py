@@ -1,3 +1,6 @@
+
+#    Row comparison wrapper for ascending or descending comparison.
+
 class CmpRows(object):
     """ Comparison wrapper for a row.
 
@@ -66,8 +69,3 @@ class CmpRows(object):
         return self.greater(other) or self.equal(other)
     def __ne__(self, other):
         return not self.equal(other)
-
-# Define aggregator functions for groupby.
-# Each of these functions operates on a pyspark resultIterable
-#  produced by groupByKey and directly produces the aggregated result.
-

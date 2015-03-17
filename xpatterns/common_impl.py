@@ -1,5 +1,5 @@
 """
-Provides shared implementation functions for stdXArrayImpl and stdXFrameImpl
+Provides shared implementation functions for XArrayImpl and XFrameImpl
 """
 
 from pyspark import StorageLevel
@@ -82,6 +82,7 @@ class CommonSparkContext:
 # Safe version of zip.
 # This requires that left and right RDDs be of the same length, but
 #  not the same partition structure
+# Try normal zip first, since it is much more efficient.
 def safe_zip(left, right):
     try:
         res = left.zip(right)
@@ -105,7 +106,7 @@ def persist_long(rdd):
     
 def infer_type_of_list(data):
     """
-    Look through a list and get its data type.
+    Look through an iterable and get its data type.
     Use the first type, and check to make sure the rest are of that type.
     Missing values are skipped.
     """
