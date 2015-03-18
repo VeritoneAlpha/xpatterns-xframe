@@ -123,7 +123,7 @@ class Sketch(object):
       <http://dimacs.rutgers.edu/~graham/pubs/papers/cm-latin.pdf>`_
     """
 
-    def __init__(self, array=None, background=False, sub_sketch_keys=[], _impl=None):
+    def __init__(self, array=None, sub_sketch_keys=[], _impl=None):
         """__init__(array)
         Construct a new Sketch from an XArray.
 
@@ -131,11 +131,6 @@ class Sketch(object):
         ----------
         array : XArray
             Array to sketch.
-
-        background : boolean, optional
-            If true, run the sketch in background. The the state of the sketch
-            may be queried by calling (:func:`~xpatterns.Sketch.sketch_ready`)
-            default is False
 
         sub_sketch_keys : list
             The list of sub sketch to calculate, for XArray of dictionary type.
@@ -149,7 +144,7 @@ class Sketch(object):
             if not isinstance(array, XArray):
                 raise TypeError("Sketch object can only be constructed from XArrays")
 
-            self.__impl__.construct_from_xarray(array.__impl__, background, sub_sketch_keys)
+            self.__impl__.construct_from_xarray(array.__impl__, sub_sketch_keys)
 
     def __repr__(self):
       """

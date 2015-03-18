@@ -1600,7 +1600,7 @@ class XArray(object):
         """
         return XArray(_impl = self.__impl__.topk_index(topk, reverse))
 
-    def sketch_summary(self, background=False, sub_sketch_keys=None):
+    def sketch_summary(self, sub_sketch_keys=None):
         """
         Summary statistics that can be calculated with one pass over the XArray.
 
@@ -1611,14 +1611,8 @@ class XArray(object):
 
         Parameters
         ----------
-        background : boolean, optional
-          If True, the sketch construction will return immediately and the
-          sketch will be constructed in the background. While this is going on,
-          the sketch can be queried incrementally, but at a performance penalty.
-          Defaults to False.
-
         sub_sketch_keys: int | str | list of int | list of str, optional
-            For XArray of dict type, also constructs sketches for a given set of keys,
+            FOR30 XArray of dict type, also constructs sketches for a given set of keys,
             For XArray of array type, also constructs sketches for the given indexes.
             The sub sketches may be queried using:
                  :py:func:`~xpatterns.Sketch.element_sub_sketch()`
@@ -1631,8 +1625,6 @@ class XArray(object):
             Many of the statistics are approximate.
         """
         from xpatterns.sketch import Sketch
-        if (type(background) != bool):
-            raise TypeError("'background' parameter has to be a boolean value")
         if (sub_sketch_keys != None):
             if (self.dtype() != dict and self.dtype() != array.array):
                 raise TypeError("sub_sketch_keys is only supported for XArray of dictionary or array type")
@@ -1648,7 +1640,7 @@ class XArray(object):
             if (self.dtype() == array.array and value_type != int):
                 raise TypeError("Only int value(s) can be passed to sub_sketch_keys for XArray of array type")
 
-        return Sketch(self, background, sub_sketch_keys=sub_sketch_keys)
+        return Sketch(self, sub_sketch_keys=sub_sketch_keys)
 
     def append(self, other):
         """

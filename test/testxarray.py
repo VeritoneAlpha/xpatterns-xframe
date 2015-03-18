@@ -1565,8 +1565,62 @@ class TestXArraySketchSummary(unittest.TestCase):
     """ 
     Tests XArray sketch_summary
     """
-    def test_sketch_summary(self):
-        pass
+    def test_sketch_summary_size(self):
+        t = XArray([1, 2, 3, 4, 5])
+        ss = t.sketch_summary()
+        self.assertEqual(5, ss.size())
+
+    def test_sketch_summary_min(self):
+        t = XArray([1, 2, 3, 4, 5])
+        ss = t.sketch_summary()
+        self.assertEqual(1, ss.min())
+
+    def test_sketch_summary_max(self):
+        t = XArray([1, 2, 3, 4, 5])
+        ss = t.sketch_summary()
+        self.assertEqual(5, ss.max())
+
+    def test_sketch_summary_mean(self):
+        t = XArray([1, 2, 3, 4, 5])
+        ss = t.sketch_summary()
+        self.assertEqual(3.0, ss.mean())
+
+    def test_sketch_summary_sum(self):
+        t = XArray([1, 2, 3, 4, 5])
+        ss = t.sketch_summary()
+        self.assertEqual(15, ss.sum())
+
+    def test_sketch_summary_var(self):
+        t = XArray([1, 2, 3, 4, 5])
+        ss = t.sketch_summary()
+        self.assertEqual(2.0, ss.var())
+
+    def test_sketch_summary_std(self):
+        t = XArray([1, 2, 3, 4, 5])
+        ss = t.sketch_summary()
+        self.assertEqual(math.sqrt(2.0), ss.std())
+
+    def test_sketch_summary_num_undefined(self):
+        t = XArray([1, None, 3, None, 5])
+        ss = t.sketch_summary()
+        self.assertEqual(2, ss.num_undefined())
+
+    def test_sketch_summary_num_unique(self):
+        t = XArray([1, 3, 3, 3, 5])
+        ss = t.sketch_summary()
+        self.assertEqual(3, ss.num_unique())
+
+    def test_sketch_summary_frequent_items(self):
+        t = XArray([1, 3, 3, 3, 5])
+        ss = t.sketch_summary()
+        self.assertEqual({1: 1, 3: 3, 5: 1}, ss.frequent_items())
+
+    def test_sketch_summary_frequency_count(self):
+        t = XArray([1, 3, 3, 3, 5])
+        ss = t.sketch_summary()
+        self.assertEqual(1, ss.frequency_count(1))
+        self.assertEqual(3, ss.frequency_count(3))
+        self.assertEqual(1, ss.frequency_count(5))
 
 class TestXArrayAppend(unittest.TestCase):
     """ 

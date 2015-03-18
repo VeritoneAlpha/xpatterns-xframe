@@ -4105,7 +4105,7 @@ v        out : XFrame
         return self.num_rows(), self.num_cols()
 
     @property
-    def plot(self):
+    def show(self):
         """
         Create XFrame plotter.
         """

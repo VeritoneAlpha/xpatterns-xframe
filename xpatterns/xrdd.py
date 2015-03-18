@@ -178,6 +178,11 @@ class XRdd:
         self.rdd.saveAsTextFile(path)
         self._exit()
 
+    def stats(self):
+        self._entry()
+        res = self.rdd.stats()
+        self._exit()
+        return res
 
     # transformations
     def repartition(self, number_of_partitions):

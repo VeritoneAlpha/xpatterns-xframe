@@ -1,8 +1,11 @@
 
 import traceback
+import operator
 
 import numpy as np
 import matplotlib.pyplot as plt
+
+from xpatterns.aggregate import COUNT
 
 class XPlot:
     def __init__(self, xframe, axes=None, alpha=None):
@@ -29,7 +32,10 @@ class XPlot:
             axes.set_ylabel(ylabel)
             if title:
                 axes.set_title(title)
-            fig.canvas.draw()
+#            fig.canvas.set_target('ipynb')
+#            fig.canvas.draw()
+#            fig.show()
+#            fig.close()
         except Exception as e:
             print "got an exception!"
             print traceback.format_exc()
@@ -55,8 +61,8 @@ class XPlot:
 
         bins = bins or 50
         sk = self.xframe[col_name].sketch_summary()
-        q_lower = sk.quantile(lower_cutoff)
-        q_upper = sk.quantile(upper_cutoff)
+        q_lower = float(sk.quantile(lower_cutoff))
+        q_upper = float(sk.quantile(upper_cutoff))
         try:
             fig = plt.figure()
             axes = fig.add_axes(self.axes)
@@ -74,7 +80,51 @@ class XPlot:
             axes.set_ylabel(ylabel)
             if title:
                 axes.set_title(title)
+#            fig.canvas.set_target('ipynb')
+#            fig.canvas.draw()
+#            fig.show()
+#            fig.close()
         except Exception as e:
             print "got an exception!"
             print traceback.format_exc()
             print e
+
+    def col_info(self, col_name, table_name=None, title=None):
+        """ 
+        Print column summary information.
+        """
+
+        title = title or table_name
+        table_name = table_name or ''
+        print 'Name:', table_name, col_name
+        sk = self.xframe[col_name].sketch_summary()
+        print 'Number:', sk.size()
+        unique_items = sk.num_unique()
+        print 'Unique Items:', unique_items
+        print 'Frequent Items:'
+        fi = sk.frequent_items()
+        if len(fi) == 0:
+            print '    None'
+            return
+        else:
+            sorted_fi = sorted(fi.iteritems(), key=operator.itemgetter(1), reverse=True)
+            top = sorted_fi[:10]
+            for key in top: print '   {:10}  {:10}'.format(key[1], key[0])
+        col_type = self.xframe[col_name].dtype()
+        if col_type is int or col_type is float:
+            # number: show a histogram
+            print 'Num Undefined:', sk.num_undefined()
+            print 'Min:', sk.min()
+            print 'Max:', sk.max()
+            print 'Mean:', sk.mean()
+            if unique_items > 1:
+                print 'StDev:', sk.std()
+                print 'Distribution Plot'
+                self.histogram(col_name, title=title)
+        else:
+            # ordinal: show a histogram of frequent values
+            # set x_col and y_col     compute y_col ?
+            tmp = self.xframe.groupby(col_name, {'Count': COUNT})
+            x_col = 'Count'
+            y_col = col_name
+            tmp.show.top_values(x_col, y_col, title=title)

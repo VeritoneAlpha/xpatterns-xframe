@@ -9,11 +9,9 @@ from xpatterns.common_impl import CommonSparkContext
 from xpatterns.xframe_impl import XFrameImpl
 from xpatterns.xrdd import XRdd
 from xpatterns.dsq import QuantileAccumulator
+from xpatterns.frequent import FreqSketch
 
 __all__ = ['Sketch']
-
-class NotReadyError(Exception):
-    pass
 
 def is_missing(x):
     if x is None: return True
@@ -28,7 +26,6 @@ class SketchImpl:
     def __init__(self):
         self._entry()
         self.quantile_accum = None
-        self.sketch_ready = False
         self._exit()
             
     def _entry(self, *args):
@@ -45,120 +42,128 @@ class SketchImpl:
         cls.entry_trace = entry_trace or cls.entry_trace
         cls.exit_trace = exit_trace or cls.exit_trace
 
-    def construct_from_xarray(self, xa, background=None, sub_sketch_keys=None):
-        self._entry(background, sub_sketch_keys)
-        if background:
-            raise NotImplementedError('background mode not implemented')
+    def construct_from_xarray(self, xa, sub_sketch_keys=None):
+        self._entry(sub_sketch_keys)
         if sub_sketch_keys is not None:
             raise NotImplementedError('sub_sketch_keys mode not implemented')
 
-        # use xa to create the quantile accumulator
-        # TODO calculate these in one pass
-        res = xa.rdd.filter(lambda x: not is_missing(x))
-        
-        lower_bound = res.min()
-        upper_bound = res.max()
+        # calculate some basic statistics in one pass
+        defined = xa.rdd.filter(lambda x: not is_missing(x))
+        self.sketch_type = 'numeric' if xa.dtype() in (int, float) else 'non-numeric'
+        if self.sketch_type == 'numeric':
+            stats = defined.stats()
+            self.count = stats.count()
+            self.min_val = stats.min()
+            self.max_val = stats.max()
+            self.mean_val = stats.mean()
+            self.sum_val = stats.sum()
+            self.variance_val = stats.variance()
+            self.stdev_val = stats.stdev()
+        else:
+            self.count = defined.count()
+            self.min_val = None
+            self.max_val = None
+            self.mean_val = None
+            self.sum_val = None
+            self.variance_val = None
+            self.stdev_val = None
+
+        # compute these later if needed
+        self.rdd = xa.rdd
+        self.num_undefined_val = None
+        self.num_unique_val = None
+        self.quantile_accumulator = None
+        self.frequency_sketch = None
+
+        self._exit()
+
+    def _create_quantile_accumulator(self):
 #       With these values, the system runs out of memory
 #        num_levels = 12
 #        epsilon = 0.001
 #        delta = 0.01
-#       With these, it is OK.
+#        With these, it is OK.
         num_levels = 10
         epsilon = 0.01
         delta = 0.1
-        self.accumulator = QuantileAccumulator(lower_bound, upper_bound, num_levels, epsilon, delta)
-        accumulators = res.mapPartitions(self.accumulator)
-        self.quantile_accum = accumulators.reduce(lambda x, y: x.merge(y))
-        self.sketch_ready = True
-        self._exit()
+        accumulator = QuantileAccumulator(self.min_val, self.max_val, num_levels, epsilon, delta)
+        accumulators = self.rdd.mapPartitions(accumulator)
+        return accumulators.reduce(lambda x, y: x.merge(y))
+
+    def _create_frequency_sketch(self):
+        num_items = 500
+        epsilon = 0.01
+        delta = 0.1
+        accumulator = FreqSketch(num_items, epsilon, delta)
+        accumulators = self.rdd.mapPartitions(accumulator)
+        return accumulators.reduce(lambda x, y: x.merge(y))
 
     def size(self):
-        if not self.sketch_ready:
-            raise NotReadyError()
-        raise NotImplementedError('size not implemented')
+        return self.count
 
     def max(self):
-        if not self.sketch_ready:
-            raise NotReadyError()
-        return self.accumulator.upper_bound
+        if self.sketch_type == 'numeric':
+            return self.max_val
+        raise ValueError('max only available for numeric types')
 
     def min(self):
-        if not self.sketch_ready:
-            raise NotReadyError()
-        return self.accumulator.lower_bound
+        if self.sketch_type == 'numeric':
+            return self.min_val
+        raise ValueError('max only available for numeric types')
 
     def sum(self):
-        if not self.sketch_ready:
-            raise NotReadyError()
-        raise NotImplementedError('sum not implemented')
+        if self.sketch_type == 'numeric':
+            return self.sum_val
+        raise ValueError('max only available for numeric types')
 
     def mean(self):
-        if not self.sketch_ready:
-            raise NotReadyError()
-        raise NotImplementedError('mean not implemented')
+        if self.sketch_type == 'numeric':
+            return self.mean_val
+        raise ValueError('max only available for numeric types')
 
     def var(self):
-        if not self.sketch_ready:
-            raise NotReadyError()
-        raise NotImplementedError('var not implemented')
+        if self.sketch_type == 'numeric':
+            return self.variance_val
+        raise ValueError('max only available for numeric types')
 
     def num_undefined(self):
-        if not self.sketch_ready:
-            raise NotReadyError()
-        raise NotImplementedError('num_undefined not implemented')
+        if self.num_undefined_val is None:
+            self.num_undefined_val = self.rdd.filter(lambda x: is_missing(x)).count()
+        return self.num_undefined_val
 
     def num_unique(self):
-        if not self.sketch_ready:
-            raise NotReadyError()
-        raise NotImplementedError('num_unique not implemented')
+        if self.num_unique_val is None:
+            self.num_unique_val = self.rdd.distinct().count()
+        return self.num_unique_val
 
     def frequent_items(self):
-        if not self.sketch_ready:
-            raise NotReadyError()
-        raise NotImplementedError('frequent_items not implemented')
+        if self.frequency_sketch is None:
+            self.frequency_sketch = self._create_frequency_sketch()
+        return self.frequency_sketch.frequent_items()
 
     def get_quantile(self, quantile_val):
-        if not self.sketch_ready:
-            raise NotReadyError()
-        return self.quantile_accum.ppf(quantile_val)
+        if self.sketch_type == 'numeric':
+            if self.quantile_accumulator is None:
+                self.quantile_accumulator = self._create_quantile_accumulator()
+            return self.quantile_accumulator.ppf(quantile_val)
+        raise ValueError('max only available for numeric types')
 
     def frequency_count(self, element):
-        if not self.sketch_ready:
-            raise NotReadyError()
-        raise NotImplementedError('frequency_count not implemented')
-
-    def sketch_ready(self):
-        return self.sketch_ready
-
-    def num_elements_processed(self):
-        if not self.sketch_ready:
-            raise NotReadyError()
-        pass
+        if self.frequency_sketch is None:
+            self.frequency_sketch = self._create_frequency_sketch()
+        return self.frequency_sketch.get(element)
 
     def element_length_summary(self):
-        if not self.sketch_ready:
-            raise NotReadyError()
         raise NotImplementedError('element_length_summary not implemented')
 
     def dict_key_summary(self):
-        if not self.sketch_ready:
-            raise NotReadyError()
         raise NotImplementedError('dict_key_summary not implemented')
 
     def dict_value_summary(self):
-        if not self.sketch_ready:
-            raise NotReadyError()
         raise NotImplementedError('dict_value_summary not implemented')
 
     def element_summary(self):
-        if not self.sketch_ready:
-            raise NotReadyError()
         raise NotImplementedError('element_summary not implemented')
 
     def element_sub_sketch(self, keys):
-        if not self.sketch_ready:
-            raise NotReadyError()
         raise NotImplementedError('sub_sketch not implemented')
-
-    def cancel(self):
-        pass
