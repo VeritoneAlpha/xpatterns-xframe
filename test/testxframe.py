@@ -21,8 +21,8 @@ from pyspark.sql.types import StructType, StructField, IntegerType, StringType
 # python -m unittest testxframe.TestXFrameConstructorLocal
 # python -m unittest testxarray.TestXArrayConstructorLocal.test_construct_list_float_infer
 
-from xpatterns.xarray import XArray
-from xpatterns.xframe import XFrame
+from xpatterns import XArray
+from xpatterns import XFrame
 from xpatterns.aggregate import SUM, ARGMAX, ARGMIN, MAX, MIN, COUNT, AVG, MEAN, \
     VAR, VARIANCE, STD, STDV, SELECT_ONE, CONCAT, QUANTILE
 

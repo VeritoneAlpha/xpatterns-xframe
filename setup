@@ -3,16 +3,8 @@
 # This file should be run as follows:
 # source setup
 
-export AWS_ACCESS_KEY_ID=AKIAJLGE7X7H2W32ZYRA
-export AWS_SECRET_ACCESS_KEY=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
-
 . /home/ubuntu/venv1.0/bin/activate
-ulimit -n 4096
 
 export LIB=`pwd`
-export COG_LIB=$LIB/cogno
-export FILES_BASE=dec-13
-export XF_CONFIG=$LIB/cogno
-export PYTHONPATH=$LIB:$COG_LIB
-export PATH=$PATH:$LIB/bin
+export PYTHONPATH=$LIB
 export SPARK_HOME=/home/ubuntu/spark

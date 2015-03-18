@@ -16,7 +16,7 @@ sys.path.insert(1, '/home/ubuntu/spark/python/lib/py4j-0.8.2.1-src.zip')
 # python -m unittest testxarray.TestXArrayConstructorLocal
 # python -m unittest testxarray.TestXArrayConstructorLocal.test_construct_list_float_infer
 
-from xpatterns.xarray import XArray
+from xpatterns import XArray
 
 def eq_list(expected, result):
     return (XArray(expected) == result).all()

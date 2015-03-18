@@ -3,6 +3,10 @@ import random
 import numpy as np
 import heapq
 
+#
+#    This code is derived from that found on the webpage:
+#         https://tech.shareaholic.com/2012/12/03/the-count-min-sketch-how-to-count-over-large-keyspaces-when-about-right-is-good-enough/
+#
 BIG_PRIME = 9223372036854775783
 
 def _random_parameter():

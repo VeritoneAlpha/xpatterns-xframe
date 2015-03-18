@@ -1,3 +1,6 @@
+# Derived from code found at:
+#    https://github.com/laserson/dsq
+
 # Copyright 2013 Cloudera Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
