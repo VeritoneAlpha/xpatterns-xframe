@@ -162,6 +162,7 @@ class XFrameImpl:
     @classmethod
     def _entry(cls, *args):
         """ Trace function entry. """
+        if not cls.entry_trace and not cls.perf_count: return
         stack = inspect.stack()
         caller = stack[1]
         called_by = stack[2]
@@ -1191,7 +1192,12 @@ class XFrameImpl:
         self._entry(fn, dtype, seed)
         names = self.col_names
         # fn needs the row as a dict
-        res = self.rdd.map(lambda row: dtype(fn(dict(zip(names, row)))), preservesPartitioning=True)
+        def transformer(row):
+            row_as_dict = dict(zip(names, row))
+            result = fn(row_as_dict)
+            cast_result = dtype(result)
+            return cast_result
+        res = self.rdd.map(transformer, preservesPartitioning=True)
         self._exit(res, dtype)
         return xp.xarray_impl.XArrayImpl(res, dtype)
 

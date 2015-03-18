@@ -11,5 +11,6 @@ __all__ = ['xframe', 'xarray', 'xplot', 'sketch']
 
 from xpatterns.xarray import XArray
 from xpatterns.xframe import XFrame
+from xpatterns.xrdd import XRdd
 from xpatterns.sketch import Sketch
 from xpatterns.xplot import XPlot

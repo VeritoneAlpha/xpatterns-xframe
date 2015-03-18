@@ -6,7 +6,7 @@ from xpatterns.toolkit.model import Model, ModelBuilder
 
 # Models
 class ClusterModel(Model):
-    __metaclass__ = ABCmeta
+    __metaclass__ = ABCMeta
 
 class KMeansModel(ClusterModel):
     pass
@@ -17,7 +17,7 @@ class GaussianMixtureModel(ClusterModel):
 
 # Builders
 class ClusterBuilder(ModelBuilder):
-    __metaclass__ = ABCmeta
+    __metaclass__ = ABCMeta
 
 class KMeans(ClusterBuilder):
     pass

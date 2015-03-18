@@ -42,6 +42,10 @@ class XPlot:
             print e
 
 
+    def frequent_values(self, y_col, k=15, title=None, xlabel=None, ylabel=None):
+        count = self.xframe.groupby(y_col, {'Count': COUNT})
+        count.show.top_values('Count', y_col, k, title, xlabel, ylabel)
+
     def histogram(self, col_name, title=None, 
                        lower_cutoff=0.0, upper_cutoff=0.99, 
                        bins=None, xlabel=None, ylabel=None):
@@ -61,8 +65,9 @@ class XPlot:
 
         bins = bins or 50
         sk = self.xframe[col_name].sketch_summary()
-        q_lower = float(sk.quantile(lower_cutoff))
-        q_upper = float(sk.quantile(upper_cutoff))
+        q_epsilon = 0.01
+        q_lower = float(sk.quantile(lower_cutoff)) - q_epsilon
+        q_upper = float(sk.quantile(upper_cutoff)) + q_epsilon
         try:
             fig = plt.figure()
             axes = fig.add_axes(self.axes)
@@ -89,7 +94,7 @@ class XPlot:
             print traceback.format_exc()
             print e
 
-    def col_info(self, col_name, table_name=None, title=None):
+    def col_info(self, col_name, table_name=None, title=None, bins=None, cutoff=False):
         """ 
         Print column summary information.
         """
@@ -120,7 +125,8 @@ class XPlot:
             if unique_items > 1:
                 print 'StDev:', sk.std()
                 print 'Distribution Plot'
-                self.histogram(col_name, title=title)
+                upper_cutoff = cutoff or 1.0
+                self.histogram(col_name, title=title, upper_cutoff=upper_cutoff, bins=bins)
         else:
             # ordinal: show a histogram of frequent values
             # set x_col and y_col     compute y_col ?

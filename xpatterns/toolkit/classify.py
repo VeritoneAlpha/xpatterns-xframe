@@ -5,7 +5,7 @@ from xpatterns.toolkit.model import Model, ModelBuilder
 
 # Models
 class ClassifyModel(Model):
-    __metaclass__ = ABCmeta
+    __metaclass__ = ABCMeta
 
 class LinearRegressionModel(ClassifyModel):
     pass
@@ -31,7 +31,7 @@ class GradientBoostedTreesModel(ClassifyModel):
 
 # Builders
 class ClassifierBuilder(ModelBuilder):
-    __metaclass__ = ABCmeta
+    __metaclass__ = ABCMeta
 
 class LogisticRegressionWithSGD(ClassifierBuilder):
     pass

@@ -100,7 +100,9 @@ class XArrayImpl:
         self.materialized = True
         return count
 
-    def _entry(self, *args):
+    @classmethod
+    def _entry(cls, *args):
+        if not cls.entry_trace and not cls.perf_count: return
         stack = inspect.stack()
         caller = stack[1]
         called_by = stack[2]
@@ -112,7 +114,8 @@ class XArrayImpl:
                 XArrayImpl.perf_count[my_fun] = 0
             XArrayImpl.perf_count[my_fun] += 1
 
-    def _exit(self):
+    @classmethod
+    def _exit(cls):
         if XArrayImpl.exit_trace:
             print 'exit xArray', inspect.stack()[1][3]
         pass
@@ -180,7 +183,13 @@ class XArrayImpl:
         elif dtype is None:
             raise NotImplementedError('load_from_iterable: cannot determine types')
         else:
-            raise ValueError('load_from_iterable: dtype not allowed {}'.format(dtype))
+            # TODO merge with clause above
+            raw_rdd = XRdd(sc.parallelize(values))
+            rdd = raw_rdd.map(lambda x: do_cast(x, dtype, ignore_cast_failure), preservesPartitioning=True)
+            if not ignore_cast_failure:
+                errs = len(rdd.filter(lambda x: x is ValueError).take(1)) == 1
+                if errs: raise ValueError
+#            raise ValueError('load_from_iterable: dtype not allowed {}'.format(dtype))
         
         self._replace(rdd, dtype)
         self._exit()

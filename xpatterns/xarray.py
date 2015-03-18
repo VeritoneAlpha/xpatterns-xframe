@@ -153,10 +153,6 @@ class XArray(object):
     def set_trace(entry_trace=None, exit_trace=None):
         XArrayImpl.set_trace(entry_trace, exit_trace)
 
-    @staticmethod
-    def set_trace(entry_trace=None, exit_trace=None):
-        xRdd.set_trace(entry_trace, exit_trace)
-
     @classmethod
     def from_const(cls, value, size):
         """

@@ -116,6 +116,8 @@ def infer_type_of_list(data):
         d_type = type(d)
         if candidate is None: candidate = d_type
         if d_type != candidate: 
+            numeric = (float, int, long)
+            if d_type in numeric and candidate in numeric: continue
             raise TypeError('infer_type_of_list: mixed types in list: {} {}'.format(d_type, candidate))
     return candidate
 

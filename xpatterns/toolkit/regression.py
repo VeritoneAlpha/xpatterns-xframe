@@ -4,7 +4,7 @@ from xpatterns.toolkit.model import Model, ModelBuilder
 
 # Models
 class RegressionModel(Model):
-    __metaclass__ = ABCmeta
+    __metaclass__ = ABCMeta
 
 class LinearModel(RegressionModel):
     pass
@@ -21,7 +21,7 @@ class LassoModel(RegressionModel):
 
 # Builders
 class RegressionBuilder(ModelBuilder):
-    __metaclass__ = ABCmeta
+    __metaclass__ = ABCMeta
 
 class LinearRegressionWithSGD(RegressionBuilder):
     pass

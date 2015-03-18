@@ -21,8 +21,10 @@ class XRdd:
         self.rdd = rdd
         self._exit()
 
-    def _entry(self, *args):
+    @classmethod
+    def _entry(cls, *args):
         """ Trace function entry. """
+        if not cls.entry_trace and not cls.perf_count: return
         stack = inspect.stack()
         caller = stack[1]
         called_by = stack[2]
@@ -34,7 +36,8 @@ class XRdd:
                 XRdd.perf_count[my_fun] = 0
             XRdd.perf_count[my_fun] += 1
 
-    def _exit(self, *args):
+    @classmethod
+    def _exit(cls, *args):
         """ Trace function exit. """
         if XRdd.exit_trace:
             print 'exit RDD', inspect.stack()[1][3], args

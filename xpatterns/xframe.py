@@ -258,10 +258,6 @@ class XFrame(object):
         XFrameImpl.set_trace(entry_trace, exit_trace)
 
     @staticmethod
-    def set_trace(entry_trace=None, exit_trace=None):
-        xRdd.set_trace(entry_trace, exit_trace)
-
-    @staticmethod
     def _infer_column_types_from_lines(first_rows, delimiter, na_values):
         if (len(first_rows.column_names()) < 1):
           print "Insufficient number of columns to perform type inference"
