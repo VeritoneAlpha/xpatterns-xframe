@@ -14,3 +14,4 @@ from xpatterns.xframe import XFrame
 from xpatterns.xrdd import XRdd
 from xpatterns.sketch import Sketch
 from xpatterns.xplot import XPlot
+from xpatterns.toolkit import recommend as recommender
