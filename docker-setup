@@ -1,0 +1,8 @@
+
+# Set up the environment for command-line and notebook based execution.
+# This file should be run as follows:
+# source setup
+
+export LIB=`pwd`
+export PYTHONPATH=$LIB
+export SPARK_HOME=/usr/local/spark
