@@ -198,7 +198,7 @@ class XArrayImpl:
         """
         Load RDD from const value.
         """
-        values = [ value for i in range(0, size)]
+        values = [ value for i in xrange(0, size)]
         sc = CommonSparkContext.Instance().sc
         self._replace(XRdd(sc.parallelize(values)), type(value))
 
@@ -216,16 +216,6 @@ class XArrayImpl:
         # If the path is a file, look for that file
         # Use type inference to determine the element type.
         # Passed-in dtype is always str and is ignored.
-        def get_file_path(path):
-            if os.path.isfile(path):
-                file_path = path
-            elif os.path.isdir(path):
-                file_path = os.path.join(path, 'xarray')
-            else: 
-                return None
-            if os.path.isfile(file_path):
-                return file_path
-            return None
         def classify_type(s):
             if s.isdigit(): return int
             if s.replace('.', '0').isdigit(): return float
@@ -244,9 +234,14 @@ class XArrayImpl:
                 dtype = str
             return dtype
         sc = CommonSparkContext.Instance().sc
-        res = XRdd(sc.textFile(path, use_unicode=False))
-        file_path = get_file_path(path)
-        dtype = infer_type(res, dtype)
+        if os.path.isdir(path):
+            res = XRdd(sc.pickleFile(path))
+            metadata_path = os.path.join(path, '_metadata')
+            with open(metadata_path) as f:
+                dtype = pickle.load(f)
+        else:
+            res = XRdd(sc.textFile(path, use_unicode=False))
+            dtype = infer_type(res, dtype)
 
         if dtype != str:
             if dtype in (list, dict):
@@ -268,14 +263,20 @@ class XArrayImpl:
     # Save
     def save(self, path):
         """
-        Saves the RDD to filein pickled form.
+        Saves the RDD to file in pickled form.
         """
         self._entry(path)
         # this only works for local files
         _delete_file_or_dir(path)
-        self.rdd.saveAsPickleFile(path)          # action ?
+        try:
+            self.rdd.saveAsPickleFile(path)          # action ?
+        except:
+            # TODO distinguish between filesystem errors and pickle errors
+            raise TypeError('the type cannot be saved')
         metadata = self.elem_type
-        with open(os.path.join(path, 'metadata'), 'w') as md:
+        metadata_path = os.path.join(path, '_metadata')
+        with open(metadata_path, 'w') as md:
+            # TODO detect filesystem errors
             pickle.dump(metadata, md)
         self._exit()
 
@@ -286,9 +287,15 @@ class XArrayImpl:
         self._entry(path)
         # this only works for local files
         _delete_file_or_dir(path)
-        self.rdd.saveAsTextFile(path)           # action ?
+        try:
+            self.rdd.saveAsTextFile(path)           # action ?
+        except:
+            # TODO distinguish between filesystem errors and pickle errors
+            raise TypeError('the type cannot be saved')            
         metadata = self.elem_type
-        with open(os.path.join(path, 'metadata'), 'w') as md:
+        metadata_path = os.path.join(path, 'metadata')
+        with open(metadata_path, 'w') as md:
+            # TODO detect filesystem errors
             pickle.dump(metadata, md)
         self._exit()
 

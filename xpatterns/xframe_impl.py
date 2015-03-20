@@ -1,6 +1,7 @@
 """
 This module provides an implementation of XFrame using pySpark RDDs.
 """
+import os
 import sys
 import math
 import random
@@ -14,6 +15,7 @@ import shutil
 import csv
 import StringIO
 
+from pyspark import RDD
 from pyspark.sql import *
 from pyspark.sql.types import StringType, BooleanType, \
     DoubleType, FloatType, \
@@ -114,6 +116,8 @@ class XFrameImpl:
         self._entry(col_names, column_types)
         col_names = col_names or []
         column_types = column_types or []
+        if isinstance(rdd, RDD):
+            rdd = XRdd(rdd)
         self.rdd = rdd
         self.col_names = list(col_names)
         self.column_types = list(column_types)
@@ -131,6 +135,8 @@ class XFrameImpl:
         # only use defaults if values are None, not []
         col_names = self.col_names if col_names is None else col_names
         column_types = self.column_types if column_types is None else column_types
+        if isinstance(rdd, RDD):
+            rdd = XRdd(rdd)
         return XFrameImpl(rdd, col_names, column_types)
 
     def _reset():
@@ -147,6 +153,8 @@ class XFrameImpl:
         Column names and types default to the existing ones.
         This is typically used when a function modifies the current XFrame.
         """
+        if isinstance(rdd, RDD):
+            rdd = XRdd(rdd)
         self.rdd = rdd
         if col_names is not None: self.col_names = col_names
         if column_types is not None: self.column_types = column_types
@@ -226,13 +234,15 @@ class XFrameImpl:
         Create XFrame from a saved xframe.
         """
         cls._entry(path)
-        metadata_path = path + '.metadata'
+        # read rdd
+        sc = CommonSparkContext.Instance().sc
+        res = sc.pickleFile(path)
+        # read metadata from the same directory
+        metadata_path = os.path.join(path, '_metadata')
         with open(metadata_path) as f:
             names, types = pickle.load(f)
-        sc = CommonSparkContext.Instance().sc
-        res = XRdd(sc.pickleFile(path))
         cls._exit()        
-        return cls(res.rdd, names, types)
+        return cls(res, names, types)
 
     def load_from_xframe_index(self, path):
         """
@@ -426,12 +436,14 @@ class XFrameImpl:
         Saved in an efficient internal format, intended for reading back into an RDD.
         """
         self._entry(path)
-        metadata_path = path + '.metadata'
+        delete_file_or_dir(path)
+        # save rdd
+        self.rdd.saveAsPickleFile(path)        # action ?
+        # save metadata in the same directory
+        metadata_path = os.path.join(path, '_metadata')
         metadata = [self.col_names, self.column_types]
         with open(metadata_path, 'w') as f:
             pickle.dump(metadata, f)
-        delete_file_or_dir(path)
-        self.rdd.saveAsPickleFile(path)        # action ?
         self._exit()
 
     def save_as_csv(self, url, **args):
@@ -612,7 +624,7 @@ class XFrameImpl:
         if n <= 100:
             data = self.rdd.take(n)
             sc = CommonSparkContext.Instance().sc
-            res = XRdd(sc.parallelize(data))
+            res = sc.parallelize(data)
             self._exit(res)
             return self._rv(res)
         pairs = self.rdd.zipWithIndex()
