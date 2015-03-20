@@ -15,7 +15,7 @@ RUN wget -q http://www.us.apache.org/dist/spark/spark-1.3.0/spark-1.3.0-bin-cdh4
 RUN tar -zxvf /tmp/spark-1.3.0-bin-cdh4.tgz --directory /tmp
 RUN rm /tmp/spark-1.3.0-bin-cdh4.tgz
 RUN mv /tmp/spark-1.3.0-bin-cdh4 /usr/local/spark
-
+RUN easy_install prettytable
 
 # You can mount your own SSL certs as necessary here
 ENV PEM_FILE /key.pem
@@ -24,7 +24,9 @@ ENV PASSWORD Dont make this your default
 ENV USE_HTTP 0
 
 ADD server.sh /
-ADD xpatterns /
+ADD xpatterns /notebooks/xpatterns
+ADD test /notebooks/test
+ADD examples /notebooks
 ADD docker-setup /setup
 RUN chmod u+x /server.sh
 
