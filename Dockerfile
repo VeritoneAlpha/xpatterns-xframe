@@ -27,6 +27,8 @@ ADD server.sh /
 ADD xpatterns /notebooks/xpatterns
 ADD test /notebooks/test
 ADD examples /notebooks
+ADD MachineLearningWithSpark /notebooks
+ADD misc-notebooks /notebooks
 ADD docker-setup /setup
 RUN chmod u+x /server.sh
 
