@@ -27,9 +27,9 @@ ENV USE_HTTP 0
 ADD server.sh /
 ADD xpatterns /notebooks/xpatterns
 ADD test /notebooks/test
-ADD examples /notebooks
-ADD MachineLearningWithSpark /notebooks
-ADD misc-notebooks /notebooks
+ADD examples /notebooks/examples
+ADD MachineLearningWithSpark /notebooks/MachineLearningWithSpark
+ADD misc-notebooks /notebooks/misc-notebooks
 ADD docker-setup /setup
 RUN chmod u+x /server.sh
 
