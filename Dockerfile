@@ -11,6 +11,7 @@ EXPOSE 8081
 
 RUN apt-get update
 RUN apt-get install -y wget default-jdk
+RUN apt-get install -y emacs23
 RUN wget -q http://www.us.apache.org/dist/spark/spark-1.3.0/spark-1.3.0-bin-cdh4.tgz -O /tmp/spark-1.3.0-bin-cdh4.tgz
 RUN tar -zxvf /tmp/spark-1.3.0-bin-cdh4.tgz --directory /tmp
 RUN rm /tmp/spark-1.3.0-bin-cdh4.tgz

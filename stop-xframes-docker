@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Build and run the xframes docker container 
+sudo docker stop xframes
+sudo docker rm xframes
