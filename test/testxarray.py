@@ -123,14 +123,6 @@ class TestXArrayConstructorLocal(unittest.TestCase):
         self.assertEqual(None, t[2])
         self.assertEqual(int, t.dtype())
 
-    def test_construct_list_no_dtype(self):
-        with self.assertRaises(NotImplementedError):
-            t = XArray([1, 2, 3], dtype=None)
-
-    def test_construct_list_no_dtype(self):
-        with self.assertRaises(ValueError):
-            t = XArray([0, 1, 1], dtype=complex)
-
 class TestXArrayConstructorRange(unittest.TestCase):
     """ 
     Tests XArray constructors for sequential ranges.
@@ -195,13 +187,6 @@ class TestXArrayConstructorLoad(unittest.TestCase):
         self.assertEqual(dict, t.dtype())
         self.assertEqual({1: 'a', 2: 'b'}, t[0])
 
-    def test_construct_local_file_int_subdir(self):
-        t = XArray('files/test-array-dir')
-        self.assertEqual(4, len(t))
-        self.assertEqual(int, t.dtype())
-        self.assertEqual(1, t[0])
-
-
 class TestXArrayFromConst(unittest.TestCase):
     """ 
     Tests XArray constructed from const.
@@ -255,7 +240,7 @@ class TestXArraySaveBinary(unittest.TestCase):
     """
     def test_save(self):
         t = XArray([1, 2, 3])
-        path = 'files/tmp-array-binary'
+        path = 'tmp/array-binary'
         t.save(path, format='binary')
         # TODO open and read file and metadata ?
 
@@ -265,7 +250,7 @@ class TestXArraySaveText(unittest.TestCase):
     """
     def test_save(self):
         t = XArray([1, 2, 3])
-        path = 'files/tmp-array-text'
+        path = 'tmp/array-text'
         t.save(path, format='text')
         # TODO open and read file and metadata ?
 

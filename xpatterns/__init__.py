@@ -15,3 +15,6 @@ from xpatterns.xrdd import XRdd
 from xpatterns.sketch import Sketch
 from xpatterns.xplot import XPlot
 from xpatterns.toolkit import recommend as recommender
+from xpatterns.toolkit import classify as classifier
+from xpatterns.toolkit import cluster
+from xpatterns.toolkit import regression

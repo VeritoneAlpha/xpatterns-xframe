@@ -126,7 +126,7 @@ class TestXFrameConstructor(unittest.TestCase):
     def test_construct_binary(self):
         # make binary file
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        path = 'files/tmp-frame'
+        path = 'tmp/frame'
         t.save(path, format='binary')    ### File does not necessarily save in order
         res = XFrame(path).sort('id')    ### so let's sort after we read it back
         self.assertEqual(3, len(res))
@@ -305,10 +305,10 @@ class TestXFrameReadParquet(unittest.TestCase):
 
     def test_read_parquet_str(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        path = 'files/tmp-frame-parquet'
+        path = 'tmp/frame-parquet'
         t.save(path, format='parquet')
 
-        res = XFrame('files/tmp-frame-parquet.parquet')
+        res = XFrame('tmp/frame-parquet.parquet')
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, str], res.column_types())
@@ -318,10 +318,10 @@ class TestXFrameReadParquet(unittest.TestCase):
 
     def test_read_parquet_bool(self):
         t = XFrame({'id': [1, 2, 3], 'val': [True, False, True]})
-        path = 'files/tmp-frame-parquet'
+        path = 'tmp/frame-parquet'
         t.save(path, format='parquet')
 
-        res = XFrame('files/tmp-frame-parquet.parquet')
+        res = XFrame('tmp/frame-parquet.parquet')
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, bool], res.column_types())
@@ -331,10 +331,10 @@ class TestXFrameReadParquet(unittest.TestCase):
 
     def test_read_parquet_int(self):
         t = XFrame({'id': [1, 2, 3], 'val': [10, 20, 30]})
-        path = 'files/tmp-frame-parquet'
+        path = 'tmp/frame-parquet'
         t.save(path, format='parquet')
 
-        res = XFrame('files/tmp-frame-parquet.parquet')
+        res = XFrame('tmp/frame-parquet.parquet')
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, int], res.column_types())
@@ -344,10 +344,10 @@ class TestXFrameReadParquet(unittest.TestCase):
 
     def test_read_parquet_float(self):
         t = XFrame({'id': [1, 2, 3], 'val': [1.0, 2.0, 3.0]})
-        path = 'files/tmp-frame-parquet'
+        path = 'tmp/frame-parquet'
         t.save(path, format='parquet')
 
-        res = XFrame('files/tmp-frame-parquet.parquet')
+        res = XFrame('tmp/frame-parquet.parquet')
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, float], res.column_types())
@@ -357,10 +357,10 @@ class TestXFrameReadParquet(unittest.TestCase):
 
     def test_read_parquet_list(self):
         t = XFrame({'id': [1, 2, 3], 'val': [[1, 1], [2, 2], [3, 3]]})
-        path = 'files/tmp-frame-parquet'
+        path = 'tmp/frame-parquet'
         t.save(path, format='parquet')
 
-        res = XFrame('files/tmp-frame-parquet.parquet')
+        res = XFrame('tmp/frame-parquet.parquet')
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, list], res.column_types())
@@ -370,10 +370,10 @@ class TestXFrameReadParquet(unittest.TestCase):
 
     def test_read_parquet_dict(self):
         t = XFrame({'id': [1, 2, 3], 'val': [{1: 1}, {2: 2}, {3: 3}]})
-        path = 'files/tmp-frame-parquet'
+        path = 'tmp/frame-parquet'
         t.save(path, format='parquet')
 
-        res = XFrame('files/tmp-frame-parquet.parquet')
+        res = XFrame('tmp/frame-parquet.parquet')
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, dict], res.column_types())
@@ -913,9 +913,9 @@ class TestXFrameSaveBinary(unittest.TestCase):
 
     def test_save(self):
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
-        path = 'files/tmp-frame'
+        path = 'tmp/frame'
         t.save(path, format='binary')
-        with open(path + '.metadata') as f:
+        with open(os.path.join(path, '_metadata')) as f:
             metadata = pickle.load(f)
         self.assertEqual([['id', 'val'], [int,  str]], metadata)
         # TODO find some way to check the data
@@ -928,7 +928,7 @@ class TestXFrameSaveCSV(unittest.TestCase):
 
     def test_save(self):
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
-        path = 'files/tmp-frame-csv'
+        path = 'tmp/frame-csv'
         with self.assertRaises(NotImplementedError):
             t.save(path, format='csv')
 
@@ -938,7 +938,7 @@ class TestXFrameSaveParquet(unittest.TestCase):
     """
     def test_save(self):
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
-        path = 'files/tmp-frame-parquet'
+        path = 'tmp/frame-parquet'
         t.save(path, format='parquet')
         # TODO verify
 

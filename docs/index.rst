@@ -15,6 +15,11 @@ This is the Atigeo xFrame library.
 
    xarray
    xframe
+   sketch
+   recommender
+   classifier
+   cluster
+   regression
 
 
 Indices and tables
