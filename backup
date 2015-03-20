@@ -1,0 +1,3 @@
+#
+rsync -rlptvzPC --exclude=data --exclude=data-files --exclude=models --exclude=tmp --exclude=.ipynb_checkpoints --exclude=logs ubuntu@cogno3:xframe/\* .
+
