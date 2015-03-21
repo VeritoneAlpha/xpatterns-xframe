@@ -39,7 +39,7 @@ sudo docker run -d -p 8888:8888 -e "USE_HTTP=1" --name xframes xframes
 
 ```
 
-You'll now be able to access your notebook at http://localhost:8888 with Sample notebooks 
+You'll now be able to access your [xFrame Notebook](http://localhost:8888) to run the Examples
 
 Run the xFrame Example Notebooks
 ----------------
