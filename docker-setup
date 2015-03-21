@@ -1,4 +1,4 @@
-
+#!/bin/bash
 # Set up the environment for command-line and notebook based execution.
 # This file should be run as follows:
 # source setup
@@ -6,3 +6,10 @@
 export LIB=`pwd`
 export PYTHONPATH=$LIB
 export SPARK_HOME=/usr/local/spark
+
+source "$SPARK_HOME/bin/utils.sh"
+source "$SPARK_HOME/bin/load-spark-env.sh"
+
+# Add the PySpark classes to the Python path:
+export PYTHONPATH="$SPARK_HOME/python/:$PYTHONPATH"
+export PYTHONPATH="$SPARK_HOME/python/lib/py4j-0.8.2.1-src.zip:$PYTHONPATH"

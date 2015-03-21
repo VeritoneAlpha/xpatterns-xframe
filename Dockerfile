@@ -24,6 +24,11 @@ ENV PEM_FILE /key.pem
 ENV PASSWORD Dont make this your default
 ENV USE_HTTP 0
 
+ENV LIB=/notebooks
+ENV SPARK_HOME=/usr/local/spark
+ENV PYTHONPATH="/usr/local/spark/python/:/notebooks:/usr/local/spark/python/lib/py4j-0.8.2.1-src.zip"
+
+
 ADD server.sh /
 ADD xpatterns /notebooks/xpatterns
 ADD test /notebooks/test
