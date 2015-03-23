@@ -5,7 +5,6 @@ This module provides an implementation of Sketch using pySpark RDDs.
 import inspect
 import math
 
-from xpatterns.common_impl import CommonSparkContext
 from xpatterns.xframe_impl import XFrameImpl
 from xpatterns.xrdd import XRdd
 from xpatterns.dsq import QuantileAccumulator

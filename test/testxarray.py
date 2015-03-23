@@ -152,6 +152,15 @@ class TestXArrayConstructorRange(unittest.TestCase):
         self.assertEqual(0, t[0])
         self.assertEqual(int, t.dtype())
 
+class TestXArrayConstructFromRdd(unittest.TestCase):
+    """ 
+    Tests XArray from_rdd class method
+    """
+
+    def test_construct_from_rdd(self):
+        # TODO
+        pass
+
 class TestXArrayConstructorLoad(unittest.TestCase):
     """ 
     Tests XArray constructors that loads from file.

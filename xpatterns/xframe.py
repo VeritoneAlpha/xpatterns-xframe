@@ -393,7 +393,6 @@ class XFrame(object):
                 # Get the first 100 rows (using all the desired arguments).
                 # first row may be excluded (based on heder setting)
                 first_rows = xpatterns.XFrame.read_csv(url, nrows=100,
-# this is now wrong -- does it matter?
                                  column_type_hints=str,
                                  header=header,
 # this blocked accurate parsing by read_csv
@@ -871,8 +870,8 @@ class XFrame(object):
         return XFrameImpl.spark_context()
 
     @staticmethod
-    def sql_context():
-        return XFrameImpl.sql_context()
+    def spark_sql_context():
+        return XFrameImpl.spark_sql_context()
 
 
     def __get_column_description__(self):
@@ -1088,7 +1087,8 @@ class XFrame(object):
         where the corresponding row in the selector is non-zero.
         """
         if type(other) is XArray:
-            # TODO this causes materialization -- either don't do this or persist the materialized results
+            # TODO this causes materialization -- either don't do this 
+            #   or persist the materialized results
 #            if len(other) != len(self):
 #                raise IndexError("Cannot perform logical indexing on arrays of different length.")
             return XFrame(_impl=self.__impl__.logical_filter(other.__impl__))
@@ -1249,6 +1249,17 @@ class XFrame(object):
                 df[column_name] = df[column_name].astype(self.column_types()[i])
         return df
 
+    def to_spark_rdd(self):
+        """
+        Convert the current XFrame to a Spark RDD
+
+        Returns
+        -------
+        out : spark.RDD
+            The spark RDD that is used to represent the XFrame.
+        """
+        return self.__impl__.to_spark_rdd()
+
     def to_spark_dataframe(self, table_name=None, number_of_partitions=4):
         """
         Convert the current XFrame to a Spark DataFrame.
@@ -1269,7 +1280,7 @@ class XFrame(object):
 
 
     @classmethod
-    def from_rdd(cls, rdd, names=None, types=None):
+    def from_rdd(cls, rdd, column_names=None, column_types=None):
         """
         Create a XFrame from a spark RDD or spark DataFrame.
 
@@ -1283,10 +1294,10 @@ class XFrame(object):
         rdd
             The spark.RDD or spark.DataFrame to use as the source of the XFrame.
 
-        names : list of string, optional
+        column_names : list of string, optional
             The column names to use.  Ignored for Spark DataFrames.
 
-        types : list of type, optional
+        column_types : list of type, optional
             The column types to use.  Ignored for Spark DataFrames.
 
         Returns
@@ -1303,7 +1314,7 @@ class XFrame(object):
         if str(type(rdd)) ==  "<class 'pyspark.sql.dataframe.DataFrame'>":
             xf.__impl__.from_spark_dataframe(rdd)
         elif str(type(rdd)) ==  "<class 'pyspark.rdd.RDD'>":
-            xf.__impl__.from_rdd(rdd, names, types)
+            xf.__impl__.from_rdd(rdd, column_names, column_types)
         else:
             raise ValueError('argument is not an RDD')
         return xf
@@ -2844,7 +2855,7 @@ class XFrame(object):
         ret_xf.add_columns(new_xf)
         return ret_xf
 
-    def filter_by(self, values, column_name, exclude=False):
+    def filterby(self, values, column_name, exclude=False):
         """
         Filter an XFrame by values inside an iterable object. Result is an
         XFrame that only includes (or excludes) the rows that have a column
@@ -2897,6 +2908,10 @@ class XFrame(object):
         if type(column_name) is not str:
             raise TypeError("Must pass a str as column_name")
 
+        existing_columns = self.column_names()
+        if column_name not in existing_columns:
+            raise KeyError("Column '" + column_name + "' not in XFrame.")
+
         if type(values) is not XArray:
             # If we were given a single element, try to put in list and convert
             # to XArray
@@ -2911,11 +2926,7 @@ class XFrame(object):
         # filter.
         value_xf = value_xf.groupby(column_name, {})
 
-        existing_columns = self.column_names()
-        if column_name not in existing_columns:
-            raise KeyError("Column '" + column_name + "' not in XFrame.")
-
-        existing_type = self.column_types()[self.column_names().index(column_name)]
+        existing_type = self.column_types()[existing_columns.index(column_name)]
         given_type = value_xf.column_types()[0]
         if given_type != existing_type:
             raise TypeError("Type of given values ({}) does not match type of column '{}' ({}) in XFrame."
@@ -2931,16 +2942,16 @@ class XFrame(object):
 
             tmp = XFrame(_impl=self.__impl__.join(value_xf.__impl__,
                                                   'left',
-                                                  {column_name:column_name}))
+                                                  {column_name: column_name}))
             ret_xf = tmp[tmp[id_name] == None]
             del ret_xf[id_name]
             return ret_xf
         else:
             return XFrame(_impl=self.__impl__.join(value_xf.__impl__,
                                                    'inner',
-                                                   {column_name:column_name}))
+                                                   {column_name: column_name}))
 
-    def filterby(self, values, column_name, exclude=False):
+    def filter_by(self, values, column_name, exclude=False):
         """
         Filter an XFrame by values inside an iterable object.
 
@@ -2951,7 +2962,7 @@ class XFrame(object):
         filter_by
         """
 
-        return self.filter_by(values, column_name, exclude)
+        return self.filterby(values, column_name, exclude)
 
     def pack_columns(self, columns=None, column_prefix=None, dtype=list,
                      fill_na=None, remove_prefix=True, new_column_name=None):

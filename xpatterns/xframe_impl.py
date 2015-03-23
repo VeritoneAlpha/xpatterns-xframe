@@ -10,8 +10,6 @@ import json
 import random
 import array
 import pickle
-import errno
-import shutil
 import csv
 import StringIO
 
@@ -23,22 +21,19 @@ from pyspark.sql.types import StringType, BooleanType, \
     ArrayType, MapType, \
     StructField, StructType
 
-from xpatterns.common_impl import CommonSparkContext, safe_zip, infer_type_of_list, infer_type, persist_temp, persist_long
+from xpatterns.common_impl import spark_context, spark_sql_context, \
+    safe_zip, infer_type_of_list, infer_type, \
+    cache, uncache, persist, unpersist
 import xpatterns as xp
 from xpatterns.xrdd import XRdd
 from xpatterns.cmp_rows import CmpRows
 from xpatterns.aggregator_impl import aggregator_properties
+from xpatterns.util import delete_file_or_dir
+
+__all__ = ['XFrameImpl']
 
 
 # Helper functions
-def delete_file_or_dir(path):
-    expected_errs = [errno.ENOENT]     # no such file or directory
-    try:
-        shutil.rmtree(path)
-    except OSError as err:
-        if err.errno not in expected_errs:
-            raise err
-
 def is_missing(x):
     """ Tests for missing values. """
     if x is None: return True
@@ -162,7 +157,7 @@ class XFrameImpl:
         return self
 
     def _count(self):
-        persist_long(self.rdd)
+        persist(self.rdd)
         count = self.rdd.count()     # action
         self.materialized = True
         return count
@@ -203,11 +198,11 @@ class XFrameImpl:
 
     @staticmethod
     def spark_context():
-        return CommonSparkContext.Instance().sc
+        return spark_context()
 
     @staticmethod
-    def sql_context():
-        return CommonSparkContext.Instance().sqlc
+    def spark_sql_context():
+        return spark_sql_context()
 
     # Load
     @classmethod
@@ -235,7 +230,7 @@ class XFrameImpl:
         """
         cls._entry(path)
         # read rdd
-        sc = CommonSparkContext.Instance().sc
+        sc = spark_context()
         res = sc.pickleFile(path)
         # read metadata from the same directory
         metadata_path = os.path.join(path, '_metadata')
@@ -268,7 +263,7 @@ class XFrameImpl:
         if not type(na_values) == list:
             na_values = [na_values]
 
-        sc = CommonSparkContext.Instance().sc
+        sc = spark_context()
         raw = XRdd(sc.textFile(path))
         #parsing_config 
         # 'row_limit': 100, 
@@ -288,8 +283,7 @@ class XFrameImpl:
         def apply_comment(line, comment_char):
             return line.partition(comment_char)[0].rstrip()
         if comment_char:
-            raw = raw.map(lambda line: apply_comment(line, comment_char), 
-                          preservesPartitioning=True)
+            raw = raw.map(lambda line: apply_comment(line, comment_char))
 
         def to_format_params(config):
             params = {}
@@ -309,9 +303,9 @@ class XFrameImpl:
         if row_limit:
             if row_limit > 100:
                 pairs = raw.zipWithIndex()
-                persist_temp(pairs)
+                cache(pairs)
                 filtered_pairs = pairs.filter(lambda x: x[1] < row_limit)
-                pairs.unpersist()
+                uncache(pairs)
                 raw = filtered_pairs.keys()
             else:
                 lines = raw.take(row_limit)
@@ -347,7 +341,7 @@ class XFrameImpl:
             index = val_index[1]
             flag = index != 0 or not use_header
             return (flag, val)
-        res = res.map(lambda row: attach_flag(row, use_header), preservesPartitioning=True)
+        res = res.map(lambda row: attach_flag(row, use_header))
         res = res.filter(lambda fv: fv[0])
 
         # filter out rows with invalid col count
@@ -403,7 +397,7 @@ class XFrameImpl:
         res = res.mapValues(lambda row: cast_row(row, types))
         res = res.filter(lambda fv: fv[0])
         res = res.values()
-        persist_long(res)
+        persist(res)
         self._replace(res, col_names, column_types)
 
         self._exit()
@@ -416,7 +410,7 @@ class XFrameImpl:
         Load RDD from a parquet file
         """
         self._entry(path)
-        sqlc = CommonSparkContext.Instance().sqlc
+        sqlc = spark_sql_context()
         s_rdd = sqlc.parquetFile(path)
         schema = s_rdd.schema
         col_names = [str(col.name) for col in schema.fields]
@@ -506,6 +500,16 @@ class XFrameImpl:
         res = XFrameImpl.xframe_from_spark_dataframe(rdd)
         return self._replace(res.rdd, res.col_names, res.column_types)
 
+    def to_spark_rdd(self):
+        """
+        Returns the underlying RDD.
+
+        Discards the column name and type information.
+        """
+        self._entry()
+        self._exit()
+        return self.rdd.rdd
+
     def to_spark_dataframe(self, table_name, number_of_partitions):
         """
         Adds column name and type informaton to the rdd and returns it.
@@ -519,7 +523,7 @@ class XFrameImpl:
                   for i, (name, typ) in enumerate(zip(self.col_names, self.column_types))]
         schema = StructType(fields)
         rdd = self.rdd.repartition(number_of_partitions)
-        sqlc = CommonSparkContext.Instance().sqlc
+        sqlc = spark_sql_context()
         res = sqlc.applySchema(rdd.rdd, schema)
         if table_name is not None:
             res.registerTempTable(table_name)
@@ -539,20 +543,12 @@ class XFrameImpl:
                   for i, (name, typ) in enumerate(zip(self.col_names, self.column_types))]
         schema = StructType(fields)
         rdd = self.rdd.repartition(number_of_partitions)
-        sqlc = CommonSparkContext.Instance().sqlc
+        sqlc = spark_sql_context()
         res = sqlc.applySchema(rdd.rdd, schema)
         if name is not None:
             res.registerTempTable(table_name)
         self._exit()
         return res
-
-    @staticmethod
-    def spark_context():
-        return CommonSparkContext.Instance().sc
-
-    @staticmethod
-    def spark_sqlcontext():
-        return CommonSparkContext.Instance().sqlc
 
     def to_rdd(self, number_of_partitions):
         """
@@ -623,14 +619,14 @@ class XFrameImpl:
         self._entry(n)
         if n <= 100:
             data = self.rdd.take(n)
-            sc = CommonSparkContext.Instance().sc
+            sc = spark_context()
             res = sc.parallelize(data)
             self._exit(res)
             return self._rv(res)
         pairs = self.rdd.zipWithIndex()
-        persist_temp(pairs)
+        cache(pairs)
         filtered_pairs = pairs.filter(lambda x: x[1] < n)
-        pairs.unpersist()
+        uncache(pairs)
         res = filtered_pairs.keys()
         self._exit(res)
         self.materialized = True
@@ -649,11 +645,11 @@ class XFrameImpl:
         """
         self._entry(n)
         pairs = self.rdd.zipWithIndex()
-        persist_temp(pairs)
+        cache(pairs)
         start = pairs.count() - n
         filtered_pairs = pairs.filter(lambda x: x[1] >= start)
-        pairs.unpersist()
-        res = filtered_pairs.map(lambda x: x[0], preservesPartitioning=True)
+        uncache(pairs)
+        res = filtered_pairs.map(lambda x: x[0])
         self._exit(res)
         return self._rv(res)
 
@@ -681,13 +677,12 @@ class XFrameImpl:
         seed = seed if seed is not None else random.randint(0, sys.maxint)
         rng = random.Random(seed)
         rdd = self.rdd
-        rand_col = self.rdd.map(lambda row: rng.uniform(0.0, 1.0), preservesPartitioning=True)
+        rand_col = self.rdd.map(lambda row: rng.uniform(0.0, 1.0))
         labeled_rdd = safe_zip(self.rdd, rand_col)
-        rdd1 = labeled_rdd.filter(lambda row: row[1] < fraction).map(
-            lambda row: row[0], preservesPartitioning=True)
-        rdd2 = labeled_rdd.filter(lambda row: row[1] >= fraction).map(
-            lambda row: row[0], preservesPartitioning=True)
-        labeled_rdd.unpersist()
+#        cache(labeled_rdd)
+        rdd1 = labeled_rdd.filter(lambda row: row[1] < fraction).keys()
+        rdd2 = labeled_rdd.filter(lambda row: row[1] >= fraction).keys()
+        uncache(labeled_rdd)
         self._exit(rdd1, rdd2)
         return self._rv(rdd1), self._rv(rdd2)
 
@@ -967,7 +962,7 @@ class XFrameImpl:
         self._entry(fn, column_names, column_types, seed)
         names = self.col_names
         # fn needs the row as a dict
-        res = self.rdd.flatMap(lambda row: fn(dict(zip(names, row))), preservesPartitioning=True)
+        res = self.rdd.flatMap(lambda row: fn(dict(zip(names, row))))
         self._exit(res, column_names, column_types)
         return self._rv(res, column_names, column_types)
 
@@ -1007,7 +1002,7 @@ class XFrameImpl:
             if len(res) > 0 or drop_na:
                 return res
             return [subs_row(row, col, None)]
-        res = self.rdd.flatMap(lambda row: stack_row(row, col_num, drop_na), preservesPartitioning=True)
+        res = self.rdd.flatMap(lambda row: stack_row(row, col_num, drop_na))
 
         column_names = list(self.col_names)
         new_name = new_column_names[0]
@@ -1079,7 +1074,7 @@ class XFrameImpl:
             if x < start or x >= stop: return False
             return (x - start) % step == 0
         pairs = self.rdd.zipWithIndex()
-        res = pairs.filter(lambda x: select_row(x[1], start, step, stop)).map(lambda x: x[0], preservesPartitioning=True)
+        res = pairs.filter(lambda x: select_row(x[1], start, step, stop)).map(lambda x: x[0])
         col_names = self.col_names
         self._exit(res)
         return self._rv(res)
@@ -1199,7 +1194,7 @@ class XFrameImpl:
         specified function. Returns a array RDD of ``dtype`` where each element
         in this array RDD is transformed by `fn(x)` where `x` is a single row in
         the xframe represented as a dictionary.  The ``fn`` should return
-        exactly one value which can be cast into type ``dtype``. 
+        exactly one value which is or can be cast into type ``dtype``. 
         """
         self._entry(fn, dtype, seed)
         names = self.col_names
@@ -1207,8 +1202,10 @@ class XFrameImpl:
         def transformer(row):
             row_as_dict = dict(zip(names, row))
             result = fn(row_as_dict)
-            cast_result = dtype(result)
-            return cast_result
+            if type(result) != dtype:
+                cast_result = dtype(result)
+                return cast_result
+            return result
         res = self.rdd.map(transformer, preservesPartitioning=True)
         self._exit(res, dtype)
         return xp.xarray_impl.XArrayImpl(res, dtype)
@@ -1227,13 +1224,17 @@ class XFrameImpl:
         key_cols = [self.col_names.index(col) for col in key_columns_array]
 
         # make group column indexes
-        group_cols = [[self.col_names.index(col) if col != '' else None for col in cols] for cols in group_columns]
+        group_cols = [[self.col_names.index(col) if col != '' else None for col in cols] 
+                      for cols in group_columns]
         
         # look up operators
         # make new column names
-        default_group_output_columns = [aggregator_properties[op].default_col_name for op in group_ops]
+        default_group_output_columns = [aggregator_properties[op].default_col_name 
+                                        for op in group_ops]
         group_output_columns = [col if col != '' else deflt 
-                                    for col, deflt in zip(group_output_columns, default_group_output_columns)]
+                                for col, deflt in zip(
+                                   group_output_columns, 
+                                   default_group_output_columns)]
         new_col_names = key_columns_array + group_output_columns
         # make sure col names are unique
         unique_col_names = []
@@ -1258,10 +1259,23 @@ class XFrameImpl:
         def make_key(row, key_cols):
             key = [row[col] for col in key_cols]
             return json.dumps(key)
-        keyed_rdd = self.rdd.map(lambda row: (make_key(row, key_cols), row), preservesPartitioning=True)
+        # NOTE -- Bug in pySpark 1.3
+        # If preservesPartitioning=True is passed to this map, then the subsequent
+        # groupByKey will return multiple rows with the SAME KEY, at least for
+        # some datasets.  Suspect that keys in different partitions are not being
+        # merged.  This bug may show up even in the current form.
+        keyed_rdd = self.rdd.map(lambda row: (make_key(row, key_cols), row))
+#        keyed_rdd = self.rdd.map(lambda row: (make_key(row, key_cols), row),
+#                                 preservesPartitioning=True)
 
+#        print 'keyed_rdd'
+#        print keyed_rdd.count()
+#        print keyed_rdd.collect()
         grouped = keyed_rdd.groupByKey()
-        grouped = grouped.map(lambda pair: (json.loads(pair[0]), pair[1]), preservesPartitioning=True)
+#        print 'grouped'
+#        print grouped.count()
+#        print grouped.collect()
+        grouped = grouped.map(lambda pair: (json.loads(pair[0]), pair[1]))
         # (key, [row ...]) ...
         # run the aggregator on y: count --> len(y); sum --> sum(y), etc
 
@@ -1270,11 +1284,12 @@ class XFrameImpl:
             return [aggregator(rows, cols) 
                      for aggregator, cols in zip(aggregators, group_cols)]
         aggregators = [aggregator_properties[op].agg_function for op in group_ops]
-        aggregates = grouped.map(lambda (x, y): (x, build_aggregates(y, aggregators, group_cols)), preservesPartitioning=True)
+        aggregates = grouped.map(lambda (x, y): (x, build_aggregates(y, aggregators, group_cols)))
         def concatenate(old_vals, new_vals):
             return old_vals + new_vals
         
-        res = aggregates.map(lambda pair: concatenate(pair[0], pair[1]), preservesPartitioning=True)
+        res = aggregates.map(lambda pair: concatenate(pair[0], pair[1]))
+        persist(res)
         self._exit(res, new_col_names, new_col_types)
         return self._rv(res, new_col_names, new_col_types)
 
@@ -1354,16 +1369,20 @@ class XFrameImpl:
                 raise ValueError('empty join columns -- left: {} right: {}'.format(left_key_indexes, right_key_indexes))
 
             # add keys to left and right
-            keyed_left = self.rdd.map(lambda row: (build_key(row, left_key_indexes), row), preservesPartitioning=True)
-            keyed_right = right.rdd.map(lambda row: (build_key(row, right_key_indexes), row), preservesPartitioning=True)
+            keyed_left = self.rdd.map(lambda row: (build_key(row, left_key_indexes), row))
+            keyed_right = right.rdd.map(lambda row: (build_key(row, right_key_indexes), row))
         
+#            print 'keyed_left'
+#            print keyed_left.take(10)
+#            print 'keyed_right'
+#            print keyed_right.take(10)
             # remove redundant key fields from the right
             def fixup_right(row, indexes):
                 val = row[1]
                 for i in indexes:
                     val.pop(i)
                 return (row[0], val)
-            keyed_right = keyed_right.map(lambda row: fixup_right(row, right_key_indexes), preservesPartitioning=True)
+            keyed_right = keyed_right.map(lambda row: fixup_right(row, right_key_indexes))
 
             if how == 'inner':
                 joined = keyed_left.join(keyed_right)
@@ -1373,10 +1392,12 @@ class XFrameImpl:
                 joined = keyed_left.rightOuterJoin(keyed_right)
 
             # throw away key now
-            pairs = joined.map(lambda row: row[1], preservesPartitioning=True)
+            pairs = joined.values()
 
-        res = pairs.map(lambda row: combine_results(row[0], row[1], left_count, right_count), preservesPartitioning=True)
+        res = pairs.map(lambda row: combine_results(row[0], row[1], 
+                              left_count, right_count))
 
+        persist(res)
         self._exit(res, new_col_names, new_col_types)
         return self._rv(res, new_col_names, new_col_types)
 
@@ -1387,9 +1408,9 @@ class XFrameImpl:
         """
 
         self._entry()
-        as_json = self.rdd.map(lambda row: json.dumps(row), preservesPartitioning=True)
+        as_json = self.rdd.map(lambda row: json.dumps(row))
         unique_rows = as_json.distinct()
-        res = unique_rows.map(lambda s: json.loads(s), preservesPartitioning=True)
+        res = unique_rows.map(lambda s: json.loads(s))
         self._exit(res)
         return self._rv(res)
 
@@ -1412,7 +1433,7 @@ class XFrameImpl:
     def sql(self, sql_statement, table_name):
         self._entry(sql_statement, table_name)
         s_rdd = self.to_spark_dataframe(table_name, 8)
-        sqlc = CommonSparkContext.Instance().sqlc
+        sqlc = spark_sql_context()
         s_res = sqlc.sql(sql_statement)
         res = XFrameImpl.xframe_from_spark_dataframe(s_res)
         self._exit()

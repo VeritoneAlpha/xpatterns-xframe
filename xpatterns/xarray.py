@@ -270,7 +270,7 @@ class XArray(object):
         elif format == 'text':
             self.__impl__.save_as_text(make_internal_url(filename))
 
-    def to_rdd(self,sc,number_of_partitions=4):
+    def to_rdd(self, number_of_partitions=4):
         """
         Convert the current XArray to the Spark RDD.
 
@@ -285,6 +285,25 @@ class XArray(object):
             raise ValueError("number_of_partitions can not be initialized to zero")
 
         return self.__impl__.to_rdd(number_of_partitions)
+
+    @classmethod
+    def from_rdd(cls, rdd, dtype):
+        """
+        Convert a Spark RDD into an XArray
+
+
+        Parameters
+        ----------
+        rdd : pyspark.rdd.RDD
+
+        dtype : type
+
+        Returns
+        -------
+        out : XArray
+        """
+        return cls(_impl=XArrayImpl.from_rdd(rdd, dtype))
+
 
     def __repr__(self):
         """

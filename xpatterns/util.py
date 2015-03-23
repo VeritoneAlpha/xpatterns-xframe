@@ -12,6 +12,8 @@ import bz2 as _bz2
 import tarfile as _tarfile
 import ConfigParser as _ConfigParser
 import itertools as _itertools
+import errno
+import shutil
 
 import logging as _logging
 
@@ -493,4 +495,11 @@ def crossproduct(d):
     sa = [{k:v for (k,v) in x} for x in d]
     return XArray(sa).unpack(column_name_prefix='')
 
+def delete_file_or_dir(path):
+    expected_errs = [errno.ENOENT]     # no such file or directory
+    try:
+        shutil.rmtree(path)
+    except OSError as err:
+        if err.errno not in expected_errs:
+            raise err
 

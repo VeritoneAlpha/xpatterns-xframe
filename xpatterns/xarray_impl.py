@@ -8,18 +8,19 @@ import ast
 import datetime
 import functools
 from itertools import islice
-import shutil
-import errno
 import os
 import pickle
 import sys
 import ast
 
-from xpatterns.common_impl import CommonSparkContext, safe_zip, infer_type_of_list, persist_temp, persist_long
-from xpatterns.xframe_impl import XFrameImpl
+from xpatterns.common_impl import spark_context, spark_sql_context, \
+    safe_zip, infer_type_of_list, \
+    cache, uncache
+from xpatterns.util import delete_file_or_dir
+import xpatterns as xp
 from xpatterns.xrdd import XRdd
 
-__all__ = ['XArray']
+__all__ = ['XArrayImpl']
 
 class ReverseCmp(object):
     """ Reverse comparison.
@@ -48,14 +49,6 @@ def _is_missing(x):
     if x is None: return True
     if isinstance(x, float) and math.isnan(x): return True
     return False
-
-def _delete_file_or_dir(path):
-    expected_errs = [errno.ENOENT]     # no such file or directory
-    try:
-        shutil.rmtree(path)
-    except OSError as err:
-        if err.errno not in expected_errs:
-            raise err
 
 class XArrayImpl:
     # What is missing:
@@ -88,7 +81,7 @@ class XArrayImpl:
         """
         Return a new XFrameImpl containing the rdd, column names, and element types
         """
-        return XFrameImpl(rdd, col_names, types)
+        return xp.xframe_impl.XFrameImpl(rdd, col_names, types)
 
     def _replace(self, rdd, dtype):
         self.rdd = rdd
@@ -144,7 +137,7 @@ class XArrayImpl:
         else:
             stop = start - size
             step = -1
-        sc = CommonSparkContext.Instance().sc
+        sc = spark_context()
         rdd = XRdd(sc.parallelize(range(start, stop, step)))
         return XArrayImpl(rdd, int)
 
@@ -157,7 +150,7 @@ class XArrayImpl:
         """
         self._entry(values, dtype, ignore_cast_failure)
 
-        sc = CommonSparkContext.Instance().sc
+        sc = spark_context()
         if len(values) == 0:
             self.rdd = XRdd(sc.parallelize([]))
             self.elem_type = dtype     # or should it be None ?
@@ -176,7 +169,7 @@ class XArrayImpl:
 
         if dtype in (int, float, str, bool, list, dict, datetime.datetime):
             raw_rdd = XRdd(sc.parallelize(values))
-            rdd = raw_rdd.map(lambda x: do_cast(x, dtype, ignore_cast_failure), preservesPartitioning=True)
+            rdd = raw_rdd.map(lambda x: do_cast(x, dtype, ignore_cast_failure))
             if not ignore_cast_failure:
                 errs = len(rdd.filter(lambda x: x is ValueError).take(1)) == 1
                 if errs: raise ValueError
@@ -185,7 +178,7 @@ class XArrayImpl:
         else:
             # TODO merge with clause above
             raw_rdd = XRdd(sc.parallelize(values))
-            rdd = raw_rdd.map(lambda x: do_cast(x, dtype, ignore_cast_failure), preservesPartitioning=True)
+            rdd = raw_rdd.map(lambda x: do_cast(x, dtype, ignore_cast_failure))
             if not ignore_cast_failure:
                 errs = len(rdd.filter(lambda x: x is ValueError).take(1)) == 1
                 if errs: raise ValueError
@@ -199,7 +192,7 @@ class XArrayImpl:
         Load RDD from const value.
         """
         values = [ value for i in xrange(0, size)]
-        sc = CommonSparkContext.Instance().sc
+        sc = spark_context()
         self._replace(XRdd(sc.parallelize(values)), type(value))
 
     def load_autodetect(self, path, dtype):
@@ -233,7 +226,7 @@ class XArrayImpl:
             else: 
                 dtype = str
             return dtype
-        sc = CommonSparkContext.Instance().sc
+        sc = spark_context()
         if os.path.isdir(path):
             res = XRdd(sc.pickleFile(path))
             metadata_path = os.path.join(path, '_metadata')
@@ -245,9 +238,9 @@ class XArrayImpl:
 
         if dtype != str:
             if dtype in (list, dict):
-                res = res.map(lambda x: ast.literal_eval(x), preservesPartitioning=True)
+                res = res.map(lambda x: ast.literal_eval(x))
             else:
-                res = res.map(lambda x: dtype(x), preservesPartitioning=True)
+                res = res.map(lambda x: dtype(x))
         self._replace(res, dtype)
         self._exit()
 
@@ -267,7 +260,7 @@ class XArrayImpl:
         """
         self._entry(path)
         # this only works for local files
-        _delete_file_or_dir(path)
+        delete_file_or_dir(path)
         try:
             self.rdd.saveAsPickleFile(path)          # action ?
         except:
@@ -286,7 +279,7 @@ class XArrayImpl:
         """
         self._entry(path)
         # this only works for local files
-        _delete_file_or_dir(path)
+        delete_file_or_dir(path)
         try:
             self.rdd.saveAsTextFile(path)           # action ?
         except:
@@ -307,6 +300,10 @@ class XArrayImpl:
         res = self._rdd.repartition(number_of_partitions)
         self._exit()
         return res
+
+    @classmethod
+    def from_rdd(cls, rdd, dtype):
+        return cls(rdd, dtype)
 
     # Array Information
     def size(self):
@@ -331,7 +328,7 @@ class XArrayImpl:
         self._entry(n)
         pairs = self.rdd.zipWithIndex()
         filtered_pairs = pairs.filter(lambda x: x[1] < n)
-        res = filtered_pairs.map(lambda x: x[0], preservesPartitioning=True)
+        res = filtered_pairs.keys()
         self._exit()
         return self._rv(res)
 
@@ -345,11 +342,11 @@ class XArrayImpl:
     def tail(self, n):
         self._entry(n)
         pairs = self.rdd.zipWithIndex()
-        persist_temp(pairs)
+        cache(pairs)
         start = pairs.count() - n
         filtered_pairs = pairs.filter(lambda x: x[1] >= start)
-        pairs.unpersist()
-        res = filtered_pairs.map(lambda x: x[0], preservesPartitioning=True)
+        uncache(pairs)
+        res = filtered_pairs.keys()
         self._exit()
         return self._rv(res)
 
@@ -367,7 +364,7 @@ class XArrayImpl:
         else:
             pairs = self.rdd.zipWithIndex()
             # we are going to use this twice
-            persist_temp(pairs)
+            cache(pairs)
             # takeOrdered always sorts ascending
             # topk needs to sort descending if reverse is False, ascending if True
             if reverse:
@@ -377,7 +374,7 @@ class XArrayImpl:
             top_pairs = pairs.takeOrdered(topk, lambda x: order_fn(x[0]))
             top_ranks = [x[1] for x in top_pairs]
             res = pairs.map(lambda x: x[1] in top_ranks, preservesPartitioning=True)
-            pairs.unpersist()
+            uncache(pairs)
         self._exit()
         return self._rv(res)
 
@@ -540,7 +537,7 @@ class XArrayImpl:
         """
         self._entry(other)
         pairs = safe_zip(self.rdd, other.rdd)
-        res = pairs.filter(lambda p: p[1]).map(lambda p: p[0], preservesPartitioning=True)
+        res = pairs.filter(lambda p: p[1]).map(lambda p: p[0])
         self._exit()
         return self._rv(res)
 
@@ -553,7 +550,7 @@ class XArrayImpl:
             if x < start or x >= stop: return False
             return (x - start) % step == 0
         pairs = self.rdd.zipWithIndex()
-        res = pairs.filter(lambda x: select_row(x[1], start, step, stop)).map(lambda x: x[0], preservesPartitioning=True)
+        res = pairs.filter(lambda x: select_row(x[1], start, step, stop)).map(lambda x: x[0])
         self._exit()
         return self._rv(res)
 
