@@ -5,6 +5,7 @@
 
 . /home/ubuntu/venv1.0/bin/activate
 
-export LIB=`pwd`
-export PYTHONPATH=$LIB
+here=`pwd`
+export PYTHONPATH=$here
 export SPARK_HOME=/home/ubuntu/spark
+export XPATTERNS_HOME=$here
