@@ -80,7 +80,7 @@ class CommonSparkContext:
         env = Environment.create_default()
         cluster_url = env.get_config('spark', 'cluster_url', default='local')
         cores_max = env.get_config('spark', 'cores_max', default='8')
-        executor_memory = env.get_config('spark', 'executor_memory', default='2g')
+        executor_memory = env.get_config('spark', 'executor_memory', default='8g')
         app_name = env.get_config('spark', 'app_name', 'xFrame')
         conf = (SparkConf()
                 .setMaster(cluster_url)

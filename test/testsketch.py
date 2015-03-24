@@ -1,13 +1,15 @@
 import unittest
 
- # Configure the necessary Spark environment
+# Check the spark configuration
 import os
-os.environ['SPARK_HOME'] = '/home/ubuntu/spark/'
+if not 'SPARK_HOME' in os.environ:
+    print 'SPARK_HOME must be set'
+spark_home = os.environ['SPARK_HOME']
 
-# And Python path
+# Set the python path
 import sys
-sys.path.insert(0, '/home/ubuntu/spark/python')
-sys.path.insert(1, '/home/ubuntu/spark/python/lib/py4j-0.8.2.1-src.zip')
+sys.path.insert(0, os.path.join(spark_home, 'python'))
+sys.path.insert(1, os.path.join(spark_home, 'python/lib/py4j-0.8.2.1-src.zip'))
 
 
 # python testsketch.py

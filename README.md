@@ -8,10 +8,12 @@ xFrame provides the following advantages compared to other DataFrame implementat
 - Powerful abstraction over underlying scaleable big data and machine learning frameworks: Apache Spark, Spark DataFrames and ML libraries.
 - Dockerized container that bundles IPython notebooks, scientific libraries, Apache Spark and other dependencies for painless setup.
 - The library is extensible, allowing developers to add their own useful features and functionality. 
-- isolate framework dependencies and their configuration within a single disposable, containerized environment
-- No need to learn intricacies of Apache Spark in order to leverage its power.
-- Once the xFrames container is run, Other members of your team create their development environments from the same configuration
-- Works whether you're working on Linux, Mac OS X, or Windows, all your team members are running data experiments in the same environment
+
+
+How xFrame Benefits You
+-----------------------
+
+If you're a data scientist, xFrame will isolate framework dependencies and their configuration within a single disposable, containerized environment, without compromising on any of the tools you're used to working with (notebooks, dataframes, machine learning and big data frameworks, etc.). Once you or someone else creates a single xFrame container, you just need to run the container and everything is installed and configured for you to work. Other members of your team create their development environments from the same configuration, so whether you're working on Linux, Mac OS X, or Windows, all your team members are running data experiments in the same environment, against the same dependencies, all configured the same way. Say goodbye to painful setup times and "works on my machine" bugs.
 
 
 Minimum Requirements
@@ -23,31 +25,27 @@ Minimum Requirements
 
 *Mac*:
 
-- Install Boot2Docker
+- Docker >= 1.5 installation
 
 *Windows*
 
-- Install Boot2Docker 
+- Run in VM
 
-## Quickstart
-
-Assuming you have docker installed, you can run the following commands in order to get Started (no need for 'sudo' on non-Linux Environments):
-
-```
-sudo docker build -t xframes .
-sudo docker run -d -p 8888:8888 -e "USE_HTTP=1" --name xframes xframes
-
-```
-
-You'll now be able to access your [xFrame Notebook](http://localhost:8888) to run the Examples
-
-Run the xFrame Example Notebooks
+Download Library
 ----------------
-- Navigate to the MachineLearningWithSpark folder
-- Click on a Sample Notebook under it (Chapter-3.ipynb for e.g.)
-- Click on Cell->Run All
-- Notebook should run and succeed producing data and plots
+```
+git clone https://github.com/atigeo/xframe.git xframe
+```
 
+Use the Examples
+----------------
+```
+xframe$ ipython
+>>> import xpatterns.xframe 
+>>> import examples.example1 as example1
+>>> example1.add(2, 5)
+7
+```
 
 Documentation
 -------------

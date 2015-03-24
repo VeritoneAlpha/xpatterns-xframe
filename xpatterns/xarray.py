@@ -269,6 +269,8 @@ class XArray(object):
             self.__impl__.save(make_internal_url(filename))
         elif format == 'text':
             self.__impl__.save_as_text(make_internal_url(filename))
+        elif format == 'csv':
+            self.__impl__.save_as_csv(make_internal_url(filename))
 
     def to_rdd(self, number_of_partitions=4):
         """

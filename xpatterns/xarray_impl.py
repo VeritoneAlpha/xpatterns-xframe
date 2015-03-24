@@ -12,6 +12,8 @@ import os
 import pickle
 import sys
 import ast
+import csv
+import StringIO
 
 from xpatterns.common_impl import spark_context, spark_sql_context, \
     safe_zip, infer_type_of_list, \
@@ -290,6 +292,35 @@ class XArrayImpl:
         with open(metadata_path, 'w') as md:
             # TODO detect filesystem errors
             pickle.dump(metadata, md)
+        self._exit()
+
+    def save_as_csv(self, path, **params):
+        """
+        Saves the RDD to file as text.
+        """
+        self._entry(path)
+        def to_csv(row, **params):
+            sio = StringIO.StringIO()
+            writer = csv.writer(sio, **params)
+            try:
+                writer.writerow([row], **params)
+                ret = sio.getvalue()
+                return ret
+            except Exception as e:
+                return ''
+
+        with open(path, 'w') as f:
+            self.begin_iterator()
+            elems_at_a_time = 10000
+            ret = self.iterator_get_next(elems_at_a_time)
+            while(True):
+                for row in ret:
+                    line = to_csv(row, **params)
+                    f.write(line)
+                if len(ret) == elems_at_a_time:
+                    ret = self.iterator_get_next(elems_at_a_time)
+                else:
+                    break
         self._exit()
 
     def to_rdd(number_of_partitions):

@@ -341,8 +341,8 @@ class XFrameImpl:
             index = val_index[1]
             flag = index != 0 or not use_header
             return (flag, val)
+        # add a flag -- used to filter first row and rows with invalid column count
         res = res.map(lambda row: attach_flag(row, use_header))
-        res = res.filter(lambda fv: fv[0])
 
         # filter out rows with invalid col count
         def audit_col_count(flag_row, col_count):
@@ -350,6 +350,14 @@ class XFrameImpl:
             flag = flag and len(row) == col_count
             return (flag, row)
         res = res.map(lambda flag_row: audit_col_count(flag_row, col_count))
+        before_count = res.count()
+        res = res.filter(lambda fv: fv[0])
+        after_count = res.count()
+        filter_diff = before_count - after_count
+        if use_header: filter_diff -= 1
+        if filter_diff > 0:
+            print '{} rows dropped because of incorrect column count'.format(filter_diff)
+        res = res.values()
 
         # Transform hints: __X{}__ ==> name.
         # If it is not of this form, leave it alone.
@@ -384,7 +392,7 @@ class XFrameImpl:
         # apply na values to value
         def apply_na(row, na_values):
             return  [None if val in na_values else val for val in row]
-        res = res.mapValues(lambda row: apply_na(row, na_values))
+        res = res.map(lambda row: apply_na(row, na_values))
 
         # cast to desired type
         def cast_val(val, typ):
@@ -394,9 +402,7 @@ class XFrameImpl:
         def cast_row(row, types):
             return [cast_val(val, typ) for val, typ in zip(row, types)]
 
-        res = res.mapValues(lambda row: cast_row(row, types))
-        res = res.filter(lambda fv: fv[0])
-        res = res.values()
+        res = res.map(lambda row: cast_row(row, types))
         persist(res)
         self._replace(res, col_names, column_types)
 
@@ -440,14 +446,37 @@ class XFrameImpl:
             pickle.dump(metadata, f)
         self._exit()
 
-    def save_as_csv(self, url, **args):
+    def save_as_csv(self, path, **args):
         """
         Save to a text file in csv format.
         """
-        self._entry(url, **args)
-        # TODO save col names and types
+        # Transform into RDD of csv-encoded lines, then write
+        self._entry(path, **args)
+
+        def to_csv(row, **params):
+            sio = StringIO().StringIO()
+            writer = csvwriter(sio, **params)
+            try:
+                writer.writerow(row, **params)
+                return sio.getvalue()
+            except Exception:
+                return ''
+
+        with open(path, 'w') as f:
+            line = to_csv(self.column_names())
+            f.writeline(line)
+            self.begin_iterator()
+            elems_at_a_time = 10000
+            ret = self.iterator_get_next(elems_at_a_time)
+            while(True):
+                for row in ret:
+                    line = to_csv(row, **params)
+                    f.write(line)
+                if len(ret) == elems_at_a_time:
+                    ret = self.iterator_get_next(elems_at_a_time)
+                else:
+                    break
         self._exit()
-        raise NotImplementedError()
 
 
     def save_as_parquet(self, url, number_of_partitions):
@@ -1264,15 +1293,19 @@ class XFrameImpl:
         # groupByKey will return multiple rows with the SAME KEY, at least for
         # some datasets.  Suspect that keys in different partitions are not being
         # merged.  This bug may show up even in the current form.
+#        keyed_rdd = self.rdd.map(lambda row: (make_key(row, key_cols), row))
+        ##### !!!!!
+#        print 'groupby'
+#        keyed_rdd = self.rdd.map(lambda row: (make_key(row, key_cols), row), preservesPartitioning=True)
         keyed_rdd = self.rdd.map(lambda row: (make_key(row, key_cols), row))
-#        keyed_rdd = self.rdd.map(lambda row: (make_key(row, key_cols), row),
-#                                 preservesPartitioning=True)
 
 #        print 'keyed_rdd'
+#        print keyed_rdd.toDebugString()
 #        print keyed_rdd.count()
 #        print keyed_rdd.collect()
         grouped = keyed_rdd.groupByKey()
 #        print 'grouped'
+#        print grouped.toDebugString()
 #        print grouped.count()
 #        print grouped.collect()
         grouped = grouped.map(lambda pair: (json.loads(pair[0]), pair[1]))
@@ -1372,10 +1405,6 @@ class XFrameImpl:
             keyed_left = self.rdd.map(lambda row: (build_key(row, left_key_indexes), row))
             keyed_right = right.rdd.map(lambda row: (build_key(row, right_key_indexes), row))
         
-#            print 'keyed_left'
-#            print keyed_left.take(10)
-#            print 'keyed_right'
-#            print keyed_right.take(10)
             # remove redundant key fields from the right
             def fixup_right(row, indexes):
                 val = row[1]
@@ -1392,10 +1421,12 @@ class XFrameImpl:
                 joined = keyed_left.rightOuterJoin(keyed_right)
 
             # throw away key now
-            pairs = joined.values()
+            pairs = joined.map(lambda row: row[1], preservesPartitioning=True) ##### !!!!!
+#            pairs = joined.map(lambda row: row[1])
+#            pairs = joined.values()
 
         res = pairs.map(lambda row: combine_results(row[0], row[1], 
-                              left_count, right_count))
+                              left_count, right_count), preservesPartitioning=True) ##### !!!!!
 
         persist(res)
         self._exit(res, new_col_names, new_col_types)
