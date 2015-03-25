@@ -931,8 +931,8 @@ class TestXFrameSaveCSV(unittest.TestCase):
     def test_save(self):
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
         path = 'tmp/frame-csv'
-        with self.assertRaises(NotImplementedError):
-            t.save(path, format='csv')
+        t.save(path, format='csv')
+        # TODO verify
 
 class TestXFrameSaveParquet(unittest.TestCase):
     """
