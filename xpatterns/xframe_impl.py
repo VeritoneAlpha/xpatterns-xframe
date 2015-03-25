@@ -446,16 +446,16 @@ class XFrameImpl:
             pickle.dump(metadata, f)
         self._exit()
 
-    def save_as_csv(self, path, **args):
+    def save_as_csv(self, path, **params):
         """
         Save to a text file in csv format.
         """
         # Transform into RDD of csv-encoded lines, then write
-        self._entry(path, **args)
+        self._entry(path, **params)
 
         def to_csv(row, **params):
-            sio = StringIO().StringIO()
-            writer = csvwriter(sio, **params)
+            sio = StringIO.StringIO()
+            writer = csv.writer(sio, **params)
             try:
                 writer.writerow(row, **params)
                 return sio.getvalue()
@@ -463,8 +463,6 @@ class XFrameImpl:
                 return ''
 
         with open(path, 'w') as f:
-            line = to_csv(self.column_names())
-            f.writeline(line)
             self.begin_iterator()
             elems_at_a_time = 10000
             ret = self.iterator_get_next(elems_at_a_time)

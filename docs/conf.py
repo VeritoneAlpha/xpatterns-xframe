@@ -15,13 +15,29 @@ import sys, os
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
+# Check the spark configuration
+if not 'SPARK_HOME' in os.environ:
+    print 'SPARK_HOME must be set'
+spark_home = os.environ['SPARK_HOME']
+if not 'XPATTERNS_HOME' in os.environ:
+    print 'XPATTERNS_HOME must be set'
+xpatterns_home = os.environ['XPATTERNS_HOME']
+
+
+# Set the python path
 # documentation root, use os.path.abspath to make it absolute, like shown here.
+#sys.path.insert(0, os.path.abspath(xpatterns_home))
+#sys.path.insert(1, os.path.abspath(os.path.join(spark_home, 'python')))
+#sys.path.insert(2, os.path.abspath(os.path.join(spark_home, 'python/lib/py4j-0.8.2.1-src.zip')))
+
+# delete these
 sys.path.insert(0, os.path.abspath('/home/ubuntu/xframe/'))
 sys.path.insert(1, os.path.abspath('/home/ubuntu/spark/python'))
 sys.path.insert(2, '/home/ubuntu/spark/python/lib/py4j-0.8.2.1-src.zip')
 sys.path.insert(3, '/home/ubuntu/venv1.0/lib/python2.7/site-packages/')
 
 # -- General configuration -----------------------------------------------------
+import cloud_sptheme as csp
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #needs_sphinx = '1.0'
@@ -89,20 +105,22 @@ pygments_style = 'sphinx'
 # A list of ignored prefixes for module index sorting.
 #modindex_common_prefix = []
 
+# -- Numpydoc
+numpydoc_show_class_members = False
 
 # -- Options for HTML output ---------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'default'
+html_theme = 'cloud'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-#html_theme_options = {}
+html_theme_options = {"roottarget": "index"}
 
 # Add any paths that contain custom themes here, relative to this directory.
-#html_theme_path = []
+html_theme_path = [csp.get_theme_dir()]
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".

@@ -101,17 +101,43 @@ class XFrame(object):
     verbose : bool, optional
         If reading a file, and True, print the progress.
 
+    Notes
+    -----
+    The following functionality is currently not implemented.
+        - xframe_from_pandas_dataframe
+        - pack_columns data types except list, array, and dict
+        - groupby quantile
+        - split_datetime
+
     See Also
     --------
     read_csv:
         Create a new XFrame from a csv file. Preferred for text and CSV formats,
         because it has a lot more options for controlling the parser.
 
+    read_parquet: 
+        Read an XFrame from a parquet file.
+
     from_rdd:
         Create a new XFrame from a Spark RDD or Spark DataFrame.  
-        From_rdd is preferred because the column names and types can be specified.
+        Column names and types can be specified if a spark RDD is given; otherwise 
+        they are taken from the DataFrame.
 
-    save : Save an XFrame for later use.
+    save : 
+        Save an XFrame for later use.
+
+    load:
+        Load an XFrame from a file.  The filename extension is used to determine the
+        file format.
+
+    set_trace : 
+        Controls entry and exit tracing.
+
+    spark_context: 
+        Returns the spark context.
+
+    spark_sql_context: 
+        Returns the spark sql context.
 
     Examples
     --------
@@ -255,6 +281,23 @@ class XFrame(object):
 
     @staticmethod
     def set_trace(entry_trace=None, exit_trace=None):
+        """
+        Set XFrame tracing.
+
+        Turns on and off tracing of XFrame method calls.
+        When entry tracing is on, a message is written when each XFrame method is entered,
+        giving its imput parameters.  
+        When exit tracing is on, then a message is written when each method exits.
+
+        Parameters
+        ----------
+        entry_trace, boolean, optional
+            If True, turn on entry tracing.  Defaults to False.
+
+        exit_trace, boolean, optional
+            If True, turns on exit tracing.  Defaults to False.
+
+        """
         XFrameImpl.set_trace(entry_trace, exit_trace)
 
     @staticmethod
@@ -867,10 +910,28 @@ class XFrame(object):
 
     @staticmethod
     def spark_context():
+        """
+        Get the spark context.
+
+        Returns
+        -------
+        out : SparkContext
+            The spark context.  
+            If no context has been created yet, then one is created.
+        """
         return XFrameImpl.spark_context()
 
     @staticmethod
     def spark_sql_context():
+        """
+        Get the spark sql context.
+
+        Returns
+        -------
+        out : SparkSqlContext
+            The spark sql context.  
+            If no sql context has been created yet, then one is created.
+        """
         return XFrameImpl.spark_sql_context()
 
 

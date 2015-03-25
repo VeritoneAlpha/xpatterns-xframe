@@ -71,6 +71,15 @@ class XArray(object):
     - The datetime is based on the Boost datetime format (see http://www.boost.org/doc/libs/1_48_0/doc/html/date_time/date_time_io.html
       for details)
 
+    The following functionality is currently not implemented:
+        - numpy.ndarray as row data
+        - pandas.Series data
+        - array.array as row data
+        - datetime.datetime data type
+        - count_words, count_ngrams, dict_trim_by_keys, dict_trim_by_values, dict_keys, dict_values,
+          dict_has_any_keys, dict_has_all_keys
+        - sketch sub_sketch_keys
+
     Examples
     --------
     >>> sa = XArray(data=[1,2,3,4,5], dtype=int)
@@ -79,12 +88,20 @@ class XArray(object):
     >>> sa = XArray(data=[{'a':1, 'b': 2}, {'b':2, 'c': 1}])
     >>> sa = XArray(data=[datetime.datetime(2011, 10, 20, 9, 30, 10)])
 
-    Missing Functionality
-    ---------------------
-    - data numpy.ndarray
-    - data pandar.Series
-    - dtype array.array
-    - dtype datetime.datetime
+    See Also
+    --------
+    from_const
+        Constructs an XArray of a given size with a const value.
+
+    from_sequence
+        Constructs an XArray by generating a sequence of consecutive numbers.
+
+    from_rdd
+        Create a new XArray from a Spark RDD or Spark DataFrame.  
+
+    set_trace
+        Controls entry and exit tracing.
+
     """
 
     def __init__(self, data=[], dtype=None, ignore_cast_failure=False, _impl=None):
@@ -139,7 +156,9 @@ class XArray(object):
 
             if isinstance(data, pandas.Series):
                 self.__impl__.load_from_iterable(data.values, dtype, ignore_cast_failure)
-            elif (isinstance(data, numpy.ndarray)) or isinstance(data, list) or isinstance(data, array.array):
+            elif (isinstance(data, numpy.ndarray)) \
+                    or isinstance(data, list) \
+                    or isinstance(data, array.array):
                 self.__impl__.load_from_iterable(data, dtype, ignore_cast_failure)
             elif (isinstance(data, str)):
                 internal_url = make_internal_url(data)
@@ -170,6 +189,7 @@ class XArray(object):
         Construct an XArray consisting of 10 zeroes:
 
         >>> xpatterns.XArray.from_const(0, 10)
+
         """
         assert type(size) is int and size >= 0, "size must be a positive int"
         if (type(value) not in set([int, float, str, array.array, list, dict])):
@@ -234,6 +254,7 @@ class XArray(object):
         Notes
         -----
         Meant for internal use only.
+
         """
         return self.__impl__.get_content_identifier()
 
@@ -259,6 +280,7 @@ class XArray(object):
             given, will try to infer the format from filename given. If file
             name ends with 'csv', 'txt' or '.csv.gz', then save as 'csv' format,
             otherwise save as 'binary' format.
+
         """
         if format == None:
             if filename.endswith(('.csv', '.csv.gz', 'txt')):
@@ -303,6 +325,7 @@ class XArray(object):
         Returns
         -------
         out : XArray
+
         """
         return cls(_impl=XArrayImpl.from_rdd(rdd, dtype))
 
@@ -599,6 +622,7 @@ class XArray(object):
         >>> sa = XArray(range(10))
         >>> sa.dtype()
         int
+
         """
         return self.__impl__.dtype()
 
@@ -622,6 +646,7 @@ class XArray(object):
         dtype: int
         Rows: 5
         [0, 1, 2, 3, 4]
+
         """
         return XArray(_impl=self.__impl__.head(n))
 
@@ -696,6 +721,7 @@ class XArray(object):
         dtype: list
         Rows: 2
         [['a'], ['b']]
+
         """
         if (self.dtype() != array.array) and (self.dtype() != list):
             raise RuntimeError("Only Vector type can be sliced")
@@ -745,7 +771,8 @@ class XArray(object):
         elif method == "character" :
             return XArray(_impl=self.__impl__.count_character_ngrams(n, options ))
         else:
-            raise ValueError("Invalid 'method' input  value. Please input either 'word' or 'character' ")
+            raise ValueError("Invalid 'method' input  value. Please input either " + 
+                             "'word' or 'character' ")
 
     def dict_trim_by_keys(self, keys, exclude=True):
         """
@@ -780,6 +807,7 @@ class XArray(object):
         dtype: dict
         Rows: 2
         [{'dog': 2}, {'cat': 1}]
+
         """
         if isinstance(keys, str) or (not hasattr(keys, "__iter__")):
             keys = [keys]
@@ -825,6 +853,7 @@ class XArray(object):
         dtype: dict
         Rows: 2
         [{'this': 1, 'is': 5}, {'this': 2, 'are': 1, 'cat': 5}]
+
         """
 
         if None != lower and (not is_numeric_type(type(lower))):
@@ -858,6 +887,7 @@ class XArray(object):
         dtype: list
         Rows: 2
         [['this', 'is', 'dog'], ['this', 'are', 'cat']]
+
         """
         return XArray(_impl=self.__impl__.dict_keys())
 
@@ -918,6 +948,7 @@ class XArray(object):
         dtype: int
         Rows: 3
         [1, 1, 0]
+
         """
         if isinstance(keys, str) or (not hasattr(keys, "__iter__")):
             keys = [keys]
@@ -954,6 +985,7 @@ class XArray(object):
         dtype: int
         Rows: 2
         [1, 0]
+
         """
         if isinstance(keys, str) or (not hasattr(keys, "__iter__")):
             keys = [keys]
@@ -1003,6 +1035,7 @@ class XArray(object):
         dtype: int
         Rows: 3
         [2, 4, 6]
+
         """
         assert inspect.isfunction(fn), "Input must be a function"
 
@@ -1049,6 +1082,7 @@ class XArray(object):
         dtype: int
         Rows: 2
         [1, 2]
+
         """
         assert inspect.isfunction(fn), "Input must be a function"
         if not seed:
@@ -1081,6 +1115,7 @@ class XArray(object):
         dtype: int
         Rows: 3
         [2, 6, 9]
+
         """
         if (fraction > 1 or fraction < 0):
             raise ValueError('Invalid sampling rate: ' + str(fraction))
@@ -1094,6 +1129,7 @@ class XArray(object):
     def _save_as_text(self, url):
         """
         Save the XArray to disk as text file.
+
         """
         raise NotImplementedError
 
@@ -1131,6 +1167,7 @@ class XArray(object):
         False
         >>> xpatterns.XArray([]).all()
         True
+
         """
         return self.__impl__.all()
 
@@ -1167,6 +1204,7 @@ class XArray(object):
         False
         >>> xpatterns.XArray([]).any()
         False
+
         """
         return self.__impl__.any()
 
@@ -1191,6 +1229,7 @@ class XArray(object):
         --------
         >>> xpatterns.XArray([14, 62, 83, 72, 77, 96, 5, 25, 69, 66]).max()
         96
+
         """
         return self.__impl__.max()
 
@@ -1629,10 +1668,9 @@ class XArray(object):
         Parameters
         ----------
         sub_sketch_keys: int | str | list of int | list of str, optional
-            FOR30 XArray of dict type, also constructs sketches for a given set of keys,
+            For XArray of dict type, also constructs sketches for a given set of keys,
             For XArray of array type, also constructs sketches for the given indexes.
-            The sub sketches may be queried using:
-                 :py:func:`~xpatterns.Sketch.element_sub_sketch()`
+            The sub sketches may be queried using: :py:func:`~xpatterns.Sketch.element_sub_sketch()`
             Defaults to None in which case no subsketches will be constructed.
 
         Returns
@@ -1640,11 +1678,13 @@ class XArray(object):
         out : Sketch
             Sketch object that contains descriptive statistics for this XArray.
             Many of the statistics are approximate.
+
         """
         from xpatterns.sketch import Sketch
         if (sub_sketch_keys != None):
             if (self.dtype() != dict and self.dtype() != array.array):
-                raise TypeError("sub_sketch_keys is only supported for XArray of dictionary or array type")
+                raise TypeError("sub_sketch_keys is only supported for " + 
+                                "XArray of dictionary or array type")
             if not hasattr(sub_sketch_keys, "__iter__"):
                 sub_sketch_keys = [sub_sketch_keys]
             value_types = set([type(i) for i in sub_sketch_keys])
@@ -1652,10 +1692,13 @@ class XArray(object):
                 raise ValueError("sub_sketch_keys member values need to have the same type.")
             value_type = value_types.pop();
             if (self.dtype() == dict and value_type != str):
-                raise TypeError("Only string value(s) can be passed to sub_sketch_keys for XArray of dictionary type. "+
-                    "For dictionary types, sketch summary is computed by casting keys to string values.")
+                raise TypeError("Only string value(s) can be passed to sub_sketch_keys " + 
+                                "for XArray of dictionary type. " +
+                                "For dictionary types, sketch summary is " + 
+                                "computed by casting keys to string values.")
             if (self.dtype() == array.array and value_type != int):
-                raise TypeError("Only int value(s) can be passed to sub_sketch_keys for XArray of array type")
+                raise TypeError("Only int value(s) can be passed to sub_sketch_keys " + 
+                                "for XArray of array type")
 
         return Sketch(self, sub_sketch_keys=sub_sketch_keys)
 
@@ -1746,7 +1789,8 @@ class XArray(object):
         [2, 3, 3, 1, 2, None]
         """
         if (self.dtype() not in [list, dict, array.array]):
-            raise TypeError("item_length() is only applicable for XArray of type list, dict and array.")
+            raise TypeError("item_length() is only applicable for XArray of type list, " +
+                            "dict and array.")
 
         return XArray(_impl = self.__impl__.item_length())
 
@@ -2042,13 +2086,16 @@ class XArray(object):
 
             for column_type in column_types:
                 if (column_type not in (int, float, str, list, dict, array.array)):
-                    raise TypeError("column_types contains unsupported types. Supported types are ['float', 'int', 'list', 'dict', 'str', 'array.array']")
+                    raise TypeError("column_types contains unsupported types. " + 
+                                    "Supported types are ['float', 'int', 'list', " + 
+                                    "'dict', 'str', 'array.array']")
 
             if limit != None:
                 if len(limit) != len(column_types):
                     raise ValueError("limit and column_types do not have the same length")
             elif self.dtype() == dict:
-                raise ValueError("if 'column_types' is given, 'limit' has to be provided to unpack dict type.")
+                raise ValueError("if 'column_types' is given, " +
+                                 "'limit' has to be provided to unpack dict type.")
             else:
                 limit = range(len(column_types))
 
@@ -2056,9 +2103,12 @@ class XArray(object):
             head_rows = self.head(100).dropna()
             lengths = [len(i) for i in head_rows]
             if len(lengths) == 0 or max(lengths) == 0:
-                raise RuntimeError("Cannot infer number of items from the XArray, XArray may be empty. please explicitly provide column types")
+                raise RuntimeError("Cannot infer number of items from the XArray, " +
+                                   "XArray may be empty. " +
+                                   "Please explicitly provide column types.")
 
-            # infer column types for dict type at server side, for list and array, infer from client side
+            # infer column types for dict type at server side, 
+            # for list and array, infer from client side
             if self.dtype() != dict:
                 length = max(lengths)
                 if limit == None:
@@ -2072,7 +2122,8 @@ class XArray(object):
                 else:
                     column_types = list()
                     for i in limit:
-                        t = [(x[i] if ((x is not None) and len(x) > i) else None) for x in head_rows]
+                        t = [(x[i] if ((x is not None) and len(x) > i) else None) 
+                             for x in head_rows]
                         column_types.append(infer_type_of_list(t))
 
             else:                      # self.dtype() == dict
@@ -2102,7 +2153,7 @@ class XArray(object):
 
         Returns
         -------
-        out: XArray
+        out : XArray
 
         Examples
         --------
