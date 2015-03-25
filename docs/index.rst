@@ -16,6 +16,7 @@ This is the Atigeo xFrame library.
    xarray
    xframe
    sketch
+   xplot
    recommender
    classifier
    cluster

@@ -22,6 +22,7 @@ from xpatterns.xplot import XPlot
 from xpatterns.xarray_impl import infer_type_of_list
 from util import make_internal_url, split_path_elements
 from xpatterns.xarray import XArray, _create_sequential_xarray
+from xpatterns.analytics.dataframeplus import DataFramePlus
 import xpatterns
 
 __all__ = ['XFrame']
@@ -1111,7 +1112,11 @@ class XFrame(object):
     def _repr_html_(self):
         MAX_ROWS_TO_DISPLAY = 10
 
-        row_of_tables = self.__get_pretty_tables__(wrap_text=True, max_row_width=120, max_columns=40, max_column_width=25, max_rows_to_display=MAX_ROWS_TO_DISPLAY)
+        row_of_tables = self.__get_pretty_tables__(wrap_text=True, 
+                                                   max_row_width=120, 
+                                                   max_columns=40, 
+                                                   max_column_width=25, 
+                                                   max_rows_to_display=MAX_ROWS_TO_DISPLAY)
         if self.__has_size__():
             footer = '[%d rows x %d columns]<br/>' % self.shape
             if (self.num_rows() > MAX_ROWS_TO_DISPLAY):
@@ -1310,6 +1315,26 @@ class XFrame(object):
                 df[column_name] = df[column_name].astype(self.column_types()[i])
         return df
 
+    def to_dataframeplus(self):
+        """
+        Convert this XFrame to xpatterns DataFramePlus
+
+        This operation will construct a DataFramePlus in memory. Care must
+        be taken when size of the returned object is big.
+
+        Returns
+        -------
+        out : DataFramePlus
+            The dataframe which contains all rows of XFrame
+        """
+        df = pandas.DataFrame()
+        for i in range(self.num_columns()):
+            column_name = self.column_names()[i]
+            df[column_name] = list(self[column_name])
+            if len(df[column_name]) == 0:
+                df[column_name] = df[column_name].astype(self.column_types()[i])
+        return DataFramePlus(df)
+
     def to_spark_rdd(self):
         """
         Convert the current XFrame to a Spark RDD
@@ -1370,14 +1395,15 @@ class XFrame(object):
         if len(checkRes) > 0 \
                 and checkRes[0].__class__.__name__ == 'Row' \
                 and rdd.__class__.__name__ != 'DataFrame':
-            raise Exception("Conversion from RDD(pyspark.sql.Row) to XFrame not supported. Please call inferSchema(RDD) first.")
+            raise Exception("Conversion from RDD(pyspark.sql.Row) to XFrame not supported. " + 
+                            "Please call inferSchema(RDD) first.")
         xf = cls()
         if str(type(rdd)) ==  "<class 'pyspark.sql.dataframe.DataFrame'>":
             xf.__impl__.from_spark_dataframe(rdd)
         elif str(type(rdd)) ==  "<class 'pyspark.rdd.RDD'>":
             xf.__impl__.from_rdd(rdd, column_names, column_types)
         else:
-            raise ValueError('argument is not an RDD')
+            raise ValueError('Argument is not an RDD.')
         return xf
 
     def apply(self, fn, dtype=None, seed=None):
@@ -2158,7 +2184,8 @@ class XFrame(object):
                 stop = len(self) + stop
             return XFrame(_impl = self.__impl__.copy_range(start, step, stop))
         else:
-            raise TypeError("Invalid index type: must be XArray, int, list, slice, or str: ({})".format(type(key)))
+            raise TypeError("Invalid index type: must be XArray, " + 
+                            "int, list, slice, or str: ({})".format(type(key)))
 
     def __setattr__(self, key, value):
         """
@@ -2180,6 +2207,7 @@ class XFrame(object):
         constant value (int, str, or float), then a column is created where
         every entry is equal to the constant value.  Existing columns can also
         be replaced using this wrapper.
+
         """
         if type(key) is list:
             self.add_columns(value, key)
@@ -2629,10 +2657,13 @@ class XFrame(object):
                   val = operation[key]
                   if type(val) is tuple:
                     (op, column) = val
-                    if (op == '__builtin__argmax__' or op == '__builtin__argmin__') and ((type(column[0]) is tuple) != (type(key) is tuple)):
-                        raise TypeError("Output column(s) and aggregate column(s) for aggregate operation should be either all tuple or all string.")
+                    if (op == '__builtin__argmax__' or op == '__builtin__argmin__') \
+                            and ((type(column[0]) is tuple) != (type(key) is tuple)):
+                        raise TypeError("Output column(s) and aggregate column(s) for " + 
+                                        "aggregate operation should be either all tuple or all string.")
 
-                    if (op == '__builtin__argmax__' or op == '__builtin__argmin__') and type(column[0]) is tuple:
+                    if (op == '__builtin__argmax__' or op == '__builtin__argmin__') \
+                            and type(column[0]) is tuple:
                       for (col,output) in zip(column[0],key):
                         group_columns = group_columns + [[col,column[1]]]
                         group_ops = group_ops + [op]
@@ -2654,7 +2685,8 @@ class XFrame(object):
               for val in operation:
                   if type(val) is tuple:
                     (op, column) = val
-                    if (op == '__builtin__argmax__' or op == '__builtin__argmin__') and type(column[0]) is tuple:
+                    if (op == '__builtin__argmax__' or op == '__builtin__argmin__') \
+                            and type(column[0]) is tuple:
                       for col in column[0]:
                         group_columns = group_columns + [[col,column[1]]]
                         group_ops = group_ops + [op]
@@ -2686,8 +2718,10 @@ class XFrame(object):
                     if col not in my_column_names:
                         raise KeyError("Column " + col + " does not exist in XFrame")
 
-        return XFrame(_impl=self.__impl__.groupby_aggregate(key_columns_array, group_columns,
-                                                                  group_output_columns, group_ops))
+        return XFrame(_impl=self.__impl__.groupby_aggregate(key_columns_array, 
+                                                            group_columns,
+                                                            group_output_columns, 
+                                                            group_ops))
 
     def group_by(self, key_columns, operations, *args):
         """
@@ -3834,7 +3868,8 @@ class XFrame(object):
             else:
                 raise TypeError("sort_columns type is not supported")
         else:
-            raise TypeError("sort_columns type is not correct. Supported types are str, list of str or list of (str,bool) pair.")
+            raise TypeError("sort_columns type is not correct. Supported types are " + 
+                            "str, list of str or list of (str,bool) pair.")
 
         # use the second parameter if the sort order is not given
         if (len(sort_column_orders) == 0):
@@ -4179,4 +4214,3 @@ v        out : XFrame
         """
 
         return XPlot(self)
-

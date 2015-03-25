@@ -107,12 +107,6 @@ class Sketch(object):
     array : XArray
         Array to generate sketch summary.
 
-    background : boolean
-      If True, the sketch construction will return immediately and the
-      sketch will be constructed in the background. While this is going on,
-      the sketch can be queried incrementally, but at a performance penalty.
-      Defaults to False.
-
     References
     ----------
     - Wikipedia. `Streaming algorithms. <http://en.wikipedia.org/wiki/Streaming_algorithm>`_
@@ -440,24 +434,6 @@ class Sketch(object):
         """
         return int(self.__impl__.frequency_count(element))
 
-    def sketch_ready(self):
-        """
-        Returns true if the sketch has been executed on all the data.
-        If the sketch is created with background == False (default), this will
-        always return True. Otherwise, this will return False until the sketch
-        is ready.
-        """
-        return self.__impl__.sketch_ready()
-
-    def num_elements_processed(self):
-        """
-        Returns the number of elements processed so far.
-        If the sketch is created with background == False (default), this will
-        always return the length of the input array. Otherwise, this will
-        return the number of elements processed so far.
-        """
-        return self.__impl__.num_elements_processed()
-
     def element_length_summary(self):
         """
         Returns the sketch summary for the element length. This is only valid for
@@ -681,7 +657,8 @@ class Sketch(object):
           if key not in ret_sketches:
             raise KeyError("Cannot retrieve element sub sketch for key '" + 
                            str(key) + 
-                           "'. Element sub sketch can only be retrieved when the sketch_summary object was created using the 'sub_sketch_keys' option.")
+                           "'. Element sub sketch can only be retrieved when the sketch_summary " + 
+                           "object was created using the 'sub_sketch_keys' option.")
         for key in ret_sketches:
             ret[key] = Sketch(_impl = ret_sketches[key])
 
@@ -690,14 +667,3 @@ class Sketch(object):
         else:
             return ret
 
-    def cancel(self):
-      """
-      Cancels a background sketch computation immediately if one is ongoing.
-      Does nothing otherwise.
-
-      Examples
-      --------
-      >>> s = sa.sketch_summary(array, background=True)
-      >>> s.cancel()
-      """
-      self.__impl__.cancel()

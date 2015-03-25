@@ -8,12 +8,68 @@ import matplotlib.pyplot as plt
 from xpatterns.aggregate import COUNT
 
 class XPlot:
+    """
+    Plotting library for xFrames.
+
+    Creates simple data plots.
+
+    Parameters
+    ----------
+    axes : list, optional
+        The size of the axes.  Should be a four-element list.
+        [x_origin, y_origin, x_length, y_length]
+        Defaults to [0.0, 0.0, 1.5, 1.0]
+
+    alpha : float, optional
+        The opacity of the plot.
+    """
     def __init__(self, xframe, axes=None, alpha=None):
+        """
+        Create a plotting object for the given XFrame.  
+
+        Parameters
+        ----------
+        axes : list, optional
+            The size of the axes.  Should be a four-element list.
+            [x_origin, y_origin, x_length, y_length]
+            Defaults to [0.0, 0.0, 1.5, 1.0]
+
+        alpha : float, optional
+            The opacity of the plot.
+        """
         self.xframe = xframe
         self.axes = axes if axes else [0.0, 0.0, 1.5, 1.0]
         self.alpha = alpha or 0.5
 
     def top_values(self, x_col, y_col, k=15, title=None, xlabel=None, ylabel=None):
+        """
+        Plot the top values of a column of data.
+
+        Parameters
+        ----------
+        x_col : str
+            A column name: the top values in this column are plotted.  These values must be numerical.
+
+        y_col : str
+            A column name: the values in this colum will be used to label the corresponding values
+            in the x column.
+
+        k : int, optional
+            The number of values to plot.  Defaults to 15.
+
+        title : str, optional
+            A plot title.
+
+        xlabel : str, optional
+            A label for the X axis.
+
+        ylabel : str, optional
+            A label for the Y axis.
+
+        Examples
+        --------
+        (Come up with an example)
+        """
         top_rows = self.xframe.topk(x_col, k)
         items = [(row[y_col], row[x_col]) for row in top_rows]
     
@@ -32,10 +88,6 @@ class XPlot:
             axes.set_ylabel(ylabel)
             if title:
                 axes.set_title(title)
-#            fig.canvas.set_target('ipynb')
-#            fig.canvas.draw()
-#            fig.show()
-#            fig.close()
         except Exception as e:
             print "got an exception!"
             print traceback.format_exc()
@@ -43,6 +95,34 @@ class XPlot:
 
 
     def frequent_values(self, y_col, k=15, title=None, xlabel=None, ylabel=None):
+        """
+        Plots the number of occurances of specific values in a column.  
+
+        The most frequent values are plotted.
+
+        Parameters
+        ----------
+        y_col : str
+            A column name: the column to plot.  The number of distinct occurrances of each value is
+            calculated and plotted.  
+
+        k : int, optional
+            The number of different values to plot.  Defaults to 15.
+
+        title : str, optional
+            A plot title.
+
+        xlabel : str, optional
+            A label for the X axis.
+
+        ylabel : str, optional
+            A label for the Y axis.
+
+        Examples
+        --------
+        (Need examples)
+
+        """
         count = self.xframe.groupby(y_col, {'Count': COUNT})
         count.show.top_values('Count', y_col, k, title, xlabel, ylabel)
 
@@ -50,9 +130,38 @@ class XPlot:
                        lower_cutoff=0.0, upper_cutoff=0.99, 
                        bins=None, xlabel=None, ylabel=None):
         """ 
-        Plot histogram.
+        Plot a histogram.
 
         All values greater than the cutoff (given as a quantile) are set equal to the cutoff.
+
+        Parameters
+        ----------
+        col_name : str
+            A column name: the values in this column are plotted.
+
+        title : str, optional
+            A plot title.
+
+        xlabel : str, optional
+            A label for the X axis.
+
+        ylabel : str, optional
+            A label for the Y axis.
+
+        lower_cutoff : float, optional
+            This is a quantile value, between 0 and 1.  Values below this cutoff are placed in the first bin.
+            Defaults to 0.
+
+        upper_cutoff : float, optional
+            This is a quantile value, between 0 and 1.  Values above this cutoff are placed in the last bin.
+            Defaults to 0.99.
+
+        bins : int, optional
+            The number of bins to use.  Defaults to 50.
+
+        Examples
+        --------
+        (Need examples)
         """
         if lower_cutoff < 0.0 or lower_cutoff > 1.0:
             raise ValueError('lower cutoff must be between 0.0 and 1.0')
@@ -85,10 +194,6 @@ class XPlot:
             axes.set_ylabel(ylabel)
             if title:
                 axes.set_title(title)
-#            fig.canvas.set_target('ipynb')
-#            fig.canvas.draw()
-#            fig.show()
-#            fig.close()
         except Exception as e:
             print "got an exception!"
             print traceback.format_exc()
@@ -97,6 +202,31 @@ class XPlot:
     def col_info(self, col_name, table_name=None, title=None, bins=None, cutoff=False):
         """ 
         Print column summary information.
+
+        If the column to summarize is numerical, then a histogram is shown.  Otherwise, the counts of
+        the most frequent values is shown.
+
+        Parameters
+        ----------
+        col_name : str
+            The column name to summarize.
+
+        table_name : str, optional
+            The table name; used to labeling only.  The table that us used for the data
+            is given in the constructor.
+
+        title : str, optional
+            The plot title.
+
+        bins : int, optional
+            The number of bins in a histogram, or the number of frequent items.
+
+        cutoff : float, optional
+            The number to use as an upper cutoff, if the plot is a histogram.
+
+        Examples
+        --------
+        (Need examples)
         """
 
         title = title or table_name
@@ -133,4 +263,4 @@ class XPlot:
             tmp = self.xframe.groupby(col_name, {'Count': COUNT})
             x_col = 'Count'
             y_col = col_name
-            tmp.show.top_values(x_col, y_col, title=title)
+            tmp.show.top_values(x_col, y_col, title=title, k=bins)

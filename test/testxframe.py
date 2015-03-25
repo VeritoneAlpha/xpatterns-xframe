@@ -740,6 +740,19 @@ class TestXFrameToPandasDataframe(unittest.TestCase):
         self.assertEqual({'y': 2}, df['val'][1])
 
 
+class TestXFrameToDataframeplus(unittest.TestCase):
+    """
+    Tests XFrame to_dataframeplus
+    """
+
+    def test_to_dataframeplus_str(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        df = t.to_dataframeplus()
+        self.assertEqual(3, len(df))
+        self.assertEqual(1, df['id'][0])
+        self.assertEqual(2, df['id'][1])
+        self.assertEqual('a', df['val'][0])
+
 class TestXFrameApply(unittest.TestCase):
     """
     Tests XFrame apply
