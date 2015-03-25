@@ -1,0 +1,10 @@
+sphinx
+cloud_sptheme
+pandas
+numpy
+pyspark
+matplotlib
+prettytable
+pygments
+python_dateutil
+numpydoc
