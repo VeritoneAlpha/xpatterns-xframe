@@ -76,17 +76,16 @@ class XArray(object):
         - pandas.Series data
         - array.array as row data
         - datetime.datetime data type
-        - count_words, count_ngrams, dict_trim_by_keys, dict_trim_by_values, dict_keys, dict_values,
-          dict_has_any_keys, dict_has_all_keys
+        - count_words, count_ngrams
         - sketch sub_sketch_keys
 
     Examples
     --------
-    >>> sa = XArray(data=[1,2,3,4,5], dtype=int)
-    >>> sa = XArray('http://s3-us-west-2.amazonaws.com/testdatasets/a_to_z.txt.gz')
-    >>> sa = XArray([[1,2,3], [3,4,5]])
-    >>> sa = XArray(data=[{'a':1, 'b': 2}, {'b':2, 'c': 1}])
-    >>> sa = XArray(data=[datetime.datetime(2011, 10, 20, 9, 30, 10)])
+    >>> xa = XArray(data=[1,2,3,4,5], dtype=int)
+    >>> xa = XArray('http://s3-us-west-2.amazonaws.com/testdatasets/a_to_z.txt.gz')
+    >>> xa = XArray([[1,2,3], [3,4,5]])
+    >>> xa = XArray(data=[{'a':1, 'b': 2}, {'b':2, 'c': 1}])
+    >>> xa = XArray(data=[datetime.datetime(2011, 10, 20, 9, 30, 10)])
 
     See Also
     --------
@@ -616,11 +615,11 @@ class XArray(object):
 
         Examples
         --------
-        >>> sa = XArray(["The quick brown fox jumps over the lazy dog."])
-        >>> sa.dtype()
+        >>> xa = XArray(["The quick brown fox jumps over the lazy dog."])
+        >>> xa.dtype()
         str
-        >>> sa = XArray(range(10))
-        >>> sa.dtype()
+        >>> xa = XArray(range(10))
+        >>> xa.dtype()
         int
 
         """
@@ -732,7 +731,34 @@ class XArray(object):
 
     def _count_words(self, to_lower=True):
         """
-        For documentation, see text_analytics.count_ngrams().
+        Count words in the XArray. Return an XArray of dictionary type where
+        each element contains the word count for each word that appeared in the
+        corresponding input element. The words are split on all whitespace and
+        punctuation characters. Only works if this XArray is of string type.
+
+        Parameters
+        ----------
+        to_lower : bool, optional
+            If True, all words are converted to lower case before counting.
+
+        Returns
+        -------
+        out : XArray
+            The XArray of dictionary type, where each element contains the word
+            count for each word that appeared in corresponding input element.
+
+        See Also
+        --------
+        count_ngrams
+
+        Examples
+        --------
+        >>> xa = xframes.XArray(["The quick brown fox jumps.",
+                                 "Word word WORD, word!!!word"])
+        >>> xa.count_words()
+        dtype: dict
+        Rows: 2
+        [{'quick': 1, 'brown': 1, 'jumps': 1, 'fox': 1, 'the': 1}, {'word': 5}]
         """
         if (self.dtype() != str):
             raise TypeError("Only XArray of string type is supported for counting bag of words")
@@ -746,7 +772,73 @@ class XArray(object):
 
     def _count_ngrams(self, n=2, method="word", to_lower=True, ignore_space=True):
         """
-        For documentation, see text_analytics.count_ngrams().
+        Return an XArray of ``dict`` type where each element contains the count
+        for each of the n-grams that appear in the corresponding input element.
+        The n-grams can be specified to be either character n-grams or word
+        n-grams.  The input XArray must contain strings.
+
+        Parameters
+        ----------
+        n : int, optional
+            The number of words in each n-gram. An ``n`` value of 1 returns word
+            counts.
+
+        method : {'word', 'character'}, optional
+            If "word", the function performs a count of word n-grams. If
+            "character", does a character n-gram count.
+
+        to_lower : bool, optional
+            If True, all words are converted to lower case before counting.
+      
+        ignore_space : bool, optional
+            If method is "character", indicates if spaces between words are
+            counted as part of the n-gram. For instance, with the input XArray
+            element of "fun games", if this parameter is set to False one
+            tri-gram would be 'n g'. If ``ignore_space`` is set to True, there
+            would be no such tri-gram (there would still be 'nga'). This
+            parameter has no effect if the method is set to "word".
+
+        Returns
+        -------
+        out : XArray
+            An XArray of dictionary type, where each key is the n-gram string
+            and each value is its count.
+
+        See Also
+        --------
+        count_words
+
+        Notes
+        -----
+            - Ignoring case (with ``to_lower``) involves a full string copy of the
+            XArray data. To increase speed for large documents, set ``to_lower``
+            to False.
+
+            - Punctuation and spaces are both delimiters when counting word n-grams.
+            When counting character n-grams, punctuation is always ignored.
+
+        References
+        ----------
+          - `N-gram wikipedia article <http://en.wikipedia.org/wiki/N-gram>`_
+
+        Examples
+        --------
+        Counting word n-grams:
+
+        >>> from xpatterns import XArray
+        >>> xa = XArray(['I like big dogs. I LIKE BIG DOGS.'])
+        >>> xa.count_ngrams(xa, 3)
+        dtype: dict
+        Rows: 1
+        [{'big dogs i': 1, 'like big dogs': 2, 'dogs i like': 1, 'i like big': 2}]
+
+        Counting character n-grams:
+
+        >>> xa = XArray(['Fun. Is. Fun'])
+        >>> xa.count_ngrams(xa, 3, "character")
+        dtype: dict
+        Rows: 1
+        {'fun': 2, 'nis': 1, 'sfu': 1, 'isf': 1, 'uni': 1}]
         """
         if (self.dtype() != str):
             raise TypeError("Only XArray of string type is supported for counting n-grams")
@@ -801,9 +893,9 @@ class XArray(object):
 
         Examples
         --------
-        >>> sa = xpatterns.XArray([{"this":1, "is":1, "dog":2},
+        >>> xa = xpatterns.XArray([{"this":1, "is":1, "dog":2},
                                   {"this": 2, "are": 2, "cat": 1}])
-        >>> sa.dict_trim_by_keys(["this", "is", "and", "are"], exclude=True)
+        >>> xa.dict_trim_by_keys(["this", "is", "and", "are"], exclude=True)
         dtype: dict
         Rows: 2
         [{'dog': 2}, {'cat': 1}]
@@ -842,19 +934,22 @@ class XArray(object):
 
         Examples
         --------
-        >>> sa = xpatterns.XArray([{"this":1, "is":5, "dog":7},
+        >>> xa = xpatterns.XArray([{"this":1, "is":5, "dog":7},
                                   {"this": 2, "are": 1, "cat": 5}])
-        >>> sa.dict_trim_by_values(2,5)
+        >>> xa.dict_trim_by_values(2,5)
         dtype: dict
         Rows: 2
         [{'is': 5}, {'this': 2, 'cat': 5}]
 
-        >>> sa.dict_trim_by_values(upper=5)
+        >>> xa.dict_trim_by_values(upper=5)
         dtype: dict
         Rows: 2
         [{'this': 1, 'is': 5}, {'this': 2, 'are': 1, 'cat': 5}]
 
         """
+
+        def is_numeric_type(t):
+            return t is int or t is float
 
         if None != lower and (not is_numeric_type(type(lower))):
             raise TypeError("lower bound has to be a numeric value")
@@ -881,15 +976,15 @@ class XArray(object):
 
         Examples
         ---------
-        >>> sa = xpatterns.XArray([{"this":1, "is":5, "dog":7},
+        >>> xa = xpatterns.XArray([{"this":1, "is":5, "dog":7},
                                   {"this": 2, "are": 1, "cat": 5}])
-        >>> sa.dict_keys()
+        >>> xa.dict_keys()
         dtype: list
         Rows: 2
         [['this', 'is', 'dog'], ['this', 'are', 'cat']]
 
         """
-        return XArray(_impl=self.__impl__.dict_keys())
+        return xp.XFrame(_impl=self.__impl__.dict_keys())
 
     def dict_values(self):
         """
@@ -908,15 +1003,15 @@ class XArray(object):
 
         Examples
         --------
-        >>> sa = xpatterns.XArray([{"this":1, "is":5, "dog":7},
+        >>> xa = xpatterns.XArray([{"this":1, "is":5, "dog":7},
                                  {"this": 2, "are": 1, "cat": 5}])
-        >>> sa.dict_values()
+        >>> xa.dict_values()
         dtype: list
         Rows: 2
         [[1, 5, 7], [2, 1, 5]]
 
         """
-        return XArray(_impl=self.__impl__.dict_values())
+        return xp.XFrame(_impl=self.__impl__.dict_values())
 
     def dict_has_any_keys(self, keys):
         """
@@ -942,9 +1037,9 @@ class XArray(object):
 
         Examples
         --------
-        >>> sa = xpatterns.XArray([{"this":1, "is":5, "dog":7}, {"animal":1},
+        >>> xa = xpatterns.XArray([{"this":1, "is":5, "dog":7}, {"animal":1},
                                  {"this": 2, "are": 1, "cat": 5}])
-        >>> sa.dict_has_any_keys(["is", "this", "are"])
+        >>> xa.dict_has_any_keys(["is", "this", "are"])
         dtype: int
         Rows: 3
         [1, 1, 0]
@@ -979,9 +1074,9 @@ class XArray(object):
 
         Examples
         --------
-        >>> sa = xpatterns.XArray([{"this":1, "is":5, "dog":7},
+        >>> xa = xpatterns.XArray([{"this":1, "is":5, "dog":7},
                                  {"this": 2, "are": 1, "cat": 5}])
-        >>> sa.dict_has_all_keys(["is", "this"])
+        >>> xa.dict_has_all_keys(["is", "this"])
         dtype: int
         Rows: 2
         [1, 0]
@@ -1030,8 +1125,8 @@ class XArray(object):
 
         Examples
         --------
-        >>> sa = xpatterns.XArray([1,2,3])
-        >>> sa.apply(lambda x: x*2)
+        >>> xa = xpatterns.XArray([1,2,3])
+        >>> xa.apply(lambda x: x*2)
         dtype: int
         Rows: 3
         [2, 4, 6]
@@ -1077,8 +1172,8 @@ class XArray(object):
 
         Examples
         --------
-        >>> sa = xpatterns.XArray([1,2,3])
-        >>> sa.filter(lambda x: x < 3)
+        >>> xa = xpatterns.XArray([1,2,3])
+        >>> xa.filter(lambda x: x < 3)
         dtype: int
         Rows: 2
         [1, 2]
@@ -1110,8 +1205,8 @@ class XArray(object):
 
         Examples
         --------
-        >>> sa = xpatterns.XArray(range(10))
-        >>> sa.sample(.3)
+        >>> xa = xpatterns.XArray(range(10))
+        >>> xa.sample(.3)
         dtype: int
         Rows: 3
         [2, 6, 9]
@@ -1369,8 +1464,8 @@ class XArray(object):
         Examples
         --------
         >>> dt = datetime.datetime(2011, 10, 20, 9, 30, 10, tzinfo=GMT(-5))
-        >>> sa = xpatterns.XArray([dt])
-        >>> sa.datetime_to_str("%e %b %Y %T %ZP")
+        >>> xa = xpatterns.XArray([dt])
+        >>> xa.datetime_to_str("%e %b %Y %T %ZP")
         dtype: str
         Rows: 1
         [20 Oct 2011 09:30:10 GMT-05:00]
@@ -1406,8 +1501,8 @@ class XArray(object):
 
         Examples
         --------
-        >>> sa = xpatterns.XArray(["20-Oct-2011 09:30:10 GMT-05:30"])
-        >>> sa.str_to_datetime("%d-%b-%Y %H:%M:%S %ZP")
+        >>> xa = xpatterns.XArray(["20-Oct-2011 09:30:10 GMT-05:30"])
+        >>> xa.str_to_datetime("%d-%b-%Y %H:%M:%S %ZP")
         dtype: datetime
         Rows: 1
         datetime.datetime(2011, 10, 20, 9, 30, 10, tzinfo=GMT(-5.5))
@@ -1452,12 +1547,12 @@ class XArray(object):
           formats to be interpreted. For instance, a JSON string can usually be
           interpreted as a list or a dictionary type. See the examples below.
         - For datetime-to-string  and string-to-datetime conversions,
-          use sa.datetime_to_str() and sa.str_to_datetime() functions.
+          use xa.datetime_to_str() and xa.str_to_datetime() functions.
 
         Examples
         --------
-        >>> sa = xpatterns.XArray(['1','2','3','4'])
-        >>> sa.astype(int)
+        >>> xa = xpatterns.XArray(['1','2','3','4'])
+        >>> xa.astype(int)
         dtype: int
         Rows: 4
         [1, 2, 3, 4]
@@ -1465,8 +1560,8 @@ class XArray(object):
         Given an XArray of strings that look like dicts, convert to a dictionary
         type:
 
-        >>> sa = xpatterns.XArray(['{1:2 3:4}', '{a:b c:d}'])
-        >>> sa.astype(dict)
+        >>> xa = xpatterns.XArray(['{1:2 3:4}', '{a:b c:d}'])
+        >>> xa.astype(dict)
         dtype: dict
         Rows: 2
         [{1: 2, 3: 4}, {'a': 'b', 'c': 'd'}]
@@ -1507,8 +1602,8 @@ class XArray(object):
 
         Examples
         --------
-        >>> sa = xpatterns.XArray([1,2,3])
-        >>> sa.clip(2,2)
+        >>> xa = xpatterns.XArray([1,2,3])
+        >>> xa.clip(2,2)
         dtype: int
         Rows: 3
         [2, 2, 2]
@@ -1537,8 +1632,8 @@ class XArray(object):
 
         Examples
         --------
-        >>> sa = xpatterns.XArray([1,2,3])
-        >>> sa.clip_lower(2)
+        >>> xa = xpatterns.XArray([1,2,3])
+        >>> xa.clip_lower(2)
         dtype: int
         Rows: 3
         [2, 2, 3]
@@ -1567,8 +1662,8 @@ class XArray(object):
 
         Examples
         --------
-        >>> sa = xpatterns.XArray([1,2,3])
-        >>> sa.clip_upper(2)
+        >>> xa = xpatterns.XArray([1,2,3])
+        >>> xa.clip_upper(2)
         dtype: int
         Rows: 3
         [1, 2, 2]
@@ -1724,9 +1819,9 @@ class XArray(object):
 
         Examples
         --------
-        >>> sa = xpatterns.XArray([1, 2, 3])
-        >>> sa2 = xpatterns.XArray([4, 5, 6])
-        >>> sa.append(sa2)
+        >>> xa = xpatterns.XArray([1, 2, 3])
+        >>> xa2 = xpatterns.XArray([4, 5, 6])
+        >>> xa.append(xa2)
         dtype: int
         Rows: 6
         [1, 2, 3, 4, 5, 6]
@@ -1766,7 +1861,7 @@ class XArray(object):
         is a missing value, then the output elements is also a missing value.
         This function is equivalent to the following but more performant:
 
-            sa_item_len =  sa.apply(lambda x: len(x) if x is not None else None)
+            xa_item_len =  xa.apply(lambda x: len(x) if x is not None else None)
 
         Returns
         -------
@@ -1776,14 +1871,14 @@ class XArray(object):
 
         Examples
         --------
-        >>> sa = XArray([
+        >>> xa = XArray([
         ...  {"is_restaurant": 1, "is_electronics": 0},
         ...  {"is_restaurant": 1, "is_retail": 1, "is_electronics": 0},
         ...  {"is_restaurant": 0, "is_retail": 1, "is_electronics": 0},
         ...  {"is_restaurant": 0},
         ...  {"is_restaurant": 1, "is_electronics": 1},
         ...  None])
-        >>> sa.item_length()
+        >>> xa.item_length()
         dtype: int
         Rows: 6
         [2, 3, 3, 1, 2, None]
@@ -1836,11 +1931,11 @@ class XArray(object):
         --------
         To expand only day and year elements of a datetime XArray
 
-         >>> sa = XArray(
+         >>> xa = XArray(
             [datetime(2011, 1, 21, 7, 7, 21, tzinfo=GMT(0)),
              datetime(2010, 2, 5, 7, 8, 21, tzinfo=GMT(4.5)])
 
-         >>> sa.expand(column_name_prefix=None,limit=['day','year'])
+         >>> xa.expand(column_name_prefix=None,limit=['day','year'])
             Columns:
                 day   int
                 year  int
@@ -1859,7 +1954,7 @@ class XArray(object):
         with tzone column represented as a string. Columns are named with prefix:
         'Y.column_name'.
 
-        >>> sa.split_datetime(column_name_prefix="Y",limit=['year'],tzone=True)
+        >>> xa.split_datetime(column_name_prefix="Y",limit=['year'],tzone=True)
             Columns:
                 Y.year  int
                 Y.tzone float
@@ -1967,14 +2062,14 @@ class XArray(object):
         --------
         To unpack a dict XArray
 
-        >>> sa = XArray([{ 'word': 'a',     'count': 1},
+        >>> xa = XArray([{ 'word': 'a',     'count': 1},
         ...              { 'word': 'cat',   'count': 2},
         ...              { 'word': 'is',    'count': 3},
         ...              { 'word': 'coming','count': 4}])
 
         Normal case of unpacking XArray of type dict:
 
-        >>> sa.unpack(column_name_prefix=None)
+        >>> xa.unpack(column_name_prefix=None)
         Columns:
             count   int
             word    str
@@ -1995,7 +2090,7 @@ class XArray(object):
 
         Unpack only keys with 'word':
 
-        >>> sa.unpack(limit=['word'])
+        >>> xa.unpack(limit=['word'])
         Columns:
             X.word  str
         <BLANKLINE>
@@ -2013,14 +2108,14 @@ class XArray(object):
         [4 rows x 1 columns]
         <BLANKLINE>
 
-        >>> sa2 = XArray([
+        >>> xa2 = XArray([
         ...               [1, 0, 1],
         ...               [1, 1, 1],
         ...               [0, 1]])
 
         Convert all zeros to missing values:
 
-        >>> sa2.unpack(column_types=[int, int, int], na_value=0)
+        >>> xa2.unpack(column_types=[int, int, int], na_value=0)
         Columns:
             X.0     int
             X.1     int
@@ -2157,8 +2252,8 @@ class XArray(object):
 
         Examples
         --------
-        >>> sa = XArray([3,2,1])
-        >>> sa.sort()
+        >>> xa = XArray([3,2,1])
+        >>> xa.sort()
         dtype: int
         Rows: 3
         [1, 2, 3]

@@ -1957,6 +1957,109 @@ class TestXArraySort(unittest.TestCase):
         res = t.sort(ascending=False)
         self.assertTrue(eq_list(['c', 'b', 'a'], res))
 
+class TestXArrayDictTrimByKeys(unittest.TestCase):
+    """ 
+    Tests XArray dict_trim_by_keys
+    """
+    def test_dict_trim_by_keys_bad_type(self):
+        t = XArray([3, 2, 1])
+        with self.assertRaises(TypeError):
+            res = t.dict_trim_by_keys(['a'])
+
+    def test_dict_trim_by_keys_include(self):
+        t = XArray([{'a': 0, 'b': 0, 'c': 0}, {'x': 1}])
+        res = t.dict_trim_by_keys(['a'], exclude=False)
+        self.assertEqual([{'a': 0}, {}], res)
+
+    def test_dict_trim_by_keys_exclude(self):
+        t = XArray([{'a': 0, 'b': 0, 'c': 0}, {'x': 1}])
+        res = t.dict_trim_by_keys(['a'])
+        self.assertEqual([{'b': 1, 'c': 2}, {'x': 1}], res)
+
+
+class TestXArrayDictTrimByValues(unittest.TestCase):
+    """ 
+    Tests XArray dict_trim_by_values
+    """
+    def test_dict_trim_by_values_bad_type(self):
+        t = XArray([3, 2, 1])
+        with self.assertRaises(TypeError):
+            res = t.dict_trim_by_values(1, 2)
+
+    def test_dict_trim_by_values(self):
+        t = XArray([{'a': 0, 'b': 1, 'c': 2, 'd': 3}, {'x': 1}])
+        res = t.dict_trim_by_values(1, 2)
+        self.assertEqual([{'b': 1, 'c': 2}, {'x': 1}], res)
+
+class TestXArrayDictKeys(unittest.TestCase):
+    """ 
+    Tests XArray dict_keys
+    """
+    def test_dict_keys_bad_type(self):
+        t = XArray([3, 2, 1])
+        with self.assertRaises(TypeError):
+            res = t.dict_keys(['a'])
+
+    def test_dict_keys_bad_len(self):
+        t = XArray([{'a': 0, 'b': 0, 'c': 0}, {'x': 1}])
+        with self.assertRaises(ValueError):
+            res = t.dict_keys()
+
+    def test_dict_keys(self):
+        t = XArray([{'a': 0, 'b': 0, 'c': 0}, {'x': 1, 'y': 2, 'z': 3}])
+        res = t.dict_keys()
+        self.assertEqual(2, len(res))
+        self.assertEqual({'X.0': 'a', 'X.1': 'c', 'X.2': 'b'}, res[0])
+        self.assertEqual({'X.0': 'y', 'X.1': 'x', 'X.2': 'z'}, res[1])
+
+class TestXArrayDictValues(unittest.TestCase):
+    """ 
+    Tests XArray dict_values
+    """
+    def test_values_bad_type(self):
+        t = XArray([3, 2, 1])
+        with self.assertRaises(TypeError):
+            res = t.dict_values(['a'])
+
+    def test_values_bad_len(self):
+        t = XArray([{'a': 0, 'b': 1, 'c': 2}, {'x': 10}])
+        with self.assertRaises(ValueError):
+            res = t.dict_values()
+
+    def test_values(self):
+        t = XArray([{'a': 0, 'b': 1, 'c': 2}, {'x': 10, 'y': 20, 'z': 30}])
+        res = t.dict_values()
+        self.assertEqual(2, len(res))
+        self.assertEqual({'X.0': 0, 'X.1': 2, 'X.2': 1}, res[0])
+        self.assertEqual({'X.0': 20, 'X.1': 10, 'X.2': 30}, res[1])
+
+class TestXArrayDictHasAnyKeys(unittest.TestCase):
+    """ 
+    Tests XArray dict_has_any_keys
+    """
+    def test_dict_has_any_keys_bad(self):
+        t = XArray([3, 2, 1])
+        with self.assertRaises(TypeError):
+            res = t.dict_has_any_keys(['a'])
+
+    def test_dict_has_any_keys(self):
+        t = XArray([{'a': 0, 'b': 0, 'c': 0}, {'x': 1}])
+        res = t.dict_has_any_keys(['a'])
+        self.assertEqual([True, False], res)
+
+class TestXArrayDictHasAllKeys(unittest.TestCase):
+    """ 
+    Tests XArray dict_has_all_keys
+    """
+    def test_dict_has_all_keys_bad(self):
+        t = XArray([3, 2, 1])
+        with self.assertRaises(TypeError):
+            res = t.dict_has_all_keys(['a'])
+
+    def test_dict_has_all_keys(self):
+        t = XArray([{'a': 0, 'b': 0, 'c': 0}, {'a': 1, 'b': 1}])
+        res = t.dict_has_all_keys(['a', 'b', 'c'])
+        self.assertEqual([True, False], res)
 
 if __name__ == '__main__':
     unittest.main()

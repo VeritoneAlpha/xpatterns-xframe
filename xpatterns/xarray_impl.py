@@ -24,6 +24,35 @@ from xpatterns.xrdd import XRdd
 
 __all__ = ['XArrayImpl']
 
+def _classify_type(s):
+    if s.isdigit(): return int
+    if s.replace('.', '0').isdigit(): return float
+    if s.startswith('['): return list
+    if s.startswith('{'): return dict
+    return str
+
+def _infer_type(res):
+    head = res.take(100)
+    types = [_classify_type(s) for s in head]
+    unique_types = set(types)
+    if len(unique_types) == 1:
+        dtype = types[0]
+    elif unique_types == {int, float}:
+        dtype = float
+    else: 
+        dtype = str
+        return dtype
+
+def _infer_types(res):
+    head = res.take(100)
+    n_cols = len(head[0])
+    def get_col(head, i):
+        return [row[i] for row in head]
+    try:
+        return [ infer_type_of_list(get_col(head, i)) for i in range(n_cols)]
+    except IndexError:
+        raise ValueError('rows are not the same length')
+
 class ReverseCmp(object):
     """ Reverse comparison.
 
@@ -211,23 +240,6 @@ class XArrayImpl:
         # If the path is a file, look for that file
         # Use type inference to determine the element type.
         # Passed-in dtype is always str and is ignored.
-        def classify_type(s):
-            if s.isdigit(): return int
-            if s.replace('.', '0').isdigit(): return float
-            if s.startswith('['): return list
-            if s.startswith('{'): return dict
-            return str
-        def infer_type(res, dtype):
-            head = res.take(100)
-            types = [classify_type(s) for s in head]
-            unique_types = set(types)
-            if len(unique_types) == 1:
-                dtype = types[0]
-            elif unique_types == {int, float}:
-                dtype = float
-            else: 
-                dtype = str
-            return dtype
         sc = spark_context()
         if os.path.isdir(path):
             res = XRdd(sc.pickleFile(path))
@@ -236,7 +248,7 @@ class XArrayImpl:
                 dtype = pickle.load(f)
         else:
             res = XRdd(sc.textFile(path, use_unicode=False))
-            dtype = infer_type(res, dtype)
+            dtype = _infer_type(res)
 
         if dtype != str:
             if dtype in (list, dict):
@@ -1093,8 +1105,18 @@ class XArrayImpl:
         returned RDD.
         """
         self._entry(keys, exclude)
-        raise NotImplementedError('dict_trim_by_keys')
+        if self.dtype() != dict:
+            raise TypeError('type must be dict: {}'.format(self.dtype))
+
+        def trim_keys(items):
+            if exclude:
+                return {k: items[k] for k in items if not k in keys}
+            else:
+                return {k: items[k] for k in items if k in keys}
+
+        res = self.rdd.map(trim_keys)
         self._exit()
+        return self._rv(res, dict)
 
     def dict_trim_by_values(self, lower, upper):
         """
@@ -1103,8 +1125,14 @@ class XArrayImpl:
         RDDs whose data type is not ``dict``.
         """
         self._entry(lower, upper)
-        raise NotImplementedError('dict_trim_by_values')
+        if self.dtype() != dict:
+            raise TypeError('type must be dict: {}'.format(self.dtype))
+
+        def trim_values(items):
+            return {k: items[k] for k in items if items[k] >= lower and items[k] <= upper}
+        res = self.rdd.map(trim_values)
         self._exit()
+        return self._rv(res, dict)
 
     def dict_keys(self):
         """
@@ -1112,8 +1140,14 @@ class XArrayImpl:
         element as a list. Fails on RDDs whose data type is not ``dict``.
         """
         self._entry()
-        raise NotImplementedError('dict_keys')
+        if self.dtype() != dict:
+            raise TypeError('type must be dict: {}'.format(self.dtype))
+
+        res = self.rdd.map(lambda item: item.keys())
+        column_types = _infer_types(res)
+        column_names = [ 'X.{}'.format(i) for i in range(len(column_types))]
         self._exit()
+        return self._rv_frame(res, column_names, column_types)
 
     def dict_values(self):
         """
@@ -1121,8 +1155,14 @@ class XArrayImpl:
         element as a list. Fails on RDDs whose data type is not ``dict``.
         """
         self._entry()
-        raise NotImplementedError('dict_values')
+        if self.dtype() != dict:
+            raise TypeError('type must be dict: {}'.format(self.dtype))
+
+        res = self.rdd.map(lambda item: item.values())
+        column_types = _infer_types(res)
+        column_names = [ 'X.{}'.format(i) for i in range(len(column_types))]
         self._exit()
+        return self._rv_frame(res, column_names, column_types)
 
     def dict_has_any_keys(self, keys):
         """
@@ -1132,8 +1172,14 @@ class XArrayImpl:
         Fails on RDDs whose data type is not ``dict``.
         """
         self._entry(keys)
-        raise NotImplementedError('dict_has_any_keys')
+        if self.dtype() != dict:
+            raise TypeError('type must be dict: {}'.format(self.dtype))
+
+        def has_any_keys(items):
+            return all(key in items for key in keys)
+        res = self.rdd.map(has_any_keys)
         self._exit()
+        return self._rv(res, bool)
 
     def dict_has_all_keys(self, keys):
         """
@@ -1143,6 +1189,12 @@ class XArrayImpl:
         Fails on RDDs whose data type is not ``dict``.
         """
         self._entry(keys)
-        raise NotImplementedError('dict_has_all_keys')
+        if self.dtype() != dict:
+            raise TypeError('type must be dict: {}'.format(self.dtype))
+
+        def has_all_keys(items):
+            return all(key in items for key in keys)
+        res = self.rdd.map(has_all_keys)
         self._exit()
+        return self._rv(res, bool)
 
