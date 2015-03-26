@@ -1,0 +1,169 @@
+xFrames backlog
+---------------
+
+Core feature backlog
+--------------------
+
+XFrame
+------
+XFrame constructor (to be tested)
+       pandas dataframe
+       .txt file
+       XFrame
+       XArray
+       class with iteritems
+       class with __iter__
+       empty XFrame
+       array
+       dict of int
+       dict of float
+       dict of str
+
+XFrame.read_csv_with_errors (not implemented)
+	about 20 test cases
+
+XFrame.to_rdd (to be tested)
+	6 test cases
+
+XFrame.from_rdd (to be tested)
+	6 test cases
+
+XFrame.print_rows (to be tested)
+	empty XFrame
+	materialized
+	not materialized
+	test column truncation
+	test truncation within column
+	num_rows
+	num_columns
+	column_width
+
+XFrame.to_str (to be tested)
+
+XFrame.getitem (square bracket syntax) (to be tested)
+	index by XArray
+	slice [a:b]
+	slice [a:]
+	slice [-1]
+	slice [a:-b]
+
+XFrame.groupby
+	quantile (not implemented)
+
+XFrame.save
+	csv (to be tested)	
+
+XFrame.split_datetime (not implemented)
+	good date-time
+	bad date-time
+
+XArray
+------
+
+Implement and test datetime as a primitive datatype
+Add test cases to many existing test classes
+
+XArray.count_words (not implemented)
+
+XArray.count_ngrams (not implemented)
+
+XArray.filter (to be tested)
+
+XArray.save_as_text (not implemented)
+
+XArray.datetime_to_str (not implemented)
+
+XArray.strToDatetime (not implemented)
+
+XArray.sketch_summary
+	separate tests for numeric and nonnumeric:
+		quantile (to be tested)
+		size (to be tested)
+		num_undefined (to be tested)
+		min, max, mean, var, std (to be tested)
+		num_unique (to be tested)	
+		frequent_items (to be tested)
+		frequency_count (not implemented)
+		element_summary (not implemented)
+		dict_key_summary (not implemented)
+		dict_value_summary (not implemented)
+	sub_sketch (not implemented)
+		approx 10 tests
+
+
+
+Future Development Opportunities
+--------------------------------
+
+XGraph (16 API functions) (Graph data structure, built upon XFrame)
+
+Image data type (jpg etc as XArray and XFrame data)
+
+Connectors: (built upon spark data connectors)
+	Avro
+	SQL 
+	Hive Data Files (various formats) (test)
+
+Toolkit
+	save and load models
+
+	classifiers (create, configure, train, apply, measure) (many models)
+	clustering (create, configure, train, apply, measure)
+	nearest neighbor (create, configure, train, apply, measure)
+	regression (create, configure, train, apply, measure)
+
+	deep learning
+	auto tagger
+	data matching
+	deduplication
+	reccommender
+	model parameter search
+
+	image analysis (load, resize)
+	graph analytics (connected components, graph coloring, k-core, pagerank, shortest path, triangle counting)
+	text_analytics (term frequency transformations, topic models, count words, count_ngrams, stopwords, etc
+	distance measures (euclidian, manhattan, cosine, dot product, jaccard, weighted jaccard, levenshtein, etc)
+
+
+Other Work Items
+----------------
+Groupby bug
+    follow up on spark jira bug
+    remove code that allows repro
+
+Performance measurement and improvement
+    detect and reduce repeated computation of RDDs by intelligent caching
+    eliminate exponental growth of lazy execution plans
+    reduce or eliminate zipWithIndex, because it disrupts lazy execution
+
+Better Error reporting (lazy evaluation makes errors hard to pinpoint, 
+       error messages in terms of spark are not meaningful to end user)
+      hide spark stack dumps
+      better checking to reduce errors from spark layer
+
+Installers
+    standalone: install into existing pySpark environment
+    xpatterns: install into xpatterns ipython notebook environment
+
+MLlib integration
+    classifier
+    regression
+
+Integration with other xpatterns components
+    transformations
+    use from xpatterns ipython notebook
+
+Testing
+    test with localhost cluster
+    test with remote cluster
+    identify test speed bottleneck
+
+Example Code
+    xframes tutorial notebooks (learn xframes)
+    end-to-end tutorial notebooks using xframes and some ML library or libraries
+        (focus on solving a problem using sample data)
+    
+
+xFrames brown bag
+
+
