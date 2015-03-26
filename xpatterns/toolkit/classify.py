@@ -11,7 +11,7 @@ from pyspark.mllib.classification import SVMWithSGD
 from pyspark.mllib.classification import NaiveBayes
 from pyspark.mllib.tree import DecisionTree
 
-from xpatterns.common_impl import CommonSparkContext
+from xpatterns.spark_context import CommonSparkContext
 from xpatterns.toolkit.model import Model, ModelBuilder
 from xpatterns import XFrame, XArray
 from xpatterns.xarray_impl import XArrayImpl

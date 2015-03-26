@@ -3,7 +3,7 @@ from abc import ABCMeta, abstractmethod
 import os
 import pickle
 
-from xpatterns.common_impl import CommonSparkContext
+from xpatterns.spark_context import CommonSparkContext
 from xpatterns.toolkit.model import Model, ModelBuilder
 from xpatterns import XArray, XFrame
 from xpatterns.xarray_impl import XArrayImpl
