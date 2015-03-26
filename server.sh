@@ -23,4 +23,7 @@ fi
 
 #ipython2 notebook --no-browser --port 8888 --ip=* $CERTFILE_OPTION --NotebookApp.password="$HASH" --matplotlib=inline
 source /setup
+cd /notebooks/docs && make html
+cd /notebooks
+service nginx start
 ipython2 notebook --no-browser --port 8888 --ip=* --matplotlib=inline

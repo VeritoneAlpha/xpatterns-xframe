@@ -8,11 +8,13 @@ WORKDIR /notebooks
 EXPOSE 8888
 EXPOSE 8080
 EXPOSE 8081
+EXPOSE 80
 
 #xFrames Pre-reqs
 RUN apt-get update
 RUN apt-get install -y wget default-jdk
 RUN apt-get install -y emacs23
+RUN apt-get install -y nginx
 RUN wget -q http://www.us.apache.org/dist/spark/spark-1.3.0/spark-1.3.0-bin-cdh4.tgz -O /tmp/spark-1.3.0-bin-cdh4.tgz
 RUN tar -zxvf /tmp/spark-1.3.0-bin-cdh4.tgz --directory /tmp
 RUN rm /tmp/spark-1.3.0-bin-cdh4.tgz
@@ -38,12 +40,10 @@ RUN easy_install cloud-sptheme
 
 ADD server.sh /
 ADD xpatterns /notebooks/xpatterns
-ADD test /notebooks/test
 ADD examples /notebooks/examples
 ADD MachineLearningWithSpark /notebooks/MachineLearningWithSpark
 ADD misc-notebooks /notebooks/misc-notebooks
 ADD docker-setup /setup
-RUN cd /notebooks/docs && make html
 RUN chmod u+x /server.sh
 CMD ["/server.sh"]
 

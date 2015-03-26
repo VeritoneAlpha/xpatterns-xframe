@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# Run tests
+sudo docker run -i -t --name xframes xframes /bin/bash -c /notebooks/xpatterns/test/runtests
