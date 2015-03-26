@@ -561,6 +561,23 @@ class XArrayImpl:
         self._exit()
         return self._rv(res)
 
+    def unary_operator(self, op):
+        """
+        Performs unary operations on an RDD.
+        """
+        self._entry(op)
+        res_type = self.elem_type
+        if op == '+':
+            res = self.rdd
+        elif op == '-':
+            res = self.rdd.map(lambda x: -x, preservesPartitioning=True)
+        elif op == 'abs':
+            res = self.rdd.map(lambda x: abs(x), preservesPartitioning=True)
+        else:
+            raise NotImplementedError(op)
+        self._exit()
+        return self._rv(res)
+
     # Sample
     def sample(self, fraction, seed):
         """

@@ -564,6 +564,31 @@ class TestXArrayOpVector(unittest.TestCase):
         self.assertEqual(1, res[1])
         self.assertEqual(1, res[2])
 
+class TestXArrayOpUnary(unittest.TestCase):
+    """ 
+    Tests XArray Unary operations
+    """
+    def test_neg_unary(self):
+        t = XArray([1, -2, 3])
+        res = -t
+        self.assertEqual(-1, res[0])
+        self.assertEqual(2, res[1])
+        self.assertEqual(-3, res[2])
+
+    def test_pos_unary(self):
+        t = XArray([1, -2, 3])
+        res = +t
+        self.assertEqual(1, res[0])
+        self.assertEqual(-2, res[1])
+        self.assertEqual(3, res[2])
+
+    def test_abs_unary(self):
+        t = XArray([1, -2, 3])
+        res = abs(t)
+        self.assertEqual(1, res[0])
+        self.assertEqual(2, res[1])
+        self.assertEqual(3, res[2])
+
 class TestXArrayLogicalFilter(unittest.TestCase):
     """ 
     Tests XArray logical filter (XArray indexed by XArray)

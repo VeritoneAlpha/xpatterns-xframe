@@ -505,6 +505,24 @@ class XArray(object):
         """
         return XArray(_impl = self.__impl__.right_scalar_operator(other, '/'))
 
+    def __neg__(self):
+        """
+        Negates each element in the array.
+        """
+        return XArray(_impl = self.__impl__.unary_operator('-'))
+        
+    def __pos__(self):
+        """
+        Implements the unary plus operator.
+        """
+        return XArray(_impl = self.__impl__.unary_operator('+'))
+        
+    def __abs__(self):
+        """
+        Takes the absolute value of each element in the array
+        """
+        return XArray(_impl = self.__impl__.unary_operator('abs'))
+        
     def __eq__(self, other):
         """
         If other is a scalar value, compares each element of the current array
