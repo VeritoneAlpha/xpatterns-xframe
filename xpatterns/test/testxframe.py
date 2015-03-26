@@ -311,6 +311,8 @@ class TestXFrameReadParquet(unittest.TestCase):
         t.save(path, format='parquet')
 
         res = XFrame('tmp/frame-parquet.parquet')
+        # results may not come back in the same order
+        res = res.sort('id')
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, str], res.column_types())
@@ -324,6 +326,7 @@ class TestXFrameReadParquet(unittest.TestCase):
         t.save(path, format='parquet')
 
         res = XFrame('tmp/frame-parquet.parquet')
+        res = res.sort('id')
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, bool], res.column_types())
@@ -337,6 +340,7 @@ class TestXFrameReadParquet(unittest.TestCase):
         t.save(path, format='parquet')
 
         res = XFrame('tmp/frame-parquet.parquet')
+        res = res.sort('id')
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, int], res.column_types())
@@ -350,6 +354,7 @@ class TestXFrameReadParquet(unittest.TestCase):
         t.save(path, format='parquet')
 
         res = XFrame('tmp/frame-parquet.parquet')
+        res = res.sort('id')
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, float], res.column_types())
@@ -363,6 +368,7 @@ class TestXFrameReadParquet(unittest.TestCase):
         t.save(path, format='parquet')
 
         res = XFrame('tmp/frame-parquet.parquet')
+        res = res.sort('id')
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, list], res.column_types())
@@ -376,6 +382,7 @@ class TestXFrameReadParquet(unittest.TestCase):
         t.save(path, format='parquet')
 
         res = XFrame('tmp/frame-parquet.parquet')
+        res = res.sort('id')
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, dict], res.column_types())
