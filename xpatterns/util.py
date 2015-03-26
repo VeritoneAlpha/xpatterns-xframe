@@ -2,6 +2,7 @@
 This module defines top level utility functions for XFrames.
 """
 
+import math
 import urllib as _urllib
 import urllib2 as _urllib2
 import sys as _sys
@@ -16,6 +17,8 @@ import errno
 import shutil
 
 import logging as _logging
+
+from pyspark import StorageLevel
 
 __LOGGER__ = _logging.getLogger(__name__)
 
@@ -88,7 +91,9 @@ def make_internal_url(url):
             return url
         elif protocol == 'hdfs':
             if isinstance(_glconnect.get_server(), _server.LocalServer) and not _server._get_hadoop_class_path():
-                raise ValueError("HDFS URL is not supported because Hadoop not found. Please make hadoop available from PATH or set the environment variable HADOOP_HOME and try again.")
+                raise ValueError("HDFS URL is not supported because Hadoop not found. " + 
+                                 "Please make hadoop available from PATH or set the environment variable " + 
+                                 "HADOOP_HOME and try again.")
             else:
                 return url
         elif protocol == 's3':
@@ -110,14 +115,13 @@ def make_internal_url(url):
             else:
                 raise ValueError('Cannot use local URL when connecting to a remote server.')
         else:
-            raise ValueError('Invalid url protocol %s. Supported url protocols are: remote://, local://, s3://, https:// and hdfs://' % protocol)
+            raise ValueError('Invalid url protocol %s. Supported url protocols are: ' + 
+                             'remote://, local://, s3://, https:// and hdfs://' % protocol)
     elif len(urlsplit) == 1:
         # expand ~ to $HOME
         url = _os.path.expanduser(url)
         # url for files on local client, check if we are connecting to local server
-# TEMP
         if True:
-#        if (isinstance(_glconnect.get_server(), _server.LocalServer)):
             path_on_server = url
         else:
             raise ValueError('Cannot use local URL when connecting to a remote server.')
@@ -227,7 +231,8 @@ def perform_version_check(configfile=(_os.path.join(_os.path.expanduser("~"), ".
                 msg = ("A newer version of XPatterns XFrames (v%s) is available! "
                        "Your current version is v%s.\n"
                        "You can use pip to upgrade the xpatterns package. "
-                       "For more information see http://atigeo.com/products/xframes/upgrade.") % (latest_version, xframes.version_info.version)
+                       "For more information see http://atigeo.com/products/xframes/upgrade.") \
+                           % (latest_version, xframes.version_info.version)
                 _outputstream.write(msg)
                 return True
         except:
@@ -238,10 +243,11 @@ def perform_version_check(configfile=(_os.path.join(_os.path.expanduser("~"), ".
 
 def is_directory_archive(path):
     """
-    Utiilty function that returns True if the path provided is a directory that has an SFrame or SGraph in it.
+    Utiilty function that returns True if the path provided is a directory that has an 
+    SFrame or SGraph in it.
 
-    SFrames are written to disk as a directory archive, this function identifies if a given directory is an archive
-    for an SFrame.
+    SFrames are written to disk as a directory archive, this function identifies if a given
+    directory is an archive for an SFrame.
 
     Parameters
     ----------
@@ -295,126 +301,6 @@ def get_archive_type(path):
     except Exception as e:
         raise TypeError('Unable to determine type of archive for path: %s' % path, e)
 
-def get_environment_config():
-    """
-    Returns all the XFrames configuration variables that can only be set
-    via environment variables.
-
-    XFRAMES_FILEIO_WRITER_BUFFER_SIZE
-      The file write buffer size.
-
-    XFRAMES_FILEIO_READER_BUFFER_SIZE
-      The file read buffer size.
-
-    OMP_NUM_THREADS
-      The maximum number of threads to use for parallel processing.
-
-    Parameters
-    ----------
-    None
-
-    Returns
-    -------
-    Returns a dictionary of {key:value,..}
-    """
-    # TODO replace
-    unity = _glconnect.get_unity()
-    return unity.list_globals(False)
-
-def get_runtime_config():
-    """
-    Returns all the XFrames configuration variables that can be set at runtime.
-    See :py:func:`xpatterns.set_runtime_config()` to set these values and for
-    documentation on the effect of each variable.
-
-    Parameters
-    ----------
-    None
-
-    Returns
-    -------
-    Returns a dictionary of {key:value,..}
-    """
-    # TODO replace
-    unity = _glconnect.get_unity()
-    return unity.list_globals(True)
-
-def set_runtime_config(name, value):
-    """
-    Sets a runtime configuration value. These configuration values are also
-    read from environment variables at program startup if available. See
-    :py:func:`xpatterns.get_runtime_config()` to get the current values for
-    each variable.
-
-    The default configuration is conservatively defined for machines with about
-    4-8GB of RAM.
-
-    *Basic Configuration Variables*
-
-    XFRAMES_CACHE_FILE_LOCATIONS:
-      The directory in which intermediate SFrames/SArray are stored.
-      For instance "/var/tmp".  Multiple directories can be specified separated
-      by a colon (ex: "/var/tmp:/tmp") in which case intermediate SFrames will
-      be striped across both directories (useful for specifying multiple disks).
-      Defaults to /var/tmp if the directory exists, /tmp otherwise.
-
-    XFRAMES_FILEIO_MAXIMUM_CACHE_CAPACITY:
-      The maximum amount of memory which will be occupied by *all* intermediate
-      SFrames/SArrays. Once this limit is exceeded, SFrames/SArrays will be
-      flushed out to temporary storage (as specified by
-      XFRAMES_CACHE_FILE_LOCATIONS). On large systems increasing this as well
-      as XFRAMES_FILEIO_MAXIMUM_CACHE_CAPACITY_PER_FILE can improve performance
-      significantly. Defaults to 2147483648 bytes (2GB).
-
-    XFRAMES_FILEIO_MAXIMUM_CACHE_CAPACITY_PER_FILE:
-      The maximum amount of memory which will be occupied by any individual
-      intermediate SFrame/SArray. Once this limit is exceeded, the
-      SFrame/SArray will be flushed out to temporary storage (as specified by
-      XFRAMES_CACHE_FILE_LOCATIONS). On large systems, increasing this as well
-      as XFRAMES_FILEIO_MAXIMUM_CACHE_CAPACITY can improve performance
-      significantly for large SFrames. Defaults to 134217728 bytes (128MB).
-
-    *Advanced Configuration Variables*
-
-    XFRAMES_SFRAME_FILE_HANDLE_POOL_SIZE:
-      The maximum number of file handles to use when reading SFrames/SArrays.
-      Once this limit is exceeded, file handles will be recycled, reducing
-      performance. This limit should be rarely approached by most SFrame/SArray
-      operations. Large SGraphs however may create a large a number of SFrames
-      in which case increasing this limit may improve performance (You may
-      also need to increase the system file handle limit with "ulimit -n").
-      Defaults to 128.
-
-    XFRAMES_SFRAME_IO_READ_LOCK
-      Whether disk reads should be locked. Almost always necessary for magnetic
-      disks for consistent performance. Can be disabled on SSDs. Defaults to
-      True.
-
-    XFRAMES_SFRAME_DEFAULT_BLOCK_SIZE
-      The block size used by the SFrame file format. Increasing this will
-      increase throughput of single XArray accesses, but decrease throughput of
-      wide SFrame accesses. Defaults to 65536 bytes.
-
-    ----------
-    name: A string referring to runtime configuration variable.
-
-    value: The value to set the variable to.
-
-    Returns
-    -------
-    Nothing
-
-    Raises
-    ------
-    A RuntimeError if the key does not exist, or if the value cannot be
-    changed to the requested value.
-
-    """
-    # TODO replace
-    unity = _glconnect.get_unity()
-    ret = unity.set_global(name, value)
-    if ret != "":
-        raise RuntimeError(ret);
 
 GLOB_RE = _re.compile("""[*?]""")
 def split_path_elements(url):
@@ -502,4 +388,119 @@ def delete_file_or_dir(path):
     except OSError as err:
         if err.errno not in expected_errs:
             raise err
+
+
+
+  ####################
+  ## Type Inference ##
+  ####################
+def classify_type(s):
+    """ 
+    From a string, classifies the type of object that it represents.
+    """
+    if s.isdigit(): return int
+    if s.replace('.', '0').isdigit(): return float
+    if s.startswith('['): return list
+    if s.startswith('{'): return dict
+    return str
+
+def infer_type(rdd):
+    """
+    From an RDD of strings, find what data type they represent.
+    """
+    head = rdd.take(100)
+    types = [classify_type(s) for s in head]
+    unique_types = set(types)
+    if len(unique_types) == 1:
+        dtype = types[0]
+    elif unique_types == {int, float}:
+        dtype = float
+    else: 
+        dtype = str
+    return dtype
+
+def infer_types(rdd):
+    """
+    From an RDD of tuples of strings, find what data type each one represents.
+    """
+    head = rdd.take(100)
+    n_cols = len(head[0])
+    def get_col(head, i):
+        return [row[i] for row in head]
+    try:
+        return [ infer_type_of_list(get_col(head, i)) for i in range(n_cols)]
+    except IndexError:
+        raise ValueError('rows are not the same length')
+
+def infer_type_of_list(data):
+    """
+    Look through an iterable and get its data type.
+    Use the first type, and check to make sure the rest are of that type.
+    Missing values are skipped.
+    """
+    candidate = None
+    for d in data:
+        if d is None: continue
+        d_type = type(d)
+        if candidate is None: candidate = d_type
+        if d_type != candidate: 
+            numeric = (float, int, long)
+            if d_type in numeric and candidate in numeric: continue
+            raise TypeError('infer_type_of_list: mixed types in list: {} {}'.format(d_type, candidate))
+    return candidate
+
+def infer_type_of_rdd(rdd):
+    return infer_type_of_list(rdd.take(100))
+
+
+
+# Safe version of zip.
+# This requires that left and right RDDs be of the same length, but
+#  not the same partition structure
+# Try normal zip first, since it is much more efficient.
+  ####################
+  ## RDD Operations ##
+  ####################
+def safe_zip(left, right):
+    try:
+        res = left.zip(right)
+    except ValueError:
+        ix_left = left.zipWithIndex().map(lambda row: (row[1], row[0]))
+        ix_right = right.zipWithIndex().map(lambda row: (row[1], row[0]))
+        res = ix_left.join(ix_right)
+        res = res.sortByKey()
+        res = res.map(lambda kv: kv[1], preservesPartitioning=True)
+
+    # do this to avoid exponential growth in lazy execution plan
+    res.persist(StorageLevel.MEMORY_AND_DISK)
+    return res
+
+# TODO make this something that works with 'with'
+def cache(rdd):
+    rdd.persist(StorageLevel.MEMORY_ONLY)
+
+def uncache(rdd):
+    rdd.unpersist()
+
+def persist(rdd):
+    rdd.persist(StorageLevel.MEMORY_AND_DISK)
+    
+def unpersist(rdd):
+    rdd.unpersist()
+
+  #########################
+  ##  Missing Value Test ##
+  #########################
+def is_missing(x):
+    """ Tests for missing values. """
+    if x is None: return True
+    if isinstance(x, float) and math.isnan(x): return True
+    return False
+
+def is_missing_or_empty(val):
+    """ Tests for missing or empty values. """
+    if is_missing(val): return True
+    if type(val) in (list, dict):
+        if len(val) == 0: return True
+    return False
 

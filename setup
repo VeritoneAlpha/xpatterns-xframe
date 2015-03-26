@@ -6,6 +6,12 @@
 . /home/ubuntu/venv1.0/bin/activate
 
 here=`pwd`
+
+# PYTHONPATH is used to find the xpatterns python libraries
 export PYTHONPATH=$here
+
+# SPARK_HOME is used to find the spark python libraries and jars
 export SPARK_HOME=/home/ubuntu/spark
+
+# XPATTERNS_HOME is used to find config.ini
 export XPATTERNS_HOME=$here

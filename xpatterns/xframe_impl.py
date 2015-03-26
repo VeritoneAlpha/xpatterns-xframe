@@ -21,31 +21,16 @@ from pyspark.sql.types import StringType, BooleanType, \
     ArrayType, MapType, \
     StructField, StructType
 
-from xpatterns.common_impl import spark_context, spark_sql_context, \
-    safe_zip, infer_type_of_list, infer_type, \
-    cache, uncache, persist, unpersist
+from xpatterns.spark_context import spark_context, spark_sql_context
+from xpatterns.util import infer_type_of_list, infer_type_of_rdd, infer_type
+from xpatterns.util import safe_zip, cache, uncache, persist, unpersist
+from xpatterns.util import is_missing, is_missing_or_empty
 import xpatterns as xp
 from xpatterns.xrdd import XRdd
 from xpatterns.cmp_rows import CmpRows
 from xpatterns.aggregator_impl import aggregator_properties
 from xpatterns.util import delete_file_or_dir
 
-__all__ = ['XFrameImpl']
-
-
-# Helper functions
-def is_missing(x):
-    """ Tests for missing values. """
-    if x is None: return True
-    if isinstance(x, float) and math.isnan(x): return True
-    return False
-
-def is_missing_or_empty(val):
-    """ Tests for missing or empty values. """
-    if is_missing(val): return True
-    if type(val) in (list, dict):
-        if len(val) == 0: return True
-    return False
 
 def name_col(existing_col_names, proposed_name):
     """ Give a column a unique name.
@@ -950,7 +935,7 @@ class XFrameImpl:
         """
         self._entry(col)
         res = col.__impl__.rdd.map(lambda item: [item], preservesPartitioning=True)
-        col_type = infer_type(col.__impl__.rdd)
+        col_type = infer_type_of_rdd(col.__impl__.rdd)
         self.column_types[0] = col_type
         self._exit(res)
         return self._replace(res)
@@ -970,7 +955,7 @@ class XFrameImpl:
             row[col_num] = col
             return row
         res = rdd.map(lambda row_col: replace_col(row_col, col_num), preservesPartitioning=True)
-        col_type = infer_type(col.__impl__.rdd)
+        col_type = infer_type_of_rdd(col.__impl__.rdd)
         self.column_types[col_num] = col_type
         self._exit(res)
         return self._replace(res)

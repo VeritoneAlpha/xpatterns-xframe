@@ -15,43 +15,12 @@ import ast
 import csv
 import StringIO
 
-from xpatterns.common_impl import spark_context, spark_sql_context, \
-    safe_zip, infer_type_of_list, \
-    cache, uncache
-from xpatterns.util import delete_file_or_dir
+from xpatterns.spark_context import spark_context, spark_sql_context
+from xpatterns.util import safe_zip, infer_type_of_list, cache, uncache
+from xpatterns.util import delete_file_or_dir, infer_type, infer_types
+from xpatterns.util import is_missing, is_missing_or_empty
 import xpatterns as xp
 from xpatterns.xrdd import XRdd
-
-__all__ = ['XArrayImpl']
-
-def _classify_type(s):
-    if s.isdigit(): return int
-    if s.replace('.', '0').isdigit(): return float
-    if s.startswith('['): return list
-    if s.startswith('{'): return dict
-    return str
-
-def _infer_type(res):
-    head = res.take(100)
-    types = [_classify_type(s) for s in head]
-    unique_types = set(types)
-    if len(unique_types) == 1:
-        dtype = types[0]
-    elif unique_types == {int, float}:
-        dtype = float
-    else: 
-        dtype = str
-        return dtype
-
-def _infer_types(res):
-    head = res.take(100)
-    n_cols = len(head[0])
-    def get_col(head, i):
-        return [row[i] for row in head]
-    try:
-        return [ infer_type_of_list(get_col(head, i)) for i in range(n_cols)]
-    except IndexError:
-        raise ValueError('rows are not the same length')
 
 class ReverseCmp(object):
     """ Reverse comparison.
@@ -72,14 +41,6 @@ class ReverseCmp(object):
         return self.obj <= other.obj
     def __ne__(self, other):
         return self.obj != other.obj
-
-######################
-## Helper Functions ##
-######################
-def _is_missing(x):
-    if x is None: return True
-    if isinstance(x, float) and math.isnan(x): return True
-    return False
 
 class XArrayImpl:
     # What is missing:
@@ -189,7 +150,7 @@ class XArrayImpl:
             return
         dtype = dtype or infer_type_of_list(values[0:100])
         def do_cast(x, dtype, ignore_cast_failure):
-            if _is_missing(x): return x
+            if is_missing(x): return x
             if type(x) == dtype:
                 return x
             try:
@@ -248,7 +209,7 @@ class XArrayImpl:
                 dtype = pickle.load(f)
         else:
             res = XRdd(sc.textFile(path, use_unicode=False))
-            dtype = _infer_type(res)
+            dtype = infer_type(res)
 
         if dtype != str:
             if dtype in (list, dict):
@@ -666,7 +627,7 @@ class XArrayImpl:
         float('nan').
         """
         self._entry()
-        res = self.rdd.filter(lambda x: not _is_missing(x))
+        res = self.rdd.filter(lambda x: not is_missing(x))
         self._exit()
         return self._rv(res)
 
@@ -694,7 +655,7 @@ class XArrayImpl:
         """
         self._entry(fn, dtype, skip_undefined, seed)
         def apply_and_cast(x, fn, dtype, skip_undefined):
-            if _is_missing(x) and skip_undefined: return None
+            if is_missing(x) and skip_undefined: return None
             try:
                 return dtype(fn(x))
             except TypeError as e:
@@ -768,7 +729,7 @@ class XArrayImpl:
         type. If this fails, an error will be raised.
         """
         self._entry(value)
-        res = self.rdd.map(lambda x: value if _is_missing(x) else x)
+        res = self.rdd.map(lambda x: value if is_missing(x) else x)
         self._exit()
         return self._rv(res)
 
@@ -812,9 +773,9 @@ class XArrayImpl:
         def extend(row, n_cols, na_value):
             if na_value is not None:
                 if isinstance(row, list):
-                    row = [na_value if _is_missing(x) else x for x in row]
+                    row = [na_value if is_missing(x) else x for x in row]
                 else:
-                    row = { x: na_value if _is_missing(row[x]) else row[x] for x in row}
+                    row = { x: na_value if is_missing(row[x]) else row[x] for x in row}
             if len(row) < n_cols:
                 if isinstance(row, list):
                     for i in range(len(row), n_cols):
@@ -1037,7 +998,7 @@ class XArrayImpl:
         self._entry()
         self.materialized = True
         res = self.rdd.aggregate(0,             # action
-                           lambda acc, v: acc + 1 if _is_missing(v) else acc,
+                           lambda acc, v: acc + 1 if is_missing(v) else acc,
                            lambda acc1, acc2: acc1 + acc2)
         self._exit()
         return res
@@ -1049,7 +1010,7 @@ class XArrayImpl:
         self._entry()
         self.materialized = True
         def ne_zero(x):
-            if _is_missing(x): return False
+            if is_missing(x): return False
             return x != 0
         res = self.rdd.aggregate(0,            # action
                            lambda acc, v: acc + 1 if ne_zero(v) else acc,
@@ -1161,7 +1122,7 @@ class XArrayImpl:
             raise TypeError('type must be dict: {}'.format(self.dtype))
 
         res = self.rdd.map(lambda item: item.keys())
-        column_types = _infer_types(res)
+        column_types = infer_types(res)
         column_names = [ 'X.{}'.format(i) for i in range(len(column_types))]
         self._exit()
         return self._rv_frame(res, column_names, column_types)
@@ -1176,7 +1137,7 @@ class XArrayImpl:
             raise TypeError('type must be dict: {}'.format(self.dtype))
 
         res = self.rdd.map(lambda item: item.values())
-        column_types = _infer_types(res)
+        column_types = infer_types(res)
         column_names = [ 'X.{}'.format(i) for i in range(len(column_types))]
         self._exit()
         return self._rv_frame(res, column_names, column_types)

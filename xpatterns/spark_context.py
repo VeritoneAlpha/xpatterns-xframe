@@ -4,7 +4,6 @@ Provides shared implementation functions for XArrayImpl and XFrameImpl
 
 from xpatterns.environment import Environment
 
-from pyspark import StorageLevel
 from pyspark import SparkConf, SparkContext, SQLContext
 import atexit
 
@@ -108,60 +107,3 @@ def spark_context():
 def spark_sql_context():
     return CommonSparkContext.Instance().sqlc()
 
-
-
-
-
-
-# Safe version of zip.
-# This requires that left and right RDDs be of the same length, but
-#  not the same partition structure
-# Try normal zip first, since it is much more efficient.
-def safe_zip(left, right):
-    try:
-        res = left.zip(right)
-    except ValueError:
-        ix_left = left.zipWithIndex().map(lambda row: (row[1], row[0]))
-        ix_right = right.zipWithIndex().map(lambda row: (row[1], row[0]))
-        res = ix_left.join(ix_right)
-        res = res.sortByKey()
-        res = res.map(lambda kv: kv[1], preservesPartitioning=True)
-
-    # do this to avoid exponential growth in lazy execution plan
-    res.persist(StorageLevel.MEMORY_AND_DISK)
-    return res
-
-# TODO make this something that works with 'with'
-def cache(rdd):
-    rdd.persist(StorageLevel.MEMORY_ONLY)
-
-def uncache(rdd):
-    rdd.unpersist()
-
-def persist(rdd):
-    rdd.persist(StorageLevel.MEMORY_AND_DISK)
-    
-def unpersist(rdd):
-    rdd.unpersist()
-
-def infer_type_of_list(data):
-    """
-    Look through an iterable and get its data type.
-    Use the first type, and check to make sure the rest are of that type.
-    Missing values are skipped.
-    """
-    candidate = None
-    for d in data:
-        if d is None: continue
-        d_type = type(d)
-        if candidate is None: candidate = d_type
-        if d_type != candidate: 
-            numeric = (float, int, long)
-            if d_type in numeric and candidate in numeric: continue
-            raise TypeError('infer_type_of_list: mixed types in list: {} {}'.format(d_type, candidate))
-    return candidate
-
-def infer_type(rdd):
-    h = rdd.take(100)      # partial action
-    dtype = infer_type_of_list(h)
-    return dtype
