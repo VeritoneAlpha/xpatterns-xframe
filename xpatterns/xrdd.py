@@ -9,6 +9,7 @@ Wrapped functions allow entry and exit tracing and keeps perf counts.
 
 import inspect
 
+from pyspark import RDD
 from pyspark.sql import *
 
 class XRdd:
@@ -57,6 +58,14 @@ class XRdd:
     @classmethod
     def get_perf_count(cls):
         return cls.perf_count
+
+    @staticmethod
+    def is_rdd(rdd):
+        return isinstance(rdd, RDD)
+
+    @staticmethod
+    def is_dataframe(rdd):
+        return isinstance(rdd, DataFrame)
 
     # actions
     def name(self):

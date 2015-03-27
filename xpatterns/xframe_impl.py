@@ -189,6 +189,14 @@ class XFrameImpl:
     def spark_sql_context():
         return spark_sql_context()
 
+    @staticmethod
+    def is_rdd(rdd):
+        return XRdd.is_rdd(rdd)
+
+    @staticmethod
+    def is_dataframe(rdd):
+        return XRdd.is_dataframe(rdd)
+
     # Load
     @classmethod
     def xframe_from_pandas_dataframe(cls, data):

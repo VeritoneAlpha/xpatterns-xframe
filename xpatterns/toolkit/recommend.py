@@ -26,16 +26,16 @@ class RecommenderModel(Model):
 
     def __init__(self, model, ratings, user_col, item_col, rating_col):
         self.model = model
-        self.ratings = builder.ratings
-        self.user_col = builder.user_col
-        self.item_col = builder.item_col
-        self.rating_col = builder.rating_col
+        self.ratings = ratings
+        self.user_col = user_col
+        self.item_col = item_col
+        self.rating_col = rating_col
 
     def __repr__(self):
         res = '{!r}\n'.format(self.model)
-        res += 'user_col:', user_col, '\n'
-        res += 'item_col:', item_col, '\n'
-        res += 'rating_col:', rating_col
+        res += 'user_col: {}\n'.format(self.user_col)
+        res += 'item_col: {}\n'.format(self.item_col)
+        res += 'rating_col: {}'.format(self.rating_col)
         return res
 
     @staticmethod
@@ -105,7 +105,6 @@ class MatrixFactorizationModel(RecommenderModel):
         rdd = user_item.to_spark_rdd()
         res = self.model.predictAll(rdd)
         res = res.map(lambda rating: [rating.user, rating.product, rating.rating])
-        res = RDD(res)
         col_names = [self.user_col, self.item_col, self.rating_col]
         user_type = self.users.dtype()
         item_type = self.items.dtype()
@@ -168,7 +167,7 @@ class MatrixFactorizationModel(RecommenderModel):
             and the column names.  These are stored with suffix '.model', '.ratings', and
             '.metadata'.
         """
-        sc = CommonSparkContext.Instance().sc
+        sc = CommonSparkContext.Instance().sc()
         delete_file_or_dir(path)
         os.makedirs(path)
         model_path, ratings_path, metadata_path = self._file_paths(path)
@@ -199,7 +198,7 @@ class MatrixFactorizationModel(RecommenderModel):
         out : MatrixFactorizationModel
             A model that can be used to predict ratings.
         """
-        sc = CommonSparkContext.Instance().sc
+        sc = CommonSparkContext.Instance().sc()
         model_path, ratings_path, metadata_path = cls._file_paths(path)
         # load model
         model = recommendation.MatrixFactorizationModel.load(sc, model_path)
@@ -208,9 +207,8 @@ class MatrixFactorizationModel(RecommenderModel):
         # load metadata
         with open(metadata_path) as f:
             user_col, item_col, rating_col = pickle.load(f)
-        builder = ALSBuilder(ratings, user_col, item_col, rating_col)
 
-        return cls(model, builder)
+        return cls(model, ratings, user_col, item_col, rating_col)
 
 
 # Builders
@@ -262,7 +260,7 @@ class ALSBuilder(RecommenderBuilder):
             
         """
         super(ALSBuilder, self).  \
-            __init__(model, ratings, user_col, item_col, rating_col)
+            __init__(ratings, user_col, item_col, rating_col)
 
     def train(self, rank, iterations=10, lambda_=0.01, seed=0, **kwargs):
         """
@@ -297,7 +295,7 @@ class ALSBuilder(RecommenderBuilder):
                           lambda_=lambda_, 
                           seed=seed, 
                           **kwargs)
-        return MatrixFactorizationModel(model, self)
+        return MatrixFactorizationModel(model, self.ratings, self.user_col, self.item_col, self.rating_col)
 
     def train_implicit(self, rank, seed=0, iterations=50, lambda_=0.01, **kwargs):
         """
@@ -334,7 +332,7 @@ class ALSBuilder(RecommenderBuilder):
                           lambda_=lambda_, 
                           seed=seed, 
                           **kwargs)
-        return MatrixFactorizationModel(model, self)
+        return MatrixFactorizationModel(model, self.ratings, self.user_col, self.item_col, self.rating_col)
 
 
 def create(data, user_col, item_col, rating_col, 

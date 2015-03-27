@@ -293,7 +293,7 @@ class XArray(object):
         elif format == 'csv':
             self.__impl__.save_as_csv(make_internal_url(filename))
 
-    def to_rdd(self, number_of_partitions=4):
+    def to_spark_rdd(self, number_of_partitions=4):
         """
         Convert the current XArray to the Spark RDD.
 
@@ -307,7 +307,7 @@ class XArray(object):
         if number_of_partitions == 0:
             raise ValueError("number_of_partitions can not be initialized to zero")
 
-        return self.__impl__.to_rdd(number_of_partitions)
+        return self.__impl__.to_spark_rdd(number_of_partitions)
 
     @classmethod
     def from_rdd(cls, rdd, dtype):

@@ -296,12 +296,14 @@ class XArrayImpl:
                     break
         self._exit()
 
-    def to_rdd(number_of_partitions):
+    def to_spark_rdd(self, number_of_partitions=None):
         """
         Returns the internal rdd.
         """
-        self._entry(number_or_partitions)
-        res = self._rdd.repartition(number_of_partitions)
+        self._entry(number_of_partitions)
+        if number_of_partitions:
+            self.rdd = self.rdd.repartition(number_of_partitions)
+        res = self.rdd.rdd
         self._exit()
         return res
 

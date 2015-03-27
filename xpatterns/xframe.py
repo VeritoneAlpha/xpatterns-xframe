@@ -1398,9 +1398,9 @@ class XFrame(object):
             raise Exception("Conversion from RDD(pyspark.sql.Row) to XFrame not supported. " + 
                             "Please call inferSchema(RDD) first.")
         xf = cls()
-        if str(type(rdd)) ==  "<class 'pyspark.sql.dataframe.DataFrame'>":
+        if XFrameImpl.is_dataframe(rdd):
             xf.__impl__.from_spark_dataframe(rdd)
-        elif str(type(rdd)) ==  "<class 'pyspark.rdd.RDD'>":
+        elif XFrameImpl.is_rdd(rdd):
             xf.__impl__.from_rdd(rdd, column_names, column_types)
         else:
             raise ValueError('Argument is not an RDD.')
