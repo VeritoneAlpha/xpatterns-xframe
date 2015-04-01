@@ -4207,10 +4207,15 @@ v        out : XFrame
         """
         return self.num_rows(), self.num_cols()
 
-    @property
     def show(self):
         """
-        Create XFrame plotter.
+        Create an XPlot object from an XFrame.  
+
+        This can be used to produce plots.
+
+        See Also
+        --------
+        XPlot
         """
 
         return XPlot(self)

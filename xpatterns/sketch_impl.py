@@ -94,8 +94,10 @@ class SketchImpl:
         epsilon = 0.01
         delta = 0.1
         accumulator = FreqSketch(num_items, epsilon, delta)
-        accumulators = self.rdd.mapPartitions(accumulator)
-        return accumulators.reduce(lambda x, y: x.merge(y))
+        accumulators = self.rdd.mapPartitions(accumulator.iterate_values)
+        return accumulators.aggregate(FreqSketch.initial_accumulator_value(), 
+                                      FreqSketch.merge_accumulator_value, 
+                                      FreqSketch.merge_accumulators)
 
     def size(self):
         return self.count
@@ -138,7 +140,7 @@ class SketchImpl:
     def frequent_items(self):
         if self.frequency_sketch is None:
             self.frequency_sketch = self._create_frequency_sketch()
-        return self.frequency_sketch.frequent_items()
+        return self.frequency_sketch
 
     def get_quantile(self, quantile_val):
         if self.sketch_type == 'numeric':

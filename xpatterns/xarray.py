@@ -171,6 +171,9 @@ class XArray(object):
     def set_trace(entry_trace=None, exit_trace=None):
         XArrayImpl.set_trace(entry_trace, exit_trace)
 
+    def dump_debug_info(self):
+        return self.__impl__.dump_debug_info()
+        
     @classmethod
     def from_const(cls, value, size):
         """

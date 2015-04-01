@@ -23,7 +23,7 @@ from pyspark.sql.types import StringType, BooleanType, \
 
 from xpatterns.spark_context import spark_context, spark_sql_context
 from xpatterns.util import infer_type_of_list, infer_type_of_rdd, infer_type
-from xpatterns.util import safe_zip, cache, uncache, persist, unpersist
+from xpatterns.util import cache, uncache, persist, unpersist
 from xpatterns.util import is_missing, is_missing_or_empty
 import xpatterns as xp
 from xpatterns.xrdd import XRdd
@@ -147,31 +147,29 @@ class XFrameImpl:
         self.materialized = True
         return count
 
-    @classmethod
-    def _entry(cls, *args):
+    def _entry(self, *args):
         """ Trace function entry. """
-        if not cls.entry_trace and not cls.perf_count: return
+        if not XFrameImpl.entry_trace and not XFrameImpl.perf_count: return
         stack = inspect.stack()
         caller = stack[1]
         called_by = stack[2]
-        if cls.entry_trace:
+        if XFrameImpl.entry_trace:
             print 'enter xFrame', caller[3], args, 'called by', called_by[3]
-        if cls.perf_count:
+        if XFrameImpl.perf_count:
             my_fun = caller[3]
             if not my_fun in XFrameImpl.perf_count:
-                cls.perf_count[my_fun] = 0
-            cls.perf_count[my_fun] += 1
+                XFrameImpl.perf_count[my_fun] = 0
+            XFrameImpl.perf_count[my_fun] += 1
 
-    @classmethod
-    def _exit(cls, *args):
+    def _exit(self, *args):
         """ Trace function exit. """
-        if cls.exit_trace:
+        if XFrameImpl.exit_trace:
             print 'exit xFrame', inspect.stack()[1][3], args
 
     @classmethod
     def set_trace(cls, entry_trace=None, exit_trace=None):
-        cls.entry_trace = entry_trace or cls.entry_trace
-        cls.exit_trace = exit_trace or cls.exit_trace
+        cls.entry_trace = cls.entry_trace if entry_trace is None else entry_trace
+        cls.exit_trace = cls.exit_trace if exit_trace is None else exit_trace
 
     @classmethod
     def set_perf_count(cls, enable=True):
@@ -189,6 +187,9 @@ class XFrameImpl:
     def spark_sql_context():
         return spark_sql_context()
 
+    def dump_debug_info(self):
+        return self.rdd.toDebugString()
+
     @staticmethod
     def is_rdd(rdd):
         return XRdd.is_rdd(rdd)
@@ -203,9 +204,7 @@ class XFrameImpl:
         """
         Create XFrame from a pandas.DataFrame.
         """
-        cls._entry(data)
         raise NotImplementedError()
-        cls._exit()
 
     def load_from_pandas_dataframe(self, data):
         """
@@ -221,7 +220,6 @@ class XFrameImpl:
         """
         Create XFrame from a saved xframe.
         """
-        cls._entry(path)
         # read rdd
         sc = spark_context()
         res = sc.pickleFile(path)
@@ -229,7 +227,6 @@ class XFrameImpl:
         metadata_path = os.path.join(path, '_metadata')
         with open(metadata_path) as f:
             names, types = pickle.load(f)
-        cls._exit()        
         return cls(res, names, types)
 
     def load_from_xframe_index(self, path):
@@ -482,9 +479,6 @@ class XFrameImpl:
         self._exit()
 
 
-    def dump_debug_info(self):
-        return self.rdd.toDebugString()
-
     def from_rdd(self, rdd, names=None, types=None):
         first_row = rdd.take(1)[0]
         if not names is None:
@@ -698,7 +692,7 @@ class XFrameImpl:
         rng = random.Random(seed)
         rdd = self.rdd
         rand_col = self.rdd.map(lambda row: rng.uniform(0.0, 1.0))
-        labeled_rdd = safe_zip(self.rdd, rand_col)
+        labeled_rdd = self.rdd.zip(rand_col)
 #        cache(labeled_rdd)
         rdd1 = labeled_rdd.filter(lambda row: row[1] < fraction).keys()
         rdd2 = labeled_rdd.filter(lambda row: row[1] >= fraction).keys()
@@ -784,7 +778,7 @@ class XFrameImpl:
         if self.rdd is None:
             res = data.rdd.map(lambda x: [x], preservesPartitioning=True)
         else:
-            res = safe_zip(self.rdd, data.rdd)
+            res = self.rdd.zip(data.rdd)
             def move_inside(old_val, new_elem):
                 return old_val + [new_elem]
             res = res.map(lambda pair: move_inside(pair[0], pair[1]), preservesPartitioning=True)
@@ -803,7 +797,7 @@ class XFrameImpl:
         types = self.column_types + [col.__impl__.elem_type for col in cols]
         rdd = self.rdd
         for col in cols:
-            rdd = safe_zip(rdd, col.__impl__.rdd)
+            rdd = rdd.zip(col.__impl__.rdd)
             def move_inside(old_val, new_elem):
                 return old_val + [new_elem]
             rdd = rdd.map(lambda pair: move_inside(pair[0], pair[1]), preservesPartitioning=True)
@@ -823,7 +817,7 @@ class XFrameImpl:
         def merge(old_cols, new_cols):
             return old_cols + new_cols
         # zip restriction: data must match in length and partition structure
-        rdd = safe_zip(self.rdd, other.__impl__.rdd)
+        rdd = self.rdd.zip(other.__impl__.rdd)
         res = rdd.map(lambda pair: merge(pair[0], pair[1]), preservesPartitioning=True)
         self._exit(res, names, types)
         return self._replace(res, names, types)
@@ -955,7 +949,7 @@ class XFrameImpl:
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry(col)
-        rdd = safe_zip(self.rdd, col.__impl__.rdd)
+        rdd = self.rdd.zip(col.__impl__.rdd)
         col_num = self.col_names.index(column_name)
         def replace_col(row_col, col_num):
             row = row_col[0]
@@ -995,7 +989,7 @@ class XFrameImpl:
         self._entry(other)
         # zip restriction: data must match in length and partition structure
 
-        pairs = safe_zip(self.rdd, other.rdd)
+        pairs = self.rdd.zip(other.rdd)
 
         res = pairs.filter(lambda p: p[1]).map(lambda p: p[0], preservesPartitioning=True)
         self._exit(res)

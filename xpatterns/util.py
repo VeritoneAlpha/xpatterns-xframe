@@ -453,28 +453,6 @@ def infer_type_of_rdd(rdd):
     return infer_type_of_list(rdd.take(100))
 
 
-
-# Safe version of zip.
-# This requires that left and right RDDs be of the same length, but
-#  not the same partition structure
-# Try normal zip first, since it is much more efficient.
-  ####################
-  ## RDD Operations ##
-  ####################
-def safe_zip(left, right):
-    try:
-        res = left.zip(right)
-    except ValueError:
-        ix_left = left.zipWithIndex().map(lambda row: (row[1], row[0]))
-        ix_right = right.zipWithIndex().map(lambda row: (row[1], row[0]))
-        res = ix_left.join(ix_right)
-        res = res.sortByKey()
-        res = res.map(lambda kv: kv[1], preservesPartitioning=True)
-
-    # do this to avoid exponential growth in lazy execution plan
-    res.persist(StorageLevel.MEMORY_AND_DISK)
-    return res
-
 # TODO make this something that works with 'with'
 def cache(rdd):
     rdd.persist(StorageLevel.MEMORY_ONLY)

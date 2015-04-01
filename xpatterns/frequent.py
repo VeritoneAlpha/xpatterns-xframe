@@ -5,7 +5,8 @@ import heapq
 
 #
 #    This code is derived from that found on the webpage:
-#         https://tech.shareaholic.com/2012/12/03/the-count-min-sketch-how-to-count-over-large-keyspaces-when-about-right-is-good-enough/
+#         http://tech.shareaholic.com/2012/12/03/the-count-min-sketch-how-to-count-over-large-keyspaces-when-about-right-is-good-enough/
+#    The algorithm described above is used in each partition, and then the results are merged using the methods at the end.
 #
 BIG_PRIME = 9223372036854775783
 
@@ -71,17 +72,6 @@ class FreqSketch:
         self.count = np.zeros((self.depth, self.width), dtype='int32')
         self.heap = []
         self.top_k = {} # top_k => [estimate, key] pairs
-
-    def merge(self, other):
-        """Merge other FreqSketch with this FreqSketch.
-        
-        The width, depth, and hash_functions must be identical.
-        """
-        self._check_compatibility(other)
-        for i in xrange(self.depth):
-            for j in xrange(self.width):
-                self.count[i][j] += other.count[i][j]
-        return self
 
     def _check_compatibility(self, other):
         """Check if another FreqSketch is compatible with this one for merge.
@@ -207,21 +197,43 @@ class FreqSketch:
     def frequent_items(self):
         """
         Returns the most frequent items.
+        
+        These are the frequent items from the heap.
         """
         return {key: self.get(key) for key in self.top_k}
             
-    def __call__(self, value_iterator):
+    def iterate_values(self, value_iterator):
         """Makes FreqSketch usable with PySpark .mapPartitions().
         
         An RDD's .mapPartitions method takes a function that consumes an
         iterator of records and spits out an iterable for the next RDD
-        downstream.  Since FreqSketch is callable, the call can be
-        performed like so:
-        
-            accums = values.mapPartitions(FreqSketch(<parameters>))
-            accums.reduce(lambda x, y: x.merge(y))
-        
+        downstream.
         """
         for value in value_iterator:
             self.increment(value)
         yield self
+
+    @staticmethod
+    def initial_accumulator_value():
+        """
+        Initial value used with aggregate function.
+        """
+        return dict()
+
+    @staticmethod
+    def merge_accumulator_value(acc, value):
+        """
+        Add an accumulator and a value, for use with aggregate.
+        """
+        acc2 = value.frequent_items()
+        return FreqSketch.merge_accumulators(acc, acc2)
+
+    @staticmethod
+    def merge_accumulators(acc1, acc2):
+        """
+        Add two accumulators, for use with aggregate.
+        """
+        ans = dict(acc1)
+        for key in acc2:
+            ans[key] = ans[key] + acc2[key] if key in ans else acc2[key]
+        return ans

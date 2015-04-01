@@ -16,11 +16,12 @@ import csv
 import StringIO
 
 from xpatterns.spark_context import spark_context, spark_sql_context
-from xpatterns.util import safe_zip, infer_type_of_list, cache, uncache
+from xpatterns.util import infer_type_of_list, cache, uncache
 from xpatterns.util import delete_file_or_dir, infer_type, infer_types
 from xpatterns.util import is_missing, is_missing_or_empty
 import xpatterns as xp
 from xpatterns.xrdd import XRdd
+
 
 class ReverseCmp(object):
     """ Reverse comparison.
@@ -85,9 +86,8 @@ class XArrayImpl:
         self.materialized = True
         return count
 
-    @classmethod
-    def _entry(cls, *args):
-        if not cls.entry_trace and not cls.perf_count: return
+    def _entry(self, *args):
+        if not XArrayImpl.entry_trace and not XArrayImpl.perf_count: return
         stack = inspect.stack()
         caller = stack[1]
         called_by = stack[2]
@@ -99,16 +99,15 @@ class XArrayImpl:
                 XArrayImpl.perf_count[my_fun] = 0
             XArrayImpl.perf_count[my_fun] += 1
 
-    @classmethod
-    def _exit(cls):
+    def _exit(self):
         if XArrayImpl.exit_trace:
             print 'exit xArray', inspect.stack()[1][3]
         pass
 
     @classmethod
     def set_trace(cls, entry_trace=None, exit_trace=None):
-        cls.entry_trace = entry_trace or cls.entry_trace
-        cls.exit_trace = exit_trace or cls.exit_trace
+        cls.entry_trace = cls.entry_trace if entry_trace is None else entry_trace
+        cls.exit_trace = cls.exit_trace if exit_trace is None else exit_trace
 
     @classmethod
     def set_perf_count(cls, enable=True):
@@ -117,6 +116,9 @@ class XArrayImpl:
     @classmethod
     def get_perf_count(cls):
         return cls.perf_count
+
+    def dump_debug_info(self):
+        return self.rdd.toDebugString()
 
     @staticmethod
     def create_sequential_xarray(size, start, reverse):
@@ -430,7 +432,7 @@ class XArrayImpl:
         """
         self._entry(other, op)
         res_type = self.elem_type
-        pairs = safe_zip(self.rdd, other.rdd)
+        pairs = self.rdd.zip(other.rdd)
         if op == '+':
             res = pairs.map(lambda x: x[0] + x[1], preservesPartitioning=True)
         elif op == '-':
@@ -559,7 +561,7 @@ class XArrayImpl:
         Self and other are of the same length.
         """
         self._entry(other)
-        pairs = safe_zip(self.rdd, other.rdd)
+        pairs = self.rdd.zip(other.rdd)
         res = pairs.filter(lambda p: p[1]).map(lambda p: p[0])
         self._exit()
         return self._rv(res)

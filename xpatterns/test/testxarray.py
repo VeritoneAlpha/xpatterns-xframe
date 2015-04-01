@@ -358,6 +358,15 @@ class TestXArrayAddVector(unittest.TestCase):
         self.assertEqual(7, t[1])
         self.assertEqual(9, t[2])
 
+    def test_add_vector_safe(self):
+        t1 = XArray([1, 2, 3])
+        t = t1 + t1
+        self.assertEqual(3, len(t))
+        self.assertEqual(int, t.dtype())
+        self.assertEqual(2, t[0])
+        self.assertEqual(4, t[1])
+        self.assertEqual(6, t[2])
+
         
 class TestXArrayOpScalar(unittest.TestCase):
     """ 
@@ -852,6 +861,7 @@ class TestXArraySample(unittest.TestCase):
         res = t.sample(0.3)
         self.assertTrue(len(res) < 10)
 
+    @unittest.skip('depends on number of partitions')
     def test_sample_seed(self):
         t = XArray(range(10))
         res = t.sample(0.3, seed=1)
@@ -1631,6 +1641,8 @@ class TestXArraySketchSummary(unittest.TestCase):
         ss = t.sketch_summary()
         self.assertEqual(3, ss.num_unique())
 
+    # TODO files on multiple workers
+    # probably something wrong with combiner
     def test_sketch_summary_frequent_items(self):
         t = XArray([1, 3, 3, 3, 5])
         ss = t.sketch_summary()
@@ -1701,6 +1713,25 @@ class TestXArrayUnique(unittest.TestCase):
         t = XArray(['1', '2', '3'])
         res = t.unique()
         self.assertTrue(eq_list(['1', '3', '2'], res))
+
+    def xx_test_unique_str_XXX(self):
+        from xpatterns import XRdd
+        XRdd.set_trace(True)
+        t = XArray(['1', '2', '3'])
+        expected = XArray(['1', '2', '3'])
+        print 'before unique'
+        print t.dump_debug_info()
+        print expected.dump_debug_info()
+        res = t.unique()
+        print 'after unique; before compare'
+        print res.dump_debug_info()
+        answer =  (expected == res)
+        print answer
+        print 'after compare; before all'
+        result = answer.all()
+        print 'after all'
+        self.assertTrue(result)
+        XRdd.set_trace(False)
 
     def test_unique_int(self):
         t = XArray([1, 2, 3, 1, 2])
