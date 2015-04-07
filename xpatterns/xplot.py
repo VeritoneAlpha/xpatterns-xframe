@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 from xpatterns.aggregate import COUNT
 
-class XPlot:
+class XPlot(object):
     """
     Plotting library for xFrames.
 
@@ -124,7 +124,7 @@ class XPlot:
 
         """
         count = self.xframe.groupby(y_col, {'Count': COUNT})
-        count.show.top_values('Count', y_col, k, title, xlabel, ylabel)
+        count.show().top_values('Count', y_col, k, title, xlabel, ylabel)
 
     def histogram(self, col_name, title=None, 
                        lower_cutoff=0.0, upper_cutoff=0.99, 
@@ -263,4 +263,4 @@ class XPlot:
             tmp = self.xframe.groupby(col_name, {'Count': COUNT})
             x_col = 'Count'
             y_col = col_name
-            tmp.show.top_values(x_col, y_col, title=title, k=bins)
+            tmp.show().top_values(x_col, y_col, title=title, k=bins)

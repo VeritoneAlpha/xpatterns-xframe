@@ -97,10 +97,10 @@ class XFrame(object):
         - "parquet"
         - "rdd"
         - "spark.dataframe"
-        - "xframe".
+        - "xframe"
 
     verbose : bool, optional
-        If reading a file, and True, print the progress.
+        If True, print the progress while reading a file.
 
     Notes
     -----
@@ -165,7 +165,7 @@ class XFrame(object):
     ...     column_type_hints={'user_id': int})
     """
 
-    def __init__(self, data=None, format='auto', _impl=None, verbose=True):
+    def __init__(self, data=None, format='auto', _impl=None, verbose=False):
         """__init__(data=list(), format='auto')
         Construct a new XFrame from a url, a pandas.DataFrame or a spark RDD or DataFrame.
         """
@@ -199,7 +199,7 @@ class XFrame(object):
                     else:
                         _format = 'xframe'
 
-                elif type(data) == XArray:
+                elif isinstance(data, XArray):
                     _format = 'xarray'
 
                 elif isinstance(data, XFrame):
@@ -392,7 +392,7 @@ class XFrame(object):
                        column_type_hints=None,
                        na_values=["NA"],
                        nrows=None,
-                       verbose=True,
+                       verbose=False,
                        store_errors=True):
         """
         Constructs an XFrame from a CSV file or a path to multiple CSVs, and
@@ -512,7 +512,7 @@ class XFrame(object):
                              column_type_hints=None,
                              na_values=["NA"],
                              nrows=None,
-                             verbose=True):
+                             verbose=False):
         """
         Constructs an XFrame from a CSV file or a path to multiple CSVs, and
         returns a pair containing the XFrame and a dict of filenames to XArrays
@@ -577,7 +577,7 @@ class XFrame(object):
             If set, only this many rows will be read from the file.
 
         verbose : bool, optional
-            If True, print the progress.
+            If True, print the progress while reading files.
 
         Returns
         -------
@@ -642,7 +642,7 @@ class XFrame(object):
                  column_type_hints=None,
                  na_values=["NA"],
                  nrows=None,
-                 verbose=True):
+                 verbose=False):
         """
         Constructs an XFrame from a CSV file or a path to multiple CSVs.
 
@@ -709,7 +709,7 @@ class XFrame(object):
             If set, only this many rows will be read from the file.
 
         verbose : bool, optional
-            If True, print the progress.
+            If True, print the progress while reading files.
 
         Returns
         -------
@@ -880,7 +880,7 @@ class XFrame(object):
 
 
     @classmethod
-    def read_parquet(cls, url, verbose=True):
+    def read_parquet(cls, url, verbose=False):
         """
         Constructs an XFrame from a parquet file.
 
@@ -890,7 +890,7 @@ class XFrame(object):
             Location of the parquet file to load. 
 
         verbose : bool, optional
-            If True, print the progress.
+            If True, print the progress while reading the file.
 
         Returns
         -------
@@ -1026,13 +1026,13 @@ class XFrame(object):
             while len(columns) > 0:
                 col = columns.pop()
                 # check the max length of element in the column
+                header = _truncate_str(col, wrap_text)
                 if len(headxf) > 0:
-                    col_width = min(max_column_width, max(len(str(x)) for x in headxf[col]))
+                    col_width = min(max_column_width, max(max(len(str(x)) for x in headxf[col]), len(header)+3))
                 else:
                     col_width = max_column_width
                 if (table_width + col_width < max_row_width):
                     # truncate the header if necessary
-                    header = _truncate_str(col, wrap_text)
                     tbl.add_column(header, [_truncate_str(str(x), wrap_text) for x in headxf[col]])
                     table_width = str(tbl).find('\n')
                     num_column_of_last_table += 1
@@ -1362,7 +1362,8 @@ class XFrame(object):
         -------
         out: spark.DataFrame
         """
-        return self.__impl__.to_spark_dataframe(table_name, number_of_partitions)
+        return self.__impl__.to_spark_dataframe(table_name, 
+                              number_of_partitions=number_of_partitions)
 
 
     @classmethod
@@ -4150,7 +4151,8 @@ v        out : XFrame
             raise TypeError("Must give start as int")
 
         if column_name in self.column_names():
-            raise RuntimeError("Column '" + column_name + "' already exists in the current XFrame")
+            raise RuntimeError("Column '" + column_name + 
+                               "' already exists in the current XFrame")
 
         return XFrame(_impl=self.__impl__.add_row_number(column_name, start))
 
@@ -4164,8 +4166,9 @@ v        out : XFrame
         sql_statement : str
             The statement to execute.
 
-            The statement is executed by the Spark Sql query processor.  See the SparkSql
-            documentation for details.  XFrame column names and types are translated to Spark
+            The statement is executed by the Spark Sql query processor.  
+            See the SparkSql documentation for details.  
+            XFrame column names and types are translated to Spark
             for query processing.
 
         table_name : str, optional

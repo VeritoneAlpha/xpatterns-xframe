@@ -43,7 +43,7 @@ class ReverseCmp(object):
     def __ne__(self, other):
         return self.obj != other.obj
 
-class XArrayImpl:
+class XArrayImpl(object):
     # What is missing:
     # sum over arrays
     # datetime functions

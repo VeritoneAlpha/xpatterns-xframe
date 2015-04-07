@@ -17,7 +17,7 @@ def is_missing(x):
     if isinstance(x, float) and math.isnan(x): return True
     return False
 
-class SketchImpl:
+class SketchImpl(object):
 
     entry_trace = False
     exit_trace = False

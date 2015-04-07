@@ -13,7 +13,7 @@ from itertools import chain
 class ConfigError(Exception):
     pass
 
-class Environment:
+class Environment(object):
     def __init__(self):
         """ Create an empty environment. """
         self.files_to_read = []

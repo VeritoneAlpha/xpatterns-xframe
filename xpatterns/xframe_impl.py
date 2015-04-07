@@ -78,7 +78,7 @@ def to_schema_type(typ, elem):
         return MapType(key_type, val_type)
     return StringType()
 
-class XFrameImpl:
+class XFrameImpl(object):
     """ Implementation for XFrame. """
 
     entry_trace = False
@@ -453,6 +453,8 @@ class XFrameImpl:
                 return ''
 
         with open(path, 'w') as f:
+            heading = to_csv(self.column_names(), **params)
+            f.write(heading)
             self.begin_iterator()
             elems_at_a_time = 10000
             ret = self.iterator_get_next(elems_at_a_time)
@@ -524,7 +526,7 @@ class XFrameImpl:
         self._exit()
         return self.rdd.rdd
 
-    def to_spark_dataframe(self, table_name, number_of_partitions):
+    def to_spark_dataframe(self, table_name, number_of_partitions=None):
         """
         Adds column name and type informaton to the rdd and returns it.
         """
@@ -536,7 +538,8 @@ class XFrameImpl:
         fields = [StructField(name, to_schema_type(typ, first_row[i]), True) 
                   for i, (name, typ) in enumerate(zip(self.col_names, self.column_types))]
         schema = StructType(fields)
-        rdd = self.rdd.repartition(number_of_partitions)
+        if number_of_partitions:
+            rdd = self.rdd.repartition(number_of_partitions)
         sqlc = spark_sql_context()
         res = sqlc.applySchema(rdd.rdd, schema)
         if table_name is not None:
@@ -552,15 +555,18 @@ class XFrameImpl:
         #   types for list and dict
 
         self._entry(table_name, number_of_partitions)
-        first_row = self.head_as_list(1)[0]
-        fields = [StructField(name, to_schema_type(typ, first_row[i]), True) 
+        if isinstance(self.rdd, DataFrame):
+            res = self.rdd
+        else:
+            first_row = self.head_as_list(1)[0]
+            fields = [StructField(name, to_schema_type(typ, first_row[i]), True) 
                   for i, (name, typ) in enumerate(zip(self.col_names, self.column_types))]
-        schema = StructType(fields)
-        rdd = self.rdd.repartition(number_of_partitions)
-        sqlc = spark_sql_context()
-        res = sqlc.applySchema(rdd.rdd, schema)
-        if name is not None:
-            res.registerTempTable(table_name)
+            schema = StructType(fields)
+            rdd = self.rdd.repartition(number_of_partitions)
+            sqlc = spark_sql_context()
+            res = sqlc.applySchema(rdd.rdd, schema)
+            if name is not None:
+                res.registerTempTable(table_name)
         self._exit()
         return res
 
@@ -1407,6 +1413,12 @@ class XFrameImpl:
 
             # throw away key now
             pairs = joined.map(lambda row: row[1], preservesPartitioning=True) ##### !!!!!
+            # preservesPartitioning is not required here, because the abilkity to zip
+            # is destroyed anyway
+            # however, a bug in groupby can give multiple results for a singe key
+            # The use of preservesPartitioning is crucial to reproducing this bug.
+            # Once the bug is fixed, switch to the following commented-out lines
+            # and fix the one below als.
 #            pairs = joined.map(lambda row: row[1])
 #            pairs = joined.values()
 

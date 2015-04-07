@@ -7,7 +7,7 @@ from xpatterns.environment import Environment
 from pyspark import SparkConf, SparkContext, SQLContext
 import atexit
 
-class Singleton:
+class Singleton(object):
     """
     A non-thread-safe helper class to ease implementing singletons.
     This should be used as a decorator -- not a metaclass -- to the
@@ -51,7 +51,7 @@ class Singleton:
 #CLUSTER_URL = 'spark://ip-10-0-1-212:7077'
 
 @Singleton
-class CommonSparkContext:
+class CommonSparkContext(object):
     def __init__(self):
         """
         Create a spark context.

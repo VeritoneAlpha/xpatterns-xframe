@@ -21,7 +21,7 @@ def _generate_hash_function_params():
     a, b = _random_parameter(), _random_parameter()
     return (a, b)
 
-class FreqSketch:
+class FreqSketch(object):
     def __init__(self, k, epsilon, delta, seed=None):
         """
         Setup a new count-min sketch with parameters num_levels, epsilon, and delta.

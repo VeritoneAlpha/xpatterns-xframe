@@ -6,7 +6,7 @@ from xpatterns.XArray_impl import XArrayImpl
 from xpatterns.XFrame_impl import XFrameImpl
  
 
-class PerfTracker:
+class PerfTracker(object):
     @staticmethod
     def xrdd_track(enable=True):
         XRdd.set_perf_count(enable)

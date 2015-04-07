@@ -83,7 +83,7 @@ def agg_quantile(rows, cols):
     return None
 
 
-class AggregatorPropertySet:
+class AggregatorPropertySet(object):
     """ Store aggregator properties for one aggregator. """
 
     def __init__(self, name, agg_function, default_col_name, output_type):
@@ -120,7 +120,7 @@ class AggregatorPropertySet:
         if type(candidate) is int: return input_type[candidate]
         return candidate
 
-class AggregatorProperties:
+class AggregatorProperties(object):
     """ Manage aggregator properties for all known aggregators. """
     def __init__(self):
         self.aggregator_properties = {}
