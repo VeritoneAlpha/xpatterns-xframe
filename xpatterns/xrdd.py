@@ -12,7 +12,7 @@ import inspect
 from pyspark import RDD, StorageLevel
 from pyspark.sql import *
 
-class XRdd:
+class XRdd(object):
     entry_trace = False
     exit_trace = False
     perf_count = None
