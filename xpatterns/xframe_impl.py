@@ -543,7 +543,7 @@ class XFrameImpl(object):
             schema = StructType(fields)
             rdd = self.rdd.repartition(number_of_partitions)
             sqlc = spark_sql_context()
-            res = sqlc.applySchema(rdd, schema)
+            res = sqlc.applySchema(rdd.rdd, schema)
             if name is not None:
                 res.registerTempTable(table_name)
         self._exit()
