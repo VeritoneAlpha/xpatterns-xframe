@@ -37,6 +37,15 @@ Download Library
 git clone https://github.com/atigeo/xframe.git xframe
 ```
 
+Build docker container
+----------------------
+Go to the docker directory and follow the build instructions in README.md.
+
+Review introductory presentation
+--------------------------------
+After starting docker container, browse to http://localhost:7777/tree.
+Then open infro/Presentation.ipynb.
+
 Use the Examples
 ----------------
 ```

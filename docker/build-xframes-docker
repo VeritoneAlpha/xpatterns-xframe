@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Build and run the xframes docker container 
+rm -rf /tmp/docker-build
+mkdir /tmp/docker-build
+cp -r ../docs /tmp/docker-build
+cp -r ../xpatterns /tmp/docker-build
+cp -r ../MachineLearningWithSpark /tmp/docker-build
+cp -r ../misc-notebooks /tmp/docker-build
+cp -r ../intro /tmp/docker-build
+cp Dockerfile /tmp/docker-build
+cp server.sh /tmp/docker-build
+cp docker-setup /tmp/docker-build
+cd /tmp/docker-build
+sudo docker build -t xframes .
