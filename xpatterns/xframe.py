@@ -165,6 +165,9 @@ class XFrame(object):
     ...     column_type_hints={'user_id': int})
     """
 
+    ## class variables
+    max_row_width = 80
+
     def __init__(self, data=None, format='auto', _impl=None, verbose=False):
         """__init__(data=list(), format='auto')
         Construct a new XFrame from a url, a pandas.DataFrame or a spark RDD or DataFrame.
@@ -279,6 +282,10 @@ class XFrame(object):
         xframe_size = -1
         if self.__has_size__():
           xframe_size = self.num_rows()
+
+    @classmethod
+    def set_max_row_width(cls, width=80):
+        cls.max_row_width = width
 
     @staticmethod
     def set_trace(entry_trace=None, exit_trace=None):
@@ -1096,7 +1103,9 @@ class XFrame(object):
         """
         MAX_ROWS_TO_DISPLAY = num_rows
 
-        row_of_tables = self.__get_pretty_tables__(wrap_text=False, max_rows_to_display=MAX_ROWS_TO_DISPLAY)
+        row_of_tables = self.__get_pretty_tables__(wrap_text=False, 
+                                                   max_rows_to_display=MAX_ROWS_TO_DISPLAY, 
+                                                   max_row_width=self.max_row_width)
         if (not footer):
             return '\n'.join([str(tb) for tb in row_of_tables])
 
