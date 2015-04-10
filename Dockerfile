@@ -40,9 +40,9 @@ RUN easy_install cloud-sptheme
 
 ADD server.sh /
 ADD xpatterns /notebooks/xpatterns
-ADD examples /notebooks/examples
 ADD MachineLearningWithSpark /notebooks/MachineLearningWithSpark
 ADD misc-notebooks /notebooks/misc-notebooks
+ADD intro /notebooks/intro
 ADD docker-setup /setup
 RUN chmod u+x /server.sh
 CMD ["/server.sh"]
