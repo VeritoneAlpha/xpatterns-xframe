@@ -69,7 +69,7 @@ XArray.count_ngrams (not implemented)
 
 XArray.filter (to be tested)
 
-XArray.save_as_text (not implemented)
+XArray.save_as_text (to be tested; on nonlocal filesystem)
 
 XArray.datetime_to_str (not implemented)
 
@@ -120,9 +120,12 @@ Toolkit
 	model parameter search
 
 	image analysis (load, resize)
-	graph analytics (connected components, graph coloring, k-core, pagerank, shortest path, triangle counting)
-	text_analytics (term frequency transformations, topic models, count words, count_ngrams, stopwords, etc
-	distance measures (euclidian, manhattan, cosine, dot product, jaccard, weighted jaccard, levenshtein, etc)
+	graph analytics (connected components, graph coloring, k-core, pagerank, 
+	    shortest path, triangle counting)
+	text_analytics (term frequency transformations, topic models, count words, 
+	    count_ngrams, stopwords, etc
+	distance measures (euclidian, manhattan, cosine, dot product, jaccard, 
+	    weighted jaccard, levenshtein, etc)
 
 
 Other Work Items

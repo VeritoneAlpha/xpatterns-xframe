@@ -1279,26 +1279,9 @@ class XFrameImpl(object):
         def make_key(row, key_cols):
             key = [row[col] for col in key_cols]
             return json.dumps(key)
-        # NOTE -- Bug in pySpark 1.3
-        # If preservesPartitioning=True is passed to this map, then the subsequent
-        # groupByKey will return multiple rows with the SAME KEY, at least for
-        # some datasets.  Suspect that keys in different partitions are not being
-        # merged.  This bug may show up even in the current form.
-#        keyed_rdd = self.rdd.map(lambda row: (make_key(row, key_cols), row))
-        ##### !!!!!
-#        print 'groupby'
-#        keyed_rdd = self.rdd.map(lambda row: (make_key(row, key_cols), row), preservesPartitioning=True)
         keyed_rdd = self.rdd.map(lambda row: (make_key(row, key_cols), row))
 
-#        print 'keyed_rdd'
-#        print keyed_rdd.toDebugString()
-#        print keyed_rdd.count()
-#        print keyed_rdd.collect()
         grouped = keyed_rdd.groupByKey()
-#        print 'grouped'
-#        print grouped.toDebugString()
-#        print grouped.count()
-#        print grouped.collect()
         grouped = grouped.map(lambda pair: (json.loads(pair[0]), pair[1]))
         # (key, [row ...]) ...
         # run the aggregator on y: count --> len(y); sum --> sum(y), etc
@@ -1412,18 +1395,10 @@ class XFrameImpl(object):
                 joined = keyed_left.rightOuterJoin(keyed_right)
 
             # throw away key now
-            pairs = joined.map(lambda row: row[1], preservesPartitioning=True) ##### !!!!!
-            # preservesPartitioning is not required here, because the abilkity to zip
-            # is destroyed anyway
-            # however, a bug in groupby can give multiple results for a singe key
-            # The use of preservesPartitioning is crucial to reproducing this bug.
-            # Once the bug is fixed, switch to the following commented-out lines
-            # and fix the one below als.
-#            pairs = joined.map(lambda row: row[1])
-#            pairs = joined.values()
+            pairs = joined.values()
 
         res = pairs.map(lambda row: combine_results(row[0], row[1], 
-                              left_count, right_count), preservesPartitioning=True) ##### !!!!!
+                              left_count, right_count))
 
         persist(res)
         self._exit(res, new_col_names, new_col_types)

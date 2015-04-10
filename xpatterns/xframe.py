@@ -2630,13 +2630,15 @@ class XFrame(object):
             key_columns = [key_columns]
         # check that every column is a string, and is a valid column name
         my_column_names = self.column_names()
+        my_column_types = self.column_types()
         key_columns_array = []
         for column in key_columns:
             if not isinstance(column, str):
                 raise TypeError("Column name must be a string")
             if column not in my_column_names:
                 raise KeyError("Column " + column + " does not exist in XFrame")
-            if self[column].dtype() == dict:
+            col_type = my_column_types[my_column_names.index(column)]
+            if col_type == dict:
                 raise TypeError("Cannot group on a dictionary column.")
             key_columns_array.append(column)
 

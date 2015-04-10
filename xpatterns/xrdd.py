@@ -22,7 +22,6 @@ class XRdd(object):
         self.id = rdd.id()
         self.structure_id = structure_id if structure_id else self.id
         self._entry(structure_id)
-#        print 'create XRdd', self.structure_id
         self._exit()
 
     def _entry(self, *args):
@@ -32,7 +31,12 @@ class XRdd(object):
         caller = stack[1]
         called_by = stack[2]
         if XRdd.entry_trace:
-            print 'enter RDD', caller[3], args, 'called by', called_by[3], 'id:', self.structure_id, self.id
+            print 'enter RDD', caller[3], args, \
+                'called by', called_by[3], '({}: {})'.format(called_by[1], called_by[2]), \
+                'id:', self.structure_id, self.id
+            for i in range(4, 6): 
+                if stack[i][3] == '<module>': break
+                print '   ', stack[i][3], stack[i][1], stack[i][2]
         if XRdd.perf_count is not None:
             my_fun = caller[3]
             if not my_fun in XRdd.perf_count:
