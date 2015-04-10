@@ -2843,7 +2843,7 @@ class TestXFrameSql(unittest.TestCase):
 
     def test_sql(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        res = t.sql("SELECT * FROM xframe WHERE id > 1")
+        res = t.sql("SELECT * FROM xframe WHERE id > 1 ORDER BY id")
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, str], res.column_types())
         self.assertEqual({'id': 2, 'val': 'b'}, res[0])
@@ -2851,7 +2851,7 @@ class TestXFrameSql(unittest.TestCase):
 
     def test_sql_name(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        res = t.sql("SELECT * FROM tmp_tbl WHERE id > 1", table_name='tmp_tbl')
+        res = t.sql("SELECT * FROM tmp_tbl WHERE id > 1 ORDER BY id", table_name='tmp_tbl')
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, str], res.column_types())
         self.assertEqual({'id': 2, 'val': 'b'}, res[0])

@@ -526,27 +526,6 @@ class XFrameImpl(object):
         self._exit()
         return self.rdd.rdd
 
-    def to_spark_dataframe(self, table_name, number_of_partitions=None):
-        """
-        Adds column name and type informaton to the rdd and returns it.
-        """
-        # TODO: add the option to give schema type hints, or look further to find
-        #   types for list and dict
-
-        self._entry(table_name, number_of_partitions)
-        first_row = self.head_as_list(1)[0]
-        fields = [StructField(name, to_schema_type(typ, first_row[i]), True) 
-                  for i, (name, typ) in enumerate(zip(self.col_names, self.column_types))]
-        schema = StructType(fields)
-        if number_of_partitions:
-            rdd = self.rdd.repartition(number_of_partitions)
-        sqlc = spark_sql_context()
-        res = sqlc.applySchema(rdd.rdd, schema)
-        if table_name is not None:
-            res.registerTempTable(table_name)
-        self._exit()
-        return res
-
     def to_spark_dataframe(self, table_name, number_of_partitions):
         """
         Adds column name and type information to the rdd and returns it.
@@ -564,7 +543,7 @@ class XFrameImpl(object):
             schema = StructType(fields)
             rdd = self.rdd.repartition(number_of_partitions)
             sqlc = spark_sql_context()
-            res = sqlc.applySchema(rdd.rdd, schema)
+            res = sqlc.applySchema(rdd, schema)
             if name is not None:
                 res.registerTempTable(table_name)
         self._exit()
