@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Build and run the xframes docker container 
+build_dir=/tmp/docker-build
 rm -rf /tmp/docker-build
 mkdir /tmp/docker-build
 cp -r ../docs /tmp/docker-build
