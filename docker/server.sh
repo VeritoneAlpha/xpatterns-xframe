@@ -25,5 +25,6 @@ fi
 source /setup
 cd /notebooks/docs && make html
 cd /notebooks
+cp -r docs/_build/html/* /usr/share/nginx/html
 service nginx start
 ipython2 notebook --no-browser --port 8888 --ip=* --matplotlib=inline
