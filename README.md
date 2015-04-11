@@ -44,23 +44,11 @@ Go to the docker directory and follow the build instructions in README.md.
 Review introductory presentation
 --------------------------------
 After starting docker container, browse to http://localhost:7777/tree.
-Then open infro/Presentation.ipynb.
-
-Use the Examples
-----------------
-```
-xframe$ ipython
->>> import xpatterns.xframe 
->>> import examples.example1 as example1
->>> example1.add(2, 5)
-7
-```
+Then open info/Presentation.ipynb.
 
 Documentation
 -------------
-[https://xpatterns.com/products/xframe/lib/docs](https://xpatterns.com/products/xframe/lib/docs/index.html)
-
-Alternatively, there is local documentation in xframe/docs/_build/html/index.html.
+You can view local documentation in localhost:8000
 
 License
 -------
