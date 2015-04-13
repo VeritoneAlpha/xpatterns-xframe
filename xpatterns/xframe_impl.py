@@ -746,10 +746,13 @@ class XFrameImpl(object):
 
     def add_column(self, data, name):
         """
-        Add a column to this XFrame. The number of elements in the data given
-        must match the length of every other column of the XFrame. This
-        operation modifies the current XFrame in place and returns self. If no
+        Add a column to this XFrame. 
+
+        The number of elements in the data given
+        must match the length of every other column of the XFrame. If no
         name is given, a default name is chosen.
+
+        This operation modifies the current XFrame in place and returns self.         
         """
         self._entry(data, name)        
         col = len(self.col_names)
@@ -772,9 +775,12 @@ class XFrameImpl(object):
 
     def add_columns_array(self, cols, namelist):
         """
-        Adds multiple columns to this XFrame. The number of elements in all
+        Adds multiple columns to this XFrame. 
+
+        The number of elements in all
         columns must match the length of every other column of the RDDs. 
         Each column added is an XArray.
+
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry(cols, namelist)
@@ -791,9 +797,12 @@ class XFrameImpl(object):
 
     def add_columns_frame(self, other):
         """
-        Adds multiple columns to this XFrame. The number of elements in all
+        Adds multiple columns to this XFrame. 
+
+        The number of elements in all
         columns must match the length of every other column of the RDD. 
         The columns to be added are in an XFrame.
+
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry(other)
@@ -801,7 +810,6 @@ class XFrameImpl(object):
         types = self.column_types + other.__impl__.column_types
         def merge(old_cols, new_cols):
             return old_cols + new_cols
-        # zip restriction: data must match in length and partition structure
         rdd = self._rdd.zip(other.__impl__._rdd)
         res = rdd.map(lambda pair: merge(pair[0], pair[1]))
         self._exit(res, names, types)
