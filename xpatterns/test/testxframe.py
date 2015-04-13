@@ -20,8 +20,8 @@ from pyspark.sql.types import StructType, StructField, IntegerType, StringType
 
 # python testxframe.py
 # python -m unittest testxframe
-# python -m unittest testxframe.TestXFrameConstructorLocal
-# python -m unittest testxarray.TestXArrayConstructorLocal.test_construct_list_float_infer
+# python -m unittest testxframe.TestXFrameConstructor
+# python -m unittest testxarray.TestXArrayConstructor.test_construct_list_float_infer
 
 from xpatterns import XArray
 from xpatterns import XFrame
