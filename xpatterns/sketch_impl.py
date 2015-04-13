@@ -47,7 +47,7 @@ class SketchImpl(object):
             raise NotImplementedError('sub_sketch_keys mode not implemented')
 
         # calculate some basic statistics in one pass
-        defined = xa.rdd.filter(lambda x: not is_missing(x))
+        defined = xa._rdd.filter(lambda x: not is_missing(x))
         self.sketch_type = 'numeric' if xa.dtype() in (int, float) else 'non-numeric'
         if self.sketch_type == 'numeric':
             stats = defined.stats()
@@ -68,7 +68,7 @@ class SketchImpl(object):
             self.stdev_val = None
 
         # compute these later if needed
-        self.rdd = xa.rdd
+        self._rdd = xa._rdd
         self.num_undefined_val = None
         self.num_unique_val = None
         self.quantile_accumulator = None
@@ -86,7 +86,7 @@ class SketchImpl(object):
         epsilon = 0.01
         delta = 0.1
         accumulator = QuantileAccumulator(self.min_val, self.max_val, num_levels, epsilon, delta)
-        accumulators = self.rdd.mapPartitions(accumulator)
+        accumulators = self._rdd.mapPartitions(accumulator)
         return accumulators.reduce(lambda x, y: x.merge(y))
 
     def _create_frequency_sketch(self):
@@ -94,7 +94,7 @@ class SketchImpl(object):
         epsilon = 0.01
         delta = 0.1
         accumulator = FreqSketch(num_items, epsilon, delta)
-        accumulators = self.rdd.mapPartitions(accumulator.iterate_values)
+        accumulators = self._rdd.mapPartitions(accumulator.iterate_values)
         return accumulators.aggregate(FreqSketch.initial_accumulator_value(), 
                                       FreqSketch.merge_accumulator_value, 
                                       FreqSketch.merge_accumulators)
@@ -129,12 +129,12 @@ class SketchImpl(object):
 
     def num_undefined(self):
         if self.num_undefined_val is None:
-            self.num_undefined_val = self.rdd.filter(lambda x: is_missing(x)).count()
+            self.num_undefined_val = self._rdd.filter(lambda x: is_missing(x)).count()
         return self.num_undefined_val
 
     def num_unique(self):
         if self.num_unique_val is None:
-            self.num_unique_val = self.rdd.distinct().count()
+            self.num_unique_val = self._rdd.distinct().count()
         return self.num_unique_val
 
     def frequent_items(self):
