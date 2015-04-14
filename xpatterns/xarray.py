@@ -1878,7 +1878,7 @@ class XArray(object):
         """
         Length of each element in the current XArray.
 
-        Only works on XArrays of dict, array, or list type. If a given element
+        Only works on XArrays of string, dict, array, or list type. If a given element
         is a missing value, then the output elements is also a missing value.
         This function is equivalent to the following but more performant:
 
@@ -1904,8 +1904,8 @@ class XArray(object):
         Rows: 6
         [2, 3, 3, 1, 2, None]
         """
-        if (self.dtype() not in [list, dict, array.array]):
-            raise TypeError("item_length() is only applicable for XArray of type list, " +
+        if (self.dtype() not in [str, list, dict, array.array]):
+            raise TypeError("item_length() is only applicable for XArray of type str, list, " +
                             "dict and array.")
 
         return XArray(_impl = self.__impl__.item_length())
