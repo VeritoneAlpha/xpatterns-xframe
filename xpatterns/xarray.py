@@ -1165,6 +1165,68 @@ class XArray(object):
         return XArray(_impl=self.__impl__.transform(fn, dtype, skip_undefined, seed))
 
 
+    def flat_map(self, fn=None, dtype=None, skip_undefined=True, seed=None):
+        """
+        flat_map(fn, dtype=None, skip_undefined=True)
+
+        Transform each element of the XArray by a given function, which must return 
+        a list. Each item in the result XArray is made up of a list element.
+        The result XArray is of type ``dtype``. ``fn`` should be a function that returns
+        a list of values which can be cast into the type specified by
+        ``dtype``. If ``dtype`` is not specified, the first 100 elements of the
+        XArray are used to make a guess about the data type.
+
+        Parameters
+        ----------
+        fn : function
+            The function to transform each element. Must return a list of 
+            values which can be cast into the type specified by ``dtype``.
+
+        dtype : {None, int, float, str, list, array.array, dict}, optional
+            The data type of the new XArray. If ``None``, the first 100 elements
+            of the array are used to guess the target data type.
+
+        skip_undefined : bool, optional
+            If True, will not apply ``fn`` to any undefined values.
+
+        seed : int, optional
+            Used as the seed if a random number generator is included in ``fn``.
+
+        Returns
+        -------
+        out : XArray
+            The XArray transformed by ``fn`` and flattened. Each element of the XArray is of
+            type ``dtype``.
+
+        See Also
+        --------
+        XFrame.flat_map
+
+        Examples
+        --------
+        >>> xa = xpatterns.XArray([[1], [1, 2], [1, 2, 3]])
+        >>> xa.apply(lambda x: x*2)
+        dtype: int
+        Rows: 3
+        [2, 2, 4, 2, 4, 6]
+
+        """
+
+        if fn is None:
+            fn = lambda x: x
+        assert inspect.isfunction(fn), "Input must be a function"
+
+        if dtype is None:
+            h = self.__impl__.head_as_list(100)
+            dryrun = [fn(i) for i in h if i is not None]
+            dryrun = [item for lst in dryrun for item in lst]
+            dtype = infer_type_of_list(dryrun)
+        if not seed:
+            seed = time.time()
+
+        return XArray(_impl=self.__impl__.flat_map(fn, dtype, skip_undefined, seed))
+
+
     def filter(self, fn, skip_undefined=True, seed=None):
         """
         Filter this XArray by a function.

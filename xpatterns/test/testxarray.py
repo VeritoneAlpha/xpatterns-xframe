@@ -845,6 +845,87 @@ class TestXArrayApply(unittest.TestCase):
         with self.assertRaises(AssertionError):
             res = t.apply(1)
 
+class TestXArrayFlatMap(unittest.TestCase):
+    """ 
+    Tests XArray flat_map
+    """
+    def test_flat_map(self):
+        t = XArray([[1], [1, 2], [1, 2, 3]])
+        res = t.flat_map(lambda x: x)
+        self.assertEqual(6, len(res))
+        self.assertEqual(int, res.dtype())
+        self.assertEqual(1, res[0])
+        self.assertEqual(1, res[1])
+        self.assertEqual(2, res[2])
+        self.assertEqual(1, res[3])
+        self.assertEqual(2, res[4])
+        self.assertEqual(3, res[5])
+
+    def test_flat_map_int(self):
+        t = XArray([[1], [1, 2], [1, 2, 3]])
+        res = t.flat_map(lambda x: [v * 2 for v in x])
+        self.assertEqual(6, len(res))
+        self.assertEqual(int, res.dtype())
+        self.assertEqual(2, res[0])
+        self.assertEqual(2, res[1])
+        self.assertEqual(4, res[2])
+        self.assertEqual(2, res[3])
+        self.assertEqual(4, res[4])
+        self.assertEqual(6, res[5])
+
+    def test_flat_map_str(self):
+        t = XArray([['a'], ['a', 'b'], ['a', 'b', 'c']])
+        res = t.flat_map(lambda x: x)
+        self.assertEqual(6, len(res))
+        self.assertEqual(str, res.dtype())
+        self.assertEqual('a', res[0])
+        self.assertEqual('a', res[1])
+        self.assertEqual('b', res[2])
+        self.assertEqual('a', res[3])
+        self.assertEqual('b', res[4])
+        self.assertEqual('c', res[5])
+
+    def test_flat_map_float_cast(self):
+        t = XArray([[1], [1, 2], [1, 2, 3]])
+        res = t.flat_map(lambda x: x, dtype=float)
+        self.assertEqual(6, len(res))
+        self.assertEqual(float, res.dtype())
+        self.assertEqual(1.0, res[0])
+        self.assertEqual(1.0, res[1])
+        self.assertEqual(2.0, res[2])
+        self.assertEqual(1.0, res[3])
+        self.assertEqual(2.0, res[4])
+        self.assertEqual(3.0, res[5])
+
+    def test_flat_map_skip_undefined(self):
+        t = XArray([[1], [1, 2], [1, 2, 3], None, [None]])
+        res = t.flat_map(lambda x: x)
+        self.assertEqual(6, len(res))
+        self.assertEqual(int, res.dtype())
+        self.assertEqual(1, res[0])
+        self.assertEqual(1, res[1])
+        self.assertEqual(2, res[2])
+        self.assertEqual(1, res[3])
+        self.assertEqual(2, res[4])
+        self.assertEqual(3, res[5])
+
+    def test_flat_map_no_fun(self):
+        t = XArray([[1], [1, 2], [1, 2, 3]])
+        res = t.flat_map()
+        self.assertEqual(6, len(res))
+        self.assertEqual(int, res.dtype())
+        self.assertEqual(1, res[0])
+        self.assertEqual(1, res[1])
+        self.assertEqual(2, res[2])
+        self.assertEqual(1, res[3])
+        self.assertEqual(2, res[4])
+        self.assertEqual(3, res[5])
+
+    def test_flat_map_type_err(self):
+        t = XArray([[1], [1, 2], [1, 2, 3], [None]])
+        with self.assertRaises(ValueError):
+            res = t.flat_map(lambda x: x * 2, skip_undefined=False)
+
 class TestXArrayFilter(unittest.TestCase):
     """ 
     Tests XArray filter

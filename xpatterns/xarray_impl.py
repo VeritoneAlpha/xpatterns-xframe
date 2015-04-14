@@ -673,6 +673,37 @@ class XArrayImpl(object):
         self._exit()
         return self._rv(res, dtype)
 
+    def flat_map(self, fn, dtype, skip_undefined, seed):
+        """
+        Implementation of flat_map(fn, dtype, skip_undefined, seed).
+
+        Transform each element of the RDD by a given function, then flatten. The result
+        RDD is of type ``dtype``. ``fn`` should be a function that returns
+        a list of values which can be cast into the type specified by
+        ``dtype``. 
+        """
+        self._entry(fn, dtype, skip_undefined, seed)
+        def apply_and_cast(x, fn, dtype, skip_undefined):
+            if is_missing(x) and skip_undefined: return []
+            try:
+                if skip_undefined:
+                    return [ dtype(item) for item in fn(x) if not is_missing(item)]
+                return [ dtype(item) for item in fn(x)]
+            except TypeError as e:
+                return TypeError
+
+        res = self._rdd.flatMap(lambda x: apply_and_cast(x, fn, dtype, skip_undefined))
+
+        # search for type error and throw exception
+        try:
+            errs = res.filter(lambda x: x is TypeError).take(1)
+        except Exception as e:
+            raise ValueError('type conversion failure')
+        if len(errs) > 0:
+            raise ValueError('type conversion failure')
+        self._exit()
+        return self._rv(res, dtype)
+
     def astype(self, dtype, undefined_on_failure):
         """
         Create a new rdd with all values cast to the given type. Throws an
