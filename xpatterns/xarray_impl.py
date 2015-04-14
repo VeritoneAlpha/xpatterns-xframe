@@ -1037,7 +1037,7 @@ class XArrayImpl(object):
             raise TypeError('item_length: must be string, dict, array, or list {}'.format(self.elem_type))
         res = self._rdd.map(lambda x: len(x) if x is not None else None, preservesPartitioning=True)
         self._exit()
-        return self._rv(res)
+        return self._rv(res, int)
 
     # Date/Time Handling
     def expand(self, column_name_prefix, limit, column_types):

@@ -1763,19 +1763,27 @@ class TestXArrayItemLength(unittest.TestCase):
             res = t.item_length()
 
     def test_item_length_str(self):
-        t = XArray(['a', 'b', 'c'])
-        with self.assertRaises(TypeError):
-            res = t.item_length()
+        t = XArray(['a', 'bb', 'ccc'])
+        res = t.item_length()
+        self.assertTrue(eq_list([1, 2, 3], res))
+        self.assertEqual(int, res.dtype())
 
     def test_item_length_list(self):
         t = XArray([[1], [1, 2], [1, 2, 3]])
         res = t.item_length()
         self.assertTrue(eq_list([1, 2, 3], res))
+        self.assertEqual(int, res.dtype())
 
     def test_item_length_dict(self):
-        pass
-##### something is missing here #####
+        t = XArray([{1: 'a'}, {1: 'a', 2: 'b'}, {1: 'a', 2: 'b', 3: '3'}])
+        res = t.item_length()
+        self.assertTrue(eq_list([1, 2, 3], res))
+        self.assertEqual(int, res.dtype())
 
+class TestXArrayUnpack(unittest.TestCase):
+    """ 
+    Tests XArray unpack
+    """
     def test_unpack_str(self):
         t = XArray(['a', 'b', 'c'])
         with self.assertRaises(TypeError):
