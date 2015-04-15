@@ -70,7 +70,7 @@ class XPlot(object):
         --------
         (Come up with an example)
         """
-        top_rows = self.xframe.topk(x_col, k)
+        top_rows = self.xframe.topk(x_col, k=k)
         items = [(row[y_col], row[x_col]) for row in top_rows]
     
         try:
