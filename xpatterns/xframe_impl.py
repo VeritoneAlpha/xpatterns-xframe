@@ -400,6 +400,31 @@ class XFrameImpl(object):
         # returns a dict of errors
         return {}
 
+    def read_from_text(self, path, delimiter, nrows, verbose):
+        """
+        Load RDD from a text file
+        """
+        # TODO handle nrows, verbose
+        self._entry(path)
+        sc = spark_context()
+        if delimiter is None:
+            rdd = sc.textFile(path)
+            res = rdd.map(lambda line: [line.encode('utf-8')])
+        else:
+            conf = {'textinputformat.record.delimiter': delimiter}
+            rdd = sc.newAPIHadoopFile(path, 
+                                      "org.apache.hadoop.mapreduce.lib.input.TextInputFormat",
+                                      "org.apache.hadoop.io.Text",
+                                      "org.apache.hadoop.io.Text",
+                                      conf=conf)
+
+            def fixup_line(line):
+                return str(line).replace('\n', ' ').strip()
+            res = rdd.values().map(lambda line: [fixup_line(line)])
+        col_names = ['text']
+        col_types = [str]
+        self._exit()
+        return self._replace(res, col_names, col_types)
 
     def load_from_parquet(self, path):
         """

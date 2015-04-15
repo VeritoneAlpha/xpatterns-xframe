@@ -41,7 +41,7 @@ class TestXFrameConstructor(unittest.TestCase):
 
     def test_construct_auto_str_csv(self):
         path = 'files/test-frame.csv'
-        res = XFrame(path, verbose=False)
+        res = XFrame(path)
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, str], res.column_types())
@@ -51,7 +51,7 @@ class TestXFrameConstructor(unittest.TestCase):
 
     def test_construct_auto_str_tsv(self):
         path = 'files/test-frame.tsv'
-        res = XFrame(path, verbose=False)
+        res = XFrame(path)
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, str], res.column_types())
@@ -61,7 +61,7 @@ class TestXFrameConstructor(unittest.TestCase):
 
     def test_construct_auto_str_psv(self):
         path = 'files/test-frame.psv'
-        res = XFrame(path, verbose=False)
+        res = XFrame(path)
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, str], res.column_types())
@@ -172,7 +172,7 @@ class TestXFrameReadCsv(unittest.TestCase):
 
     def test_read_csv(self):
         path = 'files/test-frame.csv'
-        res = XFrame.read_csv(path, verbose=False)
+        res = XFrame.read_csv(path)
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, str], res.column_types())
@@ -192,7 +192,7 @@ class TestXFrameReadCsv(unittest.TestCase):
 
     def test_read_csv_delim(self):
         path = 'files/test-frame.psv'
-        res = XFrame.read_csv(path, delimiter='|', verbose=False)
+        res = XFrame.read_csv(path, delimiter='|')
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, str], res.column_types())
@@ -202,7 +202,7 @@ class TestXFrameReadCsv(unittest.TestCase):
 
     def test_read_csv_no_header(self):
         path = 'files/test-frame-no-header.csv'
-        res = XFrame.read_csv(path, header=False, verbose=False)
+        res = XFrame.read_csv(path, header=False)
         self.assertEqual(3, len(res))
         self.assertEqual(['X.0', 'X.1'], res.column_names())
         self.assertEqual([int, str], res.column_types())
@@ -212,7 +212,7 @@ class TestXFrameReadCsv(unittest.TestCase):
 
     def test_read_csv_comment(self):
         path = 'files/test-frame-comment.csv'
-        res = XFrame.read_csv(path, comment_char='#', verbose=False)
+        res = XFrame.read_csv(path, comment_char='#')
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, str], res.column_types())
@@ -222,7 +222,7 @@ class TestXFrameReadCsv(unittest.TestCase):
 
     def test_read_csv_escape(self):
         path = 'files/test-frame-escape.csv'
-        res = XFrame.read_csv(path, verbose=False)
+        res = XFrame.read_csv(path)
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, str], res.column_types())
@@ -232,7 +232,7 @@ class TestXFrameReadCsv(unittest.TestCase):
 
     def test_read_csv_escape_custom(self):
         path = 'files/test-frame-escape-custom.csv'
-        res = XFrame.read_csv(path, escape_char='$', verbose=False)
+        res = XFrame.read_csv(path, escape_char='$')
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, str], res.column_types())
@@ -242,7 +242,7 @@ class TestXFrameReadCsv(unittest.TestCase):
 
     def test_read_csv_initial_space(self):
         path = 'files/test-frame-initial_space.csv'
-        res = XFrame.read_csv(path, skip_initial_space=True, verbose=False)
+        res = XFrame.read_csv(path, skip_initial_space=True)
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, str], res.column_types())
@@ -252,7 +252,7 @@ class TestXFrameReadCsv(unittest.TestCase):
 
     def test_read_csv_hints_type(self):
         path = 'files/test-frame.csv'
-        res = XFrame.read_csv(path, column_type_hints=str, verbose=False)
+        res = XFrame.read_csv(path, column_type_hints=str)
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([str, str], res.column_types())
@@ -262,7 +262,7 @@ class TestXFrameReadCsv(unittest.TestCase):
 
     def test_read_csv_hints_list(self):
         path = 'files/test-frame-extra.csv'
-        res = XFrame.read_csv(path, column_type_hints=[str, str, int], verbose=False)
+        res = XFrame.read_csv(path, column_type_hints=[str, str, int])
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val1', 'val2'], res.column_names())
         self.assertEqual([str, str, int], res.column_types())
@@ -272,7 +272,7 @@ class TestXFrameReadCsv(unittest.TestCase):
 
     def test_read_csv_hints_dict(self):
         path = 'files/test-frame-extra.csv'
-        res = XFrame.read_csv(path, column_type_hints={'val2': int}, verbose=False)
+        res = XFrame.read_csv(path, column_type_hints={'val2': int})
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val1', 'val2'], res.column_names())
         self.assertEqual([str, str, int], res.column_types())
@@ -282,7 +282,7 @@ class TestXFrameReadCsv(unittest.TestCase):
 
     def test_read_csv_na(self):
         path = 'files/test-frame-na.csv'
-        res = XFrame.read_csv(path, na_values='None', verbose=False)
+        res = XFrame.read_csv(path, na_values='None')
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, str], res.column_types())
@@ -292,13 +292,38 @@ class TestXFrameReadCsv(unittest.TestCase):
 
     def test_read_csv_na_mult(self):
         path = 'files/test-frame-na.csv'
-        res = XFrame.read_csv(path, na_values=['NA', 'None'], verbose=False)
+        res = XFrame.read_csv(path, na_values=['NA', 'None'])
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, str], res.column_types())
         self.assertEqual({'id': 1, 'val': None}, res[0])
         self.assertEqual({'id': None, 'val': 'b'}, res[1])
         self.assertEqual({'id': 3, 'val': 'c'}, res[2])
+
+class TestXFrameReadText(unittest.TestCase):
+    """
+    Tests XFrame read_text
+    """
+
+    def test_read_text(self):
+        path = 'files/test-frame-text.txt'
+        res = XFrame.read_text(path)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['text',], res.column_names())
+        self.assertEqual([str], res.column_types())
+        self.assertEqual({'text': 'This is a test'}, res[0])
+        self.assertEqual({'text': 'of read_text.'}, res[1])
+        self.assertEqual({'text': 'Here is another sentence.'}, res[2])
+
+    def test_read_text_delimited(self):
+        path = 'files/test-frame-text.txt'
+        res = XFrame.read_text(path, delimiter='.')
+        self.assertEqual(3, len(res))
+        self.assertEqual(['text',], res.column_names())
+        self.assertEqual([str], res.column_types())
+        self.assertEqual({'text': 'This is a test of read_text'}, res[0])
+        self.assertEqual({'text': 'Here is another sentence'}, res[1])
+        self.assertEqual({'text': ''}, res[2])
 
 class TestXFrameReadParquet(unittest.TestCase):
     """

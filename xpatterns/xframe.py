@@ -27,11 +27,11 @@ import xpatterns
 
 __all__ = ['XFrame']
 
-FOOTER_STRS = ['Note: Only the head of the XFrame is printed.',
-               'You can use print_rows(num_rows=m, num_columns=n) to print more rows and columns.']
+FOOTER_STRS = ['Note: Only the head of the XFrame is printed.  You can use ',
+               'print_rows(num_rows=m, num_columns=n) to print more rows and columns.']
 
-LAZY_FOOTER_STRS = ['Note: Only the head of the XFrame is printed. This XFrame is lazily evaluated.',
-                    'You can use len(xf) to force materialization.']
+LAZY_FOOTER_STRS = ['Note: Only the head of the XFrame is printed. This XFrame is lazily ',
+                    'evaluated.  You can use len(xf) to force materialization.']
 
 class XFrame(object):
     """
@@ -887,6 +887,95 @@ class XFrame(object):
 
 
     @classmethod
+    def read_text(cls,
+                 url,
+                 delimiter=None,
+                 nrows=None,
+                 verbose=False):
+        """
+        Constructs an XFrame from a text file or a path to multiple text files.
+
+        Parameters
+        ----------
+        url : string
+            Location of the text file or directory to load. If URL is a directory
+            or a "glob" pattern, all matching files will be loaded.
+
+        delimiter : string, optional
+            This describes the delimiter used for separating records. Must be a
+            single character.  Defaults to newline.
+
+        nrows : int, optional
+            If set, only this many rows will be read from the file.
+
+        verbose : bool, optional
+            If True, print the progress while reading files.
+
+        Returns
+        -------
+        out : XFrame
+
+        Examples
+        --------
+
+        Read a regular text file, with default options.
+
+        >>> url = 'http://s3.amazonaws.com/gl-testdata/rating_data_example.csv'
+        >>> xf = xpatterns.XFrame.read_text(url)
+        >>> xf
+        +-------
+        | text |
+        +---------+
+        |  25904  |
+        |  25907  |
+        |  25923  |
+        |  25924  |
+        |  25928  |
+        |   ...   |
+        +---------+
+        [10000 rows x 1 column]
+
+        Read only the first 100 lines of the text file:
+
+        >>> xf = xpatterns.XFrame.read_text(url, nrows=100)
+        >>> xf
+        Rows: 100
+        +---------+
+        |  25904  |
+        |  25907  |
+        |  25923  |
+        |  25924  |
+        |  25928  |
+        |   ...   |
+        +---------+
+        [100 rows x 1 columns]
+
+        Read using a given delimiter.
+
+        >>> xf = xpatterns.XFrame.read_text(url, delimiter='.')
+        >>> xf
+        Rows: 250
+        +---------+
+        |  25904  |
+        |  25907  |
+        |  25923  |
+        |  25924  |
+        |  25928  |
+        |   ...   |
+        +---------+
+        [250 rows x 1 columns]
+
+
+        """
+
+        impl = XFrameImpl()
+        impl.read_from_text(url,
+                            delimiter=delimiter,
+                            nrows=nrows,
+                            verbose=verbose)
+        return cls(_impl=impl)
+
+    @classmethod
     def read_parquet(cls, url, verbose=False):
         """
         Constructs an XFrame from a parquet file.
@@ -1707,7 +1796,8 @@ class XFrame(object):
         if type(column_name) is not str:
             raise TypeError("column_name must be a string")
 
-        xf = self[self[column_name].topk_index(k, reverse)]
+#        print 'topk k', k
+        xf = self[self[column_name].topk_index(topk=k, reverse=reverse)]
         return xf.sort(column_name, ascending=reverse)
 
     def save(self, filename, format=None):
