@@ -18,3 +18,4 @@ from xpatterns.toolkit import recommend as recommender
 from xpatterns.toolkit import classify as classifier
 from xpatterns.toolkit import cluster
 from xpatterns.toolkit import regression
+from xpatterns.toolkit import text
