@@ -17,6 +17,7 @@ import sys
 
 import pandas
 
+from xpatterns.xobject import XObject
 from xpatterns.xframe_impl import XFrameImpl
 from xpatterns.xplot import XPlot
 from xpatterns.xarray_impl import infer_type_of_list
@@ -33,7 +34,7 @@ FOOTER_STRS = ['Note: Only the head of the XFrame is printed.  You can use ',
 LAZY_FOOTER_STRS = ['Note: Only the head of the XFrame is printed. This XFrame is lazily ',
                     'evaluated.  You can use len(xf) to force materialization.']
 
-class XFrame(object):
+class XFrame(XObject):
     """
     A tabular, column-mutable dataframe object that can scale to big data. 
     XFrame is able to hold data that are much larger than the machine's main
@@ -286,27 +287,6 @@ class XFrame(object):
     @classmethod
     def set_max_row_width(cls, width=80):
         cls.max_row_width = width
-
-    @staticmethod
-    def set_trace(entry_trace=None, exit_trace=None):
-        """
-        Set XFrame tracing.
-
-        Turns on and off tracing of XFrame method calls.
-        When entry tracing is on, a message is written when each XFrame method is entered,
-        giving its imput parameters.  
-        When exit tracing is on, then a message is written when each method exits.
-
-        Parameters
-        ----------
-        entry_trace, boolean, optional
-            If True, turn on entry tracing.  Defaults to False.
-
-        exit_trace, boolean, optional
-            If True, turns on exit tracing.  Defaults to False.
-
-        """
-        XFrameImpl.set_trace(entry_trace, exit_trace)
 
     @staticmethod
     def _infer_column_types_from_lines(first_rows, delimiter, na_values):
@@ -1004,32 +984,6 @@ class XFrame(object):
     def dump_debug_info(self):
         return self.__impl__.dump_debug_info()
         
-
-    @staticmethod
-    def spark_context():
-        """
-        Get the spark context.
-
-        Returns
-        -------
-        out : SparkContext
-            The spark context.  
-            If no context has been created yet, then one is created.
-        """
-        return XFrameImpl.spark_context()
-
-    @staticmethod
-    def spark_sql_context():
-        """
-        Get the spark sql context.
-
-        Returns
-        -------
-        out : SparkSqlContext
-            The spark sql context.  
-            If no sql context has been created yet, then one is created.
-        """
-        return XFrameImpl.spark_sql_context()
 
 
     def __get_column_description__(self):

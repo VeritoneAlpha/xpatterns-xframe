@@ -15,6 +15,7 @@ import ast
 import csv
 import StringIO
 
+from xpatterns.xobject_impl import XObjectImpl;
 from xpatterns.spark_context import spark_context, spark_sql_context
 from xpatterns.util import infer_type_of_list, cache, uncache
 from xpatterns.util import delete_file_or_dir, infer_type, infer_types
@@ -43,7 +44,7 @@ class ReverseCmp(object):
     def __ne__(self, other):
         return self.obj != other.obj
 
-class XArrayImpl(object):
+class XArrayImpl(XObjectImpl):
     # What is missing:
     # sum over arrays
     # datetime functions
@@ -59,7 +60,7 @@ class XArrayImpl(object):
         # Types permitted include int, long, float, string, list, and dict.
         # We record the element type here.
         self._entry(elem_type)
-        self._rdd = rdd
+        super(XArrayImpl, self).__init__(rdd)
         self.elem_type = elem_type
         self.materialized = False
         self._exit()
@@ -77,7 +78,7 @@ class XArrayImpl(object):
         return xp.xframe_impl.XFrameImpl(rdd, col_names, types)
 
     def _replace(self, rdd, dtype):
-        self._rdd = rdd
+        self._replace_rdd(rdd)
         self.elem_type = dtype
         self.materialized = False
 
@@ -103,22 +104,6 @@ class XArrayImpl(object):
         if XArrayImpl.exit_trace:
             print 'exit xArray', inspect.stack()[1][3]
         pass
-
-    @classmethod
-    def set_trace(cls, entry_trace=None, exit_trace=None):
-        cls.entry_trace = cls.entry_trace if entry_trace is None else entry_trace
-        cls.exit_trace = cls.exit_trace if exit_trace is None else exit_trace
-
-    @classmethod
-    def set_perf_count(cls, enable=True):
-        cls.perf_count = {} if enable else None
-
-    @classmethod
-    def get_perf_count(cls):
-        return cls.perf_count
-
-    def dump_debug_info(self):
-        return self._rdd.toDebugString()
 
     @staticmethod
     def create_sequential_xarray(size, start, reverse):
@@ -146,7 +131,7 @@ class XArrayImpl(object):
 
         sc = spark_context()
         if len(values) == 0:
-            self._rdd = XRdd(sc.parallelize([]))
+            self._replace_rdd(XRdd(sc.parallelize([])))
             self.elem_type = dtype     # or should it be None ?
             self._exit()
             return
@@ -304,7 +289,7 @@ class XArrayImpl(object):
         """
         self._entry(number_of_partitions)
         if number_of_partitions:
-            self._rdd = self._rdd.repartition(number_of_partitions)
+            self._replace_rdd(self._rdd.repartition(number_of_partitions))
         res = self._rdd.RDD()
         self._exit()
         return res

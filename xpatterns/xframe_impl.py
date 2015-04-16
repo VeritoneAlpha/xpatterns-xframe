@@ -13,7 +13,6 @@ import pickle
 import csv
 import StringIO
 
-from pyspark import RDD
 from pyspark.sql import *
 from pyspark.sql.types import StringType, BooleanType, \
     DoubleType, FloatType, \
@@ -21,7 +20,7 @@ from pyspark.sql.types import StringType, BooleanType, \
     ArrayType, MapType, \
     StructField, StructType
 
-from xpatterns.spark_context import spark_context, spark_sql_context
+from xpatterns.xobject_impl import XObjectImpl;
 from xpatterns.util import infer_type_of_list, infer_type_of_rdd, infer_type
 from xpatterns.util import cache, uncache, persist, unpersist
 from xpatterns.util import is_missing, is_missing_or_empty
@@ -78,7 +77,7 @@ def to_schema_type(typ, elem):
         return MapType(key_type, val_type)
     return StringType()
 
-class XFrameImpl(object):
+class XFrameImpl(XObjectImpl):
     """ Implementation for XFrame. """
 
     entry_trace = False
@@ -94,11 +93,9 @@ class XFrameImpl(object):
         Types permitted include int, long, float, string, list, and dict.
         """
         self._entry(col_names, column_types)
+        super(XFrameImpl, self).__init__(rdd)
         col_names = col_names or []
         column_types = column_types or []
-        if isinstance(rdd, RDD):
-            rdd = XRdd(rdd)
-        self._rdd = rdd
         self.col_names = list(col_names)
         self.column_types = list(column_types)
 
@@ -115,8 +112,9 @@ class XFrameImpl(object):
         # only use defaults if values are None, not []
         col_names = self.col_names if col_names is None else col_names
         column_types = self.column_types if column_types is None else column_types
-        if isinstance(rdd, RDD):
-            rdd = XRdd(rdd)
+        # TODO remove
+#        if isinstance(rdd, RDD):
+#            rdd = XRdd(rdd)
         return XFrameImpl(rdd, col_names, column_types)
 
     def _reset():
@@ -133,9 +131,7 @@ class XFrameImpl(object):
         Column names and types default to the existing ones.
         This is typically used when a function modifies the current XFrame.
         """
-        if isinstance(rdd, RDD):
-            rdd = XRdd(rdd)
-        self._rdd = rdd
+        self._replace_rdd(rdd)
         if col_names is not None: self.col_names = col_names
         if column_types is not None: self.column_types = column_types
         self.materialized = False
@@ -165,27 +161,6 @@ class XFrameImpl(object):
         """ Trace function exit. """
         if XFrameImpl.exit_trace:
             print 'exit xFrame', inspect.stack()[1][3], args
-
-    @classmethod
-    def set_trace(cls, entry_trace=None, exit_trace=None):
-        cls.entry_trace = cls.entry_trace if entry_trace is None else entry_trace
-        cls.exit_trace = cls.exit_trace if exit_trace is None else exit_trace
-
-    @classmethod
-    def set_perf_count(cls, enable=True):
-        cls.perf_count = {} if enable else None
-
-    @classmethod
-    def get_perf_count(cls):
-        return cls.perf_count
-
-    @staticmethod
-    def spark_context():
-        return spark_context()
-
-    @staticmethod
-    def spark_sql_context():
-        return spark_sql_context()
 
     def dump_debug_info(self):
         return self._rdd.toDebugString()
@@ -221,7 +196,7 @@ class XFrameImpl(object):
         Create XFrame from a saved xframe.
         """
         # read rdd
-        sc = spark_context()
+        sc = cls.spark_context()
         res = sc.pickleFile(path)
         # read metadata from the same directory
         metadata_path = os.path.join(path, '_metadata')
@@ -253,7 +228,7 @@ class XFrameImpl(object):
         if not type(na_values) == list:
             na_values = [na_values]
 
-        sc = spark_context()
+        sc = self.spark_context()
         raw = XRdd(sc.textFile(path))
         #parsing_config 
         # 'row_limit': 100, 
@@ -406,7 +381,7 @@ class XFrameImpl(object):
         """
         # TODO handle nrows, verbose
         self._entry(path)
-        sc = spark_context()
+        sc = self.spark_context()
         if delimiter is None:
             rdd = sc.textFile(path)
             res = rdd.map(lambda line: [line.encode('utf-8')])
@@ -431,7 +406,7 @@ class XFrameImpl(object):
         Load RDD from a parquet file
         """
         self._entry(path)
-        sqlc = spark_sql_context()
+        sqlc = self.spark_sql_context()
         s_rdd = sqlc.parquetFile(path)
         schema = s_rdd.schema
         col_names = [str(col.name) for col in schema.fields]
@@ -567,7 +542,7 @@ class XFrameImpl(object):
                   for i, (name, typ) in enumerate(zip(self.col_names, self.column_types))]
             schema = StructType(fields)
             rdd = self._rdd.repartition(number_of_partitions)
-            sqlc = spark_sql_context()
+            sqlc = self.spark_sql_context()
             res = sqlc.applySchema(rdd.RDD(), schema)
             if name is not None:
                 res.registerTempTable(table_name)
@@ -643,7 +618,7 @@ class XFrameImpl(object):
         self._entry(n)
         if n <= 100:
             data = self._rdd.take(n)
-            sc = spark_context()
+            sc = self.spark_context()
             res = sc.parallelize(data)
             self._exit(res)
             return self._rv(res)
@@ -1448,7 +1423,7 @@ class XFrameImpl(object):
     def sql(self, sql_statement, table_name):
         self._entry(sql_statement, table_name)
         s_rdd = self.to_spark_dataframe(table_name, 8)
-        sqlc = spark_sql_context()
+        sqlc = self.spark_sql_context()
         s_res = sqlc.sql(sql_statement)
         res = XFrameImpl.xframe_from_spark_dataframe(s_res)
         self._exit()

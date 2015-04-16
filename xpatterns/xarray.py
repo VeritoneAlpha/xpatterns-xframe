@@ -5,6 +5,7 @@ ability to create, access and manipulate a remote scalable array object.
 XArray acts similarly to pandas.Series but without indexing.
 The data is immutable, homogeneous, and is stored in a Spark RDD.
 """
+from xpatterns.xobject import XObject
 from xpatterns.xarray_impl import XArrayImpl, infer_type_of_list
 from util import make_internal_url, split_path_elements
 import xpatterns as xp
@@ -34,7 +35,7 @@ def _create_sequential_xarray(size, start=0, reverse=False):
 
     return XArray(_impl=XArrayImpl.create_sequential_xarray(size, start, reverse))
 
-class XArray(object):
+class XArray(XObject):
     """
     An immutable, homogeneously typed array object backed by Spark RDD.
 
@@ -101,6 +102,12 @@ class XArray(object):
     set_trace
         Controls entry and exit tracing.
 
+    spark_context: 
+        Returns the spark context.
+
+    spark_sql_context: 
+        Returns the spark sql context.
+
     """
 
     def __init__(self, data=[], dtype=None, ignore_cast_failure=False, _impl=None):
@@ -166,10 +173,6 @@ class XArray(object):
                 raise TypeError("Unexpected data source. " \
                                 "Possible data source types are: list, " \
                                 "numpy.ndarray, pandas.Series, and string(url)")
-
-    @staticmethod
-    def set_trace(entry_trace=None, exit_trace=None):
-        XArrayImpl.set_trace(entry_trace, exit_trace)
 
     def dump_debug_info(self):
         return self.__impl__.dump_debug_info()
