@@ -11,6 +11,8 @@ from pyspark.mllib.classification import SVMWithSGD
 from pyspark.mllib.classification import NaiveBayes
 from pyspark.mllib.tree import DecisionTree
 
+import matplotlib.pyplot as plt
+
 from xpatterns.spark_context import CommonSparkContext
 from xpatterns.toolkit.model import Model, ModelBuilder
 from xpatterns import XFrame, XArray
@@ -23,6 +25,7 @@ __all__ = ['LogisticRegressionWithSGDBuilder',
            'NaiveBayesBuilder', 
            'DecisionTreeBuilder']
 
+#  These are defined here because if they are defined within 
 def _make_labeled_features(row, label_col, feature_cols):
     label = row[label_col]
     features =[row[col] for col in feature_cols]
@@ -52,14 +55,118 @@ class ClassificationModel(Model):
         metadata_path = os.path.join(path, '_metadata')
         return (model_path, metadata_path)
 
-    def predict(self, features):
+    def _base_predict(self, data):
+        """
+        Call the model's predict function.
+        
+        Data can be a single item or a collection of items.
+        """
+        
+        features = self.make_features(data)
         if isinstance(features, DenseVector): 
             return self.model.predict(features)
-        if isinstance(features, XArray):
-            if issubclass(features.dtype(), DenseVector):
-                res = self.model.predict(features.to_spark_rdd())
-                return XArray.from_rdd(res, float)
+        if isinstance(features, XArray) and issubclass(features.dtype(), DenseVector):
+            res = self.model.predict(features.to_spark_rdd())
+            return XArray.from_rdd(res, float)
+
         raise TypeError('must pass a DenseVector or XArray of DenseVector')
+
+    def predict(self, data):
+        """
+        Call the base predictor.
+        """
+        return self._base_predict(data)
+
+    def _base_evaluate(self, data, labels):
+        """
+        Evaluate the performance of the classifier.
+
+        Use the data to make predictions, then test the effectiveness of 
+        the predictions against the labels.
+
+        The data must be a collection of items (XArray of SenseVector).
+
+        Returns
+        -------
+        out : A list of:
+            - overall correct prediction proportion
+            - true positive proportion
+            - true negative proportion
+            - false positive proportion
+            - false negative proportion
+        """
+        results = XFrame()
+        # problem -- this resets the threshold
+        predictions = self._base_predict(data)
+        results.add_column(predictions, 'predicted')
+        results.add_column(labels, 'actual')
+        def evaluate(prediction, actual):
+#            print prediction, actual
+            accuracy = 1 if prediction == actual else 0
+            true_pos = 1 if prediction == 1 and actual == 1 else 0
+            true_neg = 1 if prediction == 0 and actual == 0 else 0
+            false_pos = 1 if prediction == 1 and actual == 0 else 0
+            false_neg = 1 if prediction == 0 and actual == 1 else 0
+            return {'accuracy': accuracy, 
+                    'true_pos': true_pos, 
+                    'true_neg': true_neg, 
+                    'false_pos': false_pos, 
+                    'false_neg': false_neg}
+        score = results.apply(lambda row: evaluate(row['predicted'], row['actual']))
+        result = {}
+        all_scores = float(len(labels))
+        def sum_item(item):
+            return score.apply(lambda x: x[item]).sum()
+
+        tp = float(sum_item('true_pos'))
+        tn = float(sum_item('true_neg'))
+        fp = float(sum_item('false_pos'))
+        fn = float(sum_item('false_neg'))
+
+        result = {}
+        result['accuracy'] = sum_item('accuracy') / all_scores
+        result['true_pos'] = tp
+        result['true_neg'] = tn
+        result['false_pos'] = fp
+        result['false_neg'] = fn
+        result['all'] = all_scores
+        result['precision'] = tp / (tp + fp) if (tp + fp) > 0 else 0
+        result['recall'] = tp / (tp + fn)
+        result['tpr'] = result['recall']
+        result['fpr'] = fp / (fp + tn)
+        return result
+        
+    # precision = true pos / (true pos + false pos)
+    # recall = true pos / (true pos + false neg)
+    # true pos rate = true pos / (true pos + false neg)
+    # false pos rate = false pos / (false pos + true neg)
+    def evaluate(self, data, labels):
+        return self._base_evaluate(data, labels)
+
+    def plot_roc(self, ev_list, xlabel=None, ylabel=None, title=None, **kwargs):
+        fig = plt.figure()
+        tpr = [ ev['tpr'] for ev in ev_list]
+        fpr = [ ev['fpr'] for ev in ev_list]
+        ax = [0.0, 0.0, 1.0, 1.0]
+        axes = fig.add_axes(ax)
+        axes.set_xlabel(xlabel if xlabel else 'false positive rate') 
+        axes.set_ylabel(ylabel if ylabel else 'true positive rate')
+        if title: axes.set_title(title)
+        axes.plot(fpr, tpr, **kwargs)
+        axes.plot([0, 0], [1, 1], '--')
+        
+    def plot_pr(self, ev_list, xlabel=None, ylabel=None, title=None, **kwargs):
+        fig = plt.figure()
+        r = [ ev['recall'] for ev in ev_list]
+        p = [ ev['precision'] for ev in ev_list]
+        ax = [0.0, 0.0, 1.0, 1.0]
+        axes = fig.add_axes(ax)
+        axes.set_xlabel(xlabel if xlabel else 'recall') 
+        axes.set_ylabel(ylabel if ylabel else 'precision')
+        if title: axes.set_title(title)
+        
+        axes.plot(r, p, **kwargs)
+        axes.plot([0, 1], [1, 0], '--')
         
     def save(self, path):
         """
@@ -138,15 +245,39 @@ class ClassificationModel(Model):
 
         Returns
         -------
-        out : a DenseVector or an XArray of DenseVector.
+        out : a DenseVector if the input was a dict, or an XArray of DenseVector if the
+            inut is an XFrame
         """
+        def build_features(row, feature_cols):
+            features =[row[col] for col in feature_cols]
+            return Vectors.dense(features)
+
         if isinstance(data, dict): 
-            return _make_features(data, self.feature_cols)
+            return build_features(data, self.feature_cols)
         if isinstance(data, XFrame): 
+            # must make copy to avoid pickle errors
             feature_cols = self.feature_cols
-            return data.apply(lambda row: _make_features(row, feature_cols))
+            return data.apply(lambda row: build_features(row, feature_cols))
         raise TypeError('must pass a dict (row) or XFrame')
 
+
+class LinearBinaryClassificationModel(ClassificationModel):
+    """ 
+    Common model type for LogisticRegressionModel and SVMModel
+    """
+    def predict(self, data, threshold=0.5):
+        if threshold is not None:
+            self.model.setThreshold(threshold)
+        else:
+            self.model.clearThreshold()
+        return self._base_predict(data)
+
+    def evaluate(self, data, labels, threshold=0.5):
+        if threshold is not None:
+            self.model.setThreshold(threshold)
+        else:
+            self.model.clearThreshold()
+        return self._base_evaluate(data, labels)
 
 class LinearRegressionModel(ClassificationModel):
     """
@@ -154,13 +285,13 @@ class LinearRegressionModel(ClassificationModel):
     """
     pass
 
-class LogisticRegressionModel(ClassificationModel):
+class LogisticRegressionModel(LinearBinaryClassificationModel):
     """
     Logistic Regression Model
     """
     pass
 
-class SVMModel(ClassificationModel):
+class SVMModel(LinearBinaryClassificationModel):
     """
     SVM Model
     """
@@ -181,12 +312,18 @@ class DecisionTreeModel(ClassificationModel):
 # Builders
 class ClassificationBuilder(ModelBuilder):
     __metaclass__ = ABCMeta
+
     @abstractmethod
     def __init__(self, xf, label_col, feature_cols):
+        def build_labeled_features(row, label_col, feature_cols):
+            label = row[label_col]
+            features =[row[col] for col in feature_cols]
+            return LabeledPoint(label, Vectors.dense(features))
+
         self.label_col = label_col
         self.feature_cols = feature_cols
         self.labeled_feature_vector = xf.apply(lambda row: 
-                                    _make_labeled_features(row, label_col, feature_cols))
+                                    build_labeled_features(row, label_col, feature_cols))
 
     def _labeled_feature_vector_rdd(self):
         """
