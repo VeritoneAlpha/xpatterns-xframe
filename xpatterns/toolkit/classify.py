@@ -96,78 +96,105 @@ class ClassificationModel(Model):
             - false negative proportion
         """
         results = XFrame()
-        # problem -- this resets the threshold
         predictions = self._base_predict(data)
         results.add_column(predictions, 'predicted')
         results.add_column(labels, 'actual')
+#        print results
         def evaluate(prediction, actual):
-#            print prediction, actual
-            accuracy = 1 if prediction == actual else 0
-            true_pos = 1 if prediction == 1 and actual == 1 else 0
-            true_neg = 1 if prediction == 0 and actual == 0 else 0
-            false_pos = 1 if prediction == 1 and actual == 0 else 0
-            false_neg = 1 if prediction == 0 and actual == 1 else 0
-            return {'accuracy': accuracy, 
-                    'true_pos': true_pos, 
-                    'true_neg': true_neg, 
-                    'false_pos': false_pos, 
-                    'false_neg': false_neg}
+            return {'correct': 1 if prediction == actual else 0,
+                    'true_pos': 1 if prediction == 1 and actual == 1 else 0,
+                    'true_neg': 1 if prediction == 0 and actual == 0 else 0,
+                    'false_pos': 1 if prediction == 1 and actual == 0 else 0,
+                    'false_neg': 1 if prediction == 0 and actual == 1 else 0,
+                    'positive': 1 if actual == 1 else 0,
+                    'negative': 1 if actual == 0 else 0
+                    }
         score = results.apply(lambda row: evaluate(row['predicted'], row['actual']))
-        result = {}
-        all_scores = float(len(labels))
         def sum_item(item):
             return score.apply(lambda x: x[item]).sum()
 
+        all_scores = float(len(labels))
+        correct = float(sum_item('correct'))
         tp = float(sum_item('true_pos'))
         tn = float(sum_item('true_neg'))
         fp = float(sum_item('false_pos'))
         fn = float(sum_item('false_neg'))
+        pos = float(sum_item('positive'))
+        neg = float(sum_item('negative'))
 
+        # precision = true pos / (true pos + false pos)
+        # recall = true pos / (true pos + false neg)
+        # true pos rate = true pos / positive
+        # false pos rate = false pos / negative
         result = {}
-        result['accuracy'] = sum_item('accuracy') / all_scores
+        result['correct'] = correct
         result['true_pos'] = tp
         result['true_neg'] = tn
         result['false_pos'] = fp
         result['false_neg'] = fn
         result['all'] = all_scores
-        result['precision'] = tp / (tp + fp) if (tp + fp) > 0 else 0
-        result['recall'] = tp / (tp + fn)
-        result['tpr'] = result['recall']
-        result['fpr'] = fp / (fp + tn)
+        result['accuracy'] = correct / all_scores
+        result['precision'] = tp / (tp + fp) if (tp + fp) > 0 else float('nan')
+        result['recall'] = tp / (tp + fn) if (tp + fn) > 0 else float('nan')
+        result['tpr'] = tp / pos if pos > 0 else float('nan')
+        result['fpr'] = fp / neg if neg > 0 else float('nan')
         return result
         
-    # precision = true pos / (true pos + false pos)
-    # recall = true pos / (true pos + false neg)
-    # true pos rate = true pos / (true pos + false neg)
-    # false pos rate = false pos / (false pos + true neg)
     def evaluate(self, data, labels):
         return self._base_evaluate(data, labels)
 
-    def plot_roc(self, ev_list, xlabel=None, ylabel=None, title=None, **kwargs):
+    # Need a function that evaluates at a set of points and does the plots
+    # It should return the results.
+    def plot_roc(self, metrics=None, xlabel=None, ylabel=None, title=None, **kwargs):
+        metrics = metrics or self.metrics
+        if metrics is None:
+            raise ValueError("metrics should be passed in or computed by calling 'evaluate'")
         fig = plt.figure()
-        tpr = [ ev['tpr'] for ev in ev_list]
-        fpr = [ ev['fpr'] for ev in ev_list]
+        tpr = [ ev['tpr'] for ev in metrics]
+        fpr = [ ev['fpr'] for ev in metrics]
+        auc = sum(tpr) / len(tpr)
         ax = [0.0, 0.0, 1.0, 1.0]
         axes = fig.add_axes(ax)
-        axes.set_xlabel(xlabel if xlabel else 'false positive rate') 
-        axes.set_ylabel(ylabel if ylabel else 'true positive rate')
-        if title: axes.set_title(title)
+        axes.set_xlabel(xlabel if xlabel else 'False Positive Rate') 
+        axes.set_ylabel(ylabel if ylabel else 'True Positive Rate')
+        axes.set_title(title if title else 'ROC Curve  AUC: {:5.3f}'.format(auc))
+
+        axes.plot([0, 1], [0, 1], '--') 
         axes.plot(fpr, tpr, **kwargs)
-        axes.plot([0, 0], [1, 1], '--')
+        plt.show()
+#        print 'fpr', fpr
+#        print
+        print 'tpr', tpr
         
-    def plot_pr(self, ev_list, xlabel=None, ylabel=None, title=None, **kwargs):
+    def plot_pr(self, metrics=None, xlabel=None, ylabel=None, title=None, **kwargs):
+        metrics = metrics or self.metrics
+        if metrics is None:
+            raise ValueError("metrics should be passed in or computed by calling 'evaluate'")
         fig = plt.figure()
-        r = [ ev['recall'] for ev in ev_list]
-        p = [ ev['precision'] for ev in ev_list]
+        r = [ ev['recall'] for ev in metrics]
+        p = [ ev['precision'] for ev in metrics]
         ax = [0.0, 0.0, 1.0, 1.0]
         axes = fig.add_axes(ax)
-        axes.set_xlabel(xlabel if xlabel else 'recall') 
-        axes.set_ylabel(ylabel if ylabel else 'precision')
-        if title: axes.set_title(title)
+        axes.set_xlabel(xlabel if xlabel else 'Recall') 
+        axes.set_ylabel(ylabel if ylabel else 'Precision')
+        axes.set_title(title if title else 'Precision Recall Curve')
         
-        axes.plot(r, p, **kwargs)
         axes.plot([0, 1], [1, 0], '--')
+        axes.plot(r, p, **kwargs)
+        plt.show()
+ #       print 'r', r
+#        print 'p', p
         
+    def eval_and_plot(self, features, labels, num_points=10):
+        metrics = [self.evaluate(features, labels, 
+                            threshold=float(i)/num_points)
+           for i in range(0, num_points + 1)]
+        
+        self.plot_roc(metrics)
+        self.plot_pr(metrics)
+        self.metrics = metrics
+        return metrics
+
     def save(self, path):
         """
         Save a model.
@@ -277,7 +304,9 @@ class LinearBinaryClassificationModel(ClassificationModel):
             self.model.setThreshold(threshold)
         else:
             self.model.clearThreshold()
-        return self._base_evaluate(data, labels)
+        metrics = self._base_evaluate(data, labels)
+        metrics['threshold'] = threshold
+        return metrics
 
 class LinearRegressionModel(ClassificationModel):
     """
