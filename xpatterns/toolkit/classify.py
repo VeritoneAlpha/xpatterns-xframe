@@ -26,6 +26,7 @@ __all__ = ['LogisticRegressionWithSGDBuilder',
            'DecisionTreeBuilder']
 
 #  These are defined here because if they are defined within 
+#    then ...
 def _make_labeled_features(row, label_col, feature_cols):
     label = row[label_col]
     features =[row[col] for col in feature_cols]
@@ -41,6 +42,7 @@ class ClassificationModel(Model):
 
     def __init__(self, model, feature_cols):
         self.model = model
+        # need this to handle predict over dict
         self.feature_cols = feature_cols
 
     def __repr__(self):
@@ -97,10 +99,12 @@ class ClassificationModel(Model):
         """
         results = XFrame()
         predictions = self._base_predict(data)
-        results.add_column(predictions, 'predicted')
-        results.add_column(labels, 'actual')
+        results['predicted'] = predictions
+        results['actual'] = labels
 #        print results
-        def evaluate(prediction, actual):
+        def evaluate(row):
+            prediction = row['predicted']
+            actual = row['actual']
             return {'correct': 1 if prediction == actual else 0,
                     'true_pos': 1 if prediction == 1 and actual == 1 else 0,
                     'true_neg': 1 if prediction == 0 and actual == 0 else 0,
@@ -109,7 +113,8 @@ class ClassificationModel(Model):
                     'positive': 1 if actual == 1 else 0,
                     'negative': 1 if actual == 0 else 0
                     }
-        score = results.apply(lambda row: evaluate(row['predicted'], row['actual']))
+
+        score = results.apply(evaluate)
         def sum_item(item):
             return score.apply(lambda x: x[item]).sum()
 
@@ -133,7 +138,7 @@ class ClassificationModel(Model):
         result['false_pos'] = fp
         result['false_neg'] = fn
         result['all'] = all_scores
-        result['accuracy'] = correct / all_scores
+        result['accuracy'] = correct / all_scores if all_scores > 0 else float('nan')
         result['precision'] = tp / (tp + fp) if (tp + fp) > 0 else float('nan')
         result['recall'] = tp / (tp + fn) if (tp + fn) > 0 else float('nan')
         result['tpr'] = tp / pos if pos > 0 else float('nan')
@@ -330,7 +335,14 @@ class NaiveBayesModel(ClassificationModel):
     """
     Naive Bayes Model
     """
-    pass
+    def evaluate(self, features, labels, threshold=0.5):
+        nb_features = XFrame()
+        for col in features.column_names():
+            nb_features[col] = features[col].clip(lower=0.0)
+        metrics = self._base_evaluate(data, labels)
+
+        metrics['threshold'] = threshold
+        return metrics
 
 class DecisionTreeModel(ClassificationModel):
     """
@@ -338,21 +350,29 @@ class DecisionTreeModel(ClassificationModel):
     """
     pass
 
+
+
+
 # Builders
 class ClassificationBuilder(ModelBuilder):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def __init__(self, xf, label_col, feature_cols):
-        def build_labeled_features(row, label_col, feature_cols):
+    def __init__(self, features, labels):
+        self.features = features
+        self.labels = labels
+        self.feature_cols = features.column_names()
+        self.labeled_feature_vector = XFrame(features)
+        label_col = 'label'     # TODO what if there is a feature with this name ?
+        feature_cols = self.feature_cols   # need local reference
+        self.labeled_feature_vector.add_column(labels, name=label_col)
+        def build_labeled_features(row):
             label = row[label_col]
             features =[row[col] for col in feature_cols]
             return LabeledPoint(label, Vectors.dense(features))
 
-        self.label_col = label_col
-        self.feature_cols = feature_cols
-        self.labeled_feature_vector = xf.apply(lambda row: 
-                                    build_labeled_features(row, label_col, feature_cols))
+        self.labeled_feature_vector = self.labeled_feature_vector.apply(build_labeled_features)
+        
 
     def _labeled_feature_vector_rdd(self):
         """
@@ -367,9 +387,19 @@ class ClassificationBuilder(ModelBuilder):
 class LogisticRegressionWithSGDBuilder(ClassificationBuilder):
     """
     LogisticRegressionWith SGD Builder
+
+    Builds a Logistic Regression model from features and labels.
+    
+    Parameters
+    ----------
+    features : XFrame
+        The features used to build the model.
+
+    labels : XArray
+        The labels.  Each label applies to the corresponding features.
     """
-    def __init__(self, xf, label_col, feature_cols):
-        super(LogisticRegressionWithSGDBuilder, self).__init__(xf, label_col, feature_cols)
+    def __init__(self, features, labels):
+        super(LogisticRegressionWithSGDBuilder, self).__init__(features, labels)
 
     def train(self, num_iterations=10):
         model = LogisticRegressionWithSGD.train(
@@ -380,9 +410,19 @@ class LogisticRegressionWithSGDBuilder(ClassificationBuilder):
 class LogisticRegressionWithLBFGSBuilder(ClassificationBuilder):
     """
     LogisticRegressionWith LBFGS Builder
+
+    Builds a Logistic Regression model from features and labels.
+    
+    Parameters
+    ----------
+    features : XFrame
+        The features used to build the model.
+
+    labels : XArray
+        The labels.  Each label applies to the corresponding features.
     """
-    def __init__(self, xf, label_col, feature_cols):
-        super(LogisticRegressionWithLBFGSBuilder, self).__init__(xf, label_col, feature_cols)
+    def __init__(self, features, labels):
+        super(LogisticRegressionWithLBFGSBuilder, self).__init__(features, labels)
 
     def train(self, num_iterations=10):
         model = LogisticRegressionWithLBFGS.train(
@@ -393,33 +433,65 @@ class LogisticRegressionWithLBFGSBuilder(ClassificationBuilder):
 class SVMWithSGDBuilder(ClassificationBuilder):
     """
     SVM SGD Builder
+
+    Builds a SVM model from features and labels.
+    
+    Parameters
+    ----------
+    features : XFrame
+        The features used to build the model.
+
+    labels : XArray
+        The labels.  Each label applies to the corresponding features.
     """
-    def __init__(self, xf, label_col, feature_cols):
-        super(SVMWithSGDBuilder, self).__init__(xf, label_col, feature_cols)
+    def __init__(self, features, labels):
+        super(SVMWithSGDBuilder, self).__init__(features, labels)
 
     def train(self, num_iterations=10):
+        # TODO support all the keyword training params
         model = SVMWithSGD.train(self._labeled_feature_vector_rdd(), num_iterations)
         return SVMModel(model, self.feature_cols)
 
 class NaiveBayesBuilder(ClassificationBuilder):
     """
     Naive Bayes Builder
-    """
-    def __init__(self, xf, label_col, feature_cols):
-        for col in feature_cols:
-            xf[col] = xf[col].clip(lower=0.0)
-        super(NaiveBayesBuilder, self).__init__(xf, label_col, feature_cols)
 
-    def train(self):
-        model = NaiveBayes.train(self._labeled_feature_vector_rdd())
+    Builds a Naive Bayes model from features and labels.
+    
+    Parameters
+    ----------
+    features : XFrame
+        The features used to build the model.
+
+    labels : XArray
+        The labels.  Each label applies to the corresponding features.
+    """
+    def __init__(self, features, labels):
+        nb_features = XFrame()
+        for col in features.column_names():
+            nb_features[col] = features[col].clip(lower=0.0)
+        super(NaiveBayesBuilder, self).__init__(nb_features, labels)
+
+    def train(self, lambda_=None):
+        model = NaiveBayes.train(self._labeled_feature_vector_rdd(), lambda_)
         return NaiveBayesModel(model, self.feature_cols)
 
 class DecisionTreeBuilder(ClassificationBuilder):
     """
     Decision Tree Builder
+
+    Builds a decision tree model from features and labels.
+    
+    Parameters
+    ----------
+    features : XFrame
+        The features used to build the model.
+
+    labels : XArray
+        The labels.  Each label applies to the corresponding features.
     """
-    def __init__(self, xf, label_col, feature_cols):
-        super(DecisionTreeBuilder, self).__init__(xf, label_col, feature_cols)
+    def __init__(self, features, labels):
+        super(DecisionTreeBuilder, self).__init__(features, labels)
 
     def train(self, num_classes=2, categorical_features=None, max_depth=5):
         categorical_features = categorical_features or {}
@@ -430,25 +502,19 @@ class DecisionTreeBuilder(ClassificationBuilder):
             maxDepth=max_depth)
         return DecisionTreeModel(model, self.feature_cols)
 
-
-def create(data, label_col, feature_cols,
-           classifier_type='DecisionTree', **kwargs):
+def create(features, labels, classifier_type='DecisionTree', **kwargs):
     """
     Create a classification model.
 
     Parameters
     ----------
 
-    data : XFrame
+    features : XFrame
         A table containing the training data.
-        This table must contin a label column and a set of feature columns.
-        The table may contain other columns as well: these are not used.
 
-    label_col : string
-        The column name of the labels.
-
-    feature_cols : string
-        The column name of the features.
+    labels : XArray
+        An XArray containing labels.  Each row provides the label for the 
+        corresponding row of features.
 
     classifier_type : string, optional
         The type of classifier.  Optons are:
@@ -464,18 +530,18 @@ def create(data, label_col, feature_cols,
     """
 
     if classifier_type == 'LogisticRegressionWithSGD':
-        return LogisticRegressionWithSGDBuilder(data, label_col, feature_cols) \
+        return LogisticRegressionWithSGDBuilder(features, labels) \
             .train(**kwargs)
     if classifier_type == 'LogisticRegressionWithLBFGS':
-        return LogisticRegressionWithLGFBSBuilder(data, label_col, feature_cols) \
+        return LogisticRegressionWithLGFBSBuilder(features, labels) \
             .train(*kwargs)
     if classifier_type == 'SVMWithSGD':
-        return SVMWithSGDBuilder(data, label_col, feature_cols) \
+        return SVMWithSGDBuilder(features, labels) \
             .train(**kwargs)
     if classifier_type == 'NaiveBayes':
-        return NaiveBayesBuilder(data, label_col, feature_cols) \
+        return NaiveBayesBuilder(features, labels) \
             .train(**kwargs)
     if classifier_type == 'DecisionTree':
-        return DecisionTreeBuilder(data, label_col, feature_cols) \
+        return DecisionTreeBuilder(features, labels) \
             .train(**kwargs)
     raise ValueError('classifier type is not recognized')
