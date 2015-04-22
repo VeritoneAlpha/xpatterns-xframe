@@ -6,6 +6,10 @@ class XObject(object):
     """
 
     @staticmethod
+    def version():
+        return '0.1.1'
+
+    @staticmethod
     def set_trace(entry_trace=None, exit_trace=None):
         """
         Set XFrame tracing.
