@@ -15,13 +15,22 @@ sys.path.insert(1, os.path.join(spark_home, 'python/lib/py4j-0.8.2.1-src.zip'))
 
 # python testxarray.py
 # python -m unittest testxarray
-# python -m unittest testxarray.TestXArrayConstructorLocal
-# python -m unittest testxarray.TestXArrayConstructorLocal.test_construct_list_float_infer
+# python -m unittest testxarray.TestXArrayVersion
+# python -m unittest testxarray.TestXArrayVersion.test_version
 
 from xpatterns import XArray
 
 def eq_list(expected, result):
     return (XArray(expected) == result).all()
+
+class TestXArrayVersion(unittest.TestCase):
+    """
+    Tests XArray version
+    """
+
+    def test_version(self):
+        ver = XArray.version()
+        self.assertEqual(str, type(ver))
 
 class TestXArrayConstructorLocal(unittest.TestCase):
     """
