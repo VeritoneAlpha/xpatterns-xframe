@@ -25,17 +25,6 @@ __all__ = ['LogisticRegressionWithSGDBuilder',
            'NaiveBayesBuilder', 
            'DecisionTreeBuilder']
 
-#  These are defined here because if they are defined within 
-#    then ...
-def _make_labeled_features(row, label_col, feature_cols):
-    label = row[label_col]
-    features =[row[col] for col in feature_cols]
-    return LabeledPoint(label, Vectors.dense(features))
-
-def _make_features(row, feature_cols):
-    features =[row[col] for col in feature_cols]
-    return Vectors.dense(features)
-
 # Models
 class ClassificationModel(Model):
     __metaclass__ = ABCMeta
@@ -169,7 +158,7 @@ class ClassificationModel(Model):
         plt.show()
 #        print 'fpr', fpr
 #        print
-        print 'tpr', tpr
+#        print 'tpr', tpr
         
     def plot_pr(self, metrics=None, xlabel=None, ylabel=None, title=None, **kwargs):
         metrics = metrics or self.metrics
@@ -251,8 +240,8 @@ class ClassificationModel(Model):
         # load metadata
         with open(metadata_path) as f:
             model_type, feature_cols = pickle.load(f)
-        print 'model_type', model_type
-        print 'feature_cols', feature_cols
+#        print 'model_type', model_type
+#        print 'feature_cols', feature_cols
         try:
             klass = getattr(xpatterns.toolkit.classify, model_type)
         except:
@@ -281,6 +270,7 @@ class ClassificationModel(Model):
             inut is an XFrame
         """
         def build_features(row, feature_cols):
+            # collect values into dense vector
             features =[row[col] for col in feature_cols]
             return Vectors.dense(features)
 
@@ -339,7 +329,7 @@ class NaiveBayesModel(ClassificationModel):
         nb_features = XFrame()
         for col in features.column_names():
             nb_features[col] = features[col].clip(lower=0.0)
-        metrics = self._base_evaluate(data, labels)
+        metrics = self._base_evaluate(features, labels)
 
         metrics['threshold'] = threshold
         return metrics
@@ -358,20 +348,30 @@ class ClassificationBuilder(ModelBuilder):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def __init__(self, features, labels):
-        self.features = features
+    # provide standardization as a stand-alone function
+    # and remove it from here.
+    # The labeled feature vector would have to be re-done after this
+    #    so delay doing that also
+    def __init__(self, features, labels, standardize=False):
+        self.standardize = standardize
+        self.means = None
+        self.stdevs = None
+        if standardize:
+            self.features = self._standardize(features)
+        else:
+            self.features = features
         self.labels = labels
         self.feature_cols = features.column_names()
-        self.labeled_feature_vector = XFrame(features)
+        labeled_feature_vector = XFrame(features)
         label_col = 'label'     # TODO what if there is a feature with this name ?
         feature_cols = self.feature_cols   # need local reference
-        self.labeled_feature_vector.add_column(labels, name=label_col)
+        labeled_feature_vector[label_col] = labels
         def build_labeled_features(row):
             label = row[label_col]
             features =[row[col] for col in feature_cols]
-            return LabeledPoint(label, Vectors.dense(features))
+            return LabeledPoint(label, features)
 
-        self.labeled_feature_vector = self.labeled_feature_vector.apply(build_labeled_features)
+        self.labeled_feature_vector = labeled_feature_vector.apply(build_labeled_features)
         
 
     def _labeled_feature_vector_rdd(self):
@@ -383,6 +383,28 @@ class ClassificationBuilder(ModelBuilder):
     @abstractmethod
     def train(self):
         pass
+
+    @staticmethod
+    def _make_standard(item, mean, stdev):
+        return (item - mean) / float(stdev)
+        
+    def _standardize(self, features):
+        def standardize_col(features, col):
+            mean = features[col].mean()
+            stdev = features[col].std()
+            if stdev == 0: return None
+            self.means[col] = mean
+            self.stdevs[col] = stdev
+            return features[col].apply(lambda item: 
+                                       ClassificationBuilder._make_standard(item, mean, stdev))
+
+        std_features = XFrame()
+        for col in features.column_names():
+            new_col = standardize_col(features, col)
+            if new_col is not None: std_features[col] = new_col
+        return std_features
+
+
 
 class LogisticRegressionWithSGDBuilder(ClassificationBuilder):
     """
@@ -398,8 +420,8 @@ class LogisticRegressionWithSGDBuilder(ClassificationBuilder):
     labels : XArray
         The labels.  Each label applies to the corresponding features.
     """
-    def __init__(self, features, labels):
-        super(LogisticRegressionWithSGDBuilder, self).__init__(features, labels)
+    def __init__(self, features, labels, standardize=False):
+        super(LogisticRegressionWithSGDBuilder, self).__init__(features, labels, standardize)
 
     def train(self, num_iterations=10):
         model = LogisticRegressionWithSGD.train(
@@ -421,8 +443,8 @@ class LogisticRegressionWithLBFGSBuilder(ClassificationBuilder):
     labels : XArray
         The labels.  Each label applies to the corresponding features.
     """
-    def __init__(self, features, labels):
-        super(LogisticRegressionWithLBFGSBuilder, self).__init__(features, labels)
+    def __init__(self, features, labels, standardize=False):
+        super(LogisticRegressionWithLBFGSBuilder, self).__init__(features, labels, standardize)
 
     def train(self, num_iterations=10):
         model = LogisticRegressionWithLBFGS.train(
@@ -444,8 +466,8 @@ class SVMWithSGDBuilder(ClassificationBuilder):
     labels : XArray
         The labels.  Each label applies to the corresponding features.
     """
-    def __init__(self, features, labels):
-        super(SVMWithSGDBuilder, self).__init__(features, labels)
+    def __init__(self, features, labels, standardize=False):
+        super(SVMWithSGDBuilder, self).__init__(features, labels, standardize)
 
     def train(self, num_iterations=10):
         # TODO support all the keyword training params
@@ -466,13 +488,13 @@ class NaiveBayesBuilder(ClassificationBuilder):
     labels : XArray
         The labels.  Each label applies to the corresponding features.
     """
-    def __init__(self, features, labels):
+    def __init__(self, features, labels, standardize=False):
         nb_features = XFrame()
         for col in features.column_names():
             nb_features[col] = features[col].clip(lower=0.0)
         super(NaiveBayesBuilder, self).__init__(nb_features, labels)
 
-    def train(self, lambda_=None):
+    def train(self, lambda_=1.0):
         model = NaiveBayes.train(self._labeled_feature_vector_rdd(), lambda_)
         return NaiveBayesModel(model, self.feature_cols)
 
@@ -490,7 +512,7 @@ class DecisionTreeBuilder(ClassificationBuilder):
     labels : XArray
         The labels.  Each label applies to the corresponding features.
     """
-    def __init__(self, features, labels):
+    def __init__(self, features, labels, standardize=False):
         super(DecisionTreeBuilder, self).__init__(features, labels)
 
     def train(self, num_classes=2, categorical_features=None, max_depth=5):
@@ -502,7 +524,7 @@ class DecisionTreeBuilder(ClassificationBuilder):
             maxDepth=max_depth)
         return DecisionTreeModel(model, self.feature_cols)
 
-def create(features, labels, classifier_type='DecisionTree', **kwargs):
+def create(features, labels, classifier_type='DecisionTree', standardize=False, **kwargs):
     """
     Create a classification model.
 
@@ -524,24 +546,27 @@ def create(features, labels, classifier_type='DecisionTree', **kwargs):
         * NaiveBayes
         * DecisionTree
         
+    standardize : bool, optional
+        If set, standardize the features by transforming into mean of zero and standard deviation of 1.
     kwargs : various
         Keyword arguments, passed to the train method.
         See ``pyspark.mllib.classification`` module for details on the train arguments.
     """
 
+    
     if classifier_type == 'LogisticRegressionWithSGD':
-        return LogisticRegressionWithSGDBuilder(features, labels) \
+        return LogisticRegressionWithSGDBuilder(features, labels, standardize=standardize) \
             .train(**kwargs)
     if classifier_type == 'LogisticRegressionWithLBFGS':
-        return LogisticRegressionWithLGFBSBuilder(features, labels) \
+        return LogisticRegressionWithLGFBSBuilder(features, labels, standardize=standardize) \
             .train(*kwargs)
     if classifier_type == 'SVMWithSGD':
-        return SVMWithSGDBuilder(features, labels) \
+        return SVMWithSGDBuilder(features, labels, standardize=standardize) \
             .train(**kwargs)
     if classifier_type == 'NaiveBayes':
-        return NaiveBayesBuilder(features, labels) \
+        return NaiveBayesBuilder(features, labels, standardize=standardize) \
             .train(**kwargs)
     if classifier_type == 'DecisionTree':
-        return DecisionTreeBuilder(features, labels) \
+        return DecisionTreeBuilder(features, labels, standardize=standardize) \
             .train(**kwargs)
     raise ValueError('classifier type is not recognized')
