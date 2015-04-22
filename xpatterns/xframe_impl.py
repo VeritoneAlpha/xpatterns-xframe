@@ -1244,7 +1244,40 @@ class XFrameImpl(XObjectImpl):
         res = self._rdd.map(transformer)
         new_col_types = list(self.column_types)
         new_col_types[col_index] = dtype
-        self._exit(res, dtype)
+        self._exit(res, new_col_types)
+        return self._rv(res, column_types=new_col_types)
+
+    def transform_cols(self, cols, fn, dtypes, seed):
+        """
+        Transform multiple columns according to a specified function. 
+        The remaining columns are not modified.
+        The type of the transformed column types are given by  ``dtypes``, with
+        the new values being the result of `fn(x)` where `x` is a single row in
+        the xframe represented as a dictionary.  The ``fn`` should return
+        a value for each element of cols, which can be cast into the corresponding ``dtype``. 
+        If ``dtype`` is not specified, the first 100 rows of the XFrame are 
+        used to make a guess of the target data types.
+        """
+        self._entry(cols, dtypes, seed)
+        for col in cols:
+            if col not in self.col_names:
+                raise ValueError('column name does not exist: {}'.format(col))
+        col_indexes = [self.col_names.index(col) for col in cols]
+        names = self.col_names
+        def transformer(row):
+            row_as_dict = dict(zip(names, row))
+            result = fn(row_as_dict)
+            for col_index in col_indexes:
+                dtype = dtypes[col_index]
+                result_item = result[col_index]
+                row[col_index] = result_item if type(result_item) == dtype else dtype(result_item)
+            return row
+
+        res = self._rdd.map(transformer)
+        new_col_types = list(self.column_types)
+        for col_index in col_indexes:
+            new_col_types[col_index] = dtypes[col_index]
+        self._exit(res, new_col_types)
         return self._rv(res, column_types=new_col_types)
 
     def groupby_aggregate(self, key_columns_array, group_columns, group_output_columns, group_ops):

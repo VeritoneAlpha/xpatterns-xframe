@@ -1506,7 +1506,7 @@ class XFrame(XObject):
         names = self.__impl__.column_names()
         dryrun = [fn(dict(zip(names, row))) for row in rows]
         if dtype is None:
-            dtype = XArray(dryrun).dtype()
+            dtype = infer_type_of_list(dryrun)
 
         if not seed:
             seed = int(time.time())
@@ -1517,7 +1517,7 @@ class XFrame(XObject):
         """
         Transform a single column according to a specified function. 
         The remaining columns are not modified.
-        The type of the transformed column becomes ``dtype``, with
+        The type of the transformed column types becomes ``dtype``, with
         the new value being the result of `fn(x)` where `x` is a single row in
         the xframe represented as a dictionary.  The ``fn`` should return
         exactly one value which can be cast into type ``dtype``. If ``dtype`` is
@@ -1564,11 +1564,78 @@ class XFrame(XObject):
         # do the dryrun so we can see some diagnostic output
         dryrun = [fn(dict(zip(names, row))) for row in rows]
         if dtype is None:
-            dtype = XArray(dryrun).dtype()
+            dtype = infer_type_of_list(dryrun)
         if not seed:
             seed = int(time.time())
 
         return XFrame(_impl=self.__impl__.transform_col(col, fn, dtype, seed))
+
+    def transform_cols(self, cols, fn=None, dtypes=None, seed=None):
+        """
+        Transform multiple columns according to a specified function. 
+        The remaining columns are not modified.
+        The type of the transformed column types are given by  ``dtypes``, with
+        the new values being the result of `fn(x)` where `x` is a single row in
+        the xframe represented as a dictionary.  The ``fn`` should return
+        a value for each element of cols, which can be cast into the corresponding ``dtype``. 
+        If ``dtype`` is not specified, the first 100 rows of the XFrame are 
+        used to make a guess of the target data types.
+
+        Parameters
+        ----------
+        cols : list of string
+            The names of the column to transform.
+
+        fn : function, optional
+            The function to transform each row of the XFrame. The return
+            value should be a list of values, one for each column of cols.
+            each type should be convertible to the corresponding `dtype` if `dtype` is not None.
+            If the function is not give, an identity function is used.
+
+        dtypes : list of dtype, optional
+            The dtypes of the new XArray. There must be one
+            for each column in cols.  If None, the first 100
+            elements of the array are used to guess the target
+            data type.
+
+        seed : int, optional
+            Used as the seed if a random number generator is included in `fn`.
+
+        Examples
+        --------
+        Translate values in a column:
+
+        >>> xf = xpatterns.XFrame({'user_id': [1, 2, 3], 'movie_id': [3, 3, 6],
+                                  'rating': [4, 5, 1]})
+        >>> xf.apply(['movie_id', 'rating'], lambda row: [row['movie_id'] + 1, row['rating'] * 2])
+
+        Returns
+        -------
+        out : XFrame
+            An XFrame with the given columns transformed by the function.
+        """
+        if fn is None:
+            fn = lambda row: [row[col] for col in cols]
+        elif not inspect.isfunction(fn):
+            raise TypeError("Input must be a function")
+        rows = self.__impl__.head_as_list(10)
+        names = self.__impl__.column_names()
+        # do the dryrun so we can see some diagnostic output
+        dryrun = [fn(dict(zip(names, row))) for row in rows]
+        if dtypes is None:
+            if len(dryrun[0]) != len(cols):
+                raise ValueError('Function return length must match number of cols')
+            dtypes = []
+            for index in range(0, len(cols)):
+                dryrun_col = [row[index] for row in dryrun]
+                dtypes.append(infer_type_of_list(dryrun_col))
+        else:
+            if len(cols) != len(dtypes):
+                raise ValueError('Length of cols and dtypes must match')
+        if not seed:
+            seed = int(time.time())
+
+        return XFrame(_impl=self.__impl__.transform_cols(cols, fn, dtypes, seed))
 
     def flat_map(self, column_names, fn, column_types='auto', seed=None):
         """
