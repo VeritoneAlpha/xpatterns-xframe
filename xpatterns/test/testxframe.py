@@ -6,13 +6,13 @@ import array
 import pickle
 
 # Check the spark configuration
-import os
+import os, sys
 if not 'SPARK_HOME' in os.environ:
     print 'SPARK_HOME must be set'
+    sys.exit(1)
 spark_home = os.environ['SPARK_HOME']
 
 # Set the python path
-import sys
 sys.path.insert(0, os.path.join(spark_home, 'python'))
 sys.path.insert(1, os.path.join(spark_home, 'python/lib/py4j-0.8.2.1-src.zip'))
 
@@ -20,8 +20,8 @@ from pyspark.sql.types import StructType, StructField, IntegerType, StringType
 
 # python testxframe.py
 # python -m unittest testxframe
-# python -m unittest testxframe.TestXFrameConstructor
-# python -m unittest testxarray.TestXArrayConstructor.test_construct_list_float_infer
+# python -m unittest testxframe.TestXFrameVersion
+# python -m unittest testxarray.TestXArrayVersion.test_version
 
 from xpatterns import XArray
 from xpatterns import XFrame
@@ -30,6 +30,15 @@ from xpatterns.aggregate import SUM, ARGMAX, ARGMIN, MAX, MIN, COUNT, AVG, MEAN,
 
 def eq_array(expected, result):
     return (XArray(expected) == result).all()
+
+class TestXFrameVersion(unittest.TestCase):
+    """
+    Tests XFrame version
+    """
+
+    def test_version(self):
+        ver = XFrame.version()
+        self.assertEqual(str, type(ver))
 
 class TestXFrameConstructor(unittest.TestCase):
     """
@@ -791,7 +800,6 @@ class TestXFrameApply(unittest.TestCase):
     """
 
     def test_apply(self):
-        from xpatterns.xrdd import XRdd
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         res = t.apply(lambda row: row['id'] * 2)
         self.assertEqual(3, len(res))
@@ -811,6 +819,43 @@ class TestXFrameApply(unittest.TestCase):
         self.assertEqual(3, len(res))
         self.assertEqual(str, res.dtype())
         self.assertTrue(eq_array(['2', '4', '6'], res))
+
+class TestXFrameTransformCol(unittest.TestCase):
+    """
+    Tests XFrame transform_col
+    """
+
+    def test_transform_col_identity(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.transform_col('id')
+        self.assertEqual(3, len(res))
+        self.assertEqual([int, str], res.dtype())
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
+
+    def test_transform_col_lambda(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.transform_col('id', lambda row: row['id'] *2)
+        self.assertEqual(3, len(res))
+        self.assertEqual([int, str], res.dtype())
+        self.assertEqual({'id': 2, 'val': 'a'}, res[0])
+        self.assertEqual({'id': 4, 'val': 'b'}, res[1])
+
+    def test_transform_col_type(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.transform_col('id', lambda row: 'x' * row['id'])
+        self.assertEqual(3, len(res))
+        self.assertEqual([str, str], res.dtype())
+        self.assertEqual({'id': 'x', 'val': 'a'}, res[0])
+        self.assertEqual({'id': 'xx', 'val': 'b'}, res[1])
+
+    def test_transform_col_cast(self):
+        t = XFrame({'id': ['1', '2', '3'], 'val': ['a', 'b', 'c']})
+        res = t.transform_col('id', dtype=int)
+        self.assertEqual(3, len(res))
+        self.assertEqual([int, str], res.dtype())
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
 
 class TestXFrameFlatMap(unittest.TestCase):
     """

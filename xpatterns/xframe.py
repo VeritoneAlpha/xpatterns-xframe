@@ -1500,7 +1500,8 @@ class XFrame(XObject):
         Rows: 3
         ['134', '235', '361']
         """
-        assert inspect.isfunction(fn), "Input must be a function"
+        if not inspect.isfunction(fn):
+            raise TypeError("Input must be a function")
         rows = self.__impl__.head_as_list(10)
         names = self.__impl__.column_names()
         dryrun = [fn(dict(zip(names, row))) for row in rows]
@@ -1511,6 +1512,63 @@ class XFrame(XObject):
             seed = int(time.time())
 
         return XArray(_impl=self.__impl__.transform(fn, dtype, seed))
+
+    def transform_col(self, col, fn=None, dtype=None, seed=None):
+        """
+        Transform a single column according to a specified function. 
+        The remaining columns are not modified.
+        The type of the transformed column becomes ``dtype``, with
+        the new value being the result of `fn(x)` where `x` is a single row in
+        the xframe represented as a dictionary.  The ``fn`` should return
+        exactly one value which can be cast into type ``dtype``. If ``dtype`` is
+        not specified, the first 100 rows of the XFrame are used to make a guess
+        of the target data type.
+
+        Parameters
+        ----------
+        col : string
+            The name of the column to transform.
+
+        fn : function, optional
+            The function to transform each row of the XFrame. The return
+            type should be convertible to `dtype` if `dtype` is not None.
+            If the function is not give, an identity function is used.
+
+        dtype : dtype, optional
+            The dtype of the new XArray. If None, the first 100
+            elements of the array are used to guess the target
+            data type.
+
+        seed : int, optional
+            Used as the seed if a random number generator is included in `fn`.
+
+        Examples
+        --------
+        Translate values in a column:
+
+        >>> xf = xpatterns.XFrame({'user_id': [1, 2, 3], 'movie_id': [3, 3, 6],
+                                  'rating': [4, 5, 1]})
+        >>> xf.apply('rating', lambda row: row['rating'] * 2)
+
+        Returns
+        -------
+        out : XFrame
+            An XFrame with the given column transformed by the function.
+        """
+        if fn is None:
+            fn = lambda row: row[col]
+        elif not inspect.isfunction(fn):
+            raise TypeError("Input must be a function")
+        rows = self.__impl__.head_as_list(10)
+        names = self.__impl__.column_names()
+        # do the dryrun so we can see some diagnostic output
+        dryrun = [fn(dict(zip(names, row))) for row in rows]
+        if dtype is None:
+            dtype = XArray(dryrun).dtype()
+        if not seed:
+            seed = int(time.time())
+
+        return XFrame(_impl=self.__impl__.transform_col(col, fn, dtype, seed))
 
     def flat_map(self, column_names, fn, column_types='auto', seed=None):
         """

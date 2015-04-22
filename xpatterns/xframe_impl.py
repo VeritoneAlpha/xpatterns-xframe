@@ -1203,7 +1203,7 @@ class XFrameImpl(XObjectImpl):
         the xframe represented as a dictionary.  The ``fn`` should return
         exactly one value which is or can be cast into type ``dtype``. 
         """
-        self._entry(fn, dtype, seed)
+        self._entry(dtype, seed)
         names = self.col_names
         # fn needs the row as a dict
         def transformer(row):
@@ -1217,7 +1217,36 @@ class XFrameImpl(XObjectImpl):
         self._exit(res, dtype)
         return xp.xarray_impl.XArrayImpl(res, dtype)
 
-    # Group, Join, and Sort
+    def transform_col(self, col, fn, dtype, seed):
+        """
+        Transform a single column according to a specified function. 
+        The remaining columns are not modified.
+        The type of the transformed column becomes ``dtype``, with
+        the new value being the result of `fn(x)` where `x` is a single row in
+        the xframe represented as a dictionary.  The ``fn`` should return
+        exactly one value which can be cast into type ``dtype``. If ``dtype`` is
+        not specified, the first 100 rows of the XFrame are used to make a guess
+        of the target data type.
+        """
+        self._entry(col, dtype, seed)
+        if col not in self.col_names:
+            raise ValueError('column name does not exist: {}'.format(col))
+        col_index = self.col_names.index(col)
+        names = self.col_names
+        def transformer(row):
+            row_as_dict = dict(zip(names, row))
+            result = fn(row_as_dict)
+            if type(result) != dtype:
+                result = dtype(result)
+            row[col_index] = result
+            return row
+
+        res = self._rdd.map(transformer)
+        new_col_types = list(self.column_types)
+        new_col_types[col_index] = dtype
+        self._exit(res, dtype)
+        return self._rv(res, column_types=new_col_types)
+
     def groupby_aggregate(self, key_columns_array, group_columns, group_output_columns, group_ops):
         """
         Perform a group on the key_columns followed by aggregations on the
