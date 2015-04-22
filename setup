@@ -9,6 +9,7 @@ here=`pwd`
 
 # SPARK_HOME is used to find the spark python libraries and jars
 export SPARK_HOME=/home/ubuntu/spark
+export SPARK_CONF_DIR=$here/conf
 
 # PYTHONPATH is used to find the xpatterns python libraries
 export PYTHONPATH=$here:${SPARK_HOME}/python:${SPARK_HOME}/python/lib/py4j-0.8.2.1-src.zip
