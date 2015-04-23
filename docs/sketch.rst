@@ -1,12 +1,9 @@
-Sketch Documentation
-====================
+Sketch
+======
 
 .. toctree::
    :maxdepth: 2
 
-Sketch
-------
-
-.. automodule:: xpatterns.sketch
+.. autoclass:: xpatterns.Sketch
    :members:
 

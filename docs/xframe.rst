@@ -1,12 +1,10 @@
-XFrame Documentation
-====================
+XFrame
+======
 
 .. toctree::
    :maxdepth: 2
 
-XFrame
-------
-
-.. automodule:: xpatterns.xframe
+.. autoclass:: xpatterns.XFrame
    :members:
+   :inherited-members:
 
