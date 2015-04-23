@@ -97,7 +97,7 @@ class Sketch(object):
 
          >>> sketch.element_sub_sketch([1,3])
 
-    for subset of keys
+    for subset of keys.
 
     Please see the individual function documentation for detail about each of
     these statistics.

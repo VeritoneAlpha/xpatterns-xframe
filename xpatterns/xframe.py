@@ -1548,7 +1548,14 @@ class XFrame(XObject):
 
         >>> xf = xpatterns.XFrame({'user_id': [1, 2, 3], 'movie_id': [3, 3, 6],
                                   'rating': [4, 5, 1]})
-        >>> xf.apply('rating', lambda row: row['rating'] * 2)
+        >>> xf.transform_col('rating', lambda row: row['rating'] * 2)
+
+
+        Cast values in a column to a different type
+
+        >>> xf = xpatterns.XFrame({'user_id': [1, 2, 3], 'movie_id': [3, 3, 6],
+                                  'rating': [4, 5, 1]})
+        >>> xf.transform_col('user_id', dtype=str)
 
         Returns
         -------
@@ -1607,7 +1614,14 @@ class XFrame(XObject):
 
         >>> xf = xpatterns.XFrame({'user_id': [1, 2, 3], 'movie_id': [3, 3, 6],
                                   'rating': [4, 5, 1]})
-        >>> xf.apply(['movie_id', 'rating'], lambda row: [row['movie_id'] + 1, row['rating'] * 2])
+        >>> xf.transform_col(['movie_id', 'rating'], lambda row: [row['movie_id'] + 1, row['rating'] * 2])
+
+
+        Case types in several columns:
+
+        >>> xf = xpatterns.XFrame({'user_id': [1, 2, 3], 'movie_id': [3, 3, 6],
+                                  'rating': [4, 5, 1]})
+        >>> xf.transform_col(['movie_id', 'rating'], dtype=[str, str])
 
         Returns
         -------
@@ -1949,6 +1963,8 @@ class XFrame(XObject):
         Get an  :class:`~xpatterns.XArray` that corresponds with
         the given column name. Throws an exception if the column name is something other than a
         string or if the column name is not found.
+
+        Subscripting an XFrame by a column name is equivalent to this function.
 
         Parameters
         ----------
@@ -4398,7 +4414,7 @@ v        out : XFrame
 
         See Also
         --------
-        XPlot
+        xpatterns.XPlot : Plot library
         """
 
         return XPlot(self)

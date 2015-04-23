@@ -2335,6 +2335,7 @@ class XArray(XObject):
         Returns
         -------
         out : XArray
+            The sorted XArray.
 
         Examples
         --------

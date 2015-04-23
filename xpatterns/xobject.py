@@ -1,5 +1,7 @@
 from xpatterns.xobject_impl import XObjectImpl
 
+XFRAMES_VERSION = '0.1.1'
+
 class XObject(object):
     """ 
     Common components for XFrame and XArray.
@@ -7,7 +9,10 @@ class XObject(object):
 
     @staticmethod
     def version():
-        return '0.1.1'
+        """
+        Returns the xframes library version.
+        """
+        return XFRAMES_VERSION
 
     @staticmethod
     def set_trace(entry_trace=None, exit_trace=None):
