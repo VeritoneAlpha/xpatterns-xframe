@@ -53,3 +53,30 @@ You can view local documentation in localhost:8000
 License
 -------
 This SDK is provided under the 3-clause BSD [license](LICENSE).
+
+
+Install Library On Existing Spark Installation
+----------------------------------------------
+
+If you have an existing Spark installation that you already use with pySpark, then
+you can simply install the library to work with that.
+
+From the source distribution, you can either:
+
+1.  Include the xpatterns directory in PYTHONPATH, or
+2.  Build an archive (see below) and install it on a different machine.
+
+Building the Library
+
+In the source distribution, run 
+    python setup.py sdist
+
+This will create a file dist/xframe-<version>.tar.gz
+This file can be copied to the server where you want to install xframes.
+
+Install by:
+
+    tar xfz xframe.<version>.tar.gz
+    cd xframe.<version>
+    python setup.py install
+
