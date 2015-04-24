@@ -159,7 +159,7 @@ class TestXFrameConstructor(unittest.TestCase):
         fields = [StructField('id', IntegerType(), True), StructField('val', StringType(), True)]
         schema = StructType(fields)
         sqlc = XFrame.spark_sql_context()
-        s_rdd = sqlc.applySchema(rdd, schema)
+        s_rdd = sqlc.createDataFrame(rdd, schema)
         res = XFrame(s_rdd)
         self.assertEqual(3, len(res))
         self.assertEqual([int, str], res.column_types())
@@ -570,7 +570,7 @@ class TestXFrameFromSparkDataFrame(unittest.TestCase):
         fields = [StructField('id', IntegerType(), True), StructField('val', StringType(), True)]
         schema = StructType(fields)
         sqlc = XFrame.spark_sql_context()
-        s_rdd = sqlc.applySchema(rdd, schema)
+        s_rdd = sqlc.createDataFrame(rdd, schema)
 
         res = XFrame.from_rdd(s_rdd)
         self.assertEqual(3, len(res))
