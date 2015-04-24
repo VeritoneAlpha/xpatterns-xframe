@@ -496,15 +496,8 @@ class XFrameImpl(XObjectImpl):
 
     @classmethod
     def xframe_from_spark_dataframe(cls, rdd):
-        first_row = rdd.take(1)[0]
-        xf_names = None
-        if hasattr(first_row, 'keys'):
-            xf_names = first_row.keys()
-        else:
-            xf_names = first_row.__FIELDS__
-
-        xf_names = [str(i) for i in xf_names]
         schema = rdd.schema
+        xf_names = [str(col.name) for col in schema.fields]
         xf_types = [to_ptype(col.dataType) for col in schema.fields]
 
         def row_to_list(row):
@@ -543,9 +536,9 @@ class XFrameImpl(XObjectImpl):
             schema = StructType(fields)
             rdd = self._rdd.repartition(number_of_partitions)
             sqlc = self.spark_sql_context()
-            res = sqlc.applySchema(rdd.RDD(), schema)
+            res = sqlc.createDataFrame(rdd.RDD(), schema)
             if name is not None:
-                res.registerTempTable(table_name)
+                sqlc.registerDataFrameAsTable(res, table_name)
         self._exit()
         return res
 
@@ -1483,6 +1476,9 @@ class XFrameImpl(XObjectImpl):
         return self._rv(res)
 
     def sql(self, sql_statement, table_name):
+        """
+        Execute a spark-sql command against a XFrame
+        """
         self._entry(sql_statement, table_name)
         s_rdd = self.to_spark_dataframe(table_name, 8)
         sqlc = self.spark_sql_context()
