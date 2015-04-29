@@ -2,6 +2,7 @@ import os
 
 # Builtin aggregators for groupby
 
+
 def SUM(src_column):
     """
     Builtin sum aggregator for groupby
@@ -14,7 +15,8 @@ def SUM(src_column):
                  {'rating_sum':aggregate.SUM('rating')})
 
     """
-    return ("__builtin__sum__", [src_column])
+    return '__builtin__sum__', [src_column]
+
 
 def ARGMAX(agg_column, out_column):
     """
@@ -28,7 +30,8 @@ def ARGMAX(agg_column, out_column):
     >>> xf.groupby("user",
                  {'best_movie':aggregate.ARGMAX('rating','movie')})
     """
-    return ("__builtin__argmax__", [agg_column, out_column])
+    return '__builtin__argmax__', [agg_column, out_column]
+
 
 def ARGMIN(agg_column, out_column):
     """
@@ -43,7 +46,8 @@ def ARGMIN(agg_column, out_column):
                  {'best_movie':aggregate.ARGMIN('rating','movie')})
 
     """
-    return ("__builtin__argmin__", [agg_column, out_column])
+    return '__builtin__argmin__', [agg_column, out_column]
+
 
 def MAX(src_column):
     """
@@ -58,7 +62,8 @@ def MAX(src_column):
                  {'rating_max':aggregate.MAX('rating')})
 
     """
-    return ("__builtin__max__", [src_column])
+    return '__builtin__max__', [src_column]
+
 
 def MIN(src_column):
     """
@@ -73,7 +78,7 @@ def MIN(src_column):
                  {'rating_min':aggregate.MIN('rating')})
 
     """
-    return ("__builtin__min__", [src_column])
+    return '__builtin__min__', [src_column]
 
 
 def COUNT(*args):
@@ -90,7 +95,8 @@ def COUNT(*args):
 
     """
     # arguments if any are ignored
-    return ("__builtin__count__", [""])
+    return '__builtin__count__', [""]
+
 
 def AVG(src_column):
     """
@@ -105,7 +111,8 @@ def AVG(src_column):
                  {'rating_avg':aggregate.AVG('rating')})
 
     """
-    return ("__builtin__avg__", [src_column])
+    return '__builtin__avg__', [src_column]
+
 
 def MEAN(src_column):
     """
@@ -119,7 +126,7 @@ def MEAN(src_column):
     >>> xf.groupby("user",
                  {'rating_mean':aggregate.MEAN('rating')})
     """
-    return ("__builtin__avg__", [src_column])
+    return '__builtin__avg__', [src_column]
 
 
 def VAR(src_column):
@@ -135,7 +142,7 @@ def VAR(src_column):
                  {'rating_var':aggregate.VAR('rating')})
 
     """
-    return ("__builtin__var__", [src_column])
+    return '__builtin__var__', [src_column]
 
 
 def VARIANCE(src_column):
@@ -151,7 +158,7 @@ def VARIANCE(src_column):
                  {'rating_var':aggregate.VARIANCE('rating')})
 
     """
-    return ("__builtin__var__", [src_column])
+    return '__builtin__var__', [src_column]
 
 
 def STD(src_column):
@@ -167,7 +174,7 @@ def STD(src_column):
                  {'rating_std':aggregate.STD('rating')})
 
     """
-    return ("__builtin__stdv__", [src_column])
+    return '__builtin__stdv__', [src_column]
 
 
 def STDV(src_column):
@@ -183,7 +190,7 @@ def STDV(src_column):
                  {'rating_stdv':aggregate.STDV('rating')})
 
     """
-    return ("__builtin__stdv__", [src_column])
+    return '__builtin__stdv__', [src_column]
 
 
 def SELECT_ONE(src_column):
@@ -211,7 +218,8 @@ def SELECT_ONE(src_column):
     # use seed to make selection repeatable
     # it would be more random to use the column name
     seed = src_column
-    return ("__builtin__select_one__", [src_column, seed])
+    return '__builtin__select_one__', [src_column, seed]
+
 
 def CONCAT(src_column, dict_value_column=None):
     """
@@ -233,10 +241,10 @@ def CONCAT(src_column, dict_value_column=None):
        {"friends": aggregate.CONCAT("friend")})
 
     """
-    if dict_value_column == None:
-        return ("__builtin__concat__list__", [src_column])
+    if dict_value_column is None:
+        return '__builtin__concat__list__', [src_column]
     else:
-        return ("__builtin__concat__dict__", [src_column, dict_value_column])
+        return '__builtin__concat__dict__', [src_column, dict_value_column]
 
 
 def QUANTILE(src_column, *args):
@@ -268,4 +276,4 @@ def QUANTILE(src_column, *args):
     if not hasattr(quantiles, '__iter__'):
         quantiles = [quantiles]
     query = ",".join([str(i) for i in quantiles])
-    return ("__builtin__quantile__[" + query + "]", [src_column])
+    return '__builtin__quantile__[' + query + ']', [src_column]

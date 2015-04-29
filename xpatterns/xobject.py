@@ -2,6 +2,7 @@ from xpatterns.xobject_impl import XObjectImpl
 
 XFRAMES_VERSION = '0.1.1'
 
+
 class XObject(object):
     """ 
     Common components for XFrame and XArray.
@@ -63,4 +64,3 @@ class XObject(object):
 
 #    def dump_debug_info(self):
 #        return self.__impl__.dump_debug_info()
-        

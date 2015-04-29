@@ -4,22 +4,18 @@ This module provides an implementation of XArray using pySpark RDDs.
 import math
 import inspect
 import array
-import ast
 import datetime
-import functools
-from itertools import islice
 import os
 import pickle
-import sys
 import ast
 import csv
 import StringIO
 
-from xpatterns.xobject_impl import XObjectImpl;
-from xpatterns.spark_context import spark_context, spark_sql_context
+from xpatterns.xobject_impl import XObjectImpl
+from xpatterns.spark_context import spark_context
 from xpatterns.util import infer_type_of_list, cache, uncache
 from xpatterns.util import delete_file_or_dir, infer_type, infer_types
-from xpatterns.util import is_missing, is_missing_or_empty
+from xpatterns.util import is_missing
 import xpatterns as xp
 from xpatterns.xrdd import XRdd
 
@@ -31,18 +27,25 @@ class ReverseCmp(object):
     """
     def __init__(self, obj):
         self.obj = obj
+
     def __lt__(self, other):
         return self.obj > other.obj
+
     def __gt__(self, other):
         return self.obj < other.obj
+
     def __eq__(self, other):
         return self.obj == other.obj
+
     def __le__(self, other):
         return self.obj >= other.obj
+
     def __ge__(self, other):
         return self.obj <= other.obj
+
     def __ne__(self, other):
         return self.obj != other.obj
+
 
 class XArrayImpl(XObjectImpl):
     # What is missing:
@@ -63,6 +66,7 @@ class XArrayImpl(XObjectImpl):
         super(XArrayImpl, self).__init__(rdd)
         self.elem_type = elem_type
         self.materialized = False
+        self.iter_pos = 0
         self._exit()
 
     def _rv(self, rdd, typ=None):
@@ -71,7 +75,8 @@ class XArrayImpl(XObjectImpl):
         """
         return XArrayImpl(rdd, typ or self.elem_type)
 
-    def _rv_frame(self, rdd, col_names, types):
+    @staticmethod
+    def _rv_frame(rdd, col_names=None, types=None):
         """
         Return a new XFrameImpl containing the rdd, column names, and element types
         """
@@ -87,23 +92,27 @@ class XArrayImpl(XObjectImpl):
         self.materialized = True
         return count
 
-    def _entry(self, *args):
+    @staticmethod
+    def _entry(*args):
         if not XArrayImpl.entry_trace and not XArrayImpl.perf_count: return
         stack = inspect.stack()
         caller = stack[1]
-        called_by = stack[2]
         if XArrayImpl.entry_trace:
             print 'enter xArray', caller[3], args
         if XArrayImpl.perf_count is not None:
             my_fun = caller[3]
-            if not my_fun in XArrayImpl.perf_count:
+            if my_fun not in XArrayImpl.perf_count:
                 XArrayImpl.perf_count[my_fun] = 0
             XArrayImpl.perf_count[my_fun] += 1
 
-    def _exit(self):
+    @staticmethod
+    def _exit():
         if XArrayImpl.exit_trace:
             print 'exit xArray', inspect.stack()[1][3]
         pass
+
+    def rdd(self):
+        return self._rdd
 
     @staticmethod
     def create_sequential_xarray(size, start, reverse):
@@ -136,13 +145,14 @@ class XArrayImpl(XObjectImpl):
             self._exit()
             return
         dtype = dtype or infer_type_of_list(values[0:100])
+
         def do_cast(x, dtype, ignore_cast_failure):
             if is_missing(x): return x
             if type(x) == dtype:
                 return x
             try:
                 return dtype(x)
-            except ValueError, TypeError:
+            except (ValueError, TypeError):
                 # TODO: this does not seem to cach as it should
                 return None if ignore_cast_failure else ValueError
 
@@ -170,7 +180,7 @@ class XArrayImpl(XObjectImpl):
         """
         Load RDD from const value.
         """
-        values = [ value for i in xrange(0, size)]
+        values = [value for _ in xrange(0, size)]
         sc = spark_context()
         self._replace(XRdd(sc.parallelize(values)), type(value))
 
@@ -205,7 +215,6 @@ class XArrayImpl(XObjectImpl):
                 res = res.map(lambda x: dtype(x))
         self._replace(res, dtype)
         self._exit()
-
 
     def get_content_identifier(self):
         """
@@ -259,6 +268,7 @@ class XArrayImpl(XObjectImpl):
         Saves the RDD to file as text.
         """
         self._entry(path)
+
         def to_csv(row, **params):
             sio = StringIO.StringIO()
             writer = csv.writer(sio, **params)
@@ -266,14 +276,14 @@ class XArrayImpl(XObjectImpl):
                 writer.writerow([row], **params)
                 ret = sio.getvalue()
                 return ret
-            except Exception as e:
+            except IOError:
                 return ''
 
         with open(path, 'w') as f:
             self.begin_iterator()
             elems_at_a_time = 10000
             ret = self.iterator_get_next(elems_at_a_time)
-            while(True):
+            while True:
                 for row in ret:
                     line = to_csv(row, **params)
                     f.write(line)
@@ -304,7 +314,7 @@ class XArrayImpl(XObjectImpl):
         Returns the number of rows in the RDD.
         """
         self._entry()
-        count =  self._count()             # action
+        count = self._count()             # action
         self._exit()
         return count
 
@@ -403,7 +413,7 @@ class XArrayImpl(XObjectImpl):
         buf_rdd = self._rdd.zipWithIndex()
         low = self.iter_pos
         high = self.iter_pos + elems_at_a_time
-        filtered_rdd = buf_rdd.filter(lambda row: row[1] >= low and row[1] < high)
+        filtered_rdd = buf_rdd.filter(lambda row: row[1] >= low < high)
         trimmed_rdd = filtered_rdd.map(lambda row: row[0])
         iter_buf = trimmed_rdd.collect()
         self.iter_pos += elems_at_a_time
@@ -417,7 +427,7 @@ class XArrayImpl(XObjectImpl):
         """
         self._entry(other, op)
         res_type = self.elem_type
-        pairs = self._rdd.zip(other._rdd)
+        pairs = self._rdd.zip(other.rdd())
         if op == '+':
             res = pairs.map(lambda x: x[0] + x[1])
         elif op == '-':
@@ -516,7 +526,6 @@ class XArrayImpl(XObjectImpl):
         Performs unary operations on an RDD.
         """
         self._entry(op)
-        res_type = self.elem_type
         if op == '+':
             res = self._rdd
         elif op == '-':
@@ -546,7 +555,7 @@ class XArrayImpl(XObjectImpl):
         Self and other are of the same length.
         """
         self._entry(other)
-        pairs = self._rdd.zip(other._rdd)
+        pairs = self._rdd.zip(other.rdd())
         res = pairs.filter(lambda p: p[1]).map(lambda p: p[0])
         self._exit()
         return self._rv(res)
@@ -556,6 +565,7 @@ class XArrayImpl(XObjectImpl):
         Returns an RDD consisting of the values between start and stop, counting by step.
         """
         self._entry(start, step, stop)
+
         def select_row(x, start, step, stop):
             if x < start or x >= stop: return False
             return (x - start) % step == 0
@@ -570,14 +580,16 @@ class XArrayImpl(XObjectImpl):
         containing each individual vector sliced, between start and end, exclusive.
         """
         self._entry(start, end)
+
         def slice_start(x, start):
             try:
                 return x[start]
             except IndexError:
                 return None
+
         def slice_start_end(x, start, end):
             l = len(x)
-            if end  > l:
+            if end > l:
                 return None
             try:
                 return x[start:end]
@@ -600,6 +612,7 @@ class XArrayImpl(XObjectImpl):
         to a boolean value.
         """
         self._entry(fn, skip_undefined, seed)
+
         def apply_filter(x, fn, skip_undefined):
             if x is None and skip_undefined: return None
             return fn(x)
@@ -628,7 +641,7 @@ class XArrayImpl(XObjectImpl):
         self._entry(other)
         if self.elem_type != other.elem_type:
             raise TypeError('Types must match in append: {} {}'.format(self.elem_type, other.elem_type))
-        res = self._rdd.union(other._rdd)
+        res = self._rdd.union(other.rdd())
         self._exit()
         return self._rv(res)
 
@@ -643,11 +656,12 @@ class XArrayImpl(XObjectImpl):
         ``dtype``. 
         """
         self._entry(fn, dtype, skip_undefined, seed)
+
         def apply_and_cast(x, fn, dtype, skip_undefined):
             if is_missing(x) and skip_undefined: return None
             try:
                 return dtype(fn(x))
-            except TypeError as e:
+            except TypeError:
                 return TypeError
 
         res = self._rdd.map(lambda x: apply_and_cast(x, fn, dtype, skip_undefined))
@@ -668,13 +682,14 @@ class XArrayImpl(XObjectImpl):
         ``dtype``. 
         """
         self._entry(fn, dtype, skip_undefined, seed)
+
         def apply_and_cast(x, fn, dtype, skip_undefined):
             if is_missing(x) and skip_undefined: return []
             try:
                 if skip_undefined:
-                    return [ dtype(item) for item in fn(x) if not is_missing(item)]
-                return [ dtype(item) for item in fn(x)]
-            except TypeError as e:
+                    return [dtype(item) for item in fn(x) if not is_missing(item)]
+                return [dtype(item) for item in fn(x)]
+            except TypeError:
                 return TypeError
 
         res = self._rdd.flatMap(lambda x: apply_and_cast(x, fn, dtype, skip_undefined))
@@ -682,7 +697,7 @@ class XArrayImpl(XObjectImpl):
         # search for type error and throw exception
         try:
             errs = res.filter(lambda x: x is TypeError).take(1)
-        except Exception as e:
+        except Exception:
             raise ValueError('type conversion failure')
         if len(errs) > 0:
             raise ValueError('type conversion failure')
@@ -697,6 +712,7 @@ class XArrayImpl(XObjectImpl):
         # can parse strings that look like list and dict into corresponding types
         # does not do this now
         self._entry(dtype, undefined_on_failure)
+
         def convert_type(x, dtype):
             try:
                 if dtype in (int, long, float):
@@ -725,12 +741,14 @@ class XArrayImpl(XObjectImpl):
         element in each array is clipped.
         """
         self._entry(lower, upper)
+
         def clip_val(x, lower, upper):
             if x < lower: return lower
             elif x > upper: return upper
             else: return x
+
         def clip_list(x, lower, upper):
-            return [ clip_val(v, lower, upper) for v in x]
+            return [clip_val(v, lower, upper) for v in x]
         if self.elem_type == list:
             res = self._rdd.map(lambda x: clip_list(x, lower, upper))
         else:
@@ -782,27 +800,28 @@ class XArrayImpl(XObjectImpl):
         self._entry(column_name_prefix, limit, column_types, na_value)
 
         prefix = column_name_prefix if len(column_name_prefix) == 0 else column_name_prefix + '.'
-        column_names = [ prefix + str(elem) for elem in limit ]
+        column_names = [prefix + str(elem) for elem in limit]
         n_cols = len(column_names)
 
         def select_elems(row, limit):
             if type(row) == list:
-                return [row[elem] if 0 <= elem and elem < len(row) else None for elem in limit]
+                return [row[elem] if 0 <= elem < len(row) else None for elem in limit]
             else:
                 return [row[elem] if elem in row else None for elem in limit]
+
         def extend(row, n_cols, na_value):
             if na_value is not None:
                 if isinstance(row, list):
                     row = [na_value if is_missing(x) else x for x in row]
                 else:
-                    row = { x: na_value if is_missing(row[x]) else row[x] for x in row}
+                    row = {x: na_value if is_missing(row[x]) else row[x] for x in row}
             if len(row) < n_cols:
                 if isinstance(row, list):
                     for i in range(len(row), n_cols):
                         row.append(na_value)
                 else:
                     for i in limit:
-                        if not i in row: row[i] = na_value
+                        if i not in row: row[i] = na_value
             return row
 
         def narrow(row, n_cols):
@@ -812,6 +831,7 @@ class XArrayImpl(XObjectImpl):
 
         def cast_elem(x, dtype):
             return None if x is None else dtype(x)
+
         def cast_row(row, column_types):
             return [cast_elem(x, dtype) for x, dtype in zip(row, column_types)]
         res = self._rdd.map(lambda row: extend(row, n_cols, na_value))
@@ -863,12 +883,14 @@ class XArrayImpl(XObjectImpl):
         count = self._count()     # action
         if count == 0:
             return True
+
         def do_all(val1, val2):
             if isinstance(val1, float) and math.isnan(val1): val1 = False
             if isinstance(val2, float) and math.isnan(val2): val2 = False
             if val1 is None: val1 = False
             if val2 is None: val2 = False
             return bool(val1 and val2)
+
         def combine(acc1, acc2): 
             return acc1 and acc2
         self._exit()
@@ -886,12 +908,14 @@ class XArrayImpl(XObjectImpl):
         count = self._count()     # action
         if count == 0:
             return False
+
         def do_any(val1, val2):
             if isinstance(val1, float) and math.isnan(val1): val1 = False
             if isinstance(val2, float) and math.isnan(val2): val2 = False
             if val1 is None: val1 = False
             if val2 is None: val2 = False
             return bool(val1 or val2)
+
         def combine(acc1, acc2): 
             return acc1 or acc2
         self._exit()
@@ -909,7 +933,7 @@ class XArrayImpl(XObjectImpl):
         count = self._count()     # action
         if count == 0:     # action
             return None
-        if not self.elem_type in  (int, long, float):
+        if self.elem_type not in (int, long, float):
             raise TypeError('max: non numeric type')
         self._exit()
         return self._rdd.max()          # action
@@ -925,7 +949,7 @@ class XArrayImpl(XObjectImpl):
         count = self._count()     # action
         if count == 0:     # action
             return None
-        if not self.elem_type in  (int, long, float):
+        if self.elem_type not in (int, long, float):
             raise TypeError('sum: non numeric type')
         self._exit()
         return self._rdd.min()      # action
@@ -945,7 +969,7 @@ class XArrayImpl(XObjectImpl):
         if count == 0:     # action
             return None
 
-        if not self.elem_type in (int, long, float, bool):
+        if self.elem_type not in (int, long, float, bool):
             raise TypeError('sum: non numeric type')
         self._exit()
         return self._rdd.sum()    # action
@@ -961,7 +985,7 @@ class XArrayImpl(XObjectImpl):
         count = self._count()     # action
         if count == 0:     # action
             return None
-        if not self.elem_type in (int, long, float):
+        if self.elem_type not in (int, long, float):
             raise TypeError('mean: non numeric type')
         self._exit()
         return self._rdd.mean()       # action
@@ -978,10 +1002,10 @@ class XArrayImpl(XObjectImpl):
         if count == 0:      # action
             self._exit()
             return None
-        if not self.elem_type in (int, long, float):
+        if self.elem_type not in (int, long, float):
             raise TypeError('mean: non numeric type')
         if ddof < 0 or ddof > 1 or ddof >= count:
-            raise ArgError('std: invalid ddof {}'.format(ddof))
+            raise ValueError('std: invalid ddof {}'.format(ddof))
         if ddof == 0:
             res = self._rdd.stdev()
         else:
@@ -1000,10 +1024,10 @@ class XArrayImpl(XObjectImpl):
         count = self._count()     # action
         if count == 0:      # action
             return None
-        if not self.elem_type in (int, long, float):
+        if self.elem_type not in (int, long, float):
             raise TypeError('mean: non numeric type')
         if ddof < 0 or ddof > 1 or ddof >= count:
-            raise ArgError('std: invalid ddof {}'.format(ddof))
+            raise ValueError('std: invalid ddof {}'.format(ddof))
         if ddof == 0:
             res = self._rdd.variance()     # action
         else:
@@ -1018,8 +1042,8 @@ class XArrayImpl(XObjectImpl):
         self._entry()
         self.materialized = True
         res = self._rdd.aggregate(0,             # action
-                           lambda acc, v: acc + 1 if is_missing(v) else acc,
-                           lambda acc1, acc2: acc1 + acc2)
+                                  lambda acc, v: acc + 1 if is_missing(v) else acc,
+                                  lambda acc1, acc2: acc1 + acc2)
         self._exit()
         return res
 
@@ -1029,12 +1053,13 @@ class XArrayImpl(XObjectImpl):
         """
         self._entry()
         self.materialized = True
+
         def ne_zero(x):
             if is_missing(x): return False
             return x != 0
         res = self._rdd.aggregate(0,            # action
-                           lambda acc, v: acc + 1 if ne_zero(v) else acc,
-                           lambda acc1, acc2: acc1 + acc2)
+                                  lambda acc, v: acc + 1 if ne_zero(v) else acc,
+                                  lambda acc1, acc2: acc1 + acc2)
         self._exit()
         return res
 
@@ -1049,7 +1074,7 @@ class XArrayImpl(XObjectImpl):
             sa_item_len =  sa.apply(lambda x: len(x) if x is not None else None)
         """
         self._entry()
-        if not self.elem_type in  (str, dict, array, list):
+        if self.elem_type not in (str, dict, array, list):
             raise TypeError('item_length: must be string, dict, array, or list {}'.format(self.elem_type))
         res = self._rdd.map(lambda x: len(x) if x is not None else None, preservesPartitioning=True)
         self._exit()
@@ -1061,7 +1086,6 @@ class XArrayImpl(XObjectImpl):
         Used only in split_datetime.
         """
         raise NotImplementedError('datetime_to_str')
-        self._exit()
 
     def datetime_to_str(self, str_format):
         """
@@ -1070,7 +1094,6 @@ class XArrayImpl(XObjectImpl):
         """
         self._entry(str_format)
         raise NotImplementedError('datetime_to_str')
-        self._exit()
 
     def str_to_datetime(self, str_format):
         """
@@ -1079,22 +1102,18 @@ class XArrayImpl(XObjectImpl):
         """
         self._entry(str_format)
         raise NotImplementedError('str_to_datetime')
-        self._exit()
 
     # Text Processing
     def count_bag_of_words(self, options):
         raise NotImplementedError('count_bag_of_words')
-        self._exit()
 
     def count_ngrams(self, n, options):
         self._entry(n, options)
         raise NotImplementedError('count_ngrams')
-        self._exit()
 
     def count_character_ngrams(self, n, options):
         self._entry(n, options)
         raise NotImplementedError('count_character_ngrams')
-        self._exit()
 
     def dict_trim_by_keys(self, keys, exclude):
         """
@@ -1108,7 +1127,7 @@ class XArrayImpl(XObjectImpl):
 
         def trim_keys(items):
             if exclude:
-                return {k: items[k] for k in items if not k in keys}
+                return {k: items[k] for k in items if k not in keys}
             else:
                 return {k: items[k] for k in items if k in keys}
 
@@ -1127,7 +1146,7 @@ class XArrayImpl(XObjectImpl):
             raise TypeError('type must be dict: {}'.format(self.dtype))
 
         def trim_values(items):
-            return {k: items[k] for k in items if items[k] >= lower and items[k] <= upper}
+            return {k: items[k] for k in items if lower <= items[k] <= upper}
         res = self._rdd.map(trim_values)
         self._exit()
         return self._rv(res, dict)
@@ -1143,7 +1162,7 @@ class XArrayImpl(XObjectImpl):
 
         res = self._rdd.map(lambda item: item.keys())
         column_types = infer_types(res)
-        column_names = [ 'X.{}'.format(i) for i in range(len(column_types))]
+        column_names = ['X.{}'.format(i) for i in range(len(column_types))]
         self._exit()
         return self._rv_frame(res, column_names, column_types)
 
@@ -1158,7 +1177,7 @@ class XArrayImpl(XObjectImpl):
 
         res = self._rdd.map(lambda item: item.values())
         column_types = infer_types(res)
-        column_names = [ 'X.{}'.format(i) for i in range(len(column_types))]
+        column_names = ['X.{}'.format(i) for i in range(len(column_types))]
         self._exit()
         return self._rv_frame(res, column_names, column_types)
 
@@ -1195,4 +1214,3 @@ class XArrayImpl(XObjectImpl):
         res = self._rdd.map(has_all_keys)
         self._exit()
         return self._rv(res, bool)
-

@@ -15,12 +15,19 @@ import ConfigParser as _ConfigParser
 import itertools as _itertools
 import errno
 import shutil
+import datetime
 
 import logging as _logging
 
 from pyspark import StorageLevel
 
+from pyspark.sql.types import StringType, BooleanType, \
+    DoubleType, FloatType, \
+    ShortType, IntegerType, LongType, \
+    ArrayType, MapType
+
 __LOGGER__ = _logging.getLogger(__name__)
+
 
 def get_credentials():
     """
@@ -47,6 +54,7 @@ def get_credentials():
     if (not 'AWS_SECRET_ACCESS_KEY' in _os.environ):
         raise KeyError('No secret key found. Please set the environment variable AWS_SECRET_ACCESS_KEY.')
     return (_os.environ['AWS_ACCESS_KEY_ID'], _os.environ['AWS_SECRET_ACCESS_KEY'])
+
 
 def make_internal_url(url):
     """
@@ -77,9 +85,6 @@ def make_internal_url(url):
     if not url:
         raise ValueError('Invalid url: %s' % url)
 
-    # The final file path on server.
-    path_on_server = None
-
     # Try to split the url into (protocol, path).
     urlsplit = url.split("://")
     if len(urlsplit) == 2:
@@ -98,18 +103,18 @@ def make_internal_url(url):
                 return url
         elif protocol == 's3':
             if len(path.split(":")) == 3:
-            # s3 url already contains secret key/id pairs, just return
+                # s3 url already contains secret key/id pairs, just return
                 return url
             else:
-            # s3 url does not contain secret key/id pair, query the environment variables
+                # s3 url does not contain secret key/id pair, query the environment variables
                 (k, v) = get_credentials()
 #                return 's3n://' + k + ':' + v + '@' + path
                 return 's3n://' + path
         elif protocol == 'remote':
-        # url for files on the server
+            # url for files on the server
             path_on_server = path
         elif protocol == 'local':
-        # url for files on local client, check if we are connecting to local server
+            # url for files on local client, check if we are connecting to local server
             if (isinstance(_glconnect.get_server(), _server.LocalServer)):
                 path_on_server = path
             else:
@@ -153,7 +158,7 @@ def download_dataset(url_str, extract=True, force=False, output_dir="."):
         The directory to dump the file. Defaults to current directory.
     """
     fname = output_dir + "/" + url_str.split("/")[-1]
-    #download the file from the web
+    # download the file from the web
     if not _os.path.isfile(fname) or force:
         print "Downloading file from: ", url_str
         _urllib.urlretrieve(url_str, fname)
@@ -178,6 +183,7 @@ def download_dataset(url_str, extract=True, force=False, output_dir="."):
 
 
 __XFRAMES_CURRENT_VERSION_URL__ = "http://atigeo.com/files/xframes_current_version"
+
 
 def get_newest_version(timeout=5, _url=__XFRAMES_CURRENT_VERSION_URL__):
     """
@@ -212,14 +218,14 @@ def perform_version_check(configfile=(_os.path.join(_os.path.expanduser("~"), ".
     """
     skip_version_check = False
     try:
-        if (_os.path.isfile(configfile)):
+        if _os.path.isfile(configfile):
             config = _ConfigParser.ConfigParser()
             config.read(configfile)
             section = 'Product'
             key = 'skip_version_check'
             skip_version_check = config.getboolean(section, key)
             __LOGGER__.debug("skip_version_check=%s" % str(skip_version_check))
-    except:
+    except Exception:
         # eat all errors
         pass
 
@@ -303,13 +309,16 @@ def get_archive_type(path):
 
 
 GLOB_RE = _re.compile("""[*?]""")
+
+
 def split_path_elements(url):
     parts = _os.path.split(url)
     m = GLOB_RE.search(parts[-1])
     if m:
-        return (parts[0], parts[1])
+        return parts[0], parts[1]
     else:
-        return (url, "")
+        return url, ""
+
 
 def validate_feature_types(dataset, features, valid_feature_types):
     if features is not None:
@@ -319,13 +328,13 @@ def validate_feature_types(dataset, features, valid_feature_types):
         if not all([isinstance(x, str) for x in features]):
             raise TypeError("Input 'features' must contain only strings.")
 
-    ## Extract the features and labels
+    # Extract the features and labels
     if features is None:
         features = dataset.column_names()
 
     col_type_map = {
         col_name: col_type for (col_name, col_type) in
-        zip(dataset.column_names(), dataset.column_types()) }
+        zip(dataset.column_names(), dataset.column_types())}
 
     valid_features = []
     for col_name in features:
@@ -375,11 +384,11 @@ def crossproduct(d):
     [6 rows x 2 columns]
     """
 
-    _mt._get_metric_tracker().track('util.crossproduct')
     from xpatterns import XArray
     d = [zip(d.keys(), x) for x in _itertools.product(*d.values())]
-    sa = [{k:v for (k,v) in x} for x in d]
+    sa = [{k: v for (k, v) in x} for x in d]
     return XArray(sa).unpack(column_name_prefix='')
+
 
 def delete_file_or_dir(path):
     expected_errs = [errno.ENOENT]     # no such file or directory
@@ -390,10 +399,6 @@ def delete_file_or_dir(path):
             raise err
 
 
-
-  ####################
-  ## Type Inference ##
-  ####################
 def classify_type(s):
     """ 
     From a string, classifies the type of object that it represents.
@@ -403,6 +408,7 @@ def classify_type(s):
     if s.startswith('['): return list
     if s.startswith('{'): return dict
     return str
+
 
 def infer_type(rdd):
     """
@@ -419,6 +425,7 @@ def infer_type(rdd):
         dtype = str
     return dtype
 
+
 def infer_types(rdd):
     """
     From an RDD of tuples of strings, find what data type each one represents.
@@ -431,6 +438,7 @@ def infer_types(rdd):
         return [ infer_type_of_list(get_col(head, i)) for i in range(n_cols)]
     except IndexError:
         raise ValueError('rows are not the same length')
+
 
 def infer_type_of_list(data):
     """
@@ -449,6 +457,7 @@ def infer_type_of_list(data):
             raise TypeError('infer_type_of_list: mixed types in list: {} {}'.format(d_type, candidate))
     return candidate
 
+
 def infer_type_of_rdd(rdd):
     return infer_type_of_list(rdd.take(100))
 
@@ -457,23 +466,25 @@ def infer_type_of_rdd(rdd):
 def cache(rdd):
     rdd.persist(StorageLevel.MEMORY_ONLY)
 
+
 def uncache(rdd):
     rdd.unpersist()
+
 
 def persist(rdd):
     rdd.persist(StorageLevel.MEMORY_AND_DISK)
     
+
 def unpersist(rdd):
     rdd.unpersist()
 
-  #########################
-  ##  Missing Value Test ##
-  #########################
+
 def is_missing(x):
     """ Tests for missing values. """
     if x is None: return True
     if isinstance(x, float) and math.isnan(x): return True
     return False
+
 
 def is_missing_or_empty(val):
     """ Tests for missing or empty values. """
@@ -481,4 +492,52 @@ def is_missing_or_empty(val):
     if type(val) in (list, dict):
         if len(val) == 0: return True
     return False
+
+
+def pytype_from_dtype(dtype):
+    if dtype == 'float': return float
+    if dtype == 'float32': return float
+    if dtype == 'float64': return float
+    if dtype == 'int': return int
+    if dtype == 'int32': return int
+    if dtype == 'int64': return int
+    if dtype == 'bool': return bool
+    if dtype == 'datetime64[ns]': return datetime.datetime
+    if dtype == 'object': return object
+    return None
+
+
+def to_ptype(schema_type):
+    if isinstance(schema_type, BooleanType): return bool
+    elif isinstance(schema_type, IntegerType): return int
+    elif isinstance(schema_type, ShortType): return int
+    elif isinstance(schema_type, LongType): return long
+    elif isinstance(schema_type, DoubleType): return float
+    elif isinstance(schema_type, FloatType): return float
+    elif isinstance(schema_type, StringType): return str
+    elif isinstance(schema_type, ArrayType): return list
+    elif isinstance(schema_type, MapType): return dict
+    else: return str
+
+
+def to_schema_type(typ, elem):
+    if typ == str: return StringType()
+    if typ == bool: return BooleanType()
+    if typ == float: return FloatType()
+    if typ == int or typ == long: return IntegerType()
+    if typ == list:
+        if elem is None or len(elem) == 0:
+            raise ValueError('frame not compatible with Spark DataFrame')
+        a_type = to_schema_type(type(elem[0]), None)
+        # todo set valueContainsNull correctly
+        return ArrayType(a_type)
+    if typ == dict:
+        if elem is None or len(elem) == 0:
+            raise ValueError('frame not compatible with Spark DataFrame')
+        key_type = to_schema_type(type(elem.keys()[0]), None)
+        val_type = to_schema_type(type(elem.values()[0]), None)
+        # todo set valueContainsNull correctly
+        return MapType(key_type, val_type)
+    return StringType()
+
 

@@ -6,9 +6,11 @@ import heapq
 #
 #    This code is derived from that found on the webpage:
 #         http://tech.shareaholic.com/2012/12/03/the-count-min-sketch-how-to-count-over-large-keyspaces-when-about-right-is-good-enough/
-#    The algorithm described above is used in each partition, and then the results are merged using the methods at the end.
+#    The algorithm described above is used in each partition, and then the results are merged using
+#       the methods at the end.
 #
 BIG_PRIME = 9223372036854775783
+
 
 def _random_parameter():
     return random.randrange(0, BIG_PRIME - 1)
@@ -19,7 +21,8 @@ def _generate_hash_function_params():
     Returns parameters used in hash function.
     """
     a, b = _random_parameter(), _random_parameter()
-    return (a, b)
+    return a, b
+
 
 class FreqSketch(object):
     def __init__(self, k, epsilon, delta, seed=None):
@@ -68,10 +71,10 @@ class FreqSketch(object):
         self.k = k
         self.width = int(np.ceil(np.exp(1) / epsilon))
         self.depth = int(np.ceil(np.log(1 / delta)))
-        self.hash_function_params = [_generate_hash_function_params() for i in range(self.depth)]
+        self.hash_function_params = [_generate_hash_function_params() for _ in range(self.depth)]
         self.count = np.zeros((self.depth, self.width), dtype='int32')
         self.heap = []
-        self.top_k = {} # top_k => [estimate, key] pairs
+        self.top_k = {}       # top_k => [estimate, key] pairs
 
     def _check_compatibility(self, other):
         """Check if another FreqSketch is compatible with this one for merge.

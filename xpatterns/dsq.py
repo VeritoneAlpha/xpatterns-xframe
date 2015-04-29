@@ -20,15 +20,15 @@
 This is a Python implementation of distributed streaming quantiles using the
 count-min sketch.  It is suitable for using in a distributed computing
 environment, like Spark.
-
 """
 
 import sys
 import random
 from math import ceil, log, e as euler
 
+
 def exp2(x):
-    return 2.**(x)
+    return 2. ** x
 
 
 class CMSketch(object):
@@ -42,7 +42,6 @@ class CMSketch(object):
         depth: (int) depth of the sketch (number of hashes)
         hash_state: (tuple of int) defining the set of hash functions. It
             should have depth integers.
-    
     """
     
     def __init__(self, width, depth, hash_state):
@@ -52,8 +51,11 @@ class CMSketch(object):
         self.width = width
         self.depth = depth
         self.hash_state = hash_state
-        self._counts = [[0] * self.width for i in xrange(self.depth)]
+        self._counts = [[0] * self.width for _ in xrange(self.depth)]
         self._masks = [CMSketch.generate_mask(n) for n in self.hash_state]
+
+    def counts(self):
+        return self._counts
     
     def increment(self, key):
         """Increment counter for hashable object key."""
@@ -75,7 +77,7 @@ class CMSketch(object):
         self._check_compatibility(other)
         for i in xrange(self.depth):
             for j in xrange(self.width):
-                self._counts[i][j] += other._counts[i][j]
+                self._counts[i][j] += other.counts()[i][j]
         return self
     
     def _check_compatibility(self, other):
@@ -93,7 +95,7 @@ class CMSketch(object):
         """Generate some random ints suitable to be a hash_state."""
         random.seed(seed)
         return tuple([random.randint(0, sys.maxint)
-                      for i in xrange(num_hashes)])
+                      for _ in xrange(num_hashes)])
     
     @staticmethod
     def generate_hash(state):
@@ -104,6 +106,7 @@ class CMSketch(object):
         """
         random.seed(state)
         mask = random.getrandbits(32)
+
         def myhash(x):
             return hash(x) ^ mask
         return myhash
@@ -185,8 +188,23 @@ class QuantileAccumulator(object):
         self._depth = int(ceil(log(1. / delta)))
         self._hash_state = CMSketch.generate_hash_state(self._depth, seed)
         self._sketches = [CMSketch(self._width, self._depth, self._hash_state)
-                          for i in xrange(self._num_levels)]
+                          for _ in xrange(self._num_levels)]
     
+    def sketches(self):
+        return self._sketches
+
+    def width(self):
+        return self._width
+
+    def depth(self):
+        return self._depth
+
+    def hash_state(self):
+        return self._hash_state
+
+    def num_levels(self):
+        return self._num_levels
+
     def increment(self, value):
         """Increment counter for value in the domain."""
         self.total += 1
@@ -214,7 +232,7 @@ class QuantileAccumulator(object):
     def merge(self, other):
         """Merge QuantileAccumulator with another compatible one."""
         self._check_compatibility(other)
-        for (my_sketch, other_sketch) in zip(self._sketches, other._sketches):
+        for (my_sketch, other_sketch) in zip(self._sketches, other.sketches()):
             my_sketch.merge(other_sketch)
         self.total += other.total
         return self
@@ -227,10 +245,10 @@ class QuantileAccumulator(object):
         if (self.lower_bound != other.lower_bound or
                 self.upper_bound != other.upper_bound):
             raise ValueError("Quantile domains do not match")
-        if self._num_levels != other._num_levels:
+        if self._num_levels != other.num_levels():
             raise ValueError("Number of levels do not match.")
-        if (self._width != other._width or self._depth != other._depth
-                or self._hash_state != other._hash_state):
+        if (self._width != other.width() or self._depth != other.depth()
+                or self._hash_state != other.hash_state()):
             raise ValueError("Sketch parameters do not match.")
     
     def cdf(self, value):

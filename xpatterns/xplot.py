@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 from xpatterns.aggregate import COUNT
 
+
 class XPlot(object):
     """
     Plotting library for xFrames.
@@ -93,7 +94,6 @@ class XPlot(object):
             print traceback.format_exc()
             print e
 
-
     def frequent_values(self, y_col, k=15, title=None, xlabel=None, ylabel=None):
         """
         Plots the number of occurances of specific values in a column.  
@@ -127,8 +127,8 @@ class XPlot(object):
         count.show().top_values('Count', y_col, k, title, xlabel, ylabel)
 
     def histogram(self, col_name, title=None, 
-                       lower_cutoff=0.0, upper_cutoff=0.99, 
-                       bins=None, xlabel=None, ylabel=None):
+                  lower_cutoff=0.0, upper_cutoff=0.99,
+                  bins=None, xlabel=None, ylabel=None):
         """ 
         Plot a histogram.
 
@@ -169,7 +169,7 @@ class XPlot(object):
             raise ValueError('upper cutoff must be between 0.0 and 1.0')
         if lower_cutoff >= upper_cutoff:
             raise ValueError('lower cutoff must be less than upper cutoff')
-        if not col_name in self.xframe.column_names():
+        if col_name not in self.xframe.column_names():
             raise ValueError('column name {} is not in the XFrame'.format(col_name))
 
         bins = bins or 50
@@ -183,6 +183,7 @@ class XPlot(object):
             xlabel = xlabel or col_name
             ylabel = ylabel or 'Count'
             vals = self.xframe[col_name].dropna()
+
             def enforce_cutoff(x):
                 if x < q_lower: return q_lower
                 if x > q_upper: return q_upper

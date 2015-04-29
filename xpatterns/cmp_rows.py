@@ -1,6 +1,7 @@
 
 #    Row comparison wrapper for ascending or descending comparison.
 
+
 class CmpRows(object):
     """ Comparison wrapper for a row.
 
@@ -59,13 +60,18 @@ class CmpRows(object):
     # These are the comparison interface
     def __lt__(self, other):
         return self.less(other)
+
     def __gt__(self, other):
         return self.greater(other)
+
     def __eq__(self, other):
         return self.equal(other)
+
     def __le__(self, other):
-        return selfless(other) or self.equal(other)
+        return self.less(other) or self.equal(other)
+
     def __ge__(self, other):
         return self.greater(other) or self.equal(other)
+
     def __ne__(self, other):
         return not self.equal(other)
