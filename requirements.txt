@@ -1,3 +1,4 @@
+jdk
 sphinx
 cloud_sptheme
 pandas
@@ -8,3 +9,5 @@ prettytable
 pygments
 python_dateutil
 numpydoc
+prettytable
+
