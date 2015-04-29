@@ -29,6 +29,7 @@ ENV USE_HTTP 0
 ENV XPATTERNS_HOME=/notebooks
 ENV LIB=/notebooks
 ENV SPARK_HOME=/usr/local/spark
+ENV SPARK_CONF_DIR=/notebooks/conf
 ENV PYTHONPATH="/usr/local/spark/python/:/notebooks:/usr/local/spark/python/lib/py4j-0.8.2.1-src.zip"
 
 #Build Docs
@@ -43,6 +44,7 @@ ADD xpatterns /notebooks/xpatterns
 ADD MachineLearningWithSpark /notebooks/MachineLearningWithSpark
 ADD misc-notebooks /notebooks/misc-notebooks
 ADD intro /notebooks/intro
+ADD conf /notebooks/conf
 ADD docker-setup /setup
 RUN chmod u+x /server.sh
 CMD ["/server.sh"]
