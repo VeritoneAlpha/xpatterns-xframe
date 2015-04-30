@@ -163,7 +163,7 @@ class XArrayImpl(XObjectImpl):
                 errs = len(rdd.filter(lambda x: x is ValueError).take(1)) == 1
                 if errs: raise ValueError
         elif dtype is None:
-            raise NotImplementedError('load_from_iterable: cannot determine types')
+            raise NotImplementedError("'Load_from_iterable': cannot determine types.")
         else:
             # TODO merge with clause above
             raw_rdd = XRdd(sc.parallelize(values))
@@ -236,7 +236,7 @@ class XArrayImpl(XObjectImpl):
             self._rdd.saveAsPickleFile(path)          # action ?
         except:
             # TODO distinguish between filesystem errors and pickle errors
-            raise TypeError('the type cannot be saved')
+            raise TypeError('The type cannot be saved.')
         metadata = self.elem_type
         metadata_path = os.path.join(path, '_metadata')
         with open(metadata_path, 'w') as md:
@@ -255,7 +255,7 @@ class XArrayImpl(XObjectImpl):
             self._rdd.saveAsTextFile(path)           # action ?
         except:
             # TODO distinguish between filesystem errors and pickle errors
-            raise TypeError('the type cannot be saved')            
+            raise TypeError('The type cannot be saved.')
         metadata = self.elem_type
         metadata_path = os.path.join(path, 'metadata')
         with open(metadata_path, 'w') as md:

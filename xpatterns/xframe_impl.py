@@ -455,10 +455,10 @@ class XFrameImpl(XObjectImpl):
         first_row = rdd.take(1)[0]
         if names is not None:
             if len(names) != len(first_row):
-                raise ValueError('length of names does not match RDD')
+                raise ValueError('Length of names does not match RDD.')
         if types is not None:
             if len(types) != len(first_row):
-                raise ValueError('length of types does not match RDD')
+                raise ValueError('Length of types does not match RDD.')
         xf_names = names or ['X.{}'.format(i) for i in range(len(first_row))]
         xf_types = types or [type(elem) for elem in first_row]
         # TODO sniff types using more of the rdd
@@ -683,7 +683,7 @@ class XFrameImpl(XObjectImpl):
         """
         self._entry(column_name)
         if column_name not in self.col_names:
-            raise ValueError('column name does not exist: {}'.format(column_name))
+            raise ValueError("Column name does not exist: '{}'.".format(column_name))
 
         col = self.col_names.index(column_name)
         res = self._rdd.map(lambda row: row[col])
@@ -722,7 +722,7 @@ class XFrameImpl(XObjectImpl):
         if name == '':
             name = 'X{}'.format(col)
         if name in self.col_names:
-            raise ValueError('column name already exists: {}'.format(name))
+            raise ValueError("Column name already exists: '{}'.".format(name))
         self.col_names.append(name)
         self.column_types.append(data.elem_type)
         # zip the data into the rdd, then shift into the list
@@ -1213,7 +1213,7 @@ class XFrameImpl(XObjectImpl):
         """
         self._entry(col, dtype, seed)
         if col not in self.col_names:
-            raise ValueError('column name does not exist: {}'.format(col))
+            raise ValueError("Column name does not exist: '{}'.".format(col))
         col_index = self.col_names.index(col)
         names = self.col_names
 
@@ -1245,7 +1245,7 @@ class XFrameImpl(XObjectImpl):
         self._entry(cols, dtypes, seed)
         for col in cols:
             if col not in self.col_names:
-                raise ValueError('column name does not exist: {}'.format(col))
+                raise ValueError("Column name does not exist: '{}'.".format(col))
         col_indexes = [self.col_names.index(col) for col in cols]
         names = self.col_names
 
@@ -1406,7 +1406,8 @@ class XFrameImpl(XObjectImpl):
                 return json.dumps(key)
 
             if len(left_key_indexes) == 0 or len(right_key_indexes) == 0:
-                raise ValueError('empty join columns -- left: {} right: {}'.format(left_key_indexes, right_key_indexes))
+                raise ValueError("Empty join columns -- left: '{}' right: '{}'."
+                                 .format(left_key_indexes, right_key_indexes))
 
             # add keys to left and right
             keyed_left = self._rdd.map(lambda row: (build_key(row, left_key_indexes), row))
@@ -1427,7 +1428,7 @@ class XFrameImpl(XObjectImpl):
             elif how == 'right':
                 joined = keyed_left.rightOuterJoin(keyed_right)
             else:
-                raise ValueError('how argument is not left, right, inner, or outer')
+                raise ValueError("'How' argument is not 'left', 'right', 'inner', or 'outer'.")
 
             # throw away key now
             pairs = joined.values()

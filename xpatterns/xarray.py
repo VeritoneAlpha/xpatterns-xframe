@@ -26,13 +26,13 @@ __all__ = ['XArray']
 
 def _create_sequential_xarray(size, start=0, reverse=False):
     if type(size) is not int:
-        raise TypeError('size must be int')
+        raise TypeError('Size must be int.')
 
     if type(start) is not int:
-        raise TypeError('size must be int')
+        raise TypeError('Size must be int.')
 
     if type(reverse) is not bool:
-        raise TypeError('reverse must me bool')
+        raise TypeError('Reverse must me bool.')
 
     return XArray(_impl=XArrayImpl.create_sequential_xarray(size, start, reverse))
 
@@ -121,7 +121,7 @@ class XArray(XObject):
         numpy.ndarray, pandas.Series, and urls.
         """
         if dtype is not None and type(dtype) != type:
-            raise TypeError('dtype must be a type, e.g. use int rather than \'int\'')
+            raise TypeError("Dtype must be a type, e.g. use int rather than 'int'.")
 
         if _impl:
             self.__impl__ = _impl
@@ -157,7 +157,7 @@ class XArray(XObject):
                         else:
                             dtype = list
                     elif len(data.shape) > 2:
-                        raise TypeError('Cannot convert Numpy arrays of greater than 2 dimensions')
+                        raise TypeError('Cannot convert Numpy arrays of greater than 2 dimensions.')
 
                 elif isinstance(data, str):
                     # if it is a file, we default to string
@@ -175,7 +175,7 @@ class XArray(XObject):
             else:
                 raise TypeError('Unexpected data source. '
                                 "Possible data source types are: 'list', "
-                                "'numpy.ndarray', 'pandas.Series', and 'string(url)'")
+                                "'numpy.ndarray', 'pandas.Series', and 'string(url)'.")
 
     def dump_debug_info(self):
         return self.__impl__.dump_debug_info()
@@ -200,9 +200,9 @@ class XArray(XObject):
 
         """
         if type(size) is int and size <= 0:
-            raise ValueError('Size must be a positive int')
+            raise ValueError('Size must be a positive int.')
         if type(value) not in {int, float, str, array.array, list, dict}:
-            raise TypeError('Cannot create xarray of value type %s' % str(type(value)))
+            raise TypeError("Cannot create xarray of value type '{}'.".format(type(value)))
         impl = XArrayImpl()
         impl.load_from_const(value, size)
         return cls(_impl=impl)
@@ -245,7 +245,7 @@ class XArray(XObject):
             stop = args[1]
 
         if stop is None and start is None:
-            raise TypeError("'from_sequence' expects at least 1 argument. got 0")
+            raise TypeError("Expects at least one argument. Supply 'stop' or 'start'.")
         elif start is None:
             return _create_sequential_xarray(stop)
         else:
@@ -314,9 +314,9 @@ class XArray(XObject):
         """
 
         if type(number_of_partitions) is not int:
-            raise ValueError('Number_of_partitions parameter expects an integer type')
+            raise ValueError('Number_of_partitions parameter expects an integer type.')
         if number_of_partitions == 0:
-            raise ValueError('Number_of_partitions can not be initialized to zero')
+            raise ValueError('Number_of_partitions can not be initialized to zero.')
 
         return self.__impl__.to_spark_rdd(number_of_partitions)
 
@@ -562,7 +562,7 @@ class XArray(XObject):
         if type(other) is XArray:
             return XArray(_impl=self.__impl__.vector_operator(other.__impl__, '&'))
         else:
-            raise TypeError("XArray can only perform logical and against another XArray.")
+            raise TypeError('XArray can only perform logical and against another XArray.')
 
     def __or__(self, other):
         """
@@ -749,7 +749,7 @@ class XArray(XObject):
 
         """
         if (self.dtype() != array.array) and (self.dtype() != list):
-            raise RuntimeError('Only Vector type can be sliced.')
+            raise RuntimeError("Only 'array.array' and 'list' type can be sliced.")
         if end is None:
             end = start + 1
 
@@ -1298,7 +1298,7 @@ class XArray(XObject):
 
         """
         if fraction > 1 or fraction < 0:
-            raise ValueError('Invalid sampling rate: ' + str(fraction))
+            raise ValueError('Invalid sampling rate: {}.'.format(fraction))
         if self.size() == 0:
             return XArray()
         if not seed:
@@ -1962,8 +1962,8 @@ class XArray(XObject):
         [2, 3, 3, 1, 2, None]
         """
         if self.dtype() not in [str, list, dict, array.array]:
-            raise TypeError('Item_length() is only applicable for XArray of type str, list, ' +
-                            'dict and array.')
+            raise TypeError("Item_length() is only applicable for XArray of type 'str', 'list', " +
+                            "'dict' and 'array'.")
 
         return XArray(_impl=self.__impl__.item_length())
 
@@ -2053,22 +2053,22 @@ class XArray(XObject):
         if column_name_prefix is None:
             column_name_prefix = ''
         if type(column_name_prefix) != str:
-            raise TypeError("'column_name_prefix' must be a string.")
+            raise TypeError("'Column_name_prefix' must be a string.")
 
         # convert limit to column_keys
         if limit is not None:
             if not hasattr(limit, '__iter__'):
-                raise TypeError("'limit' must be a list.")
+                raise TypeError("'Limit' must be a list.")
 
             name_types = set([type(i) for i in limit])
             if len(name_types) != 1:
-                raise TypeError("'limit' contains values that are different types.")
+                raise TypeError("'Limit' contains values that are different types.")
 
             if name_types.pop() != str:
-                raise TypeError("'limit' must contain string values.")
+                raise TypeError("'Limit' must contain string values.")
 
             if len(set(limit)) != len(limit):
-                raise ValueError("'limit' contains duplicate values.")
+                raise ValueError("'Limit' contains duplicate values.")
 
         if limit is not None:
             column_types = list()
@@ -2229,28 +2229,28 @@ class XArray(XObject):
             return column_types
 
         if self.dtype() not in [dict, array.array, list]:
-            raise TypeError('Only XArray of dict/list/array type supports unpack')
+            raise TypeError('Only XArray of dict/list/array type supports unpack.')
 
         if column_name_prefix is None:
             column_name_prefix = ""
         if type(column_name_prefix) != str:
-            raise TypeError("'column_name_prefix' must be a string.")
+            raise TypeError("'Column_name_prefix' must be a string.")
 
         # validdate 'limit'
         if limit is not None:
             if not hasattr(limit, '__iter__'):
-                raise TypeError("'limit' must be a list.")
+                raise TypeError("'Limit' must be a list.")
 
             name_types = set([type(i) for i in limit])
             if len(name_types) != 1:
-                raise TypeError("'limit' contains values that are different types.")
+                raise TypeError("'Limit' contains values that are different types.")
 
             # limit value should be numeric if unpacking xarray.array value
             if self.dtype() != dict and name_types.pop() != int:
-                raise TypeError("'limit' must contain integer values.")
+                raise TypeError("'Limit' must contain integer values.")
 
             if len(set(limit)) != len(limit):
-                raise ValueError("'limit' contains duplicate values.")
+                raise ValueError("'Limit' contains duplicate values.")
 
         if column_types is not None:
             if not hasattr(column_types, '__iter__'):
@@ -2258,13 +2258,13 @@ class XArray(XObject):
 
             for column_type in column_types:
                 if column_type not in (int, float, str, list, dict, array.array):
-                    raise TypeError('column_types contains unsupported types. ' +
+                    raise TypeError("'Column_types' contains unsupported types. " +
                                     "Supported types are ['float', 'int', 'list', " +
                                     "'dict', 'str', 'array.array'].")
 
             if limit is not None:
                 if len(limit) != len(column_types):
-                    raise ValueError('limit and column_types do not have the same length')
+                    raise ValueError("'Limit' and 'column_types' do not have the same length.")
             elif self.dtype() == dict:
                 raise ValueError("If 'column_types' is given, " +
                                  "'limit' has to be provided to unpack dict type.")
@@ -2275,7 +2275,7 @@ class XArray(XObject):
             head_rows = self.head(100).dropna()
             lengths = [len(i) for i in head_rows]
             if len(lengths) == 0 or max(lengths) == 0:
-                raise RuntimeError('Cannot infer number of items from the XArray, ' +
+                raise RuntimeError('Cannot infer number of items from the XArray. ' +
                                    'XArray may be empty. ' +
                                    'Please explicitly provide column types.')
 
