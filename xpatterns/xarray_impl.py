@@ -4,7 +4,6 @@ This module provides an implementation of XArray using pySpark RDDs.
 import math
 import inspect
 import array
-import datetime
 import os
 import pickle
 import ast
@@ -156,23 +155,14 @@ class XArrayImpl(XObjectImpl):
                 # TODO: this does not seem to cach as it should
                 return None if ignore_cast_failure else ValueError
 
-        if dtype in (int, float, str, bool, list, dict, datetime.datetime):
-            raw_rdd = XRdd(sc.parallelize(values))
-            rdd = raw_rdd.map(lambda x: do_cast(x, dtype, ignore_cast_failure))
-            if not ignore_cast_failure:
-                errs = len(rdd.filter(lambda x: x is ValueError).take(1)) == 1
-                if errs: raise ValueError
-        elif dtype is None:
-            raise NotImplementedError("'Load_from_iterable': cannot determine types.")
-        else:
-            # TODO merge with clause above
-            raw_rdd = XRdd(sc.parallelize(values))
-            rdd = raw_rdd.map(lambda x: do_cast(x, dtype, ignore_cast_failure))
-            if not ignore_cast_failure:
-                errs = len(rdd.filter(lambda x: x is ValueError).take(1)) == 1
-                if errs: raise ValueError
-#            raise ValueError('load_from_iterable: dtype not allowed {}'.format(dtype))
-        
+        if dtype is None:
+            raise NotImplementedError('Cannot determine types.')
+        raw_rdd = XRdd(sc.parallelize(values))
+        rdd = raw_rdd.map(lambda x: do_cast(x, dtype, ignore_cast_failure))
+        if not ignore_cast_failure:
+            errs = len(rdd.filter(lambda x: x is ValueError).take(1)) == 1
+            if errs: raise ValueError
+
         self._replace(rdd, dtype)
         self._exit()
 
