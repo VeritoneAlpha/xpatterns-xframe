@@ -3,16 +3,16 @@ This module defines top level utility functions for XFrames.
 """
 
 import math
-import urllib as _urllib
-import urllib2 as _urllib2
-import sys as _sys
-import os as _os
-import re as _re
-from zipfile import ZipFile as _ZipFile
+import urllib
+import urllib2
+import sys
+import os
+import re
+from zipfile import ZipFile
 import bz2 as _bz2
-import tarfile as _tarfile
-import ConfigParser as _ConfigParser
-import itertools as _itertools
+import tarfile
+import ConfigParser
+import itertools
 import errno
 import shutil
 import datetime
@@ -26,9 +26,13 @@ from pyspark.sql.types import StringType, BooleanType, \
     ShortType, IntegerType, LongType, \
     ArrayType, MapType
 
+from xpatterns.spark_context import spark_context
+from xpatterns.xobject import XObject
+
 __LOGGER__ = _logging.getLogger(__name__)
 
 
+# noinspection PyUnresolvedReferences
 def get_credentials():
     """
     Returns the values stored in the AWS credential environment variables.
@@ -49,11 +53,11 @@ def get_credentials():
     ('RBZH792CTQPP7T435BGQ', '7x2hMqplWsLpU/qQCN6xAPKcmWo46TlPJXYTvKcv')
     """
 
-    if (not 'AWS_ACCESS_KEY_ID' in _os.environ):
+    if 'AWS_ACCESS_KEY_ID' not in os.environ:
         raise KeyError('No access key found. Please set the environment variable AWS_ACCESS_KEY_ID.')
-    if (not 'AWS_SECRET_ACCESS_KEY' in _os.environ):
+    if 'AWS_SECRET_ACCESS_KEY' not in os.environ:
         raise KeyError('No secret key found. Please set the environment variable AWS_SECRET_ACCESS_KEY.')
-    return (_os.environ['AWS_ACCESS_KEY_ID'], _os.environ['AWS_SECRET_ACCESS_KEY'])
+    return os.environ['AWS_ACCESS_KEY_ID'], os.environ['AWS_SECRET_ACCESS_KEY']
 
 
 def make_internal_url(url):
@@ -95,10 +99,10 @@ def make_internal_url(url):
             # protocol is a remote url not on server, just return
             return url
         elif protocol == 'hdfs':
-            if isinstance(_glconnect.get_server(), _server.LocalServer) and not _server._get_hadoop_class_path():
-                raise ValueError("HDFS URL is not supported because Hadoop not found. " + 
-                                 "Please make hadoop available from PATH or set the environment variable " + 
-                                 "HADOOP_HOME and try again.")
+            if not has_hdfs():
+                raise ValueError('HDFS URL is not supported because Hadoop not found. '
+                                 'Please make hadoop available from PATH or set the environment variable '
+                                 'HADOOP_HOME and try again.')
             else:
                 return url
         elif protocol == 's3':
@@ -107,7 +111,7 @@ def make_internal_url(url):
                 return url
             else:
                 # s3 url does not contain secret key/id pair, query the environment variables
-                (k, v) = get_credentials()
+#                k, v = get_credentials()
 #                return 's3n://' + k + ':' + v + '@' + path
                 return 's3n://' + path
         elif protocol == 'remote':
@@ -115,28 +119,36 @@ def make_internal_url(url):
             path_on_server = path
         elif protocol == 'local':
             # url for files on local client, check if we are connecting to local server
-            if (isinstance(_glconnect.get_server(), _server.LocalServer)):
+            #
+            # get spark context, get master, see if it starts with local
+            sc = spark_context()
+            if sc.master.startswith('local'):
                 path_on_server = path
             else:
                 raise ValueError('Cannot use local URL when connecting to a remote server.')
         else:
-            raise ValueError('Invalid url protocol %s. Supported url protocols are: ' + 
-                             'remote://, local://, s3://, https:// and hdfs://' % protocol)
+            raise ValueError('Invalid url protocol {}. Supported url protocols are: '
+                             'remote://, local://, s3://, https:// and hdfs://'.format(protocol))
     elif len(urlsplit) == 1:
         # expand ~ to $HOME
-        url = _os.path.expanduser(url)
+        url = os.path.expanduser(url)
         # url for files on local client, check if we are connecting to local server
         if True:
             path_on_server = url
         else:
             raise ValueError('Cannot use local URL when connecting to a remote server.')
     else:
-        raise ValueError('Invalid url: %s' % url)
+        raise ValueError('Invalid url: {}.'.format(url))
 
     if path_on_server:
-        return _os.path.abspath(_os.path.expanduser(path_on_server))
+        return os.path.abspath(os.path.expanduser(path_on_server))
     else:
-        raise ValueError('Invalid url: %s' % url)
+        raise ValueError('Invalid url: {}.'.format(url))
+
+
+def has_hdfs():
+    # TODO -- detect if we have hdfs
+    return False
 
 
 def download_dataset(url_str, extract=True, force=False, output_dir="."):
@@ -159,18 +171,18 @@ def download_dataset(url_str, extract=True, force=False, output_dir="."):
     """
     fname = output_dir + "/" + url_str.split("/")[-1]
     # download the file from the web
-    if not _os.path.isfile(fname) or force:
+    if not os.path.isfile(fname) or force:
         print "Downloading file from: ", url_str
-        _urllib.urlretrieve(url_str, fname)
+        urllib.urlretrieve(url_str, fname)
         if extract and fname[-3:] == "zip":
             print "Decompressing zip archive", fname
-            _ZipFile(fname).extractall(output_dir)
+            ZipFile(fname).extractall(output_dir)
         elif extract and fname[-6:] == ".tar.gz":
             print "Decompressing tar.gz archive", fname
-            _tarfile.TarFile(fname).extractall(output_dir)
+            tarfile.TarFile(fname).extractall(output_dir)
         elif extract and fname[-7:] == ".tar.bz2":
             print "Decompressing tar.bz2 archive", fname
-            _tarfile.TarFile(fname).extractall(output_dir)
+            tarfile.TarFile(fname).extractall(output_dir)
         elif extract and fname[-3:] == "bz2":
             print "Decompressing bz2 archive: ", fname
             outfile = open(fname.split(".bz2")[0], "w")
@@ -182,10 +194,10 @@ def download_dataset(url_str, extract=True, force=False, output_dir="."):
         print "File is already downloaded."
 
 
-__XFRAMES_CURRENT_VERSION_URL__ = "http://atigeo.com/files/xframes_current_version"
+XFRAMES_CURRENT_VERSION_URL = "http://atigeo.com/files/xframes_current_version"
 
 
-def get_newest_version(timeout=5, _url=__XFRAMES_CURRENT_VERSION_URL__):
+def get_newest_version(timeout=5, url=XFRAMES_CURRENT_VERSION_URL):
     """
     Returns the version of XPatterns XFrames currently available from atigeo.com.
     Will raise an exception if we are unable to reach the atigeo.com servers.
@@ -196,15 +208,15 @@ def get_newest_version(timeout=5, _url=__XFRAMES_CURRENT_VERSION_URL__):
     url: string
         The URL to go to to check the current version.
     """
-    request = _urllib2.urlopen(url=_url, timeout=timeout)
+    request = urllib2.urlopen(url=url, timeout=timeout)
     version = request.read()
-    __LOGGER__.debug("current_version read %s" % version)
     return version
 
 
-def perform_version_check(configfile=(_os.path.join(_os.path.expanduser("~"), ".xframes", "config")),
-                          _url=__XFRAMES_CURRENT_VERSION_URL__,
-                          _outputstream=_sys.stderr):
+# noinspection PyBroadException
+def perform_version_check(configfile=(os.path.join(os.path.expanduser("~"), ".xframes", "config")),
+                          url=XFRAMES_CURRENT_VERSION_URL,
+                          _outputstream=sys.stderr):
     """
     Checks if currently running version of XFrames is less than the version
     available from atigeo.com. Prints a message if the atigeo.com servers
@@ -218,8 +230,8 @@ def perform_version_check(configfile=(_os.path.join(_os.path.expanduser("~"), ".
     """
     skip_version_check = False
     try:
-        if _os.path.isfile(configfile):
-            config = _ConfigParser.ConfigParser()
+        if os.path.isfile(configfile):
+            config = ConfigParser.ConfigParser()
             config.read(configfile)
             section = 'Product'
             key = 'skip_version_check'
@@ -232,19 +244,24 @@ def perform_version_check(configfile=(_os.path.join(_os.path.expanduser("~"), ".
     # skip version check set. Quit
     if not skip_version_check:
         try:
-            latest_version = get_newest_version(timeout=1, _url=_url).strip()
-            if parse_version(latest_version) > parse_version(xframes.version_info.version):
-                msg = ("A newer version of XPatterns XFrames (v%s) is available! "
-                       "Your current version is v%s.\n"
+            latest_version = get_newest_version(timeout=1, url=url).strip()
+            if parse_version(latest_version) > parse_version(XObject.version()):
+                msg = ("A newer version of XPatterns XFrames (v{}) is available! "
+                       "Your current version is v{}.\n"
                        "You can use pip to upgrade the xpatterns package. "
-                       "For more information see http://atigeo.com/products/xframes/upgrade.") \
-                           % (latest_version, xframes.version_info.version)
+                       "For more information see http://atigeo.com/products/xframes/upgrade.").format(
+                           latest_version, XObject.version())
                 _outputstream.write(msg)
                 return True
         except:
             # eat all errors
             pass
     return False
+
+
+def parse_version(version):
+    # TODO compute version, once we decide what it looks like
+    return 0
 
 
 def is_directory_archive(path):
@@ -267,15 +284,15 @@ def is_directory_archive(path):
     if path is None:
         return False
 
-    if not _os.path.isdir(path):
+    if not os.path.isdir(path):
         return False
 
-    ini_path = _os.path.join(path, 'dir_archive.ini')
+    ini_path = os.path.join(path, 'dir_archive.ini')
 
-    if not _os.path.exists(ini_path):
+    if not os.path.exists(ini_path):
         return False
 
-    if _os.path.isfile(ini_path):
+    if os.path.isfile(ini_path):
         return True
 
     return False
@@ -298,8 +315,8 @@ def get_archive_type(path):
         raise TypeError('Unable to determine the type of archive at path: %s' % path)
 
     try:
-        ini_path = _os.path.join(path, 'dir_archive.ini')
-        parser = _ConfigParser.SafeConfigParser()
+        ini_path = os.path.join(path, 'dir_archive.ini')
+        parser = ConfigParser.SafeConfigParser()
         parser.read(ini_path)
 
         contents = parser.get('metadata', 'contents')
@@ -308,11 +325,11 @@ def get_archive_type(path):
         raise TypeError('Unable to determine type of archive for path: %s' % path, e)
 
 
-GLOB_RE = _re.compile("""[*?]""")
+GLOB_RE = re.compile("""[*?]""")
 
 
 def split_path_elements(url):
-    parts = _os.path.split(url)
+    parts = os.path.split(url)
     m = GLOB_RE.search(parts[-1])
     if m:
         return parts[0], parts[1]
@@ -385,7 +402,7 @@ def crossproduct(d):
     """
 
     from xpatterns import XArray
-    d = [zip(d.keys(), x) for x in _itertools.product(*d.values())]
+    d = [zip(d.keys(), x) for x in itertools.product(*d.values())]
     sa = [{k: v for (k, v) in x} for x in d]
     return XArray(sa).unpack(column_name_prefix='')
 
@@ -432,10 +449,11 @@ def infer_types(rdd):
     """
     head = rdd.take(100)
     n_cols = len(head[0])
+
     def get_col(head, i):
         return [row[i] for row in head]
     try:
-        return [ infer_type_of_list(get_col(head, i)) for i in range(n_cols)]
+        return [infer_type_of_list(get_col(head, i)) for i in range(n_cols)]
     except IndexError:
         raise ValueError('rows are not the same length')
 
@@ -539,5 +557,4 @@ def to_schema_type(typ, elem):
         # todo set valueContainsNull correctly
         return MapType(key_type, val_type)
     return StringType()
-
 
