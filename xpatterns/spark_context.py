@@ -2,11 +2,15 @@
 Provides functions to create and maintain the spark context.
 """
 
-from xpatterns.environment import Environment
-from xpatterns.singleton import Singleton
+import os
+import atexit
+from zipfile import PyZipFile
+from tempfile import NamedTemporaryFile
 
 from pyspark import SparkConf, SparkContext, SQLContext
-import atexit
+
+from xpatterns.environment import Environment
+from xpatterns.singleton import Singleton
 
 # Context Defaults
 #CLUSTER_URL = 'spark://ip-10-0-1-212:7077'
@@ -49,18 +53,35 @@ class CommonSparkContext(object):
                 .set("spark.executor.memory", executor_memory))
         self._sc = SparkContext(conf=conf)
         self._sqlc = SQLContext(self._sc)
+
+        self.zip_path = self.build_zip()
+        if self.zip_path:
+            self._sc.addPyFile(self.zip_path)
         atexit.register(self.close_context)
 
     def close_context(self):
         if self._sc:
             self._sc.stop()
             self._sc = None
+            if self.zip_path:
+                os.remove(self.zip_path)
 
     def sc(self):
         return self._sc
 
     def sqlc(self):
         return self._sqlc
+
+    @staticmethod
+    def build_zip():
+        if 'XPATTERNS_HOME' not in os.environ:
+            return None
+        tf = NamedTemporaryFile(suffix='.zip', delete=False)
+        z = PyZipFile(tf, 'w')
+        z.writepy(os.path.join(os.environ['XPATTERNS_HOME'], 'xpatterns'))
+        z.close()
+        return tf.name
+
 
 def spark_context():
     """
