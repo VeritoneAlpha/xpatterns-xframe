@@ -1,18 +1,6 @@
 import unittest
 import math
 
-# Check the spark configuration
-import os
-if 'SPARK_HOME' not in os.environ:
-    print 'SPARK_HOME must be set'
-spark_home = os.environ['SPARK_HOME']
-
-# And Python path
-import sys
-sys.path.insert(0, os.path.join(spark_home, 'python'))
-sys.path.insert(1, os.path.join(spark_home, 'python/lib/py4j-0.8.2.1-src.zip'))
-
-
 # python testxarray.py
 # python -m unittest testxarray
 # python -m unittest testxarray.TestXArrayVersion
@@ -362,6 +350,7 @@ class TestXArrayAddScalar(unittest.TestCase):
     """ 
     Tests XArray Scalar Addition
     """
+    # noinspection PyAugmentAssignment
     def test_add_scalar(self):
         t = XArray([1, 2, 3])
         self.assertEqual(3, len(t))
@@ -2160,6 +2149,7 @@ class TestXArrayDictKeys(unittest.TestCase):
     """ 
     Tests XArray dict_keys
     """
+    # noinspection PyArgumentList
     def test_dict_keys_bad_type(self):
         t = XArray([3, 2, 1])
         with self.assertRaises(TypeError):
@@ -2182,6 +2172,7 @@ class TestXArrayDictValues(unittest.TestCase):
     """ 
     Tests XArray dict_values
     """
+    # noinspection PyArgumentList
     def test_values_bad_type(self):
         t = XArray([3, 2, 1])
         with self.assertRaises(TypeError):
@@ -2231,4 +2222,3 @@ class TestXArrayDictHasAllKeys(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

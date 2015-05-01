@@ -1,21 +1,10 @@
 import unittest
+import os
 import math
 import copy
 from datetime import datetime
 import array
 import pickle
-
-# Check the spark configuration
-import os
-import sys
-if 'SPARK_HOME' not in os.environ:
-    print 'SPARK_HOME must be set'
-    sys.exit(1)
-spark_home = os.environ['SPARK_HOME']
-
-# Set the python path
-sys.path.insert(0, os.path.join(spark_home, 'python'))
-sys.path.insert(1, os.path.join(spark_home, 'python/lib/py4j-0.8.2.1-src.zip'))
 
 from pyspark.sql.types import StructType, StructField, IntegerType, StringType
 
@@ -2612,7 +2601,7 @@ class TestXFrameStackList(unittest.TestCase):
     def test_stack_bad_col_name(self):
         t = XFrame({'id': [1, 2, 3], 'val': [['a1', 'b1', 'c1'], ['a2', 'b2'], ['a3', 'b3', 'c3', None]]})
         with self.assertRaises(ValueError):
-            res = t.stack('xx')
+            t.stack('xx')
 
     def test_stack_bad_col_value(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
