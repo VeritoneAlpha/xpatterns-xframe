@@ -9,5 +9,5 @@ prettytable
 pygments
 python_dateutil
 numpydoc
-prettytable
+
 

@@ -1,0 +1,7 @@
+virtualenv venv
+
+venv/bin/activate
+pip install pandas
+easy_install -U distribute
+pip install matplotlib
+pip install sphinx
