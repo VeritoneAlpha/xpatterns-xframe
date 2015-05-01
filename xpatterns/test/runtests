@@ -1,4 +1,5 @@
 #!/bin/bash
 cd "$(dirname "$0")"
+python testsketch.py
 python testxarray.py
 python testxframe.py
