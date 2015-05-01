@@ -173,9 +173,9 @@ class XArray(XObject):
                 internal_url = make_internal_url(data)
                 self.__impl__.load_autodetect(internal_url, dtype)
             else:
-                raise TypeError('Unexpected data source. '
+                raise TypeError('Unexpected data source: {}. '
                                 "Possible data source types are: 'list', "
-                                "'numpy.ndarray', 'pandas.Series', and 'string(url)'.")
+                                "'numpy.ndarray', 'pandas.Series', and 'string(url)'.".format(type(data)))
 
     def dump_debug_info(self):
         return self.__impl__.dump_debug_info()
