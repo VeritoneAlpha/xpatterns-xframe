@@ -226,7 +226,7 @@ class XArrayImpl(XObjectImpl):
             self._rdd.saveAsPickleFile(path)          # action ?
         except:
             # TODO distinguish between filesystem errors and pickle errors
-            raise TypeError('The type cannot be saved.')
+            raise TypeError('The XArray save failed.')
         metadata = self.elem_type
         metadata_path = os.path.join(path, '_metadata')
         with open(metadata_path, 'w') as md:
@@ -245,7 +245,7 @@ class XArrayImpl(XObjectImpl):
             self._rdd.saveAsTextFile(path)           # action ?
         except:
             # TODO distinguish between filesystem errors and pickle errors
-            raise TypeError('The type cannot be saved.')
+            raise TypeError('The XArray save failed.')
         metadata = self.elem_type
         metadata_path = os.path.join(path, 'metadata')
         with open(metadata_path, 'w') as md:
