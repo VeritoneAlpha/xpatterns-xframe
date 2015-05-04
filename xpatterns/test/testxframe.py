@@ -39,7 +39,19 @@ class TestXFrameConstructor(unittest.TestCase):
     """
 
     def test_construct_auto_dataframe(self):
-        pass
+        path = 'files/test-frame-auto.csv'
+        res = XFrame(path)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['val_int', 'val_int_signed', 'val_float', 'val_float_signed',
+                          'val_str', 'val_list', 'val_dict'], res.column_names())
+        self.assertEqual([int, int, float, float, str, list, dict], res.column_types())
+        self.assertEqual({'val_int': 1, 'val_int_signed': -1, 'val_float': 1.0, 'val_float_signed': -1.0,
+                          'val_str': 'a', 'val_list': ['a'], 'val_dict': {1: 'a'}}, res[0])
+        self.assertEqual({'val_int': 2, 'val_int_signed': -2, 'val_float': 2.0, 'val_float_signed': -2.0,
+                          'val_str': 'b', 'val_list': ['b'], 'val_dict': {2: 'b'}}, res[1])
+        self.assertEqual({'val_int': 3, 'val_int_signed': -3, 'val_float': 3.0, 'val_float_signed': -3.0,
+                          'val_str': 'c', 'val_list': ['c'], 'val_dict': {3: 'c'}}, res[2])
+
 
     def test_construct_auto_str_csv(self):
         path = 'files/test-frame.csv'

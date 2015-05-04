@@ -10,6 +10,7 @@ import array
 import pickle
 import csv
 import StringIO
+import ast
 
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField
@@ -333,7 +334,12 @@ class XFrameImpl(XObjectImpl):
         def cast_val(val, typ):
             if val is None: return None
             if len(val) == 0: return 0
-            return typ(val)
+            try:
+                if typ == dict or typ == list:
+                    return ast.literal_eval(val)
+                return typ(val)
+            except ValueError:
+                raise ValueError('Cast failed: ({}) {}'.format(typ, val))
 
         def cast_row(row, types):
             return [cast_val(val, typ) for val, typ in zip(row, types)]

@@ -19,7 +19,7 @@ from xpatterns.xobject import XObject
 from xpatterns.xframe_impl import XFrameImpl
 from xpatterns.xplot import XPlot
 from xpatterns.xarray_impl import infer_type_of_list
-from util import make_internal_url
+from util import make_internal_url, classify_type
 from xpatterns.xarray import XArray
 from xpatterns.analytics.dataframeplus import DataFramePlus
 import xpatterns
@@ -287,14 +287,6 @@ class XFrame(XObject):
         def row_as_array(row, col_names):
             return [row[col] for col in col_names]
         head = [row_as_array(row, col_names) for row in first_rows]
-
-        # do something for delimiter == space
-        def classify_type(s):
-            if s.isdigit(): return int
-            if s.replace('.', '0').isdigit(): return float
-            if s.startswith('['): return list
-            if s.startswith('{'): return dict
-            return str
 
         def infer_type(col, na_values):
             col = [val for val in col if val not in na_values]

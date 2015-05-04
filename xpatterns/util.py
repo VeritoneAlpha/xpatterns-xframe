@@ -416,12 +416,14 @@ def delete_file_or_dir(path):
             raise err
 
 
+# TODO: if delimiter == space, then these do not work
 def classify_type(s):
-    """ 
-    From a string, classifies the type of object that it represents.
-    """
+    if s.startswith('-'):
+        rest = s[1:]
+        if rest.isdigit(): return int
+        if rest.replace('.', '', 1).isdigit(): return float
     if s.isdigit(): return int
-    if s.replace('.', '0').isdigit(): return float
+    if s.replace('.', '', 1).isdigit(): return float
     if s.startswith('['): return list
     if s.startswith('{'): return dict
     return str
