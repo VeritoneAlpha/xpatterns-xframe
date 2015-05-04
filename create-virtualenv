@@ -1,8 +1,14 @@
+!#/bin/bash
+
+# This builds the virtual environment.
+# Note: you cannot move the venv directory -- you must rebuild it.
+
+rm -rf venv
 virtualenv venv
 
-venv/bin/activate
+. venv/bin/activate
 pip install pandas
-easy_install -U distribute
-pip install matplotlib
 pip install sphinx
 pip install ipython[all]
+easy_install -U distribute
+pip install matplotlib
