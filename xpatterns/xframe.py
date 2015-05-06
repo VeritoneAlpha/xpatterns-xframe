@@ -6,7 +6,7 @@ XFrame acts similarly to pandas.DataFrame, but the data is completely immutable
 and is stored as Spark RDDs.
 """
 import array
-from prettytable import PrettyTable
+from xpatterns.prettytable import PrettyTable
 from textwrap import wrap
 import datetime
 import inspect
