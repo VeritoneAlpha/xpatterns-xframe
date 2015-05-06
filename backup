@@ -1,3 +1,0 @@
-#
-rsync -rlptvzPC --exclude=tmp --exclude=.ipynb_checkpoints --exclude=logs ubuntu@cogno3:xframe/\* .
-
