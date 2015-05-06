@@ -1,6 +1,5 @@
+import xpatterns
 from xpatterns.xobject_impl import XObjectImpl
-
-XFRAMES_VERSION = '0.1.1'
 
 
 class XObject(object):
@@ -13,7 +12,7 @@ class XObject(object):
         """
         Returns the xframes library version.
         """
-        return XFRAMES_VERSION
+        return xpatterns.__version__
 
     @staticmethod
     def set_trace(entry_trace=None, exit_trace=None):
