@@ -42,6 +42,7 @@ def name_col(existing_col_names, proposed_name):
     return candidate
 
 
+# noinspection PyUnresolvedReferences
 class XFrameImpl(XObjectImpl):
     """ Implementation for XFrame. """
 
@@ -342,7 +343,7 @@ class XFrameImpl(XObjectImpl):
                 raise ValueError('Cast failed: ({}) {}'.format(typ, val))
 
         def cast_row(row, types):
-            return [cast_val(val, typ) for val, typ in zip(row, types)]
+            return tuple([cast_val(val, typ) for val, typ in zip(row, types)])
 
         res = res.map(lambda row: cast_row(row, types))
         persist(res)
@@ -372,7 +373,7 @@ class XFrameImpl(XObjectImpl):
 
             def fixup_line(line):
                 return str(line).replace('\n', ' ').strip()
-            res = rdd.values().map(lambda line: [fixup_line(line)])
+            res = rdd.values().map(lambda line: (fixup_line(line), ))
         col_names = ['text']
         col_types = [str]
         self._exit()
@@ -389,9 +390,9 @@ class XFrameImpl(XObjectImpl):
         col_names = [str(col.name) for col in schema.fields]
         col_types = [to_ptype(col.dataType) for col in schema.fields]
 
-        def row_to_list(row):
-            return [row[i] for i in range(len(row))]
-        rdd = s_rdd.map(row_to_list)
+        def row_to_tuple(row):
+            return tuple([row[i] for i in range(len(row))])
+        rdd = s_rdd.map(row_to_tuple)
         self._exit()
         return self._replace(rdd, col_names, col_types)
 
@@ -476,9 +477,9 @@ class XFrameImpl(XObjectImpl):
         xf_names = [str(col.name) for col in schema.fields]
         xf_types = [to_ptype(col.dataType) for col in schema.fields]
 
-        def row_to_list(row):
-            return [row[i] for i in range(len(row))]
-        xf_rdd = rdd.map(row_to_list)
+        def row_to_tuple(row):
+            return tuple([row[i] for i in range(len(row))])
+        xf_rdd = rdd.map(row_to_tuple)
         return XFrameImpl(xf_rdd, xf_names, xf_types)
 
     def from_spark_dataframe(self, rdd):
@@ -528,6 +529,7 @@ class XFrameImpl(XObjectImpl):
         return res.rdd()
 
     # Table Information
+    # noinspection PyUnresolvedReferences
     def width(self):
         """
         Diagnostic function: count the number in the RDD tuple.
@@ -705,7 +707,7 @@ class XFrameImpl(XObjectImpl):
         self._entry(keylist)
 
         def get_columns(row, cols):
-            return [row[col] for col in cols]
+            return tuple([row[col] for col in cols])
         cols = [self.col_names.index(key) for key in keylist]
         names = [self.col_names[col] for col in cols]
         types = [self.column_types[col] for col in cols]
@@ -731,14 +733,14 @@ class XFrameImpl(XObjectImpl):
             raise ValueError("Column name already exists: '{}'.".format(name))
         self.col_names.append(name)
         self.column_types.append(data.elem_type)
-        # zip the data into the rdd, then shift into the list
+        # zip the data into the rdd, then shift into the tuple
         if self._rdd is None:
-            res = data.rdd().map(lambda x: [x])
+            res = data.rdd().map(lambda x: (x, ))
         else:
             res = self._rdd.zip(data.rdd())
 
             def move_inside(old_val, new_elem):
-                return old_val + [new_elem]
+                return tuple(old_val + (new_elem, ))
             res = res.map(lambda pair: move_inside(pair[0], pair[1]))
         self._exit(res)
         return self._replace(res)
@@ -761,7 +763,7 @@ class XFrameImpl(XObjectImpl):
             rdd = rdd.zip(col.__impl__.rdd())
 
             def move_inside(old_val, new_elem):
-                return old_val + [new_elem]
+                return tuple(old_val + (new_elem, ))
             rdd = rdd.map(lambda pair: move_inside(pair[0], pair[1]))
         self._exit(rdd, names, types)
         return self._replace(rdd, names, types)
@@ -800,8 +802,9 @@ class XFrameImpl(XObjectImpl):
         self.column_types.pop(col)
 
         def pop_col(row, col):
-            row.pop(col)
-            return row
+            lst = list(row)
+            lst.pop(col)
+            return tuple(lst)
         res = self._rdd.map(lambda row: pop_col(row, col))
         self._exit(res)
         return self._replace(res)
@@ -821,9 +824,10 @@ class XFrameImpl(XObjectImpl):
             self.column_types.pop(col)
 
         def pop_cols(row, cols):
+            lst = list(row)
             for col in cols:
-                row.pop(col)
-            return row
+                lst.pop(col)
+            return tuple(lst)
         res = self._rdd.map(lambda row: pop_cols(row, cols))
         self._exit(res)
         return self._replace(res)
@@ -843,12 +847,12 @@ class XFrameImpl(XObjectImpl):
             return new_list
 
         def swap_cols(row, col1, col2):
-            # is it OK to modify the row ?
+            # is it OK to modify
+            # the row ?
             try:
-                tmp = row[col1]
-                row[col1] = row[col2]
-                row[col2] = tmp
-                return row
+                lst = list(row)
+                lst[col1], lst[col2] = lst[col2], lst[col1]
+                return tuple(lst)
             except IndexError:
                 print col1, col2, row, len(row)
         col1 = self.col_names.index(column_1)
@@ -906,7 +910,7 @@ class XFrameImpl(XObjectImpl):
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry(col)
-        res = col.__impl__.rdd().map(lambda item: [item])
+        res = col.__impl__.rdd().map(lambda item: (item, ))
         col_type = infer_type_of_rdd(col.__impl__.rdd())
         self.column_types[0] = col_type
         self._exit(res)
@@ -923,10 +927,10 @@ class XFrameImpl(XObjectImpl):
         col_num = self.col_names.index(column_name)
 
         def replace_col(row_col, col_num):
-            row = row_col[0]
+            row = list(row_col[0])
             col = row_col[1]
             row[col_num] = col
-            return row
+            return tuple(row)
         res = rdd.map(lambda row_col: replace_col(row_col, col_num))
         col_type = infer_type_of_rdd(col.__impl__.rdd())
         self.column_types[col_num] = col_type
@@ -948,6 +952,7 @@ class XFrameImpl(XObjectImpl):
         names = self.col_names
         # fn needs the row as a dict
         res = self._rdd.flatMap(lambda row: fn(dict(zip(names, row))))
+        res = res.map(tuple)
         self._exit(res, column_names, column_types)
         return self._rv(res, column_names, column_types)
 
@@ -979,7 +984,7 @@ class XFrameImpl(XObjectImpl):
         def subs_row(row, col, val):
             new_row = list(row)
             new_row[col] = val
-            return new_row
+            return tuple(new_row)
 
         def stack_row(row, col, drop_na):
             res = []
@@ -1016,7 +1021,7 @@ class XFrameImpl(XObjectImpl):
             new_row = list(row)
             new_row[col] = key
             new_row.insert(col + 1, val)
-            return new_row
+            return tuple(new_row)
 
         def stack_row(row, col, drop_na):
             res = []
@@ -1118,7 +1123,7 @@ class XFrameImpl(XObjectImpl):
         def pull_up(pair, start):
             row = list(pair[0])
             row.insert(0, pair[1] + start)
-            return row
+            return tuple(row)
         names = list(self.col_names)
         names.insert(0, column_name)
         types = list(self.column_types)
@@ -1228,8 +1233,9 @@ class XFrameImpl(XObjectImpl):
             result = fn(row_as_dict)
             if type(result) != dtype:
                 result = dtype(result)
-            row[col_index] = result
-            return row
+            lst = list(row)
+            lst[col_index] = result
+            return tuple(lst)
 
         res = self._rdd.map(transformer)
         new_col_types = list(self.column_types)
@@ -1258,11 +1264,12 @@ class XFrameImpl(XObjectImpl):
         def transformer(row):
             row_as_dict = dict(zip(names, row))
             result = fn(row_as_dict)
+            lst = list(result)
             for col_index in col_indexes:
                 dtype = dtypes[col_index]
                 result_item = result[col_index]
-                row[col_index] = result_item if type(result_item) == dtype else dtype(result_item)
-            return row
+                lst[col_index] = result_item if type(result_item) == dtype else dtype(result_item)
+            return tuple(lst)
 
         res = self._rdd.map(transformer)
         new_col_types = list(self.column_types)
@@ -1335,6 +1342,7 @@ class XFrameImpl(XObjectImpl):
         def concatenate(old_vals, new_vals):
             return old_vals + new_vals
         res = aggregates.map(lambda pair: concatenate(pair[0], pair[1]))
+        res = res.map(tuple)
         persist(res)
         self._exit(res, new_col_names, new_col_types)
         return self._rv(res, new_col_names, new_col_types)
@@ -1357,13 +1365,6 @@ class XFrameImpl(XObjectImpl):
         # these are the positions of the key columns in left and right
         # put the pieces together
         # one of the pairs may be None in all cases except inner
-        def combine_results(left_row, right_row, left_count, right_count):
-            if left_row is None:
-                left_row = [None] * left_count
-            if right_row is None:
-                right_row = [None] * right_count
-            return left_row + right_row
-
         if how == 'outer':
             # outer join is substantially different
             # so do it separately
@@ -1421,10 +1422,10 @@ class XFrameImpl(XObjectImpl):
 
             # remove redundant key fields from the right
             def fixup_right(row, indexes):
-                val = row[1]
+                val = list(row[1])
                 for i in indexes:
                     val.pop(i)
-                return row[0], val
+                return row[0], tuple(val)
             keyed_right = keyed_right.map(lambda row: fixup_right(row, right_key_indexes))
 
             if how == 'inner':
@@ -1438,6 +1439,13 @@ class XFrameImpl(XObjectImpl):
 
             # throw away key now
             pairs = joined.values()
+
+        def combine_results(left_row, right_row, left_count, right_count):
+            if left_row is None:
+                left_row = tuple([None] * left_count)
+            if right_row is None:
+                right_row = tuple([None] * right_count)
+            return tuple(left_row + right_row)
 
         res = pairs.map(lambda row: combine_results(row[0], row[1],
                         left_count, right_count))

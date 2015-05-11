@@ -828,6 +828,7 @@ class XArrayImpl(XObjectImpl):
         res = res.map(lambda row: select_elems(row, limit))
         res = res.map(lambda row: narrow(row, n_cols))
         res = res.map(lambda row: cast_row(row, column_types))
+        res = res.map(tuple)
         self._exit()
         return self._rv_frame(res, column_names, column_types)
 
