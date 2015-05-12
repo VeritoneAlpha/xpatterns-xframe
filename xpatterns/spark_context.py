@@ -24,10 +24,7 @@ class SparkInitContext():
     If this mechanism is not used, then the spark context will be initialized
     using the config file the first time a context is needed.
     """
-    cluster_url = None
-    app_name = None
-    cores_max = None
-    executor_memory = None
+    context = None
 
     @staticmethod
     def set(**context):
@@ -35,14 +32,7 @@ class SparkInitContext():
         Sets the spark context parameters, and then create a context.
         If the spark context has already been created, then this will have no effect.
         """
-        if 'cluster_url' in context:
-            SparkInitContext.cluster_url = context['cluster_url']
-        if 'app_name' in context:
-            SparkInitContext.app_name = context['app_name']
-        if 'cores_max' in context:
-            SparkInitContext.cores_max = context['cores_max']
-        if 'executor_memory' in context:
-            SparkInitContext.executor_memory = context['executor_memory']
+        SparkInitContext.context = context
         CommonSparkContext.Instance()
 
 @Singleton
@@ -51,7 +41,8 @@ class CommonSparkContext(object):
         """
         Create a spark context.
 
-        The spark configuration is taken from $XPATTERNS_HOME/config.ini.
+        The spark configuration is taken from $XPATTERNS_HOME/config.ini or from
+        the values set in SparkInitContext.set().
 
         Notes
         -----
@@ -72,15 +63,13 @@ class CommonSparkContext(object):
         """
 
         env = Environment.create_default()
-        cluster_url = SparkInitContext.cluster_url or env.get_config('spark', 'cluster_url', default='local')
-        cores_max = SparkInitContext.cores_max or env.get_config('spark', 'cores_max', default='8')
-        executor_memory = SparkInitContext.executor_memory or env.get_config('spark', 'executor_memory', default='8g')
-        app_name = SparkInitContext.app_name or env.get_config('spark', 'app_name', 'xFrame')
-        conf = (SparkConf()
-                .setMaster(cluster_url)
-                .setAppName(app_name)
-                .set("spark.cores-max", cores_max)
-                .set("spark.executor.memory", executor_memory))
+        config_context = {'cluster_url': env.get_config('spark', 'cluster_url', default='local'),
+                          'cores_max': env.get_config('spark', 'cores_max', default='8'),
+                          'executor_memory': env.get_config('spark', 'executor_memory', default='8g'),
+                          'app_name': env.get_config('spark', 'app_name', 'xFrame')}
+        config_context.update(SparkInitContext.context)
+        config_pairs = [(k, v) for k, v in config_context.iteritems()]
+        conf = (SparkConf().setAll(config_pairs))
         self._sc = SparkContext(conf=conf)
         self._sqlc = SQLContext(self._sc)
 

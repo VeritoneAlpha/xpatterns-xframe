@@ -35,6 +35,32 @@ class XObject(object):
         """
         XObjectImpl.set_trace(entry_trace, exit_trace)
 
+    @classmethod
+    def init_context(cls, **context):
+        """
+        Sets the spark context parameters, and then create a context.
+        If the spark context has already been created, then this will have no effect.
+
+        Parameters
+        ----------
+        cluster_url : str, optional
+            The url of the spark cluster to use.  To use the local spark, give
+            'local'.  To use a spark cluster with its master on a specific IP addredd,
+            give the IP address or the hostname as in the following example:
+            cluster_url=spark://my_spark_host:7077
+
+        app_name : str, optional
+            The app name is used on the job monitoring server, and for logging.
+
+        cores_max : str, optional
+            The maximum number of cores to use for execution.
+
+        executor_memory : str, optional
+            The amount of main memory to allocate to executors.  For example, '2g'.
+
+        """
+        xpatterns.SparkInitContext().set(**context)
+
     @staticmethod
     def spark_context():
         """
