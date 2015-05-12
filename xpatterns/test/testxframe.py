@@ -557,7 +557,7 @@ class TestXFrameFromRdd(unittest.TestCase):
         rdd = sc.parallelize([(None, 'a'), (2, 'b'), (3, 'c')])
         res = XFrame.from_rdd(rdd, column_types=(int, str))
         self.assertEqual(3, len(res))
-        self.assertEqual((int, str), res.column_types())
+        self.assertEqual([int, str], res.column_types())
         self.assertEqual({'X.0': None, 'X.1': 'a'}, res[0])
         self.assertEqual({'X.0': 2, 'X.1': 'b'}, res[1])
 
@@ -566,7 +566,7 @@ class TestXFrameFromRdd(unittest.TestCase):
         rdd = sc.parallelize([(None, 'a'), (2, 'b'), (3, 'c')])
         res = XFrame.from_rdd(rdd, column_names=('id', 'val'), column_types=(int, str))
         self.assertEqual(3, len(res))
-        self.assertEqual((int, str), res.column_types())
+        self.assertEqual([int, str], res.column_types())
         self.assertEqual({'id': None, 'val': 'a'}, res[0])
         self.assertEqual({'id': 2, 'val': 'b'}, res[1])
 

@@ -34,7 +34,7 @@ def _create_sequential_xarray(size, start=0, reverse=False):
     if type(reverse) is not bool:
         raise TypeError('Reverse must me bool.')
 
-    return XArray(_impl=XArrayImpl.create_sequential_xarray(size, start, reverse))
+    return XArray(impl=XArrayImpl.create_sequential_xarray(size, start, reverse))
 
 
 # noinspection PyUnresolvedReferences,PyRedeclaration
@@ -113,7 +113,7 @@ class XArray(XObject):
 
     """
 
-    def __init__(self, data=None, dtype=None, ignore_cast_failure=False, _impl=None):
+    def __init__(self, data=None, dtype=None, ignore_cast_failure=False, impl=None):
         """
         __init__(data=list(), dtype=None, ignore_cast_failure=False)
 
@@ -123,8 +123,8 @@ class XArray(XObject):
         if dtype is not None and type(dtype) != type:
             raise TypeError("Dtype must be a type, e.g. use int rather than 'int'.")
 
-        if _impl:
-            self.__impl__ = _impl
+        if impl:
+            self.__impl__ = impl
         elif type(data) == XArray:
             self.__impl__ = data.__impl__
         else:
@@ -205,7 +205,7 @@ class XArray(XObject):
             raise TypeError("Cannot create xarray of value type '{}'.".format(type(value)))
         impl = XArrayImpl()
         impl.load_from_const(value, size)
-        return cls(_impl=impl)
+        return cls(impl=impl)
 
     @classmethod
     def from_sequence(cls, *args):
@@ -337,7 +337,7 @@ class XArray(XObject):
         out : XArray
 
         """
-        return cls(_impl=XArrayImpl.from_rdd(rdd, dtype))
+        return cls(impl=XArrayImpl.from_rdd(rdd, dtype))
 
     def __repr__(self):
         """
@@ -398,9 +398,9 @@ class XArray(XObject):
         addition of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(_impl=self.__impl__.vector_operator(other.__impl__, '+'))
+            return XArray(impl=self.__impl__.vector_operator(other.__impl__, '+'))
         else:
-            return XArray(_impl=self.__impl__.left_scalar_operator(other, '+'))
+            return XArray(impl=self.__impl__.left_scalar_operator(other, '+'))
 
     def __sub__(self, other):
         """
@@ -409,9 +409,9 @@ class XArray(XObject):
         subtraction of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(_impl=self.__impl__.vector_operator(other.__impl__, '-'))
+            return XArray(impl=self.__impl__.vector_operator(other.__impl__, '-'))
         else:
-            return XArray(_impl=self.__impl__.left_scalar_operator(other, '-'))
+            return XArray(impl=self.__impl__.left_scalar_operator(other, '-'))
 
     def __mul__(self, other):
         """
@@ -420,9 +420,9 @@ class XArray(XObject):
         multiplication of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(_impl=self.__impl__.vector_operator(other.__impl__, '*'))
+            return XArray(impl=self.__impl__.vector_operator(other.__impl__, '*'))
         else:
-            return XArray(_impl=self.__impl__.left_scalar_operator(other, '*'))
+            return XArray(impl=self.__impl__.left_scalar_operator(other, '*'))
 
     def __div__(self, other):
         """
@@ -431,9 +431,9 @@ class XArray(XObject):
         an element-wise division of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(_impl=self.__impl__.vector_operator(other.__impl__, '/'))
+            return XArray(impl=self.__impl__.vector_operator(other.__impl__, '/'))
         else:
-            return XArray(_impl=self.__impl__.left_scalar_operator(other, '/'))
+            return XArray(impl=self.__impl__.left_scalar_operator(other, '/'))
 
     def __pow__(self, other):
         """
@@ -441,7 +441,7 @@ class XArray(XObject):
         the new result.
         """
         if type(other) in (int, long, float):
-            return XArray(_impl=self.__impl__.left_scalar_operator(other, '**'))
+            return XArray(impl=self.__impl__.left_scalar_operator(other, '**'))
 
     def __lt__(self, other):
         """
@@ -450,9 +450,9 @@ class XArray(XObject):
         an element-wise comparison of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(_impl=self.__impl__.vector_operator(other.__impl__, '<'))
+            return XArray(impl=self.__impl__.vector_operator(other.__impl__, '<'))
         else:
-            return XArray(_impl=self.__impl__.left_scalar_operator(other, '<'))
+            return XArray(impl=self.__impl__.left_scalar_operator(other, '<'))
 
     def __gt__(self, other):
         """
@@ -461,9 +461,9 @@ class XArray(XObject):
         an element-wise comparison of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(_impl=self.__impl__.vector_operator(other.__impl__, '>'))
+            return XArray(impl=self.__impl__.vector_operator(other.__impl__, '>'))
         else:
-            return XArray(_impl=self.__impl__.left_scalar_operator(other, '>'))
+            return XArray(impl=self.__impl__.left_scalar_operator(other, '>'))
 
     def __le__(self, other):
         """
@@ -472,9 +472,9 @@ class XArray(XObject):
         an element-wise comparison of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(_impl=self.__impl__.vector_operator(other.__impl__, '<='))
+            return XArray(impl=self.__impl__.vector_operator(other.__impl__, '<='))
         else:
-            return XArray(_impl=self.__impl__.left_scalar_operator(other, '<='))
+            return XArray(impl=self.__impl__.left_scalar_operator(other, '<='))
 
     def __ge__(self, other):
         """
@@ -483,55 +483,55 @@ class XArray(XObject):
         an element-wise comparison of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(_impl=self.__impl__.vector_operator(other.__impl__, '>='))
+            return XArray(impl=self.__impl__.vector_operator(other.__impl__, '>='))
         else:
-            return XArray(_impl=self.__impl__.left_scalar_operator(other, '>='))
+            return XArray(impl=self.__impl__.left_scalar_operator(other, '>='))
 
     def __radd__(self, other):
         """
         Adds a scalar value to the current array.
         Returned array has the same type as the array on the right hand side
         """
-        return XArray(_impl=self.__impl__.right_scalar_operator(other, '+'))
+        return XArray(impl=self.__impl__.right_scalar_operator(other, '+'))
 
     def __rsub__(self, other):
         """
         Subtracts a scalar value from the current array.
         Returned array has the same type as the array on the right hand side
         """
-        return XArray(_impl=self.__impl__.right_scalar_operator(other, '-'))
+        return XArray(impl=self.__impl__.right_scalar_operator(other, '-'))
 
     def __rmul__(self, other):
         """
         Multiplies a scalar value to the current array.
         Returned array has the same type as the array on the right hand side
         """
-        return XArray(_impl=self.__impl__.right_scalar_operator(other, '*'))
+        return XArray(impl=self.__impl__.right_scalar_operator(other, '*'))
 
     def __rdiv__(self, other):
         """
         Divides a scalar value by each element in the array
         Returned array has the same type as the array on the right hand side
         """
-        return XArray(_impl=self.__impl__.right_scalar_operator(other, '/'))
+        return XArray(impl=self.__impl__.right_scalar_operator(other, '/'))
 
     def __neg__(self):
         """
         Negates each element in the array.
         """
-        return XArray(_impl=self.__impl__.unary_operator('-'))
+        return XArray(impl=self.__impl__.unary_operator('-'))
         
     def __pos__(self):
         """
         Implements the unary plus operator.
         """
-        return XArray(_impl=self.__impl__.unary_operator('+'))
+        return XArray(impl=self.__impl__.unary_operator('+'))
         
     def __abs__(self):
         """
         Takes the absolute value of each element in the array
         """
-        return XArray(_impl=self.__impl__.unary_operator('abs'))
+        return XArray(impl=self.__impl__.unary_operator('abs'))
         
     def __eq__(self, other):
         """
@@ -540,9 +540,9 @@ class XArray(XObject):
         an element-wise comparison of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(_impl=self.__impl__.vector_operator(other.__impl__, '=='))
+            return XArray(impl=self.__impl__.vector_operator(other.__impl__, '=='))
         else:
-            return XArray(_impl=self.__impl__.left_scalar_operator(other, '=='))
+            return XArray(impl=self.__impl__.left_scalar_operator(other, '=='))
 
     def __ne__(self, other):
         """
@@ -551,16 +551,16 @@ class XArray(XObject):
         an element-wise comparison of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(_impl=self.__impl__.vector_operator(other.__impl__, '!='))
+            return XArray(impl=self.__impl__.vector_operator(other.__impl__, '!='))
         else:
-            return XArray(_impl=self.__impl__.left_scalar_operator(other, '!='))
+            return XArray(impl=self.__impl__.left_scalar_operator(other, '!='))
 
     def __and__(self, other):
         """
         Perform a logical element-wise 'and' against another XArray.
         """
         if type(other) is XArray:
-            return XArray(_impl=self.__impl__.vector_operator(other.__impl__, '&'))
+            return XArray(impl=self.__impl__.vector_operator(other.__impl__, '&'))
         else:
             raise TypeError('XArray can only perform logical and against another XArray.')
 
@@ -569,7 +569,7 @@ class XArray(XObject):
         Perform a logical element-wise 'or' against another XArray.
         """
         if type(other) is XArray:
-            return XArray(_impl=self.__impl__.vector_operator(other.__impl__, '|'))
+            return XArray(impl=self.__impl__.vector_operator(other.__impl__, '|'))
         else:
             raise TypeError('XArray can only perform logical or against another XArray.')
 
@@ -585,13 +585,13 @@ class XArray(XObject):
         if type(other) is XArray:
             if len(other) != len(self):
                 raise IndexError('Cannot perform logical indexing on arrays of different length.')
-            return XArray(_impl=self.__impl__.logical_filter(other.__impl__))
+            return XArray(impl=self.__impl__.logical_filter(other.__impl__))
         elif type(other) is int:
             if other < 0:
                 other += len(self)
             if other >= len(self):
                 raise IndexError('XArray index out of range.')
-            return list(XArray(_impl=self.__impl__.copy_range(other, 1, other + 1)))[0]
+            return list(XArray(impl=self.__impl__.copy_range(other, 1, other + 1)))[0]
         elif type(other) is slice:
             start = other.start
             stop = other.stop
@@ -607,7 +607,7 @@ class XArray(XObject):
                 start += len(self)
             if stop < 0:
                 stop += len(self)
-            return XArray(_impl=self.__impl__.copy_range(start, step, stop))
+            return XArray(impl=self.__impl__.copy_range(start, step, stop))
         else:
             raise IndexError('Invalid type to use for indexing.')
 
@@ -673,7 +673,7 @@ class XArray(XObject):
         [0, 1, 2, 3, 4]
 
         """
-        return XArray(_impl=self.__impl__.head(n))
+        return XArray(impl=self.__impl__.head(n))
 
     def vector_slice(self, start, end=None):
         """
@@ -753,7 +753,7 @@ class XArray(XObject):
         if end is None:
             end = start + 1
 
-        return XArray(_impl=self.__impl__.vector_slice(start, end))
+        return XArray(impl=self.__impl__.vector_slice(start, end))
 
     def _count_words(self, to_lower=True):
         """
@@ -792,7 +792,7 @@ class XArray(XObject):
         # construct options, will extend over time
         options = dict()
         options['to_lower'] = True if to_lower else False
-        return XArray(_impl=self.__impl__.count_bag_of_words(options))
+        return XArray(impl=self.__impl__.count_bag_of_words(options))
 
     def _count_ngrams(self, n=2, method="word", to_lower=True, ignore_space=True):
         """
@@ -882,9 +882,9 @@ class XArray(XObject):
         options['ignore_space'] = True if ignore_space else False
 
         if method == 'word':
-            return XArray(_impl=self.__impl__.count_ngrams(n, options))
+            return XArray(impl=self.__impl__.count_ngrams(n, options))
         elif method == 'character':
-            return XArray(_impl=self.__impl__.count_character_ngrams(n, options))
+            return XArray(impl=self.__impl__.count_character_ngrams(n, options))
         else:
             raise ValueError("Invalid 'method' input  value. Please input either " + 
                              "'word' or 'character' ")
@@ -927,7 +927,7 @@ class XArray(XObject):
         if isinstance(keys, str) or (not hasattr(keys, "__iter__")):
             keys = [keys]
 
-        return XArray(_impl=self.__impl__.dict_trim_by_keys(keys, exclude))
+        return XArray(impl=self.__impl__.dict_trim_by_keys(keys, exclude))
 
     def dict_trim_by_values(self, lower=None, upper=None):
         """
@@ -980,7 +980,7 @@ class XArray(XObject):
         if upper is not None and not is_numeric_type(type(upper)):
             raise TypeError('Upper bound has to be a numeric value.')
 
-        return XArray(_impl=self.__impl__.dict_trim_by_values(lower, upper))
+        return XArray(impl=self.__impl__.dict_trim_by_values(lower, upper))
 
     def dict_keys(self):
         """
@@ -1007,7 +1007,7 @@ class XArray(XObject):
         [['this', 'is', 'dog'], ['this', 'are', 'cat']]
 
         """
-        return xpatterns.XFrame(_impl=self.__impl__.dict_keys())
+        return xpatterns.XFrame(impl=self.__impl__.dict_keys())
 
     def dict_values(self):
         """
@@ -1034,7 +1034,7 @@ class XArray(XObject):
         [[1, 5, 7], [2, 1, 5]]
 
         """
-        return xpatterns.XFrame(_impl=self.__impl__.dict_values())
+        return xpatterns.XFrame(impl=self.__impl__.dict_values())
 
     def dict_has_any_keys(self, keys):
         """
@@ -1071,7 +1071,7 @@ class XArray(XObject):
         if isinstance(keys, str) or not hasattr(keys, "__iter__"):
             keys = [keys]
 
-        return XArray(_impl=self.__impl__.dict_has_any_keys(keys))
+        return XArray(impl=self.__impl__.dict_has_any_keys(keys))
 
     def dict_has_all_keys(self, keys):
         """
@@ -1108,7 +1108,7 @@ class XArray(XObject):
         if isinstance(keys, str) or (not hasattr(keys, "__iter__")):
             keys = [keys]
 
-        return XArray(_impl=self.__impl__.dict_has_all_keys(keys))
+        return XArray(impl=self.__impl__.dict_has_all_keys(keys))
 
     def apply(self, fn, dtype=None, skip_undefined=True, seed=None):
         """
@@ -1165,7 +1165,7 @@ class XArray(XObject):
         if not seed:
             seed = time.time()
 
-        return XArray(_impl=self.__impl__.transform(fn, dtype, skip_undefined, seed))
+        return XArray(impl=self.__impl__.transform(fn, dtype, skip_undefined, seed))
 
     def flat_map(self, fn=None, dtype=None, skip_undefined=True, seed=None):
         """
@@ -1227,7 +1227,7 @@ class XArray(XObject):
         if not seed:
             seed = time.time()
 
-        return XArray(_impl=self.__impl__.flat_map(fn, dtype, skip_undefined, seed))
+        return XArray(impl=self.__impl__.flat_map(fn, dtype, skip_undefined, seed))
 
     def filter(self, fn, skip_undefined=True, seed=None):
         """
@@ -1269,7 +1269,7 @@ class XArray(XObject):
         if not seed:
             seed = time.time()
 
-        return XArray(_impl=self.__impl__.filter(fn, skip_undefined, seed))
+        return XArray(impl=self.__impl__.filter(fn, skip_undefined, seed))
 
     def sample(self, fraction, seed=None):
         """
@@ -1304,7 +1304,7 @@ class XArray(XObject):
         if not seed:
             seed = int(time.time())
 
-        return XArray(_impl=self.__impl__.sample(fraction, seed))
+        return XArray(impl=self.__impl__.sample(fraction, seed))
 
     def _save_as_text(self, url):
         """
@@ -1561,7 +1561,7 @@ class XArray(XObject):
         if self.dtype() != datetime.datetime:
             raise TypeError('Datetime_to_str expects XArray of datetime as input XArray.')
 
-        return XArray(_impl=self.__impl__.datetime_to_str(str_format))
+        return XArray(impl=self.__impl__.datetime_to_str(str_format))
 
     def str_to_datetime(self, str_format='%Y-%m-%dT%H:%M:%S%ZP'):
         """
@@ -1599,7 +1599,7 @@ class XArray(XObject):
         if self.dtype() != str:
             raise TypeError("'Str_to_datetime' expects XArray of str as input XArray.")
 
-        return XArray(_impl=self.__impl__.str_to_datetime(str_format))
+        return XArray(impl=self.__impl__.str_to_datetime(str_format))
 
     def astype(self, dtype, undefined_on_failure=False):
         """
@@ -1647,7 +1647,7 @@ class XArray(XObject):
         [{1: 2, 3: 4}, {'a': 'b', 'c': 'd'}]
         """
 
-        return XArray(_impl=self.__impl__.astype(dtype, undefined_on_failure))
+        return XArray(impl=self.__impl__.astype(dtype, undefined_on_failure))
 
     def clip(self, lower=float('nan'), upper=float('nan')):
         """
@@ -1688,7 +1688,7 @@ class XArray(XObject):
         Rows: 3
         [2, 2, 2]
         """
-        return XArray(_impl=self.__impl__.clip(lower, upper))
+        return XArray(impl=self.__impl__.clip(lower, upper))
 
     def clip_lower(self, threshold):
         """
@@ -1718,7 +1718,7 @@ class XArray(XObject):
         Rows: 3
         [2, 2, 3]
         """
-        return XArray(_impl=self.__impl__.clip(threshold, float('nan')))
+        return XArray(impl=self.__impl__.clip(threshold, float('nan')))
 
     def clip_upper(self, threshold):
         """
@@ -1747,7 +1747,7 @@ class XArray(XObject):
         Rows: 3
         [1, 2, 2]
         """
-        return XArray(_impl=self.__impl__.clip(float('nan'), threshold))
+        return XArray(impl=self.__impl__.clip(float('nan'), threshold))
 
     def tail(self, n=10):
         """
@@ -1763,7 +1763,7 @@ class XArray(XObject):
         out : XArray
             A new XArray which contains the last n rows of the current XArray.
         """
-        return XArray(_impl=self.__impl__.tail(n))
+        return XArray(impl=self.__impl__.tail(n))
 
     def dropna(self):
         """
@@ -1779,7 +1779,7 @@ class XArray(XObject):
             The new XArray with missing values removed.
         """
 
-        return XArray(_impl=self.__impl__.drop_missing_values())
+        return XArray(impl=self.__impl__.drop_missing_values())
 
     def fillna(self, value):
         """
@@ -1801,7 +1801,7 @@ class XArray(XObject):
         out : XArray
             A new XArray with all missing values filled
         """
-        return XArray(_impl=self.__impl__.fill_missing_values(value))
+        return XArray(impl=self.__impl__.fill_missing_values(value))
 
     def topk_index(self, topk=10, reverse=False):
         """
@@ -1827,7 +1827,7 @@ class XArray(XObject):
         -----
         This is used internally by XFrame's topk function.
         """
-        return XArray(_impl=self.__impl__.topk_index(topk, reverse))
+        return XArray(impl=self.__impl__.topk_index(topk, reverse))
 
     def sketch_summary(self, sub_sketch_keys=None):
         """
@@ -1910,7 +1910,7 @@ class XArray(XObject):
         if self.dtype() != other.dtype():
             raise RuntimeError('Data types in both XArrays have to be the same.')
 
-        return XArray(_impl=self.__impl__.append(other.__impl__))
+        return XArray(impl=self.__impl__.append(other.__impl__))
 
     def unique(self):
         """
@@ -1929,7 +1929,7 @@ class XArray(XObject):
         --------
         XFrame.unique
         """
-        return XArray(_impl=self.__impl__.unique())
+        return XArray(impl=self.__impl__.unique())
 
     def item_length(self):
         """
@@ -1965,7 +1965,7 @@ class XArray(XObject):
             raise TypeError("Item_length() is only applicable for XArray of type 'str', 'list', " +
                             "'dict' and 'array'.")
 
-        return XArray(_impl=self.__impl__.item_length())
+        return XArray(impl=self.__impl__.item_length())
 
     def split_datetime(self, column_name_prefix='X', limit=None, tzone=False):
         """
@@ -2082,7 +2082,7 @@ class XArray(XObject):
             limit += ['tzone']
             column_types += [float]
 
-        return xpatterns.XFrame(_impl=self.__impl__.expand(column_name_prefix, limit, column_types))
+        return xpatterns.XFrame(impl=self.__impl__.expand(column_name_prefix, limit, column_types))
 
     def unpack(self, column_name_prefix='X', column_types=None, na_value=None, limit=None):
         """
@@ -2308,7 +2308,7 @@ class XArray(XObject):
                 if column_types is None:
                     column_types = make_column_types(head_rows, limit)
 
-        return xpatterns.XFrame(_impl=self.__impl__.unpack(column_name_prefix, limit, column_types, na_value))
+        return xpatterns.XFrame(impl=self.__impl__.unpack(column_name_prefix, limit, column_types, na_value))
 
     def sort(self, ascending=True):
         """
@@ -2339,4 +2339,4 @@ class XArray(XObject):
         """
         if self.dtype() not in (int, float, str, datetime.datetime):
             raise TypeError("Only xarray with type ('int', 'float', 'str', and 'datetime.datetime)' can be sorted.")
-        return XArray(_impl=self.__impl__.sort(ascending))
+        return XArray(impl=self.__impl__.sort(ascending))

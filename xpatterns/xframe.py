@@ -169,43 +169,45 @@ class XFrame(XObject):
     # class variables
     max_row_width = 80
 
-    def __init__(self, data=None, format='auto', _impl=None, verbose=False):
+    # noinspection PyShadowingBuiltins
+    def __init__(self, data=None, format='auto', impl=None, verbose=False):
         """__init__(data=list(), format='auto')
         Construct a new XFrame from a url, a pandas.DataFrame or a spark RDD or DataFrame.
         """
-        if _impl:
-            self.__impl__ = _impl
+        if impl:
+            self.__impl__ = impl
             return
 
-        self.__impl__ = XFrameImpl()
-        if format == 'auto':
-            _format = self.classify_auto(data)
-        else:
-            _format = format
+        _format = self.classify_auto(data) if format == 'auto' else format
 
         if _format == 'pandas.dataframe':
             self.__impl__ = XFrameImpl.load_from_pandas_dataframe(data)
         elif _format == 'xframe_obj':
-            for col in data.column_names():
-                self.__impl__.add_column(data[col].__impl__, col)
+            self.__impl__ = XFrameImpl(datato_spark_rdd(), data.column_names(), data.column_types())
         elif _format == 'xarray':
-            self.__impl__.add_column(data.__impl__, '')
+            self.__impl__ = XFrameImpl().add_column(data.__impl__, '')
         elif _format == 'array':
             if len(data) > 0:
                 unique_types = set([type(x) for x in data if x is not None])
                 if len(unique_types) == 1 and XArray in unique_types:
+                    #self.__impl__ = XFrameImpl()    ## TODO remove
+                    xf = XFrameImpl()
                     for arr in data:
-                        self.add_column(arr)
+                        #self.add_column(arr)
+                        xf.add_column(arr, '')
+                    self.__impl__ = xf
                 elif XArray in unique_types:
                     raise ValueError('Cannot create XFrame from mix of regular values and XArrays.')
                 else:
-                    self.__impl__.add_column(XArray(data).__impl__, "")
+                    self.__impl__ = XFrameImpl().add_column(XArray(data).__impl__, "")
         elif _format == 'dict':
+            xf = XFrameImpl()
             for key, val in iter(sorted(data.iteritems())):
                 if type(val) == XArray:
-                    self.__impl__.add_column(val.__impl__, key)
+                    xf.add_column(val.__impl__, key)
                 else:
-                    self.__impl__.add_column(XArray(val).__impl__, key)
+                    xf.add_column(XArray(val).__impl__, key)
+            self.__impl__ = xf
         elif _format == 'csv':
             url = make_internal_url(data)
             tmpxf = XFrame.read_csv(url, delimiter=',', header=True, verbose=verbose)
@@ -224,15 +226,17 @@ class XFrame(XObject):
             self.__impl__ = tmpxf.__impl__
         elif _format == 'xframe':
             url = make_internal_url(data)
-            self.__impl__.load_from_xframe_index(url)
+            self.__impl__ = XFrameImpl.load_from_xframe_index(url)
         elif _format == 'spark.dataframe':
-            self.__impl__.from_spark_dataframe(data)
+            self.__impl__ = XFrameImpl.load_from_spark_dataframe(data)
         elif _format == 'rdd':
-            self.__impl__.from_rdd(data)
+            self.__impl__ = XFrameImpl.load_from_rdd(data)
         elif _format == 'empty':
-            pass
+            self.__impl__ = XFrameImpl()
         else:
             raise ValueError('Unknown input type: {}.'.format(format))
+        if self.__impl__ is None:
+            raise ValueError('Constructor failed')
 
     @staticmethod
     def classify_auto(data):
@@ -452,7 +456,7 @@ class XFrame(XObject):
             else:
                 raise
 
-        return cls(_impl=impl), {f: XArray(_impl=es) for (f, es) in errors.iteritems()}
+        return cls(impl=impl), {f: XArray(impl=es) for (f, es) in errors.iteritems()}
 
     @classmethod
     def read_csv_with_errors(cls,
@@ -922,7 +926,7 @@ class XFrame(XObject):
                             delimiter=delimiter,
                             nrows=nrows,
                             verbose=verbose)
-        return cls(_impl=impl)
+        return cls(impl=impl)
 
     @classmethod
     def read_parquet(cls, url):
@@ -948,7 +952,7 @@ class XFrame(XObject):
         """
         impl = XFrameImpl()
         impl.load_from_parquet(url)
-        return cls(_impl=impl)
+        return cls(impl=impl)
 
     def dump_debug_info(self):
         return self.__impl__.dump_debug_info()
@@ -1171,7 +1175,7 @@ class XFrame(XObject):
         where the corresponding row in the selector is non-zero.
         """
         if type(other) is XArray:
-            return XFrame(_impl=self.__impl__.logical_filter(other.__impl__))
+            return XFrame(impl=self.__impl__.logical_filter(other.__impl__))
 
     def dtype(self):
         """
@@ -1192,7 +1196,7 @@ class XFrame(XObject):
         """
         Diagnostic: tne number of elements in each tuple.
         """
-        return XArray(_impl=self.__impl__.width())
+        return XArray(impl=self.__impl__.width())
 
     def num_rows(self):
         """
@@ -1287,7 +1291,7 @@ class XFrame(XObject):
         --------
         tail, print_rows
         """
-        return XFrame(_impl=self.__impl__.head(n))
+        return XFrame(impl=self.__impl__.head(n))
 
     def tail(self, n=10):
         """
@@ -1307,7 +1311,7 @@ class XFrame(XObject):
         --------
         head, print_rows
         """
-        return XFrame(_impl=self.__impl__.tail(n))
+        return XFrame(impl=self.__impl__.tail(n))
 
     def to_pandas_dataframe(self):
         """
@@ -1413,9 +1417,9 @@ class XFrame(XObject):
                             'Please call inferSchema(RDD) first.')
         xf = cls()
         if XFrameImpl.is_dataframe(rdd):
-            xf.__impl__.from_spark_dataframe(rdd)
+            xf.__impl__ = XFrameImpl.load_from_spark_dataframe(rdd)
         elif XFrameImpl.is_rdd(rdd):
-            xf.__impl__.from_rdd(rdd, column_names, column_types)
+            xf.__impl__ = XFrameImpl.load_from_rdd(rdd, column_names, column_types)
         else:
             raise ValueError('Argument is not an RDD.')
         return xf
@@ -1472,7 +1476,7 @@ class XFrame(XObject):
         if not seed:
             seed = int(time.time())
 
-        return XArray(_impl=self.__impl__.transform(fn, dtype, seed))
+        return XArray(impl=self.__impl__.transform(fn, dtype, seed))
 
     def transform_col(self, col, fn=None, dtype=None, seed=None):
         """
@@ -1536,7 +1540,7 @@ class XFrame(XObject):
         if not seed:
             seed = int(time.time())
 
-        return XFrame(_impl=self.__impl__.transform_col(col, fn, dtype, seed))
+        return XFrame(impl=self.__impl__.transform_col(col, fn, dtype, seed))
 
     def transform_cols(self, cols, fn=None, dtypes=None, seed=None):
         """
@@ -1610,7 +1614,7 @@ class XFrame(XObject):
         if not seed:
             seed = int(time.time())
 
-        return XFrame(_impl=self.__impl__.transform_cols(cols, fn, dtypes, seed))
+        return XFrame(impl=self.__impl__.transform_cols(cols, fn, dtypes, seed))
 
     def flat_map(self, column_names, fn, column_types='auto', seed=None):
         """
@@ -1702,7 +1706,7 @@ class XFrame(XObject):
         assert type(column_types) is list
         if not len(column_types) == len(column_names):
             raise TypeError('Number of output columns must match the size of column names.')
-        return XFrame(_impl=self.__impl__.flat_map(fn, column_names, column_types, seed))
+        return XFrame(impl=self.__impl__.flat_map(fn, column_names, column_types, seed))
 
     def sample(self, fraction, seed=None):
         """
@@ -1745,7 +1749,7 @@ class XFrame(XObject):
         if self.num_rows() == 0 or self.num_cols() == 0:
             return self
         else:
-            return XFrame(_impl=self.__impl__.sample(fraction, seed))
+            return XFrame(impl=self.__impl__.sample(fraction, seed))
 
     def random_split(self, fraction, seed=None):
         """
@@ -1794,7 +1798,7 @@ class XFrame(XObject):
             raise ValueError("The 'seed' parameter must be of type int.")
 
         impl_pair = self.__impl__.random_split(fraction, seed)
-        return XFrame(data=[], _impl=impl_pair[0]), XFrame(data=[], _impl=impl_pair[1])
+        return XFrame(data=[], impl=impl_pair[0]), XFrame(data=[], impl=impl_pair[1])
 
     def topk(self, column_name, k=10, reverse=False):
         """
@@ -1956,7 +1960,7 @@ class XFrame(XObject):
         """
         if not isinstance(column_name, str):
             raise TypeError('Invalid column_name type: must be str.')
-        return XArray(data=[], _impl=self.__impl__.select_column(column_name))
+        return XArray(data=[], impl=self.__impl__.select_column(column_name))
 
     def select_columns(self, keylist):
         """
@@ -2008,9 +2012,9 @@ class XFrame(XObject):
                 if keylist.count(key) > 1:
                     raise ValueError("There are duplicate keys in key list: '{}'.".format(key))
 
-        return XFrame(data=[], _impl=self.__impl__.select_columns(keylist))
+        return XFrame(data=[], impl=self.__impl__.select_columns(keylist))
 
-    def add_column(self, data, name=""):
+    def add_column(self, data, name=''):
         """
         Add a column to this XFrame. The number of elements in the data given
         must match the length of every other column of the XFrame. This
@@ -2323,7 +2327,7 @@ class XFrame(XObject):
                 key += len(self)
             if key >= len(self):
                 raise IndexError('XFrame index out of range.')
-            return list(XFrame(_impl=self.__impl__.copy_range(key, 1, key + 1)))[0]
+            return list(XFrame(impl=self.__impl__.copy_range(key, 1, key + 1)))[0]
         elif type(key) is slice:
             start = key.start
             stop = key.stop
@@ -2339,7 +2343,7 @@ class XFrame(XObject):
                 start += len(self)
             if stop < 0:
                 stop += len(self)
-            return XFrame(_impl=self.__impl__.copy_range(start, step, stop))
+            return XFrame(impl=self.__impl__.copy_range(start, step, stop))
         else:
             raise TypeError('Invalid index type: must be XArray, ' +
                             "'int', 'list', slice, or 'str': ({})".format(type(key)))
@@ -2507,7 +2511,7 @@ class XFrame(XObject):
                 raise RuntimeError('Column {} type is not the same in two XFrames, one is {} the other is {}.'.format(
                     my_column_names[i], my_column_types[i], other_column_types))
 
-        return XFrame(_impl=self.__impl__.append(other.__impl__))
+        return XFrame(impl=self.__impl__.append(other.__impl__))
 
     def groupby(self, key_columns, operations, *args):
         """
@@ -2872,7 +2876,7 @@ class XFrame(XObject):
                     if col not in my_column_names:
                         raise KeyError("Column '{}' does not exist in XFrame.".format(col))
 
-        return XFrame(_impl=self.__impl__.groupby_aggregate(key_columns_array, 
+        return XFrame(impl=self.__impl__.groupby_aggregate(key_columns_array,
                                                             group_columns,
                                                             group_output_columns, 
                                                             group_ops))
@@ -3019,7 +3023,7 @@ class XFrame(XObject):
         else:
             raise TypeError("Must pass a 'str', 'list', or 'dict' of join keys.")
 
-        return XFrame(_impl=self.__impl__.join(right.__impl__, how, join_keys))
+        return XFrame(impl=self.__impl__.join(right.__impl__, how, join_keys))
 
     def split_datetime(self, expand_column, column_name_prefix=None, limit=None, tzone=False):
         """
@@ -3191,14 +3195,14 @@ class XFrame(XObject):
                 id_name += '1'
             value_xf = value_xf.add_row_number(id_name)
 
-            tmp = XFrame(_impl=self.__impl__.join(value_xf.__impl__,
+            tmp = XFrame(impl=self.__impl__.join(value_xf.__impl__,
                                                   'left',
                                                   {column_name: column_name}))
             ret_xf = tmp[tmp[id_name] == None]       # this is an xarray operator
             del ret_xf[id_name]
             return ret_xf
         else:
-            return XFrame(_impl=self.__impl__.join(value_xf.__impl__,
+            return XFrame(impl=self.__impl__.join(value_xf.__impl__,
                                                    'inner',
                                                    {column_name: column_name}))
 
@@ -3447,7 +3451,7 @@ class XFrame(XObject):
         else:
             new_column_name = ''
 
-        ret_sa = XArray(_impl=self.__impl__.pack_columns(columns, dict_keys, dtype, fill_na))
+        ret_sa = XArray(impl=self.__impl__.pack_columns(columns, dict_keys, dtype, fill_na))
 
         new_xf = self.select_columns(rest_columns)
         new_xf.add_column(ret_sa, new_column_name)
@@ -3762,9 +3766,9 @@ class XFrame(XObject):
             new_column_type = [infer_type_of_list(values)]
 
         if stack_column_type == dict:
-            return XFrame(_impl=self.__impl__.stack_dict(column_name, new_column_name, new_column_type, drop_na))
+            return XFrame(impl=self.__impl__.stack_dict(column_name, new_column_name, new_column_type, drop_na))
         else:
-            return XFrame(_impl=self.__impl__.stack_list(column_name, new_column_name, new_column_type, drop_na))
+            return XFrame(impl=self.__impl__.stack_list(column_name, new_column_name, new_column_type, drop_na))
 
     def unstack(self, column, new_column_name=None):
         """
@@ -3901,7 +3905,7 @@ class XFrame(XObject):
         +----+-------+
         [4 rows x 2 columns]
         """
-        return XFrame(_impl=self.__impl__.unique())
+        return XFrame(impl=self.__impl__.unique())
 
     def sort(self, sort_columns, ascending=True):
         """
@@ -4039,7 +4043,7 @@ class XFrame(XObject):
             if self[column].dtype() not in (str, int, float, datetime.datetime):
                 raise TypeError("Only columns of type ('str', 'int', 'float') can be sorted.")
 
-        return XFrame(_impl=self.__impl__.sort(sort_column_names, sort_column_orders))
+        return XFrame(impl=self.__impl__.sort(sort_column_names, sort_column_orders))
 
     def dropna(self, columns=None, how='any'):
         """
@@ -4111,11 +4115,11 @@ class XFrame(XObject):
         # NA values being dropped would not be the expected behavior. This
         # is a NOOP, so let's not bother the server
         if type(columns) is list and len(columns) == 0:
-            return XFrame(_impl=self.__impl__)
+            return XFrame(impl=self.__impl__)
 
         (columns, all_behavior) = self.__dropna_errchk(columns, how)
 
-        return XFrame(_impl=self.__impl__.drop_missing_values(columns, all_behavior, False))
+        return XFrame(impl=self.__impl__.drop_missing_values(columns, all_behavior, False))
 
     def dropna_split(self, columns=None, how='any'):
         """
@@ -4172,7 +4176,7 @@ class XFrame(XObject):
         # NA values being dropped would not be the expected behavior. This
         # is a NOOP, so let's not bother the server
         if type(columns) is list and len(columns) == 0:
-            return XFrame(_impl=self.__impl__), XFrame()
+            return XFrame(impl=self.__impl__), XFrame()
 
         (columns, all_behavior) = self.__dropna_errchk(columns, how)
 
@@ -4181,7 +4185,7 @@ class XFrame(XObject):
         if len(xframe_tuple) != 2:
             raise RuntimeError('Did not return two XFrames.')
 
-        return XFrame(_impl=xframe_tuple[0]), XFrame(_impl=xframe_tuple[1])
+        return XFrame(impl=xframe_tuple[0]), XFrame(impl=xframe_tuple[1])
 
     @staticmethod
     def __dropna_errchk(columns, how):
@@ -4306,7 +4310,7 @@ v        out : XFrame
         if column_name in self.column_names():
             raise RuntimeError("Column '{}' already exists in the current XFrame.".format(column_name))
 
-        return XFrame(_impl=self.__impl__.add_row_number(column_name, start))
+        return XFrame(impl=self.__impl__.add_row_number(column_name, start))
 
     def sql(self, sql_statement, table_name='xframe'):
         """
@@ -4345,7 +4349,7 @@ v        out : XFrame
         +----+-----  -+
         [3 rows x 2 columns]
         """
-        return XFrame(_impl=self.__impl__.sql(sql_statement, table_name=table_name))
+        return XFrame(impl=self.__impl__.sql(sql_statement, table_name=table_name))
 
     @property
     def shape(self):

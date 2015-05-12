@@ -12,10 +12,12 @@ from xpatterns.frequent import FreqSketch
 
 __all__ = ['Sketch']
 
+
 def is_missing(x):
     if x is None: return True
     if isinstance(x, float) and math.isnan(x): return True
     return False
+
 
 class SketchImpl(object):
 
@@ -27,11 +29,13 @@ class SketchImpl(object):
         self.quantile_accum = None
         self._exit()
             
-    def _entry(self, *args):
+    @staticmethod
+    def _entry(*args):
         if SketchImpl.entry_trace:
             print 'enter sketch', inspect.stack()[1][3], args
 
-    def _exit(self):
+    @staticmethod
+    def _exit():
         if SketchImpl.exit_trace:
             print 'exit sketch', inspect.stack()[1][3]
         pass
@@ -77,11 +81,11 @@ class SketchImpl(object):
         self._exit()
 
     def _create_quantile_accumulator(self):
-#       With these values, the system runs out of memory
-#        num_levels = 12
-#        epsilon = 0.001
-#        delta = 0.01
-#        With these, it is OK.
+        # With these values, the system runs out of memory
+        #  num_levels = 12
+        #  epsilon = 0.001
+        #  delta = 0.01
+        #  With these, it is OK.
         num_levels = 10
         epsilon = 0.01
         delta = 0.1

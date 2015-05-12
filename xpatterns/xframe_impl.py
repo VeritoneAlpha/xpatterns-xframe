@@ -165,33 +165,57 @@ class XFrameImpl(XObjectImpl):
             rowval = row[1]
             cols = [rowval[col] for col in columns]
             res.append(tuple(cols))
-        sc = spark_context()
+        sc = cls.spark_context()
         rdd = sc.parallelize(res)
         cls._exit()
         return XFrameImpl(rdd, column_names, column_types)
 
     @classmethod
-    def xframe_from_xframe_index(cls, path):
+    def load_from_xframe_index(cls, path):
         """
-        Create XFrame from a saved xframe.
+        Load from a saved xframe.
         """
-        # read rdd
+        cls._entry(path)
         sc = cls.spark_context()
         res = sc.pickleFile(path)
         # read metadata from the same directory
         metadata_path = os.path.join(path, '_metadata')
         with open(metadata_path) as f:
             names, types = pickle.load(f)
+        cls._exit()
         return cls(res, names, types)
 
-    def load_from_xframe_index(self, path):
+    @classmethod
+    def load_from_spark_dataframe(cls, rdd):
         """
-        Load from a saved xframe.
+        Load data from an existing spark dataframe.
         """
-        self._entry(path)
-        xf = self.xframe_from_xframe_index(path)
-        self._replace(xf.rdd(), xf.col_names, xf.column_types)
-        self._exit()
+        cls._entry()
+        schema = rdd.schema
+        xf_names = [str(col.name) for col in schema.fields]
+        xf_types = [to_ptype(col.dataType) for col in schema.fields]
+
+        def row_to_tuple(row):
+            return tuple([row[i] for i in range(len(row))])
+        xf_rdd = rdd.map(row_to_tuple)
+        cls._exit()
+        return cls(xf_rdd, xf_names, xf_types)
+
+    @classmethod
+    def load_from_rdd(cls, rdd, names=None, types=None):
+        cls._entry(names, types)
+        first_row = rdd.take(1)[0]
+        if names is not None:
+            if len(names) != len(first_row):
+                raise ValueError('Length of names does not match RDD.')
+        if types is not None:
+            if len(types) != len(first_row):
+                raise ValueError('Length of types does not match RDD.')
+        names = names or ['X.{}'.format(i) for i in range(len(first_row))]
+        types = types or [type(elem) for elem in first_row]
+        # TODO sniff types using more of the rdd
+        cls._exit()
+        return cls(rdd, names, types)
 
     def load_from_csv(self, path, parsing_config, type_hints):
         """
@@ -466,34 +490,6 @@ class XFrameImpl(XObjectImpl):
                                             number_of_partitions=number_of_partitions)
         dataframe.saveAsParquetFile(url)
         self._exit()
-
-    def from_rdd(self, rdd, names=None, types=None):
-        first_row = rdd.take(1)[0]
-        if names is not None:
-            if len(names) != len(first_row):
-                raise ValueError('Length of names does not match RDD.')
-        if types is not None:
-            if len(types) != len(first_row):
-                raise ValueError('Length of types does not match RDD.')
-        xf_names = names or ['X.{}'.format(i) for i in range(len(first_row))]
-        xf_types = types or [type(elem) for elem in first_row]
-        # TODO sniff types using more of the rdd
-        return self._replace(rdd, xf_names, xf_types)
-
-    @classmethod
-    def xframe_from_spark_dataframe(cls, rdd):
-        schema = rdd.schema
-        xf_names = [str(col.name) for col in schema.fields]
-        xf_types = [to_ptype(col.dataType) for col in schema.fields]
-
-        def row_to_tuple(row):
-            return tuple([row[i] for i in range(len(row))])
-        xf_rdd = rdd.map(row_to_tuple)
-        return XFrameImpl(xf_rdd, xf_names, xf_types)
-
-    def from_spark_dataframe(self, rdd):
-        res = XFrameImpl.xframe_from_spark_dataframe(rdd)
-        return self._replace(res.rdd(), res.col_names, res.column_types)
 
     def to_spark_rdd(self):
         """
@@ -1500,6 +1496,6 @@ class XFrameImpl(XObjectImpl):
         self.to_spark_dataframe(table_name, 8)  # registers table for use in query
         sqlc = self.spark_sql_context()
         s_res = sqlc.sql(sql_statement)
-        res = XFrameImpl.xframe_from_spark_dataframe(s_res)
+        res = XFrameImpl.load_from_spark_dataframe(s_res)
         self._exit()
         return res
