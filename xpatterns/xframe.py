@@ -183,8 +183,8 @@ class XFrame(XObject):
         else:
             _format = format
 
-        if _format == 'pandas_dataframe':
-            self.__impl__.load_from_pandas_dataframe(data)
+        if _format == 'pandas.dataframe':
+            self.__impl__ = XFrameImpl.load_from_pandas_dataframe(data)
         elif _format == 'xframe_obj':
             for col in data.column_names():
                 self.__impl__.add_column(data[col].__impl__, col)

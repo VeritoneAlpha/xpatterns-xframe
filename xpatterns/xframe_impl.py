@@ -14,8 +14,10 @@ import ast
 
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField
+import numpy as np
 
 from xpatterns.xobject_impl import XObjectImpl
+from xpatterns.spark_context import spark_context
 from xpatterns.util import infer_type_of_rdd
 from xpatterns.util import cache, uncache, persist
 from xpatterns.util import is_missing, is_missing_or_empty
@@ -146,20 +148,27 @@ class XFrameImpl(XObjectImpl):
 
     # Load
     @classmethod
-    def xframe_from_pandas_dataframe(cls, data):
-        """
-        Create XFrame from a pandas.DataFrame.
-        """
-        raise NotImplementedError()
-
-    def load_from_pandas_dataframe(self, data):
+    def load_from_pandas_dataframe(cls, data):
         """
         Load from a pandas.DataFrame.
         """
-        self._entry(data)
-        xf = self.xframe_from_pandas_dataframe(data)
-        self._exit()
-        self._replace(xf.rdd(), xf.col_names, xf.column_types)
+        cls._entry(data)
+        # build something we can parallelize
+        # list of rows, each row is a tuple
+        columns = data.columns
+        dtypes = data.dtypes
+        column_names = [col for col in columns]
+
+        column_types = [type(np.zeros(1,dtype).tolist()[0]) for dtype in dtypes]
+        res = []
+        for row in data.iterrows():
+            rowval = row[1]
+            cols = [rowval[col] for col in columns]
+            res.append(tuple(cols))
+        sc = spark_context()
+        rdd = sc.parallelize(res)
+        cls._exit()
+        return XFrameImpl(rdd, column_names, column_types)
 
     @classmethod
     def xframe_from_xframe_index(cls, path):

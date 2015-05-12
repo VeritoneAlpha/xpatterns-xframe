@@ -17,6 +17,7 @@ from xpatterns import XArray
 from xpatterns import XFrame
 from xpatterns.aggregate import SUM, ARGMAX, ARGMIN, MAX, MIN, COUNT, AVG, MEAN, \
     VAR, VARIANCE, STD, STDV, SELECT_ONE, CONCAT
+import pandas
 
 
 def eq_array(expected, result):
@@ -87,6 +88,16 @@ class TestXFrameConstructor(unittest.TestCase):
         # construct and XFrame given a text file
         # interpret as csv
         pass
+
+    def test_construct_auto_dataframe(self):
+        df = pandas.DataFrame({'id': [1, 2, 3], 'val': [10.0, 20.0, 30.0]})
+        res = XFrame(df)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, float], res.column_types())
+        self.assertEqual({'id': 1, 'val': 10.0}, res[0])
+        self.assertEqual({'id': 2, 'val': 20.0}, res[1])
+        self.assertEqual({'id': 3, 'val': 30.0}, res[2])
 
     def test_construct_auto_str_xframe(self):
         # construct and XFrame given a file with unrecognized file extension
