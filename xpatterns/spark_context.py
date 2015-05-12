@@ -13,7 +13,37 @@ from xpatterns.environment import Environment
 from xpatterns.singleton import Singleton
 
 # Context Defaults
-#CLUSTER_URL = 'spark://ip-10-0-1-212:7077'
+
+
+# noinspection PyClassHasNoInit
+class SparkInitContext():
+    """
+    Spark Context initialization.
+
+    This may be used to initialize the spark context.
+    If this mechanism is not used, then the spark context will be initialized
+    using the config file the first time a context is needed.
+    """
+    cluster_url = None
+    app_name = None
+    cores_max = None
+    executor_memory = None
+
+    @staticmethod
+    def set(**context):
+        """
+        Sets the spark context parameters, and then create a context.
+        If the spark context has already been created, then this will have no effect.
+        """
+        if 'cluster_url' in context:
+            SparkInitContext.cluster_url = context['cluster_url']
+        if 'app_name' in context:
+            SparkInitContext.app_name = context['app_name']
+        if 'cores_max' in context:
+            SparkInitContext.cores_max = context['cores_max']
+        if 'executor_memory' in context:
+            SparkInitContext.executor_memory = context['executor_memory']
+        CommonSparkContext.Instance()
 
 @Singleton
 class CommonSparkContext(object):
@@ -42,10 +72,10 @@ class CommonSparkContext(object):
         """
 
         env = Environment.create_default()
-        cluster_url = env.get_config('spark', 'cluster_url', default='local')
-        cores_max = env.get_config('spark', 'cores_max', default='8')
-        executor_memory = env.get_config('spark', 'executor_memory', default='8g')
-        app_name = env.get_config('spark', 'app_name', 'xFrame')
+        cluster_url = SparkInitContext.cluster_url or env.get_config('spark', 'cluster_url', default='local')
+        cores_max = SparkInitContext.cores_max or env.get_config('spark', 'cores_max', default='8')
+        executor_memory = SparkInitContext.executor_memory or env.get_config('spark', 'executor_memory', default='8g')
+        app_name = SparkInitContext.app_name or env.get_config('spark', 'app_name', 'xFrame')
         conf = (SparkConf()
                 .setMaster(cluster_url)
                 .setAppName(app_name)
