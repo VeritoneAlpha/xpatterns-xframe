@@ -24,7 +24,7 @@ class SparkInitContext():
     If this mechanism is not used, then the spark context will be initialized
     using the config file the first time a context is needed.
     """
-    context = None
+    context = {}
 
     @staticmethod
     def set(**context):
