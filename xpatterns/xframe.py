@@ -183,7 +183,7 @@ class XFrame(XObject):
         if _format == 'pandas.dataframe':
             self.__impl__ = XFrameImpl.load_from_pandas_dataframe(data)
         elif _format == 'xframe_obj':
-            self.__impl__ = XFrameImpl(datato_spark_rdd(), data.column_names(), data.column_types())
+            self.__impl__ = XFrameImpl(data.to_spark_rdd(), data.column_names(), data.column_types())
         elif _format == 'xarray':
             self.__impl__ = XFrameImpl().add_column(data.__impl__, '')
         elif _format == 'array':

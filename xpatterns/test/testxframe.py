@@ -100,10 +100,8 @@ class TestXFrameConstructor(unittest.TestCase):
         self.assertEqual({'id': 3, 'val': 30.0}, res[2])
 
     def test_construct_auto_str_xframe(self):
-        # construct and XFrame given a file with unrecognized file extension
-        # this refers to a graphlab internal file, and might be reinterpreted as reading from a 
-        # spark internal checkpoint file
-        pass
+        # construct an XFrame given a file with unrecognized file extension
+       pass
 
     def test_construct_xarray(self):
         # construct and XFrame given an XArray
@@ -111,6 +109,14 @@ class TestXFrameConstructor(unittest.TestCase):
 
     def test_construct_xframe(self):
         # construct an XFrame given another XFrame
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = XFrame(t)
+        self.assertEqual(3, len(res))
+        res = res.sort('id')
+        self.assertTrue(eq_array([1, 2, 3], res['id']))
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual(['id', 'val'], res.column_names())
+
         pass
 
     def test_construct_iteritems(self):
