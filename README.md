@@ -69,7 +69,7 @@ From the source distribution, you can either:
 Building the Library
 
 In the source distribution, run 
-    python setup.py sdist
+    python setup.py sdist --formats=zip
 
 This will create a file dist/xframe-<version>.tar.gz
 This file can be copied to the server where you want to install xframes.
