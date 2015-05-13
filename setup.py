@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, io
 import codecs
 
 from setuptools import setup, find_packages
