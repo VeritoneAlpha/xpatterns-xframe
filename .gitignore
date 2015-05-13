@@ -3,4 +3,6 @@
 bug-notebooks
 /MANIFEST
 venv
+dist
+xframe.egg-info
 .idea
