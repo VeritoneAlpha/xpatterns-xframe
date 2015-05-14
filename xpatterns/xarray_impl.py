@@ -8,6 +8,7 @@ import os
 import pickle
 import ast
 import csv
+import copy
 import StringIO
 
 from xpatterns.xobject_impl import XObjectImpl
@@ -57,7 +58,7 @@ class XArrayImpl(XObjectImpl):
     perf_count = None
     
     def __init__(self, rdd=None, elem_type=None):
-        # The RDD holds all the data for the XArray.  
+        # The RDD holds all the data for the XArray.
         # The rows must be of a single type.
         # Types permitted include int, long, float, string, list, and dict.
         # We record the element type here.
@@ -129,21 +130,38 @@ class XArrayImpl(XObjectImpl):
         return XArrayImpl(rdd, int)
 
     # Load
-    def load_from_iterable(self, values, dtype, ignore_cast_failure):
+    @classmethod
+    def load_from_iterable(cls, values, dtype, ignore_cast_failure):
         """
         Load RDD from values given by iterable.
+
+        Note
+        ----
+        Values must not only be iterable, but also it must support len and __getitem__
         
         Modifies the existing RDD: does not return a new XArray.
         """
-        self._entry(values, dtype, ignore_cast_failure)
-
+        cls._entry(values, dtype, ignore_cast_failure)
+        dtype = dtype or None
         sc = spark_context()
-        if len(values) == 0:
-            self._replace_rdd(XRdd(sc.parallelize([])))
-            self.elem_type = dtype     # or should it be None ?
-            self._exit()
-            return
-        dtype = dtype or infer_type_of_list(values[0:100])
+        try:
+            if len(values) == 0:
+                cls._exit()
+                return XArrayImpl(XRdd(sc.parallelize([])), dtype)
+                dtype = dtype or infer_type_of_list(values[0:100])
+        except TypeError:
+            # get here if values does not support len or __getitem
+            pass
+
+        if dtype is None:
+            # try iterating and see if we get something
+            cpy = copy.copy(values)
+            for val in cpy:
+                dtype = infer_type_of_list([val])
+                break
+
+        if dtype is None:
+            raise TypeError('Cannot determine types.')
 
         def do_cast(x, dtype, ignore_cast_failure):
             if is_missing(x): return x
@@ -155,26 +173,28 @@ class XArrayImpl(XObjectImpl):
                 # TODO: this does not seem to cach as it should
                 return None if ignore_cast_failure else ValueError
 
-        if dtype is None:
-            raise NotImplementedError('Cannot determine types.')
         raw_rdd = XRdd(sc.parallelize(values))
         rdd = raw_rdd.map(lambda x: do_cast(x, dtype, ignore_cast_failure))
         if not ignore_cast_failure:
             errs = len(rdd.filter(lambda x: x is ValueError).take(1)) == 1
             if errs: raise ValueError
 
-        self._replace(rdd, dtype)
-        self._exit()
+        cls._exit()
+        return cls(rdd, dtype)
 
-    def load_from_const(self, value, size):
+    @classmethod
+    def load_from_const(cls, value, size):
         """
         Load RDD from const value.
         """
+        cls._entry(value, size)
         values = [value for _ in xrange(0, size)]
         sc = spark_context()
-        self._replace(XRdd(sc.parallelize(values)), type(value))
+        cls._exit()
+        return cls(XRdd(sc.parallelize(values)), type(value))
 
-    def load_autodetect(self, path, dtype):
+    @classmethod
+    def load_autodetect(cls, path, dtype):
         """
         Load from the given path.
         
@@ -183,7 +203,7 @@ class XArrayImpl(XObjectImpl):
         """
         # Read the file as string
         # Examine the first 100 lines, and cast if necessary to int or float
-        self._entry(path, dtype)
+        cls._entry(path, dtype)
         # If the path is a directory, then look for sarray-data file in the directory.
         # If the path is a file, look for that file
         # Use type inference to determine the element type.
@@ -203,8 +223,8 @@ class XArrayImpl(XObjectImpl):
                 res = res.map(lambda x: ast.literal_eval(x))
             else:
                 res = res.map(lambda x: dtype(x))
-        self._replace(res, dtype)
-        self._exit()
+        cls._exit()
+        return cls(res, dtype)
 
     def get_content_identifier(self):
         """
@@ -283,7 +303,7 @@ class XArrayImpl(XObjectImpl):
                     break
         self._exit()
 
-    def to_spark_rdd(self, number_of_partitions=None):
+    def to_rdd(self, number_of_partitions=None):
         """
         Returns the internal rdd.
         """

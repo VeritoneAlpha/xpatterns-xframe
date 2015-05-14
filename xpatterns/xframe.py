@@ -75,7 +75,9 @@ class XFrame(XObject):
     data : array | pandas.DataFrame | spark.rdd | spark.DataFrame | string | dict, optional
         The actual interpretation of this field is dependent on the ``format``
         parameter. If ``data`` is an array, Pandas DataFrame or Spark RDD, the contents are
-        stored in the XFrame. If ``data`` is a string, it is interpreted as a
+        stored in the XFrame. If ``data`` is an object supporting iteritems, then is is handled
+        like a dictionary.  If ``data`` is an object supporting iteration, then the values
+        are iterated to form the XFrame.  If ``data`` is a string, it is interpreted as a
         file. Files can be read from local file system or urls (local://,
         hdfs://, s3://, http://, or remote://).
 
@@ -106,7 +108,6 @@ class XFrame(XObject):
     Notes
     -----
     The following functionality is currently not implemented.
-        - xframe_from_pandas_dataframe
         - pack_columns data types except list, array, and dict
         - groupby quantile
         - split_datetime
@@ -179,27 +180,30 @@ class XFrame(XObject):
             return
 
         _format = self.classify_auto(data) if format == 'auto' else format
+        #print 'format', _format
 
         if _format == 'pandas.dataframe':
             self.__impl__ = XFrameImpl.load_from_pandas_dataframe(data)
         elif _format == 'xframe_obj':
-            self.__impl__ = XFrameImpl(data.to_spark_rdd(), data.column_names(), data.column_types())
+            self.__impl__ = XFrameImpl(data.to_rdd(), data.column_names(), data.column_types())
         elif _format == 'xarray':
             self.__impl__ = XFrameImpl().add_column(data.__impl__, '')
         elif _format == 'array':
             if len(data) > 0:
                 unique_types = set([type(x) for x in data if x is not None])
                 if len(unique_types) == 1 and XArray in unique_types:
-                    #self.__impl__ = XFrameImpl()    ## TODO remove
                     xf = XFrameImpl()
                     for arr in data:
-                        #self.add_column(arr)
-                        xf.add_column(arr, '')
+                        xf.add_column(arr.__impl__, '')
                     self.__impl__ = xf
                 elif XArray in unique_types:
                     raise ValueError('Cannot create XFrame from mix of regular values and XArrays.')
                 else:
-                    self.__impl__ = XFrameImpl().add_column(XArray(data).__impl__, "")
+                    self.__impl__ = XFrameImpl().add_column(XArray(data).__impl__, '')
+            else:
+                self.__impl__ = XFrameImpl()
+        elif _format == 'iter':
+            self.__impl__ = XFrameImpl().add_column(XArray(data).__impl__, '')
         elif _format == 'dict':
             xf = XFrameImpl()
             for key, val in iter(sorted(data.iteritems())):
@@ -207,6 +211,13 @@ class XFrame(XObject):
                     xf.add_column(val.__impl__, key)
                 else:
                     xf.add_column(XArray(val).__impl__, key)
+            self.__impl__ = xf
+        elif _format == 'iteritems':
+            xf = XFrameImpl()
+            for key, val in iter(sorted(data.iteritems())):
+                if not hasattr(val, '__iter__'):
+                    raise TypeError('Iterator values must be iterable.')
+                xf.add_column(XArray(val).__impl__, key)
             self.__impl__ = xf
         elif _format == 'csv':
             url = make_internal_url(data)
@@ -247,9 +258,9 @@ class XFrame(XObject):
         if isinstance(data, XFrame):
             return 'xframe_obj'
         if hasattr(data, 'iteritems'):
-            return 'dict'
+            return 'iteritems'
         if hasattr(data, '__iter__'):
-            return 'array'
+            return 'iter'
         if data is None:
             return 'empty'
         if str(type(data)) == "<class 'pyspark.sql.dataframe.DataFrame'>":
@@ -266,8 +277,7 @@ class XFrame(XObject):
             if data.endswith('.parquet'):
                 return 'parquet'
             if data.endswith(('.txt', '.txt.gz')):
-                print 'Assuming file is csv. For other delimiters, ' + \
-                    'please use `XFrame.read_csv`.'
+                print 'Assuming file is csv. For other delimiters, use `XFrame.read_csv`.'
                 return 'csv'
             else:
                 return 'xframe'
@@ -1353,7 +1363,7 @@ class XFrame(XObject):
                 df[column_name] = df[column_name].astype(self.column_types()[i])
         return DataFramePlus(df)
 
-    def to_spark_rdd(self):
+    def to_rdd(self):
         """
         Convert the current XFrame to a Spark RDD
 
@@ -1362,7 +1372,7 @@ class XFrame(XObject):
         out : spark.RDD
             The spark RDD that is used to represent the XFrame.
         """
-        return self.__impl__.to_spark_rdd()
+        return self.__impl__.to_rdd()
 
     def to_spark_dataframe(self, table_name=None, number_of_partitions=4):
         """
