@@ -53,7 +53,6 @@ class TestXFrameConstructor(unittest.TestCase):
         self.assertEqual({'val_int': 3, 'val_int_signed': -3, 'val_float': 3.0, 'val_float_signed': -3.0,
                           'val_str': 'c', 'val_list': ['c'], 'val_dict': {3: 'c'}}, res[2])
 
-
     def test_construct_auto_str_csv(self):
         path = 'files/test-frame.csv'
         res = XFrame(path)
@@ -87,7 +86,27 @@ class TestXFrameConstructor(unittest.TestCase):
     def test_construct_auto_str_txt(self):
         # construct and XFrame given a text file
         # interpret as csv
-        pass
+        path = 'files/test-frame.txt'
+        res = XFrame(path)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertEqual({'id': 3, 'val': 'c'}, res[2])
+
+    def test_construct_auto_str_noext(self):
+        # construct and XFrame given a text file
+        # interpret as csv
+        path = 'files/test-frame'
+        res = XFrame(path)
+        res = res.sort('id')
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertEqual({'id': 3, 'val': 'c'}, res[2])
 
     def test_construct_auto_dataframe(self):
         df = pandas.DataFrame({'id': [1, 2, 3], 'val': [10.0, 20.0, 30.0]})
@@ -101,11 +120,26 @@ class TestXFrameConstructor(unittest.TestCase):
 
     def test_construct_auto_str_xframe(self):
         # construct an XFrame given a file with unrecognized file extension
-       pass
+        path = 'files/test-frame'
+        res = XFrame(path)
+        res = res.sort('id')
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertEqual({'id': 3, 'val': 'c'}, res[2])
 
     def test_construct_xarray(self):
         # construct and XFrame given an XArray
-        pass
+        xa = XArray([1, 2, 3])
+        t = XFrame(xa)
+        self.assertEqual(3, len(t))
+        self.assertEqual(['X0'], t.column_names())
+        self.assertEqual([int], t.column_types())
+        self.assertEqual({'X0': 1}, t[0])
+        self.assertEqual({'X0': 2}, t[1])
+        self.assertEqual({'X0': 3}, t[2])
 
     def test_construct_xframe(self):
         # construct an XFrame given another XFrame
@@ -117,39 +151,154 @@ class TestXFrameConstructor(unittest.TestCase):
         self.assertEqual([int, str], res.column_types())
         self.assertEqual(['id', 'val'], res.column_names())
 
-        pass
-
     def test_construct_iteritems(self):
         # construct an XFrame from an object that has iteritems
-        pass
+        class MyIterItem(object):
+            def iteritems(self):
+                return iter([('id', [1, 2, 3]), ('val', ['a', 'b', 'c'])])
+        t = XFrame(MyIterItem())
+        self.assertEqual(3, len(t))
+        self.assertEqual(['id', 'val'], t.column_names())
+        self.assertEqual([int, str], t.column_types())
+        self.assertEqual({'id': 1, 'val': 'a'}, t[0])
+        self.assertEqual({'id': 2, 'val': 'b'}, t[1])
+        self.assertEqual({'id': 3, 'val': 'c'}, t[2])
+
+    def test_construct_iteritems_bad(self):
+        # construct an XFrame from an object that has iteritems
+        class MyIterItem(object):
+            def iteritems(self):
+                return iter([('id', 1), ('val', 'a')])
+        with self.assertRaises(TypeError):
+            t = XFrame(MyIterItem())
 
     def test_construct_iter(self):
         # construct an XFrame from an object that has __iter__
-        pass
+        class MyIter(object):
+            def __iter__(self):
+                return iter([1, 2, 3])
+        t = XFrame(MyIter())
+        self.assertEqual(3, len(t))
+        self.assertEqual(['X0'], t.column_names())
+        self.assertEqual([int], t.column_types())
+        self.assertEqual({'X0': 1}, t[0])
+        self.assertEqual({'X0': 2}, t[1])
+        self.assertEqual({'X0': 3}, t[2])
+
+    def test_construct_iter_bad(self):
+        # construct an XFrame from an object that has __iter__
+        class MyIter(object):
+            def __iter__(self):
+                return iter([])
+        with self.assertRaises(TypeError):
+            t = XFrame(MyIter())
 
     def test_construct_none(self):
         # construct an empty XFrame
-        pass
+        t = XFrame()
+        self.assertEqual(0, len(t))
+
+    def test_construct_str_csv(self):
+        # construct and XFrame given a text file
+        # interpret as csv
+        path = 'files/test-frame.txt'
+        res = XFrame(path, format='csv')
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertEqual({'id': 3, 'val': 'c'}, res[2])
+
+    def test_construct_str_xframe(self):
+        # construct and XFrame given a saved xframe
+        path = 'files/test-frame'
+        res = XFrame(path, format='xframe')
+        res = res.sort('id')
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertEqual({'id': 3, 'val': 'c'}, res[2])
 
     def test_construct_array(self):
         # construct an XFrame from an array
-        pass
+        t = XFrame([1, 2, 3], format='array')
+        self.assertEqual(3, len(t))
+        self.assertEqual([1, 2, 3], t['X0'])
+
+    def test_construct_array_mixed_xarray(self):
+        # construct an XFrame from an xarray and values
+        xa = XArray([1, 2, 3])
+        with self.assertRaises(ValueError):
+            t = XFrame([1, 2, xa], format='array')
+
+    def test_construct_array_mixed_types(self):
+        # construct an XFrame from
+        # an array of mixed types
+        with self.assertRaises(TypeError):
+            t = XFrame([1, 2, 'a'], format='array')
+
+    def test_construct_unknown_format(self):
+        # test unknown format
+        with self.assertRaises(ValueError):
+            t = XFrame([1, 2, 'a'], format='bad-format')
+
+    def test_construct_array_empty(self):
+        # construct an XFrame from an empty array
+        t = XFrame([], format='array')
+        self.assertEqual(0, len(t))
+
+    def test_construct_array_xarray(self):
+        # construct an XFrame from an xarray
+        xa1 = XArray([1, 2, 3])
+        xa2 = XArray(['a', 'b', 'c'])
+        t = XFrame([xa1, xa2], format='array')
+        self.assertEqual(3, len(t))
+        self.assertEqual(['X0', 'X1'], t.column_names())
+        self.assertEqual([int, str], t.column_types())
+        self.assertEqual({'X0': 1, 'X1': 'a'}, t[0])
+        self.assertEqual({'X0': 2, 'X1': 'b'}, t[1])
+        self.assertEqual({'X0': 3, 'X1': 'c'}, t[2])
+
 
     def test_construct_dict_int(self):
         # construct an XFrame from a dict of int
-        pass
+        t = XFrame({'id': [1, 2, 3], 'val': [10, 20, 30]}, format='dict')
+        res = XFrame(t)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], t.column_names())
+        self.assertEqual([int, int], t.column_types())
+        self.assertEqual({'id': 1, 'val': 10}, t[0])
+        self.assertEqual({'id': 2, 'val': 20}, t[1])
+        self.assertEqual({'id': 3, 'val': 30}, t[2])
 
     def test_construct_dict_float(self):
         # construct an XFrame from a dict of float
-        pass
+        t = XFrame({'id': [1.0, 2.0, 3.0], 'val': [10.0, 20.0, 30.0]}, format='dict')
+        res = XFrame(t)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], t.column_names())
+        self.assertEqual([float, float], t.column_types())
+        self.assertEqual({'id': 1.0, 'val': 10.0}, t[0])
+        self.assertEqual({'id': 2.0, 'val': 20.0}, t[1])
+        self.assertEqual({'id': 3.0, 'val': 30.0}, t[2])
 
     def test_construct_dict_str(self):
         # construct an XFrame from a dict of str
-        pass
+        t = XFrame({'id': ['a', 'b', 'c'], 'val': ['A', 'B', 'C']}, format='dict')
+        res = XFrame(t)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'val'], t.column_names())
+        self.assertEqual([str, str], t.column_types())
+        self.assertEqual({'id': 'a', 'val': 'A'}, t[0])
+        self.assertEqual({'id': 'b', 'val': 'B'}, t[1])
+        self.assertEqual({'id': 'c', 'val': 'C'}, t[2])
 
     def test_construct_dict_int_str(self):
         # construct an XFrame from a dict of int and str
-        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']}, format='dict')
         self.assertEqual(3, len(t))
         t = t.sort('id')
         self.assertTrue(eq_array([1, 2, 3], t['id']))
@@ -534,7 +683,11 @@ class TestXFrameToRdd(unittest.TestCase):
     """
 
     def test_to_rdd(self):
-        pass
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        rdd_val = t.to_rdd().collect()
+        self.assertEqual((1, 'a'), rdd_val[0])
+        self.assertEqual((2, 'b'), rdd_val[1])
+        self.assertEqual((3, 'c'), rdd_val[2])
 
 
 class TestXFrameFromRdd(unittest.TestCase):
@@ -624,7 +777,15 @@ class TestXFrameToStr(unittest.TestCase):
     """
 
     def test_to_str(self):
-        pass
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        s = str(t).split('\n')
+        self.assertEqual('+----+-----+', s[0])
+        self.assertEqual('| id | val |', s[1])
+        self.assertEqual('+----+-----+', s[2])
+        self.assertEqual('| 1  |  a  |', s[3])
+        self.assertEqual('| 2  |  b  |', s[4])
+        self.assertEqual('| 3  |  c  |', s[5])
+        self.assertEqual('+----+-----+', s[6])
 
 
 class TestXFrameNonzero(unittest.TestCase):
@@ -632,15 +793,21 @@ class TestXFrameNonzero(unittest.TestCase):
     Tests XFrame __nonzero__
     """
     def test_nonzero_true(self):
+        # not empty, nonzero data
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         self.assertTrue(t)
 
     def test_nonzero_false(self):
+        # empty
         t = XFrame()
         self.assertFalse(t)
 
-    # TODO make an XFrame and then somehow delete all its rows, so the RDD
-    # exists but is empty
+    def test_empty_false(self):
+        # empty, but previously not empty
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        t = t.filterby([99], 'id')
+        self.assertFalse(t)
+
 
 
 class TestXFrameLen(unittest.TestCase):
