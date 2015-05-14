@@ -142,7 +142,6 @@ class XArray(XObject):
         elif hasattr(data, '__iter__'):
             self.__impl__ = XArrayImpl.load_from_iterable(data, dtype, ignore_cast_failure)
         elif isinstance(data, str):
-            self.__impl__ = XArrayImpl()
             internal_url = make_internal_url(data)
             self.__impl__ = XArrayImpl.load_autodetect(internal_url, dtype)
         else:
