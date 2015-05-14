@@ -333,9 +333,9 @@ class XRdd(object):
         self._exit()
         return XRdd(res)
 
-    def sample(self, withReplacement, fraction, seed=None):
-        self._entry(withReplacement, fraction, seed)
-        res = self._rdd.sample(withReplacement, fraction, seed)
+    def sample(self, with_replacement, fraction, seed=None):
+        self._entry(with_replacement, fraction, seed)
+        res = self._rdd.sample(with_replacement, fraction, seed)
         self._exit()
         return XRdd(res)
 
