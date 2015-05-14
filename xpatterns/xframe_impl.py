@@ -17,7 +17,6 @@ from pyspark.sql.types import StructType, StructField
 import numpy as np
 
 from xpatterns.xobject_impl import XObjectImpl
-from xpatterns.spark_context import spark_context
 from xpatterns.util import infer_type_of_rdd
 from xpatterns.util import cache, uncache, persist
 from xpatterns.util import is_missing, is_missing_or_empty
@@ -159,7 +158,7 @@ class XFrameImpl(XObjectImpl):
         dtypes = data.dtypes
         column_names = [col for col in columns]
 
-        column_types = [type(np.zeros(1,dtype).tolist()[0]) for dtype in dtypes]
+        column_types = [type(np.zeros(1, dtype).tolist()[0]) for dtype in dtypes]
         res = []
         for row in data.iterrows():
             rowval = row[1]
@@ -280,7 +279,6 @@ class XFrameImpl(XObjectImpl):
                 lines = raw.take(row_limit)
                 raw = XRdd(sc.parallelize(lines))
 
-        # TODO extremely inefficient to create a reader for each line
         # Use per partition operations to create a reader once per partition
         # See p 106: Learning Spark
         # See mapPartitions
@@ -303,12 +301,23 @@ class XFrameImpl(XObjectImpl):
         col_count = len(col_names)
 
         # attach flag to value
+        # Avoid using zipWithIndex.  Instead, find the lowest
+        # partition with data and use that to find the
+        # header row using zipWithUniqueId.
+        def partition_with_data(split_index, iterator):
+            try:
+                iterator.next()
+                yield split_index
+            except StopIteration:
+                yield 1000000000
+        partition_with_data = res.mapPartitionsWithIndex(partition_with_data)
+        min_partition_with_data = min(partition_with_data.collect())
         res = res.zipWithUniqueId()
 
         def attach_flag(val_index, use_header):
             val = val_index[0]
             index = val_index[1]
-            flag = index != 0 or not use_header
+            flag = index != min_partition_with_data or not use_header
             return flag, val
         # add a flag -- used to filter first row and rows with invalid column count
         res = res.map(lambda row: attach_flag(row, use_header))
@@ -491,17 +500,18 @@ class XFrameImpl(XObjectImpl):
         dataframe.saveAsParquetFile(url)
         self._exit()
 
-    def to_spark_rdd(self):
+    def to_rdd(self, number_of_partitions=None):
         """
         Returns the underlying RDD.
 
         Discards the column name and type information.
         """
-        self._entry()
+        self._entry(number_of_partitions)
+        res = self._rdd.repartition(number_of_partitions) if number_of_partitions is not None else self._rdd
         self._exit()
-        return self._rdd.RDD()
+        return res.RDD()
 
-    def to_spark_dataframe(self, table_name, number_of_partitions):
+    def to_spark_dataframe(self, table_name, number_of_partitions=None):
         """
         Adds column name and type information to the rdd and returns it.
         """
@@ -516,22 +526,13 @@ class XFrameImpl(XObjectImpl):
             fields = [StructField(name, to_schema_type(typ, first_row[i]), True)
                       for i, (name, typ) in enumerate(zip(self.col_names, self.column_types))]
             schema = StructType(fields)
-            rdd = self._rdd.repartition(number_of_partitions)
+            rdd = self._rdd.repartition(number_of_partitions) if number_of_partitions is not None else self._rdd
             sqlc = self.spark_sql_context()
             res = sqlc.createDataFrame(rdd.RDD(), schema)
             if table_name is not None:
                 sqlc.registerDataFrameAsTable(res, table_name)
         self._exit()
         return res
-
-    def to_rdd(self, number_of_partitions):
-        """
-        Returns the internal rdd.
-        """
-        self._entry(number_of_partitions)
-        res = self._rdd.repartition(number_of_partitions)
-        self._exit()
-        return res.rdd()
 
     # Table Information
     # noinspection PyUnresolvedReferences
