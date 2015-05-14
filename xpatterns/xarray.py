@@ -125,57 +125,68 @@ class XArray(XObject):
 
         if impl:
             self.__impl__ = impl
-        elif type(data) == XArray:
+            return
+        if type(data) == XArray:
             self.__impl__ = data.__impl__
-        else:
+            return
+
+        # we need to perform type inference
+        dtype = dtype or self.classify_auto(data)
+
+        if isinstance(data, pandas.Series):
+            self.__impl__ = XArrayImpl.load_from_iterable(data.values, dtype, ignore_cast_failure)
+        elif isinstance(data, numpy.ndarray) \
+                or isinstance(data, list) \
+                or isinstance(data, array.array):
+            self.__impl__ = XArrayImpl.load_from_iterable(data, dtype, ignore_cast_failure)
+        elif hasattr(data, '__iter__'):
+            self.__impl__ = XArrayImpl.load_from_iterable(data, dtype, ignore_cast_failure)
+        elif isinstance(data, str):
             self.__impl__ = XArrayImpl()
-            # we need to perform type inference
-            if dtype is None:
-                if isinstance(data, list):
-                    # if it is a list, Get the first type and make sure
-                    # the remaining items are all of the same type
-                    dtype = infer_type_of_list(data)
-                elif isinstance(data, array.array):
-                    dtype = infer_type_of_list(data)
-                elif isinstance(data, pandas.Series):
-                    # if it is a pandas series get the dtype of the series
-                    dtype = pytype_from_dtype(data.dtype)
-                    if dtype == object:
-                        # we need to get a bit more fine grained than that
-                        dtype = infer_type_of_list(data)
+            internal_url = make_internal_url(data)
+            self.__impl__ = XArrayImpl.load_autodetect(internal_url, dtype)
+        else:
+            raise TypeError('Unexpected data source: {}. '
+                            "Possible data source types are: 'list', "
+                            "'numpy.ndarray', 'pandas.Series', and 'string(url)'.".format(type(data)))
 
-                elif isinstance(data, numpy.ndarray):
-                    # if it is a numpy array, get the dtype of the array
-                    dtype = pytype_from_dtype(data.dtype)
-                    if dtype == object:
-                        # we need to get a bit more fine grained than that
-                        dtype = infer_type_of_list(data)
-                    if len(data.shape) == 2:
-                        # we need to make it an array or a list
-                        if dtype == float or dtype == int:
-                            dtype = array.array
-                        else:
-                            dtype = list
-                    elif len(data.shape) > 2:
-                        raise TypeError('Cannot convert Numpy arrays of greater than 2 dimensions.')
+    @staticmethod
+    def classify_auto(data):
+        if isinstance(data, list):
+            # if it is a list, Get the first type and make sure
+            # the remaining items are all of the same type
+            return infer_type_of_list(data)
+        elif isinstance(data, array.array):
+            return infer_type_of_list(data)
+        elif isinstance(data, pandas.Series):
+            # if it is a pandas series get the dtype of the series
+            dtype = pytype_from_dtype(data.dtype)
+            if dtype == object:
+                # we need to get a bit more fine grained than that
+                dtype = infer_type_of_list(data)
+            return dtype
 
-                elif isinstance(data, str):
-                    # if it is a file, we default to string
-                    dtype = str
+        elif isinstance(data, numpy.ndarray):
+            # if it is a numpy array, get the dtype of the array
+            dtype = pytype_from_dtype(data.dtype)
+            if dtype == object:
+                # we need to get a bit more fine grained than that
+                dtype = infer_type_of_list(data)
+            if len(data.shape) == 2:
+                # we need to make it an array or a list
+                if dtype == float or dtype == int:
+                    dtype = array.array
+                else:
+                    dtype = list
+                return dtype
+            elif len(data.shape) > 2:
+                raise TypeError('Cannot convert Numpy arrays of greater than 2 dimensions.')
 
-            if isinstance(data, pandas.Series):
-                self.__impl__.load_from_iterable(data.values, dtype, ignore_cast_failure)
-            elif (isinstance(data, numpy.ndarray)) \
-                    or isinstance(data, list) \
-                    or isinstance(data, array.array):
-                self.__impl__.load_from_iterable(data, dtype, ignore_cast_failure)
-            elif isinstance(data, str):
-                internal_url = make_internal_url(data)
-                self.__impl__.load_autodetect(internal_url, dtype)
-            else:
-                raise TypeError('Unexpected data source: {}. '
-                                "Possible data source types are: 'list', "
-                                "'numpy.ndarray', 'pandas.Series', and 'string(url)'.".format(type(data)))
+        elif isinstance(data, str):
+            # if it is a file, we default to string
+            return str
+        else:
+            return None
 
     def dump_debug_info(self):
         return self.__impl__.dump_debug_info()
@@ -203,9 +214,7 @@ class XArray(XObject):
             raise ValueError('Size must be a positive int.')
         if type(value) not in {int, float, str, array.array, list, dict}:
             raise TypeError("Cannot create xarray of value type '{}'.".format(type(value)))
-        impl = XArrayImpl()
-        impl.load_from_const(value, size)
-        return cls(impl=impl)
+        return cls(impl=XArrayImpl.load_from_const(value, size))
 
     @classmethod
     def from_sequence(cls, *args):
@@ -304,7 +313,7 @@ class XArray(XObject):
         elif format == 'csv':
             self.__impl__.save_as_csv(make_internal_url(filename))
 
-    def to_spark_rdd(self, number_of_partitions=4):
+    def to_rdd(self, number_of_partitions=4):
         """
         Convert the current XArray to the Spark RDD.
 
@@ -318,7 +327,7 @@ class XArray(XObject):
         if number_of_partitions == 0:
             raise ValueError('Number_of_partitions can not be initialized to zero.')
 
-        return self.__impl__.to_spark_rdd(number_of_partitions)
+        return self.__impl__.to_rdd(number_of_partitions)
 
     @classmethod
     def from_rdd(cls, rdd, dtype):
