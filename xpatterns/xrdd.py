@@ -249,6 +249,12 @@ class XRdd(object):
         self._exit()
         return XRdd(res, structure_id=self.structure_id)
 
+    def mapPartitionsWithIndex(self, fn, preservesPartitioning=False):
+        self._entry(preservesPartitioning)
+        res = self._rdd.mapPartitionsWithIndex(fn, preservesPartitioning)
+        self._exit()
+        return XRdd(res, structure_id=self.structure_id)
+
     def mapValues(self, fn):
         self._entry()
         res = self._rdd.mapValues(fn)
