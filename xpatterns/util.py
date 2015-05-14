@@ -15,6 +15,7 @@ import ConfigParser
 import itertools
 import errno
 import shutil
+import random
 import datetime
 
 import logging as _logging
@@ -480,6 +481,13 @@ def infer_type_of_list(data):
 
 def infer_type_of_rdd(rdd):
     return infer_type_of_list(rdd.take(100))
+
+# Random seed
+def distribute_seed(rdd, seed):
+    def set_seed(iterator):
+        random.seed(seed)
+        yield seed
+    rdd.mapPartitions(set_seed)
 
 
 # TODO make this something that works with 'with'

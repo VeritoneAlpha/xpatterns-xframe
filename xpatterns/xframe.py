@@ -32,6 +32,8 @@ FOOTER_STRS = ['Note: Only the head of the XFrame is printed.  You can use ',
 LAZY_FOOTER_STRS = ['Note: Only the head of the XFrame is printed. This XFrame is lazily ',
                     'evaluated.  You can use len(xf) to force materialization.']
 
+MAX_ROW_WIDTH = 80
+HTML_MAX_ROW_WIDTH = 120
 
 # noinspection PyUnresolvedReferences
 class XFrame(XObject):
@@ -167,9 +169,6 @@ class XFrame(XObject):
     ...     column_type_hints={'user_id': int})
     """
 
-    # class variables
-    max_row_width = 80
-
     # noinspection PyShadowingBuiltins
     def __init__(self, data=None, format='auto', impl=None, verbose=False):
         """__init__(data=list(), format='auto')
@@ -179,7 +178,7 @@ class XFrame(XObject):
             self.__impl__ = impl
             return
 
-        _format = self.classify_auto(data) if format == 'auto' else format
+        _format = self._classify_auto(data) if format == 'auto' else format
         #print 'format', _format
 
         if _format == 'pandas.dataframe':
@@ -250,7 +249,7 @@ class XFrame(XObject):
             raise ValueError('Constructor failed')
 
     @staticmethod
-    def classify_auto(data):
+    def _classify_auto(data):
         if isinstance(data, pandas.DataFrame):
             return 'pandas.dataframe'
         if isinstance(data, XArray):
@@ -284,8 +283,33 @@ class XFrame(XObject):
         raise ValueError('Cannot infer input type for data {}.'.format(date))
 
     @classmethod
-    def set_max_row_width(cls, width=80):
-        cls.max_row_width = width
+    def set_max_row_width(cls, width):
+        """
+        Set the maximum display width for printing.
+
+        Parameters
+        ----------
+        width : int
+            The maximum width of the table when printing.
+            As many columns
+        """
+        global MAX_ROW_WIDTH
+        MAX_ROW_WIDTH = width
+
+    @classmethod
+    def set_footer_strs(cls, footer_strs):
+        global FOOTER_STRS
+        if type(footer_strs) is not list:
+            raise TypeError('Footer strs must be a list')
+        FOOTER_STRS = footer_strs
+
+    @classmethod
+    def set_lazy_footer_strs(cls, footer_strs):
+        global LAZY_FOOTER_STRS
+        if type(footer_strs) is not list:
+            raise TypeError('Footer strs must be a list')
+        LAZY_FOOTER_STRS = footer_strs
+
 
     @staticmethod
     def _infer_column_types_from_lines(first_rows, na_values):
@@ -979,7 +1003,7 @@ class XFrame(XObject):
             ret += '\tNone\n\n'
         return ret
 
-    def __get_pretty_tables__(self, wrap_text=False, max_row_width=80,
+    def __get_pretty_tables__(self, wrap_text=False, max_row_width=MAX_ROW_WIDTH,
                               max_column_width=30, max_columns=20,
                               max_rows_to_display=60):
         """
@@ -1083,7 +1107,7 @@ class XFrame(XObject):
             row_of_tables[-1].add_row(['...'] * num_column_of_last_table)
         return row_of_tables
 
-    def print_rows(self, num_rows=10, num_columns=40, max_column_width=30, max_row_width=80):
+    def print_rows(self, num_rows=10, num_columns=40, max_column_width=30, max_row_width=MAX_ROW_WIDTH):
         """
         Print the first M rows and N columns of the XFrame in human readable
         format.
@@ -1128,7 +1152,7 @@ class XFrame(XObject):
 
         row_of_tables = self.__get_pretty_tables__(wrap_text=False, 
                                                    max_rows_to_display=max_rows_to_display,
-                                                   max_row_width=self.max_row_width)
+                                                   max_row_width=MAX_ROW_WIDTH)
         if not footer:
             return '\n'.join([str(tb) for tb in row_of_tables])
 
@@ -1145,7 +1169,7 @@ class XFrame(XObject):
         max_rows_to_display = 10
 
         row_of_tables = self.__get_pretty_tables__(wrap_text=True, 
-                                                   max_row_width=120, 
+                                                   max_row_width=HTML_MAX_ROW_WIDTH,
                                                    max_columns=40, 
                                                    max_column_width=25, 
                                                    max_rows_to_display=max_rows_to_display)

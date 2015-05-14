@@ -20,12 +20,13 @@ from xpatterns.xobject_impl import XObjectImpl
 from xpatterns.util import infer_type_of_rdd
 from xpatterns.util import cache, uncache, persist
 from xpatterns.util import is_missing, is_missing_or_empty
+from xpatterns.util import delete_file_or_dir
+from xpatterns.util import to_ptype, to_schema_type
+from xpatterns.util import distribute_seed
 import xpatterns
 from xpatterns.xrdd import XRdd
 from xpatterns.cmp_rows import CmpRows
 from xpatterns.aggregator_impl import aggregator_properties
-from xpatterns.util import delete_file_or_dir
-from xpatterns.util import to_ptype, to_schema_type
 
 
 def name_col(existing_col_names, proposed_name):
@@ -650,7 +651,7 @@ class XFrameImpl(XObjectImpl):
         # There is random split in the scala RDD interface, but not in pySpark.
         # Assign random number to each row and filter the two sets.
         self._entry(fraction, seed)
-        seed = seed if seed is not None else random.randint(0, sys.maxint)
+        distribute_seed(self._rdd, seed)
         rng = random.Random(seed)
         rand_col = self._rdd.map(lambda row: rng.uniform(0.0, 1.0))
         labeled_rdd = self._rdd.zip(rand_col)
@@ -955,6 +956,9 @@ class XFrameImpl(XObjectImpl):
         rows within the outer list make up the data for the output RDD.
         """
         self._entry(fn, column_names, column_types, seed)
+        if seed:
+            distribute_seed(self._rdd, seed)
+            random.seed(seed)
         names = self.col_names
         # fn needs the row as a dict
         res = self._rdd.flatMap(lambda row: fn(dict(zip(names, row))))
@@ -1203,6 +1207,9 @@ class XFrameImpl(XObjectImpl):
         exactly one value which is or can be cast into type ``dtype``. 
         """
         self._entry(dtype, seed)
+        if seed:
+            distribute_seed(self._rdd, seed)
+            random.seed(seed)
         names = self.col_names
         # fn needs the row as a dict
 
@@ -1231,6 +1238,9 @@ class XFrameImpl(XObjectImpl):
         self._entry(col, dtype, seed)
         if col not in self.col_names:
             raise ValueError("Column name does not exist: '{}'.".format(col))
+        if seed:
+            distribute_seed(self._rdd, seed)
+            random.seed(seed)
         col_index = self.col_names.index(col)
         names = self.col_names
 
@@ -1261,6 +1271,9 @@ class XFrameImpl(XObjectImpl):
         used to make a guess of the target data types.
         """
         self._entry(cols, dtypes, seed)
+        if seed:
+            distribute_seed(self._rdd, seed)
+            random.seed(seed)
         for col in cols:
             if col not in self.col_names:
                 raise ValueError("Column name does not exist: '{}'.".format(col))

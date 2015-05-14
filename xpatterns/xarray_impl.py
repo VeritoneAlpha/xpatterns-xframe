@@ -10,12 +10,14 @@ import ast
 import csv
 import copy
 import StringIO
+import random
 
 from xpatterns.xobject_impl import XObjectImpl
 from xpatterns.spark_context import spark_context
 from xpatterns.util import infer_type_of_list, cache, uncache
 from xpatterns.util import delete_file_or_dir, infer_type, infer_types
 from xpatterns.util import is_missing
+from xpatterns.util import distribute_seed
 import xpatterns as xp
 from xpatterns.xrdd import XRdd
 
@@ -623,6 +625,9 @@ class XArrayImpl(XObjectImpl):
         """
         self._entry(fn, skip_undefined, seed)
 
+        if seed:
+            distribute_seed(self._rdd, seed)
+            random.seed(seed)
         def apply_filter(x, fn, skip_undefined):
             if x is None and skip_undefined: return None
             return fn(x)
@@ -666,6 +671,9 @@ class XArrayImpl(XObjectImpl):
         ``dtype``. 
         """
         self._entry(fn, dtype, skip_undefined, seed)
+        if seed:
+            distribute_seed(self._rdd, seed)
+            random.seed(seed)
 
         def apply_and_cast(x, fn, dtype, skip_undefined):
             if is_missing(x) and skip_undefined: return None
@@ -692,6 +700,9 @@ class XArrayImpl(XObjectImpl):
         ``dtype``. 
         """
         self._entry(fn, dtype, skip_undefined, seed)
+        if seed:
+            distribute_seed(self._rdd, seed)
+            random.seed(seed)
 
         def apply_and_cast(x, fn, dtype, skip_undefined):
             if is_missing(x) and skip_undefined: return []
