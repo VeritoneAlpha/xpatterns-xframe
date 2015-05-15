@@ -1,5 +1,6 @@
 import unittest
 import math
+import os
 
 # python testxarray.py
 # python -m unittest testxarray
@@ -257,8 +258,16 @@ class TestXArraySaveBinary(unittest.TestCase):
     def test_save(self):
         t = XArray([1, 2, 3])
         path = 'tmp/array-binary'
+        t.save(path)
+        success_path = os.path.join(path, '_SUCCESS')
+        self.assertTrue(os.path.isfile(success_path))
+
+    def test_save_format(self):
+        t = XArray([1, 2, 3])
+        path = 'tmp/array-binary'
         t.save(path, format='binary')
-        # TODO open and read file and metadata ?
+        success_path = os.path.join(path, '_SUCCESS')
+        self.assertTrue(os.path.isfile(success_path))
 
 
 class TestXArraySaveText(unittest.TestCase):
@@ -267,9 +276,39 @@ class TestXArraySaveText(unittest.TestCase):
     """
     def test_save(self):
         t = XArray([1, 2, 3])
+        path = 'tmp/array-text.txt'
+        t.save(path)
+        success_path = os.path.join(path, '_SUCCESS')
+        self.assertTrue(os.path.isfile(success_path))
+
+    def test_save_format(self):
+        t = XArray([1, 2, 3])
         path = 'tmp/array-text'
         t.save(path, format='text')
-        # TODO open and read file and metadata ?
+        success_path = os.path.join(path, '_SUCCESS')
+        self.assertTrue(os.path.isfile(success_path))
+
+class TestXArraySaveCsv(unittest.TestCase):
+    """
+    Tests XArray save csv format
+    """
+    def test_save(self):
+        t = XArray([1, 2, 3])
+        path = 'tmp/array-csv.csv'
+        t.save(path)
+        with open(path) as f:
+            self.assertEqual('1', f.readline().strip())
+            self.assertEqual('2', f.readline().strip())
+            self.assertEqual('3', f.readline().strip())
+
+    def test_save_format(self):
+        t = XArray([1, 2, 3])
+        path = 'tmp/array-csv'
+        t.save(path, format='csv')
+        with open(path) as f:
+            self.assertEqual('1', f.readline().strip())
+            self.assertEqual('2', f.readline().strip())
+            self.assertEqual('3', f.readline().strip())
 
 
 class TestXArrayRepr(unittest.TestCase):

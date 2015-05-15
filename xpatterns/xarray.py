@@ -131,7 +131,7 @@ class XArray(XObject):
             return
 
         # we need to perform type inference
-        dtype = dtype or self.classify_auto(data)
+        dtype = dtype or self._classify_auto(data)
 
         if isinstance(data, pandas.Series):
             self.__impl__ = XArrayImpl.load_from_iterable(data.values, dtype, ignore_cast_failure)
@@ -150,7 +150,7 @@ class XArray(XObject):
                             "'numpy.ndarray', 'pandas.Series', and 'string(url)'.".format(type(data)))
 
     @staticmethod
-    def classify_auto(data):
+    def _classify_auto(data):
         if isinstance(data, list):
             # if it is a list, Get the first type and make sure
             # the remaining items are all of the same type
@@ -188,6 +188,9 @@ class XArray(XObject):
             return None
 
     def dump_debug_info(self):
+        """
+        Print information about the Spark RDD associated with this XArray.
+        """
         return self.__impl__.dump_debug_info()
         
     @classmethod
@@ -301,10 +304,13 @@ class XArray(XObject):
 
         """
         if format is None:
-            if filename.endswith(('.csv', '.csv.gz', 'txt')):
+            if filename.endswith('.txt'):
                 format = 'text'
+            elif filename.endswith('.csv'):
+                format = 'csv'
             else:
                 format = 'binary'
+
         if format == 'binary':
             self.__impl__.save(make_internal_url(filename))
         elif format == 'text':

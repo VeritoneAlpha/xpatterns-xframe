@@ -409,7 +409,7 @@ def crossproduct(d):
 
 
 def delete_file_or_dir(path):
-    expected_errs = [errno.ENOENT]     # no such file or directory
+    expected_errs = [errno.ENOENT, errno.ENOTDIR]     # no such file or directory
     try:
         shutil.rmtree(path)
     except OSError as err:
