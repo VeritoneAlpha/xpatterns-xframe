@@ -297,7 +297,31 @@ class XFrame(XObject):
         MAX_ROW_WIDTH = width
 
     @classmethod
+    def set_html_max_row_width(cls, width):
+        """
+        Set the maximum display width for displaying in HTML.
+
+        Parameters
+        ----------
+        width : int
+            The maximum width of the table when printing.
+            As many columns
+        """
+        global HTML_MAX_ROW_WIDTH
+        HTML_MAX_ROW_WIDTH = width
+
+    @classmethod
     def set_footer_strs(cls, footer_strs):
+        """
+        Set the footer printed beneath tables.
+
+        Parameters
+        ----------
+        footer_strs : list
+            A list of strings.  Each string is a separate line, printed beneath
+            a table.  This footer is used when the length of the table
+            is known.  To disable printing the footer, pass an empty list.
+        """
         global FOOTER_STRS
         if type(footer_strs) is not list:
             raise TypeError('Footer strs must be a list')
@@ -305,6 +329,17 @@ class XFrame(XObject):
 
     @classmethod
     def set_lazy_footer_strs(cls, footer_strs):
+        """
+        Set the footer printed beneath tables when the length is unknown.
+
+        Parameters
+        ----------
+        footer_strs : list
+            A list of strings.  Each string is a separate line, printed beneath
+            a table.  This footer is used when the length of the table
+            is not known because the XFrame has not been evaluated..
+            To disable printing the footer, pass an empty list.
+        """
         global LAZY_FOOTER_STRS
         if type(footer_strs) is not list:
             raise TypeError('Footer strs must be a list')
@@ -989,6 +1024,9 @@ class XFrame(XObject):
         return cls(impl=impl)
 
     def dump_debug_info(self):
+        """
+        Print information about the Spark RDD associated with this XFrame.
+        """
         return self.__impl__.dump_debug_info()
 
     def __get_column_description__(self):
