@@ -291,6 +291,7 @@ class XArrayImpl(XObjectImpl):
             except IOError:
                 return ''
 
+        delete_file_or_dir(path)
         with open(path, 'w') as f:
             self.begin_iterator()
             elems_at_a_time = 10000
