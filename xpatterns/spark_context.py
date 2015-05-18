@@ -95,11 +95,18 @@ class CommonSparkContext(object):
     def build_zip():
         if 'XPATTERNS_HOME' not in os.environ:
             return None
-        tf = NamedTemporaryFile(suffix='.zip', delete=False)
-        z = PyZipFile(tf, 'w')
-        z.writepy(os.path.join(os.environ['XPATTERNS_HOME'], 'xpatterns'))
-        z.close()
-        return tf.name
+        # TODO this can fail at writepy if there is something wrong with the files
+        #  in xpatterns.  If this happens then the singleton does not complete its initialization
+        #  and will try a second time, resulting in spark failure.
+        try:
+            tf = NamedTemporaryFile(suffix='.zip', delete=False)
+            z = PyZipFile(tf, 'w')
+            z.writepy(os.path.join(os.environ['XPATTERNS_HOME'], 'xpatterns'))
+            z.close()
+            return tf.name
+        except:
+            print 'Zip file distribution failed -- workers will not get xpatterns code.'
+            print 'Check for unexpected files in XPATTERNS_HOME/xpatterns.'
 
 
 def spark_context():
