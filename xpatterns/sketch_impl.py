@@ -81,14 +81,9 @@ class SketchImpl(object):
         self._exit()
 
     def _create_quantile_accumulator(self):
-        # With these values, the system runs out of memory
-        #  num_levels = 12
-        #  epsilon = 0.001
-        #  delta = 0.01
-        #  With these, it is OK.
-        num_levels = 10
-        epsilon = 0.01
-        delta = 0.1
+        num_levels = 12
+        epsilon = 0.001
+        delta = 0.01
         accumulator = QuantileAccumulator(self.min_val, self.max_val, num_levels, epsilon, delta)
         accumulators = self._rdd.mapPartitions(accumulator)
         return accumulators.reduce(lambda x, y: x.merge(y))
