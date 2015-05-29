@@ -50,6 +50,12 @@ Documentation
 -------------
 You can view local documentation in localhost:8000
 
+Build Status
+------------
+[![Build Status](http://hudson.life.atigeo.com:8090/hudson/buildStatus/icon?job=xpatterns-xFrames)](http://hudson.life.atigeo.com:8090/hudson/view/xpatterns/job/xpatterns-xFrames/)
+
+
+
 License
 -------
 This SDK is provided under the 3-clause BSD [license](LICENSE).
