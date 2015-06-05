@@ -1926,7 +1926,6 @@ class XFrame(XObject):
         if type(column_name) is not str:
             raise TypeError('Column_name must be a string.')
 
-#        print 'topk k', k
         xf = self[self[column_name].topk_index(topk=k, reverse=reverse)]
         return xf.sort(column_name, ascending=reverse)
 
