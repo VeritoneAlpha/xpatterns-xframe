@@ -11,7 +11,7 @@ from pyspark.sql.types import StructType, StructField, IntegerType, StringType
 # python testxframe.py
 # python -m unittest testxframe
 # python -m unittest testxframe.TestXFrameVersion
-# python -m unittest testxarray.TestXArrayVersion.test_version
+# python -m unittest testxframe.TestXFrameVersion.test_version
 
 from xpatterns import XArray
 from xpatterns import XFrame
@@ -995,6 +995,7 @@ class TestXFrameToDataframeplus(unittest.TestCase):
     Tests XFrame to_dataframeplus
     """
 
+    @unittest.skip('depends on dataframe_plus')
     def test_to_dataframeplus_str(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         df = t.to_dataframeplus()
