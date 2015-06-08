@@ -1,4 +1,0 @@
-#!/bin/bash
-
-# Build and run the xframes docker container 
-sudo docker build -t xframes .
