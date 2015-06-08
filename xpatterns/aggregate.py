@@ -208,8 +208,8 @@ def SELECT_ONE(src_column):
     If multiple columns are selected, they are guaranteed to come from the
     same row. for instance:
     >>> xf.groupby("user",
-                 {'rating':aggregate.SELECT_ONE('rating')},
-                 {'item':aggregate.SELECT_ONE('item')})
+                 {'rating':aggregate.SELECT_ONE('rating'),
+                  'item':aggregate.SELECT_ONE('item')})
 
     The selected 'rating' and 'item' value for each user will come from the
     same row in the XFrame.

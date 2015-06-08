@@ -17,6 +17,7 @@ The main classes that make up XFrames are:
    aggregate
    sketch
    xplot
+   spark_context
 
 
 

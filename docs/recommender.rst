@@ -1,4 +1,4 @@
-!Recommender Documentation
+Recommender Documentation
 =========================
 
 .. toctree::
