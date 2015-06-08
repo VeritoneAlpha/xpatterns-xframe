@@ -5,19 +5,28 @@ ability to create, access and manipulate a remote scalable array object.
 XArray acts similarly to pandas.Series but without indexing.
 The data is immutable, homogeneous, and is stored in a Spark RDD.
 """
-from xpatterns.xobject import XObject
-from xpatterns.xarray_impl import XArrayImpl, infer_type_of_list
-from util import make_internal_url
-import xpatterns
+
+"""
+Copyright (c) 2015, Dato, Inc.
+All rights reserved.
+
+Copyright (c) 2015, Atigeo, Inc.
+All rights reserved.
+"""
 
 import inspect
 import math
 import numpy
-import pandas
 import time
 import array
 import warnings
 import datetime
+
+from xpatterns.deps import pandas, HAS_PANDAS
+from xpatterns.xobject import XObject
+from xpatterns.xarray_impl import XArrayImpl, infer_type_of_list
+from util import make_internal_url
+import xpatterns
 
 from util import pytype_from_dtype
 
@@ -133,7 +142,7 @@ class XArray(XObject):
         # we need to perform type inference
         dtype = dtype or self._classify_auto(data)
 
-        if isinstance(data, pandas.Series):
+        if HAS_PANDAS and isinstance(data, pandas.Series):
             self.__impl__ = XArrayImpl.load_from_iterable(data.values, dtype, ignore_cast_failure)
         elif isinstance(data, numpy.ndarray) \
                 or isinstance(data, list) \
@@ -157,7 +166,7 @@ class XArray(XObject):
             return infer_type_of_list(data)
         elif isinstance(data, array.array):
             return infer_type_of_list(data)
-        elif isinstance(data, pandas.Series):
+        elif HAS_PANDAS and isinstance(data, pandas.Series):
             # if it is a pandas series get the dtype of the series
             dtype = pytype_from_dtype(data.dtype)
             if dtype == object:

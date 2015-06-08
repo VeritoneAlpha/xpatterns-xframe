@@ -1,3 +1,16 @@
+"""
+This module defines the Sketch class which provides
+summary information about columns.
+"""
+
+"""
+Copyright (c) 2015, Dato, Inc.
+All rights reserved.
+
+Copyright (c) 2015, Atigeo, Inc.
+All rights reserved.
+"""
+
 import operator
 from math import sqrt
 

@@ -5,6 +5,15 @@ ability to create, access and manipulate a remote scalable dataframe object.
 XFrame acts similarly to pandas.DataFrame, but the data is completely immutable
 and is stored as Spark RDDs.
 """
+
+"""
+Copyright (c) 2015, Dato, Inc.
+All rights reserved.
+
+Copyright (c) 2015, Atigeo, Inc.
+All rights reserved.
+"""
+
 import array
 from xpatterns.prettytable import PrettyTable
 from textwrap import wrap
@@ -13,15 +22,14 @@ import inspect
 import time
 import itertools
 
-import pandas
-
+from xpatterns.deps import pandas, HAS_PANDAS
+from xpatterns.deps import dataframeplus, HAS_DATAFRAME_PLUS
 from xpatterns.xobject import XObject
 from xpatterns.xframe_impl import XFrameImpl
 from xpatterns.xplot import XPlot
 from xpatterns.xarray_impl import infer_type_of_list
 from util import make_internal_url, classify_type
 from xpatterns.xarray import XArray
-from xpatterns.analytics.dataframeplus import DataFramePlus
 import xpatterns
 
 __all__ = ['XFrame']
@@ -34,6 +42,7 @@ LAZY_FOOTER_STRS = ['Note: Only the head of the XFrame is printed. This XFrame i
 
 MAX_ROW_WIDTH = 80
 HTML_MAX_ROW_WIDTH = 120
+
 
 # noinspection PyUnresolvedReferences
 class XFrame(XObject):
@@ -179,7 +188,7 @@ class XFrame(XObject):
             return
 
         _format = self._classify_auto(data) if format == 'auto' else format
-        #print 'format', _format
+        # print 'format', _format
 
         if _format == 'pandas.dataframe':
             self.__impl__ = XFrameImpl.load_from_pandas_dataframe(data)
@@ -250,7 +259,7 @@ class XFrame(XObject):
 
     @staticmethod
     def _classify_auto(data):
-        if isinstance(data, pandas.DataFrame):
+        if HAS_PANDAS and isinstance(data, pandas.DataFrame):
             return 'pandas.dataframe'
         if isinstance(data, XArray):
             return 'xarray'
@@ -344,7 +353,6 @@ class XFrame(XObject):
         if type(footer_strs) is not list:
             raise TypeError('Footer strs must be a list')
         LAZY_FOOTER_STRS = footer_strs
-
 
     @staticmethod
     def _infer_column_types_from_lines(first_rows, na_values):
@@ -1397,6 +1405,8 @@ class XFrame(XObject):
         out : pandas.DataFrame
             The dataframe which contains all rows of XFrame
         """
+        if not HAS_PANDAS:
+            raise TypeError('Pandas not found in PYTHONPATH.')
         df = pandas.DataFrame()
         for i in range(self.num_columns()):
             column_name = self.column_names()[i]
@@ -1417,13 +1427,15 @@ class XFrame(XObject):
         out : DataFramePlus
             The dataframe which contains all rows of XFrame
         """
+        if not HAS_DATAFRAME_PLUS:
+            raise TypeError('DataFramePlus not found in PYTHONPATH.')
         df = pandas.DataFrame()
         for i in range(self.num_columns()):
             column_name = self.column_names()[i]
             df[column_name] = list(self[column_name])
             if len(df[column_name]) == 0:
                 df[column_name] = df[column_name].astype(self.column_types()[i])
-        return DataFramePlus(df)
+        return dataframeplus.DataFramePlus(df)
 
     def to_rdd(self):
         """
@@ -2948,9 +2960,9 @@ class XFrame(XObject):
                         raise KeyError("Column '{}' does not exist in XFrame.".format(col))
 
         return XFrame(impl=self.__impl__.groupby_aggregate(key_columns_array,
-                                                            group_columns,
-                                                            group_output_columns, 
-                                                            group_ops))
+                                                           group_columns,
+                                                           group_output_columns,
+                                                           group_ops))
 
     def group_by(self, key_columns, operations, *args):
         """
@@ -3267,15 +3279,15 @@ class XFrame(XObject):
             value_xf = value_xf.add_row_number(id_name)
 
             tmp = XFrame(impl=self.__impl__.join(value_xf.__impl__,
-                                                  'left',
-                                                  {column_name: column_name}))
+                                                 'left',
+                                                 {column_name: column_name}))
             ret_xf = tmp[tmp[id_name] == None]       # this is an xarray operator
             del ret_xf[id_name]
             return ret_xf
         else:
             return XFrame(impl=self.__impl__.join(value_xf.__impl__,
-                                                   'inner',
-                                                   {column_name: column_name}))
+                                                  'inner',
+                                                  {column_name: column_name}))
 
     def filter_by(self, values, column_name, exclude=False):
         """
@@ -3822,11 +3834,13 @@ class XFrame(XObject):
             raise ValueError('Cannot infer column type because there are not enough rows to infer value.')
         if stack_column_type == dict:
             # infer key/value type
-            keys = []; values = []
+            keys = []
+            values = []
             for row in head_row:
                 for val in row:
                     keys.append(val)
-                    if val != None: values.append(row[val])
+                    if val is not None:
+                        values.append(row[val])
 
             new_column_type = [
                 infer_type_of_list(keys),
