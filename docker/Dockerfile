@@ -42,8 +42,6 @@ RUN python /notebooks/docs/patch_help_menu.py /usr/local
 
 ADD server.sh /
 ADD xpatterns /notebooks/xpatterns
-ADD MachineLearningWithSpark /notebooks/MachineLearningWithSpark
-ADD misc-notebooks /notebooks/misc-notebooks
 ADD intro /notebooks/intro
 ADD conf /notebooks/conf
 ADD docker-setup /setup
