@@ -14,4 +14,3 @@ from xpatterns.toolkit import classify as classifier
 from xpatterns.toolkit import cluster
 from xpatterns.toolkit import regression
 from xpatterns.toolkit import text
-from xpatterns.analytics import dataframeplus
