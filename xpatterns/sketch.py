@@ -71,11 +71,13 @@ class Sketch(object):
      - frequency count of any value (:func:`~xpatterns.Sketch.frequency_count`)
 
     For XArray of type list or array, there is a sub sketch for all sub elements.
-    The sub sketch flattens all list/array values and then computes sketch
-    summary over flattened values. Element sub sketch may be retrieved through:
+    The sub sketch flattens all list/array values and then computes sketch summary over flattened values.
+
+    Element sub sketch may be retrieved through:
      - element_summary(:func:`~xpatterns.Sketch.element_summary`)
 
     For XArray of type dict, there are sub sketches for both dict key and value.
+
     The sub sketch may be retrieved through:
      - dict_key_summary(:func:`~xpatterns.Sketch.dict_key_summary`)
      - dict_value_summary(:func:`~xpatterns.Sketch.dict_value_summary`)
@@ -130,7 +132,7 @@ class Sketch(object):
       <http://dimacs.rutgers.edu/~graham/pubs/papers/cm-latin.pdf>`_
     """
 
-    def __init__(self, array=None, sub_sketch_keys=[], impl=None):
+    def __init__(self, array=None, sub_sketch_keys=None, impl=None):
         """__init__(array)
         Construct a new Sketch from an XArray.
 
@@ -151,6 +153,7 @@ class Sketch(object):
             if not isinstance(array, XArray):
                 raise TypeError("Sketch object can only be constructed from XArrays")
 
+            sub_sketch_keys = sub_sketch_keys or []
             self.__impl__.construct_from_xarray(array.__impl__, sub_sketch_keys)
 
     def __repr__(self):

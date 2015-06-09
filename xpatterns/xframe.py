@@ -4023,7 +4023,7 @@ class XFrame(XObject):
         Examples
         --------
         Suppose 'xf' is an xframe that has three columns 'a', 'b', 'c'.
-        To sort by column 'a', ascending
+        To sort by column 'a', ascending:
 
         >>> xf = xpatterns.XFrame({'a':[1,3,2,1],
         ...                       'b':['a','c','b','b'],
@@ -4050,7 +4050,7 @@ class XFrame(XObject):
         +---+---+---+
         [4 rows x 3 columns]
 
-        To sort by column 'a', descending
+        To sort by column 'a', descending:
 
         >>> xf.sort('a', ascending = False)
         +---+---+---+
@@ -4063,7 +4063,7 @@ class XFrame(XObject):
         +---+---+---+
         [4 rows x 3 columns]
 
-        To sort by column 'a' and 'b', all ascending
+        To sort by column 'a' and 'b', all ascending:
 
         >>> xf.sort(['a', 'b'])
         +---+---+---+
@@ -4076,7 +4076,7 @@ class XFrame(XObject):
         +---+---+---+
         [4 rows x 3 columns]
 
-        To sort by column 'a' ascending, and then by column 'c' descending
+        To sort by column 'a' ascending, and then by column 'c' descending:
 
         >>> xf.sort([('a', True), ('c', False)])
         +---+---+---+
