@@ -33,7 +33,7 @@ ENV SPARK_CONF_DIR=/notebooks/conf
 ENV PYTHONPATH="/usr/local/spark/python/:/notebooks:/usr/local/spark/python/lib/py4j-0.8.2.1-src.zip"
 
 #Build Docs
-RUN pip install --upgrade sphinx
+RUN pip2.7 install --upgrade sphinx
 ADD docs /notebooks/docs
 RUN cd /notebooks/docs
 RUN pwd
