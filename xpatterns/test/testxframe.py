@@ -15,8 +15,8 @@ from pyspark.sql.types import StructType, StructField, IntegerType, StringType
 
 from xpatterns import XArray
 from xpatterns import XFrame
-from xpatterns.aggregate import SUM, ARGMAX, ARGMIN, MAX, MIN, COUNT, AVG, MEAN, \
-    VAR, VARIANCE, STD, STDV, SELECT_ONE, CONCAT
+from xpatterns.aggregate import SUM, ARGMAX, ARGMIN, MAX, MIN, COUNT, MEAN, \
+    VARIANCE, STDV, SELECT_ONE, CONCAT
 import pandas
 
 
@@ -108,7 +108,7 @@ class TestXFrameConstructor(unittest.TestCase):
         self.assertEqual({'id': 2, 'val': 'b'}, res[1])
         self.assertEqual({'id': 3, 'val': 'c'}, res[2])
 
-    def test_construct_auto_dataframe(self):
+    def test_construct_auto_pandas_dataframe(self):
         df = pandas.DataFrame({'id': [1, 2, 3], 'val': [10.0, 20.0, 30.0]})
         res = XFrame(df)
         self.assertEqual(3, len(res))
@@ -170,7 +170,7 @@ class TestXFrameConstructor(unittest.TestCase):
             def iteritems(self):
                 return iter([('id', 1), ('val', 'a')])
         with self.assertRaises(TypeError):
-            t = XFrame(MyIterItem())
+            _ = XFrame(MyIterItem())
 
     def test_construct_iter(self):
         # construct an XFrame from an object that has __iter__
@@ -191,7 +191,7 @@ class TestXFrameConstructor(unittest.TestCase):
             def __iter__(self):
                 return iter([])
         with self.assertRaises(TypeError):
-            t = XFrame(MyIter())
+            _ = XFrame(MyIter())
 
     def test_construct_none(self):
         # construct an empty XFrame
@@ -232,18 +232,18 @@ class TestXFrameConstructor(unittest.TestCase):
         # construct an XFrame from an xarray and values
         xa = XArray([1, 2, 3])
         with self.assertRaises(ValueError):
-            t = XFrame([1, 2, xa], format='array')
+            _ = XFrame([1, 2, xa], format='array')
 
     def test_construct_array_mixed_types(self):
         # construct an XFrame from
         # an array of mixed types
         with self.assertRaises(TypeError):
-            t = XFrame([1, 2, 'a'], format='array')
+            _ = XFrame([1, 2, 'a'], format='array')
 
     def test_construct_unknown_format(self):
         # test unknown format
         with self.assertRaises(ValueError):
-            t = XFrame([1, 2, 'a'], format='bad-format')
+            _ = XFrame([1, 2, 'a'], format='bad-format')
 
     def test_construct_array_empty(self):
         # construct an XFrame from an empty array
@@ -261,7 +261,6 @@ class TestXFrameConstructor(unittest.TestCase):
         self.assertEqual({'X0': 1, 'X1': 'a'}, t[0])
         self.assertEqual({'X0': 2, 'X1': 'b'}, t[1])
         self.assertEqual({'X0': 3, 'X1': 'c'}, t[2])
-
 
     def test_construct_dict_int(self):
         # construct an XFrame from a dict of int
@@ -807,7 +806,6 @@ class TestXFrameNonzero(unittest.TestCase):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t = t.filterby([99], 'id')
         self.assertFalse(t)
-
 
 
 class TestXFrameLen(unittest.TestCase):
@@ -2031,19 +2029,6 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 2, 'min': 'b'}, res[1])
         self.assertEqual({'id': 3, 'min': 'c'}, res[2])
 
-    def test_groupby_avg(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
-                    'another': [10, 20, 30, 40, 50, 60]})
-        res = t.groupby('id', {'avg': AVG('another')})
-        res = res.topk('id', reverse=True)
-        self.assertEqual(3, len(res))
-        self.assertEqual(['id', 'avg'], res.column_names())
-        self.assertEqual([int, float], res.column_types())
-        self.assertEqual({'id': 1, 'avg': 110.0 / 3.0}, res[0])
-        self.assertEqual({'id': 2, 'avg': 70.0 / 2.0}, res[1])
-        self.assertEqual({'id': 3, 'avg': 30.0}, res[2])
-
     def test_groupby_mean(self):
         t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
                     'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
@@ -2057,19 +2042,6 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 2, 'mean': 70.0 / 2.0}, res[1])
         self.assertEqual({'id': 3, 'mean': 30.0}, res[2])
 
-    def test_groupby_var(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
-                    'another': [10, 20, 30, 40, 50, 60]})
-        res = t.groupby('id', {'var': VAR('another')})
-        res = res.topk('id', reverse=True)
-        self.assertEqual(3, len(res))
-        self.assertEqual(['id', 'var'], res.column_names())
-        self.assertEqual([int, float], res.column_types())
-        self.assertAlmostEqual(3800.0 / 9.0, res[0]['var'])
-        self.assertAlmostEqual(225.0, res[1]['var'])
-        self.assertEqual({'id': 3, 'var': 0.0}, res[2])
-
     def test_groupby_variance(self):
         t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
                     'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
@@ -2082,19 +2054,6 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertAlmostEqual(3800.0 / 9.0, res[0]['variance'])
         self.assertAlmostEqual(225.0, res[1]['variance'])
         self.assertEqual({'id': 3, 'variance': 0.0}, res[2])
-
-    def test_groupby_std(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
-                    'another': [10, 20, 30, 40, 50, 60]})
-        res = t.groupby('id', {'std': STD('another')})
-        res = res.topk('id', reverse=True)
-        self.assertEqual(3, len(res))
-        self.assertEqual(['id', 'std'], res.column_names())
-        self.assertEqual([int, float], res.column_types())
-        self.assertAlmostEqual(math.sqrt(3800.0 / 9.0), res[0]['std'])
-        self.assertAlmostEqual(math.sqrt(225.0), res[1]['std'])
-        self.assertEqual({'id': 3, 'std': 0.0}, res[2])
 
     def test_groupby_stdv(self):
         t = XFrame({'id': [1, 2, 3, 1, 2, 1], 

@@ -3,6 +3,7 @@ import os
 # Builtin aggregators for groupby
 
 
+# noinspection PyPep8Naming
 def SUM(src_column):
     """
     Builtin sum aggregator for groupby
@@ -12,12 +13,13 @@ def SUM(src_column):
 
     Get the sum of the rating column for each user.
     >>> xf.groupby("user",
-                 {'rating_sum':aggregate.SUM('rating')})
+    {'rating_sum':aggregate.SUM('rating')})
 
     """
     return '__builtin__sum__', [src_column]
 
 
+# noinspection PyPep8Naming
 def ARGMAX(agg_column, out_column):
     """
     Builtin arg maximum aggregator for groupby
@@ -33,6 +35,7 @@ def ARGMAX(agg_column, out_column):
     return '__builtin__argmax__', [agg_column, out_column]
 
 
+# noinspection PyPep8Naming
 def ARGMIN(agg_column, out_column):
     """
     Builtin arg minimum aggregator for groupby
@@ -49,6 +52,7 @@ def ARGMIN(agg_column, out_column):
     return '__builtin__argmin__', [agg_column, out_column]
 
 
+# noinspection PyPep8Naming
 def MAX(src_column):
     """
     Builtin maximum aggregator for groupby
@@ -65,6 +69,7 @@ def MAX(src_column):
     return '__builtin__max__', [src_column]
 
 
+# noinspection PyPep8Naming
 def MIN(src_column):
     """
     Builtin minimum aggregator for groupby
@@ -81,6 +86,7 @@ def MIN(src_column):
     return '__builtin__min__', [src_column]
 
 
+# noinspection PyPep8Naming
 def COUNT(*args):
     """
     Builtin count aggregator for groupby
@@ -98,25 +104,10 @@ def COUNT(*args):
     return '__builtin__count__', [""]
 
 
-def AVG(src_column):
-    """
-    Builtin average aggregator for groupby. Synonym for aggregate.MEAN.
-
-    Examples
-    --------
-
-    Get the average rating of each user.
- 
-    >>> xf.groupby("user",
-                 {'rating_avg':aggregate.AVG('rating')})
-
-    """
-    return '__builtin__avg__', [src_column]
-
-
+# noinspection PyPep8Naming
 def MEAN(src_column):
     """
-    Builtin average aggregator for groupby. Synonym for aggregate.AVG.
+    Builtin average aggregator for groupby.
 
     Examples
     --------
@@ -129,25 +120,10 @@ def MEAN(src_column):
     return '__builtin__avg__', [src_column]
 
 
-def VAR(src_column):
-    """
-    Builtin variance aggregator for groupby. Synonym for aggregate.VARIANCE
-
-    Examples
-    --------
-
-    Get the rating variance of each user.
-
-    >>> xf.groupby("user",
-                 {'rating_var':aggregate.VAR('rating')})
-
-    """
-    return '__builtin__var__', [src_column]
-
-
+# noinspection PyPep8Naming
 def VARIANCE(src_column):
     """
-    Builtin variance aggregator for groupby. Synonym for aggregate.VAR
+    Builtin variance aggregator for groupby.
 
     Examples
     --------
@@ -161,25 +137,11 @@ def VARIANCE(src_column):
     return '__builtin__var__', [src_column]
 
 
-def STD(src_column):
-    """
-    Builtin standard deviation aggregator for groupby. Synonym for aggregate.STDV
 
-    Examples
-    --------
-
-    Get the rating standard deviation of each user.
-
-    >>> xf.groupby("user",
-                 {'rating_std':aggregate.STD('rating')})
-
-    """
-    return '__builtin__stdv__', [src_column]
-
-
+# noinspection PyPep8Naming
 def STDV(src_column):
     """
-    Builtin standard deviation aggregator for groupby. Synonym for aggregate.STD
+    Builtin standard deviation aggregator for groupby.
 
     Examples
     --------
@@ -193,6 +155,7 @@ def STDV(src_column):
     return '__builtin__stdv__', [src_column]
 
 
+# noinspection PyPep8Naming
 def SELECT_ONE(src_column):
     """
     Builtin aggregator for groupby which selects one row in the group.
@@ -200,16 +163,16 @@ def SELECT_ONE(src_column):
     Examples
     --------
 
+    xxx
     Get one rating row from a user.
 
     >>> xf.groupby("user",
-                 {'rating':aggregate.SELECT_ONE('rating')})
+    {'rating':aggregate.SELECT_ONE('rating')})
 
     If multiple columns are selected, they are guaranteed to come from the
-    same row. for instance:
+    same row. For instance:
     >>> xf.groupby("user",
-                 {'rating':aggregate.SELECT_ONE('rating'),
-                  'item':aggregate.SELECT_ONE('item')})
+    {'rating':aggregate.SELECT_ONE('rating'), 'item':aggregate.SELECT_ONE('item')})
 
     The selected 'rating' and 'item' value for each user will come from the
     same row in the XFrame.
@@ -221,10 +184,11 @@ def SELECT_ONE(src_column):
     return '__builtin__select_one__', [src_column, seed]
 
 
+# noinspection PyPep8Naming
 def CONCAT(src_column, dict_value_column=None):
     """
     Builtin aggregator that combines values from one or two columns in one group
-    into either a dictionary value, list value or array value
+    into either a dictionary value, list value or array value.
 
     Examples
     --------
@@ -247,6 +211,7 @@ def CONCAT(src_column, dict_value_column=None):
         return '__builtin__concat__dict__', [src_column, dict_value_column]
 
 
+# noinspection PyPep8Naming
 def QUANTILE(src_column, *args):
     """
     Builtin approximate quantile aggregator for groupby.
