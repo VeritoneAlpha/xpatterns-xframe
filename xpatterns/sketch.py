@@ -132,7 +132,7 @@ class Sketch(object):
       <http://dimacs.rutgers.edu/~graham/pubs/papers/cm-latin.pdf>`_
     """
 
-    def __init__(self, array=None, sub_sketch_keys=None, impl=None):
+    def __init__(self, array=None, sub_sketch_keys=[], impl=None):
         """__init__(array)
         Construct a new Sketch from an XArray.
 
@@ -153,7 +153,6 @@ class Sketch(object):
             if not isinstance(array, XArray):
                 raise TypeError("Sketch object can only be constructed from XArrays")
 
-            sub_sketch_keys = sub_sketch_keys or []
             self.__impl__.construct_from_xarray(array.__impl__, sub_sketch_keys)
 
     def __repr__(self):
