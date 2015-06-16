@@ -1850,6 +1850,8 @@ class XArray(XObject):
         -----
         This is used internally by XFrame's topk function.
         """
+        if type(topk) is not int:
+            raise TypeError("'Topk_index': topk must be an integer ({})".format(topk))
         return XArray(impl=self.__impl__.topk_index(topk, reverse))
 
     def sketch_summary(self, sub_sketch_keys=None):

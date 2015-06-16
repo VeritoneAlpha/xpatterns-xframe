@@ -375,6 +375,9 @@ class XArrayImpl(XObjectImpl):
         not. 
         """
         self._entry(topk, reverse)
+        if type(topk) is not int:
+            raise TypeError("'Topk_index' -- topk must be integer ({})".format(topk))
+
         if topk == 0:
             res = self._rdd.map(lambda x: 0)
         else:
