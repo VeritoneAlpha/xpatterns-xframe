@@ -15,7 +15,7 @@ All rights reserved.
 """
 
 import array
-from xpatterns.prettytable import PrettyTable
+from prettytable import PrettyTable
 from textwrap import wrap
 import datetime
 import inspect
