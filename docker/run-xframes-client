@@ -1,0 +1,27 @@
+#!/bin/bash
+set -o nounset
+
+usage(){
+	echo "Usage: $0 xframes_client_script"
+	exit 1
+}
+
+if [ "$#" -ne 1 ]; then
+   usage
+fi
+
+XFRAMES_CLIENT=$1
+if [ ! -f $XFRAMES_CLIENT ];
+then
+   echo "File $XFRAMES_CLIENT does not exist."
+   exit 2
+fi
+BASE_NAME=$(basename $XFRAMES_CLIENT)
+
+DIRNAME=$( cd "$( dirname $XFRAMES_CLIENT)" && pwd )
+echo $DIRNAME
+VOLUME_NAME="/data"
+
+#Run python xframes client
+sudo docker run -t --name xframes -v $DIRNAME:$VOLUME_NAME xframes /usr/bin/python $VOLUME_NAME/$BASE_NAME
+#sudo docker run -t --name xframes xframes -v $VOLUME_NAME $DIRNAME /usr/bin/python $VOLUME_NAME/$XFRAMES_CLIENT
