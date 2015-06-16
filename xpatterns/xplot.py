@@ -78,17 +78,26 @@ class XPlot(object):
             y_pos = np.arange(len(items))
             vals = [int(key[1]) for key in items]
             labels = [key[0] for key in items]
-            fig = plt.figure()
-            axes = fig.add_axes(self.axes)
-            axes.barh(y_pos, vals, align='center', alpha=self.alpha)
-            axes.set_yticks(y_pos)
-            axes.set_yticklabels(labels)
+#            fig = plt.figure()
+#            axes = fig.add_axes(self.axes)
+#            axes.barh(y_pos, vals, align='center', alpha=self.alpha)
+#            axes.set_yticks(y_pos)
+#            axes.set_yticklabels(labels)
+#            xlabel = xlabel or x_col
+#            ylabel = ylabel or y_col
+#            axes.set_xlabel(xlabel)
+#            axes.set_ylabel(ylabel)
+#            if title:
+#                axes.set_title(title)
+            plt.barh(y_pos, vals, align='center', alpha=self.alpha)
+            plt.yticks(y_pos, labels)
             xlabel = xlabel or x_col
             ylabel = ylabel or y_col
-            axes.set_xlabel(xlabel)
-            axes.set_ylabel(ylabel)
+            plt.xlabel(xlabel)
+            plt.ylabel(ylabel)
             if title:
-                axes.set_title(title)
+                plt.title(title)
+            plt.show()
         except Exception as e:
             print "got an exception!"
             print traceback.format_exc()
@@ -178,8 +187,8 @@ class XPlot(object):
         q_lower = float(sk.quantile(lower_cutoff)) - q_epsilon
         q_upper = float(sk.quantile(upper_cutoff)) + q_epsilon
         try:
-            fig = plt.figure()
-            axes = fig.add_axes(self.axes)
+            #fig = plt.figure()
+            #axes = fig.add_axes(self.axes)
             xlabel = xlabel or col_name
             ylabel = ylabel or 'Count'
             vals = self.xframe[col_name].dropna()
@@ -190,11 +199,12 @@ class XPlot(object):
                 return x
             vals = vals.apply(enforce_cutoff)
             vals = list(vals)
-            axes.hist(vals, bins=bins, alpha=self.alpha)
-            axes.set_xlabel(xlabel)
-            axes.set_ylabel(ylabel)
+            plt.hist(vals, bins=bins, alpha=self.alpha)
+            plt.xlabel(xlabel)
+            plt.ylabel(ylabel)
             if title:
-                axes.set_title(title)
+                plt.title(title)
+            plt.show()
         except Exception as e:
             print "got an exception!"
             print traceback.format_exc()
@@ -257,6 +267,7 @@ class XPlot(object):
                 print 'StDev:', sk.std()
                 print 'Distribution Plot'
                 upper_cutoff = cutoff or 1.0
+                bins = bins or 50
                 self.histogram(col_name, title=title, upper_cutoff=upper_cutoff, bins=bins)
         else:
             # ordinal: show a histogram of frequent values
@@ -264,4 +275,5 @@ class XPlot(object):
             tmp = self.xframe.groupby(col_name, {'Count': COUNT})
             x_col = 'Count'
             y_col = col_name
+            bins = bins or 15
             tmp.show().top_values(x_col, y_col, title=title, k=bins)
