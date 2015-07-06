@@ -1,11 +1,8 @@
-XPlot Documentation
-====================
+XPlot
+=====
 
 .. toctree::
    :maxdepth: 2
 
-XPlot
-------
-
-.. automodule:: xpatterns.xplot
+.. autoclass:: xpatterns.XPlot
    :members:

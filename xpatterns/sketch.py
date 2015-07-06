@@ -1,3 +1,16 @@
+"""
+This module defines the Sketch class which provides
+summary information about columns.
+"""
+
+"""
+Copyright (c) 2015, Dato, Inc.
+All rights reserved.
+
+Copyright (c) 2015, Atigeo, Inc.
+All rights reserved.
+"""
+
 import operator
 from math import sqrt
 
@@ -16,14 +29,14 @@ class Sketch(object):
 
     To construct a Sketch object, the following methods are equivalent:
 
-    >>> my_xarray = graphlab.XArray([1,2,3,4,5])
-    >>> sketch = graphlab.Sketch(my_xarray)
+    >>> my_xarray = xpatterns.XArray([1,2,3,4,5])
+    >>> sketch = xpatterns.Sketch(my_xarray)
     >>> sketch = my_xarray.sketch_summary()
 
     Typically, the XArray is a column of an XFrame:
 
-    >>> my_sframe =  graphlab.XFrame({'column1': [1,2,3]})
-    >>> sketch = graphlab.Sketch(my_sframe['column1'])
+    >>> my_sframe =  xpatterns.XFrame({'column1': [1,2,3]})
+    >>> sketch = xpatterns.Sketch(my_sframe['column1'])
     >>> sketch = my_sframe['column1'].sketch_summary()
 
     The sketch computation is fast, with complexity approximately linear in the
@@ -58,11 +71,13 @@ class Sketch(object):
      - frequency count of any value (:func:`~xpatterns.Sketch.frequency_count`)
 
     For XArray of type list or array, there is a sub sketch for all sub elements.
-    The sub sketch flattens all list/array values and then computes sketch
-    summary over flattened values. Element sub sketch may be retrieved through:
+    The sub sketch flattens all list/array values and then computes sketch summary over flattened values.
+
+    Element sub sketch may be retrieved through:
      - element_summary(:func:`~xpatterns.Sketch.element_summary`)
 
     For XArray of type dict, there are sub sketches for both dict key and value.
+
     The sub sketch may be retrieved through:
      - dict_key_summary(:func:`~xpatterns.Sketch.dict_key_summary`)
      - dict_value_summary(:func:`~xpatterns.Sketch.dict_value_summary`)
@@ -97,7 +112,7 @@ class Sketch(object):
 
          >>> sketch.element_sub_sketch([1,3])
 
-    for subset of keys
+    for subset of keys.
 
     Please see the individual function documentation for detail about each of
     these statistics.
@@ -117,7 +132,7 @@ class Sketch(object):
       <http://dimacs.rutgers.edu/~graham/pubs/papers/cm-latin.pdf>`_
     """
 
-    def __init__(self, array=None, sub_sketch_keys=[], _impl=None):
+    def __init__(self, array=None, sub_sketch_keys=[], impl=None):
         """__init__(array)
         Construct a new Sketch from an XArray.
 
@@ -131,8 +146,8 @@ class Sketch(object):
             key needs to be a string, for XArray of vector(array) type, the key
             needs to be positive integer
         """
-        if (_impl):
-            self.__impl__ = _impl
+        if impl:
+            self.__impl__ = impl
         else:
             self.__impl__ = SketchImpl()
             if not isinstance(array, XArray):
@@ -141,79 +156,79 @@ class Sketch(object):
             self.__impl__.construct_from_xarray(array.__impl__, sub_sketch_keys)
 
     def __repr__(self):
-      """
-      Emits a brief summary of all the statistics as a string.
-      """
-      return "<sketch>"     # TODO remove
+        """
+        Emits a brief summary of all the statistics as a string.
+        """
+        return "<sketch>"     # TODO remove
 
-      fields = [
-        ['size',           'Length' ,       'Yes'],
-        ['min',            'Min' ,          'Yes'],
-        ['max',            'Max' ,          'Yes'],
-        ['mean',           'Mean' ,         'Yes'],
-        ['sum',            'Sum' ,          'Yes'],
-        ['var',            'Variance' ,     'Yes'],
-        ['std',            'Standard Deviation' , 'Yes'],
-        ['num_undefined', '# Missing Values' , 'Yes',],
-        ['num_unique',     '# unique values',  'No' ]
-      ]
+        fields = [
+            ['size',           'Length' ,       'Yes'],
+            ['min',            'Min' ,          'Yes'],
+            ['max',            'Max' ,          'Yes'],
+            ['mean',           'Mean' ,         'Yes'],
+            ['sum',            'Sum' ,          'Yes'],
+            ['var',            'Variance' ,     'Yes'],
+            ['std',            'Standard Deviation' , 'Yes'],
+            ['num_undefined', '# Missing Values' , 'Yes',],
+            ['num_unique',     '# unique values',  'No' ]
+        ]
 
-      s = '\n'
-      result = []
-      for field in fields:
+        s = '\n'
+        result = []
+        for field in fields:
+            try:
+                method_to_call = getattr(self, field[0])
+                result.append([field[1], str(method_to_call()), field[2]])
+            except:
+                pass
+        sf = XArray(result).unpack(column_name_prefix = "")
+        sf.rename({'0': 'item', '1':'value', '2': 'is exact'})
+        s += sf.__str__(footer=False)
+        s += "\n"
+
+        s += "\nMost frequent items:\n"
+        frequent = self.frequent_items()
+        sorted_freq = sorted(frequent.iteritems(), key=operator.itemgetter(1), reverse=True)
+        if len(sorted_freq) == 0:
+            s += " -- All elements appear with less than 0.01% frequency -- \n"
+        else:
+            sorted_freq = sorted_freq[:10]
+            sf = XFrame()
+            sf.add_column(XArray(['count']), 'value')
+            for elem in sorted_freq:
+                sf.add_column(XArray([elem[1]]), str(elem[0]))
+            s += sf.__str__(footer=False) + "\n"
+        s += "\n"
+
         try:
-          method_to_call = getattr(self, field[0])
-          result.append([field[1], str(method_to_call()), field[2]])
+            # print quantiles
+            t = self.quantile(0)
+            s += "Quantiles: \n"
+            sf = XFrame()
+            for q in [0.0,0.01,0.05,0.25,0.5,0.75,0.95,0.99,1.00]:
+                sf.add_column(XArray([self.quantile(q)]), str(int(q * 100)) + '%')
+            s += sf.__str__(footer=False) + "\n"
         except:
-          pass
-      sf = XArray(result).unpack(column_name_prefix = "")
-      sf.rename({'0': 'item', '1':'value', '2': 'is exact'})
-      s += sf.__str__(footer=False)
-      s += "\n"
+            pass
 
-      s += "\nMost frequent items:\n"
-      frequent = self.frequent_items()
-      sorted_freq = sorted(frequent.iteritems(), key=operator.itemgetter(1), reverse=True)
-      if len(sorted_freq) == 0:
-          s += " -- All elements appear with less than 0.01% frequency -- \n"
-      else:
-        sorted_freq = sorted_freq[:10]
-        sf = XFrame()
-        sf.add_column(XArray(['count']), 'value')
-        for elem in sorted_freq:
-          sf.add_column(XArray([elem[1]]), str(elem[0]))
-        s += sf.__str__(footer=False) + "\n"
-      s += "\n"
+        try:
+            t_k = self.dict_key_summary()
+            t_v = self.dict_value_summary()
+            s += "\n******** Dictionary Element Key Summary ********\n"
+            s += t_k.__repr__()
+            s += "\n******** Dictionary Element Value Summary ********\n"
+            s += t_v.__repr__() + '\n'
+        except:
+            pass
 
-      try:
-        # print quantiles
-        t = self.quantile(0)
-        s += "Quantiles: \n"
-        sf = XFrame()
-        for q in [0.0,0.01,0.05,0.25,0.5,0.75,0.95,0.99,1.00]:
-          sf.add_column(XArray([self.quantile(q)]), str(int(q * 100)) + '%')
-        s += sf.__str__(footer=False) + "\n"
-      except:
-        pass
+        try:
+            t_k = self.element_summary()
+            s += "\n******** Element Summary ********\n"
+            s += t_k.__repr__() + '\n'
+        except:
+            pass
 
-      try:
-        t_k = self.dict_key_summary()
-        t_v = self.dict_value_summary()
-        s += "\n******** Dictionary Element Key Summary ********\n"
-        s += t_k.__repr__()
-        s += "\n******** Dictionary Element Value Summary ********\n"
-        s += t_v.__repr__() + '\n'
-      except:
-        pass
-
-      try:
-        t_k = self.element_summary()
-        s += "\n******** Element Summary ********\n"
-        s += t_k.__repr__() + '\n'
-      except:
-        pass
-
-      return s.expandtabs(8)
+        return s.expandtabs(8)
 
     def __str__(self):
         """
@@ -475,7 +490,7 @@ class Sketch(object):
         out : Sketch
           An new sketch object regarding the element length of the current XArray
         """
-        return Sketch(_impl = self.__impl__.element_length_summary())
+        return Sketch(impl = self.__impl__.element_length_summary())
 
     def dict_key_summary(self):
         """
@@ -502,7 +517,7 @@ class Sketch(object):
         +-------+---+------+--------+--------+
 
         """
-        return Sketch(_impl = self.__impl__.dict_key_summary())
+        return Sketch(impl = self.__impl__.dict_key_summary())
 
     def dict_value_summary(self):
         """
@@ -543,7 +558,7 @@ class Sketch(object):
         +-----+-----+-----+-----+-----+-----+-----+-----+------+
 
         """
-        return Sketch(_impl = self.__impl__.dict_value_summary())
+        return Sketch(impl = self.__impl__.dict_value_summary())
 
     def element_summary(self):
         """
@@ -583,7 +598,7 @@ class Sketch(object):
         | 1.0 | 1.0 | 1.0 | 2.0 | 3.0 | 4.0 | 5.0 | 5.0 | 5.0  |
         +-----+-----+-----+-----+-----+-----+-----+-----+------+
         """
-        return Sketch(_impl = self.__impl__.element_summary())
+        return Sketch(impl = self.__impl__.element_summary())
 
     def element_sub_sketch(self, keys = None):
         """
@@ -639,14 +654,14 @@ class Sketch(object):
          +-----+-----+-----+-----+-----+-----+-----+-----+------+}
         """
         single_val = False
-        if keys == None:
+        if keys is None:
             keys = []
         else:
             if not hasattr(keys, "__iter__"):
                 single_val = True
                 keys = [keys]
             value_types = set([type(i) for i in keys])
-            if (len(value_types) > 1):
+            if len(value_types) > 1:
                 raise ValueError("All keys should have the same type.")
 
         ret_sketches = self.__impl__.element_sub_sketch(keys)
@@ -660,10 +675,9 @@ class Sketch(object):
                            "'. Element sub sketch can only be retrieved when the sketch_summary " + 
                            "object was created using the 'sub_sketch_keys' option.")
         for key in ret_sketches:
-            ret[key] = Sketch(_impl = ret_sketches[key])
+            ret[key] = Sketch(impl = ret_sketches[key])
 
         if single_val:
             return ret[keys[0]]
         else:
             return ret
-

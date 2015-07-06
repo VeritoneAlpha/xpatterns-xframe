@@ -1,26 +1,24 @@
-.. xFrame documentation master file, created by
-   sphinx-quickstart on Tue Feb 10 19:19:10 2015.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-Welcome to xFrame's documentation!
-==================================
+XFrame Documentation
+====================
 
 Contents:
 
-This is the Atigeo xFrame library.
+The xFrame library provides powerful and convenient abstractions used
+for operating on large datasets.  It is implemented in python and
+runs on Spark.
+
+The main classes that make up XFrames are:
 
 .. toctree::
    :maxdepth: 2
 
-   xarray
    xframe
+   xarray
+   aggregate
    sketch
    xplot
-   recommender
-   classifier
-   cluster
-   regression
+   spark_context
+
 
 
 Indices and tables

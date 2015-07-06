@@ -3,25 +3,37 @@ This module defines top level utility functions for XFrames.
 """
 
 import math
-import urllib as _urllib
-import urllib2 as _urllib2
-import sys as _sys
-import os as _os
-import re as _re
-from zipfile import ZipFile as _ZipFile
+import urllib
+import urllib2
+import sys
+import os
+import re
+from zipfile import ZipFile
 import bz2 as _bz2
-import tarfile as _tarfile
-import ConfigParser as _ConfigParser
-import itertools as _itertools
+import tarfile
+import ConfigParser
+import itertools
 import errno
 import shutil
+import random
+import datetime
 
 import logging as _logging
 
 from pyspark import StorageLevel
 
+from pyspark.sql.types import StringType, BooleanType, \
+    DoubleType, FloatType, \
+    ShortType, IntegerType, LongType, \
+    ArrayType, MapType
+
+from xpatterns.spark_context import spark_context
+from xpatterns.xobject import XObject
+
 __LOGGER__ = _logging.getLogger(__name__)
 
+
+# noinspection PyUnresolvedReferences
 def get_credentials():
     """
     Returns the values stored in the AWS credential environment variables.
@@ -42,11 +54,12 @@ def get_credentials():
     ('RBZH792CTQPP7T435BGQ', '7x2hMqplWsLpU/qQCN6xAPKcmWo46TlPJXYTvKcv')
     """
 
-    if (not 'AWS_ACCESS_KEY_ID' in _os.environ):
+    if 'AWS_ACCESS_KEY_ID' not in os.environ:
         raise KeyError('No access key found. Please set the environment variable AWS_ACCESS_KEY_ID.')
-    if (not 'AWS_SECRET_ACCESS_KEY' in _os.environ):
+    if 'AWS_SECRET_ACCESS_KEY' not in os.environ:
         raise KeyError('No secret key found. Please set the environment variable AWS_SECRET_ACCESS_KEY.')
-    return (_os.environ['AWS_ACCESS_KEY_ID'], _os.environ['AWS_SECRET_ACCESS_KEY'])
+    return os.environ['AWS_ACCESS_KEY_ID'], os.environ['AWS_SECRET_ACCESS_KEY']
+
 
 def make_internal_url(url):
     """
@@ -77,9 +90,6 @@ def make_internal_url(url):
     if not url:
         raise ValueError('Invalid url: %s' % url)
 
-    # The final file path on server.
-    path_on_server = None
-
     # Try to split the url into (protocol, path).
     urlsplit = url.split("://")
     if len(urlsplit) == 2:
@@ -90,48 +100,56 @@ def make_internal_url(url):
             # protocol is a remote url not on server, just return
             return url
         elif protocol == 'hdfs':
-            if isinstance(_glconnect.get_server(), _server.LocalServer) and not _server._get_hadoop_class_path():
-                raise ValueError("HDFS URL is not supported because Hadoop not found. " + 
-                                 "Please make hadoop available from PATH or set the environment variable " + 
-                                 "HADOOP_HOME and try again.")
+            if not has_hdfs():
+                raise ValueError('HDFS URL is not supported because Hadoop not found. '
+                                 'Please make hadoop available from PATH or set the environment variable '
+                                 'HADOOP_HOME and try again.')
             else:
                 return url
         elif protocol == 's3':
             if len(path.split(":")) == 3:
-            # s3 url already contains secret key/id pairs, just return
+                # s3 url already contains secret key/id pairs, just return
                 return url
             else:
-            # s3 url does not contain secret key/id pair, query the environment variables
-                (k, v) = get_credentials()
+                # s3 url does not contain secret key/id pair, query the environment variables
+#                k, v = get_credentials()
 #                return 's3n://' + k + ':' + v + '@' + path
                 return 's3n://' + path
         elif protocol == 'remote':
-        # url for files on the server
+            # url for files on the server
             path_on_server = path
         elif protocol == 'local':
-        # url for files on local client, check if we are connecting to local server
-            if (isinstance(_glconnect.get_server(), _server.LocalServer)):
+            # url for files on local client, check if we are connecting to local server
+            #
+            # get spark context, get master, see if it starts with local
+            sc = spark_context()
+            if sc.master.startswith('local'):
                 path_on_server = path
             else:
                 raise ValueError('Cannot use local URL when connecting to a remote server.')
         else:
-            raise ValueError('Invalid url protocol %s. Supported url protocols are: ' + 
-                             'remote://, local://, s3://, https:// and hdfs://' % protocol)
+            raise ValueError('Invalid url protocol {}. Supported url protocols are: '
+                             'remote://, local://, s3://, https:// and hdfs://'.format(protocol))
     elif len(urlsplit) == 1:
         # expand ~ to $HOME
-        url = _os.path.expanduser(url)
+        url = os.path.expanduser(url)
         # url for files on local client, check if we are connecting to local server
         if True:
             path_on_server = url
         else:
             raise ValueError('Cannot use local URL when connecting to a remote server.')
     else:
-        raise ValueError('Invalid url: %s' % url)
+        raise ValueError('Invalid url: {}.'.format(url))
 
     if path_on_server:
-        return _os.path.abspath(_os.path.expanduser(path_on_server))
+        return os.path.abspath(os.path.expanduser(path_on_server))
     else:
-        raise ValueError('Invalid url: %s' % url)
+        raise ValueError('Invalid url: {}.'.format(url))
+
+
+def has_hdfs():
+    # TODO -- detect if we have hdfs
+    return False
 
 
 def download_dataset(url_str, extract=True, force=False, output_dir="."):
@@ -153,19 +171,19 @@ def download_dataset(url_str, extract=True, force=False, output_dir="."):
         The directory to dump the file. Defaults to current directory.
     """
     fname = output_dir + "/" + url_str.split("/")[-1]
-    #download the file from the web
-    if not _os.path.isfile(fname) or force:
+    # download the file from the web
+    if not os.path.isfile(fname) or force:
         print "Downloading file from: ", url_str
-        _urllib.urlretrieve(url_str, fname)
+        urllib.urlretrieve(url_str, fname)
         if extract and fname[-3:] == "zip":
             print "Decompressing zip archive", fname
-            _ZipFile(fname).extractall(output_dir)
+            ZipFile(fname).extractall(output_dir)
         elif extract and fname[-6:] == ".tar.gz":
             print "Decompressing tar.gz archive", fname
-            _tarfile.TarFile(fname).extractall(output_dir)
+            tarfile.TarFile(fname).extractall(output_dir)
         elif extract and fname[-7:] == ".tar.bz2":
             print "Decompressing tar.bz2 archive", fname
-            _tarfile.TarFile(fname).extractall(output_dir)
+            tarfile.TarFile(fname).extractall(output_dir)
         elif extract and fname[-3:] == "bz2":
             print "Decompressing bz2 archive: ", fname
             outfile = open(fname.split(".bz2")[0], "w")
@@ -177,9 +195,10 @@ def download_dataset(url_str, extract=True, force=False, output_dir="."):
         print "File is already downloaded."
 
 
-__XFRAMES_CURRENT_VERSION_URL__ = "http://atigeo.com/files/xframes_current_version"
+XFRAMES_CURRENT_VERSION_URL = "http://atigeo.com/files/xframes_current_version"
 
-def get_newest_version(timeout=5, _url=__XFRAMES_CURRENT_VERSION_URL__):
+
+def get_newest_version(timeout=5, url=XFRAMES_CURRENT_VERSION_URL):
     """
     Returns the version of XPatterns XFrames currently available from atigeo.com.
     Will raise an exception if we are unable to reach the atigeo.com servers.
@@ -190,15 +209,15 @@ def get_newest_version(timeout=5, _url=__XFRAMES_CURRENT_VERSION_URL__):
     url: string
         The URL to go to to check the current version.
     """
-    request = _urllib2.urlopen(url=_url, timeout=timeout)
+    request = urllib2.urlopen(url=url, timeout=timeout)
     version = request.read()
-    __LOGGER__.debug("current_version read %s" % version)
     return version
 
 
-def perform_version_check(configfile=(_os.path.join(_os.path.expanduser("~"), ".xframes", "config")),
-                          _url=__XFRAMES_CURRENT_VERSION_URL__,
-                          _outputstream=_sys.stderr):
+# noinspection PyBroadException
+def perform_version_check(configfile=(os.path.join(os.path.expanduser("~"), ".xframes", "config")),
+                          url=XFRAMES_CURRENT_VERSION_URL,
+                          _outputstream=sys.stderr):
     """
     Checks if currently running version of XFrames is less than the version
     available from atigeo.com. Prints a message if the atigeo.com servers
@@ -212,33 +231,38 @@ def perform_version_check(configfile=(_os.path.join(_os.path.expanduser("~"), ".
     """
     skip_version_check = False
     try:
-        if (_os.path.isfile(configfile)):
-            config = _ConfigParser.ConfigParser()
+        if os.path.isfile(configfile):
+            config = ConfigParser.ConfigParser()
             config.read(configfile)
             section = 'Product'
             key = 'skip_version_check'
             skip_version_check = config.getboolean(section, key)
             __LOGGER__.debug("skip_version_check=%s" % str(skip_version_check))
-    except:
+    except Exception:
         # eat all errors
         pass
 
     # skip version check set. Quit
     if not skip_version_check:
         try:
-            latest_version = get_newest_version(timeout=1, _url=_url).strip()
-            if parse_version(latest_version) > parse_version(xframes.version_info.version):
-                msg = ("A newer version of XPatterns XFrames (v%s) is available! "
-                       "Your current version is v%s.\n"
+            latest_version = get_newest_version(timeout=1, url=url).strip()
+            if parse_version(latest_version) > parse_version(XObject.version()):
+                msg = ("A newer version of XPatterns XFrames (v{}) is available! "
+                       "Your current version is v{}.\n"
                        "You can use pip to upgrade the xpatterns package. "
-                       "For more information see http://atigeo.com/products/xframes/upgrade.") \
-                           % (latest_version, xframes.version_info.version)
+                       "For more information see http://atigeo.com/products/xframes/upgrade.").format(
+                           latest_version, XObject.version())
                 _outputstream.write(msg)
                 return True
         except:
             # eat all errors
             pass
     return False
+
+
+def parse_version(version):
+    # TODO compute version, once we decide what it looks like
+    return 0
 
 
 def is_directory_archive(path):
@@ -261,15 +285,15 @@ def is_directory_archive(path):
     if path is None:
         return False
 
-    if not _os.path.isdir(path):
+    if not os.path.isdir(path):
         return False
 
-    ini_path = _os.path.join(path, 'dir_archive.ini')
+    ini_path = os.path.join(path, 'dir_archive.ini')
 
-    if not _os.path.exists(ini_path):
+    if not os.path.exists(ini_path):
         return False
 
-    if _os.path.isfile(ini_path):
+    if os.path.isfile(ini_path):
         return True
 
     return False
@@ -292,8 +316,8 @@ def get_archive_type(path):
         raise TypeError('Unable to determine the type of archive at path: %s' % path)
 
     try:
-        ini_path = _os.path.join(path, 'dir_archive.ini')
-        parser = _ConfigParser.SafeConfigParser()
+        ini_path = os.path.join(path, 'dir_archive.ini')
+        parser = ConfigParser.SafeConfigParser()
         parser.read(ini_path)
 
         contents = parser.get('metadata', 'contents')
@@ -302,14 +326,17 @@ def get_archive_type(path):
         raise TypeError('Unable to determine type of archive for path: %s' % path, e)
 
 
-GLOB_RE = _re.compile("""[*?]""")
+GLOB_RE = re.compile("""[*?]""")
+
+
 def split_path_elements(url):
-    parts = _os.path.split(url)
+    parts = os.path.split(url)
     m = GLOB_RE.search(parts[-1])
     if m:
-        return (parts[0], parts[1])
+        return parts[0], parts[1]
     else:
-        return (url, "")
+        return url, ""
+
 
 def validate_feature_types(dataset, features, valid_feature_types):
     if features is not None:
@@ -319,13 +346,13 @@ def validate_feature_types(dataset, features, valid_feature_types):
         if not all([isinstance(x, str) for x in features]):
             raise TypeError("Input 'features' must contain only strings.")
 
-    ## Extract the features and labels
+    # Extract the features and labels
     if features is None:
         features = dataset.column_names()
 
     col_type_map = {
         col_name: col_type for (col_name, col_type) in
-        zip(dataset.column_names(), dataset.column_types()) }
+        zip(dataset.column_names(), dataset.column_types())}
 
     valid_features = []
     for col_name in features:
@@ -375,14 +402,14 @@ def crossproduct(d):
     [6 rows x 2 columns]
     """
 
-    _mt._get_metric_tracker().track('util.crossproduct')
     from xpatterns import XArray
-    d = [zip(d.keys(), x) for x in _itertools.product(*d.values())]
-    sa = [{k:v for (k,v) in x} for x in d]
+    d = [zip(d.keys(), x) for x in itertools.product(*d.values())]
+    sa = [{k: v for (k, v) in x} for x in d]
     return XArray(sa).unpack(column_name_prefix='')
 
+
 def delete_file_or_dir(path):
-    expected_errs = [errno.ENOENT]     # no such file or directory
+    expected_errs = [errno.ENOENT, errno.ENOTDIR]     # no such file or directory
     try:
         shutil.rmtree(path)
     except OSError as err:
@@ -390,19 +417,18 @@ def delete_file_or_dir(path):
             raise err
 
 
-
-  ####################
-  ## Type Inference ##
-  ####################
+# TODO: if delimiter == space, then these do not work
 def classify_type(s):
-    """ 
-    From a string, classifies the type of object that it represents.
-    """
+    if s.startswith('-'):
+        rest = s[1:]
+        if rest.isdigit(): return int
+        if rest.replace('.', '', 1).isdigit(): return float
     if s.isdigit(): return int
-    if s.replace('.', '0').isdigit(): return float
+    if s.replace('.', '', 1).isdigit(): return float
     if s.startswith('['): return list
     if s.startswith('{'): return dict
     return str
+
 
 def infer_type(rdd):
     """
@@ -419,18 +445,21 @@ def infer_type(rdd):
         dtype = str
     return dtype
 
+
 def infer_types(rdd):
     """
     From an RDD of tuples of strings, find what data type each one represents.
     """
     head = rdd.take(100)
     n_cols = len(head[0])
+
     def get_col(head, i):
         return [row[i] for row in head]
     try:
-        return [ infer_type_of_list(get_col(head, i)) for i in range(n_cols)]
+        return [infer_type_of_list(get_col(head, i)) for i in range(n_cols)]
     except IndexError:
         raise ValueError('rows are not the same length')
+
 
 def infer_type_of_list(data):
     """
@@ -449,31 +478,41 @@ def infer_type_of_list(data):
             raise TypeError('infer_type_of_list: mixed types in list: {} {}'.format(d_type, candidate))
     return candidate
 
+
 def infer_type_of_rdd(rdd):
     return infer_type_of_list(rdd.take(100))
+
+# Random seed
+def distribute_seed(rdd, seed):
+    def set_seed(iterator):
+        random.seed(seed)
+        yield seed
+    rdd.mapPartitions(set_seed)
 
 
 # TODO make this something that works with 'with'
 def cache(rdd):
     rdd.persist(StorageLevel.MEMORY_ONLY)
 
+
 def uncache(rdd):
     rdd.unpersist()
+
 
 def persist(rdd):
     rdd.persist(StorageLevel.MEMORY_AND_DISK)
     
+
 def unpersist(rdd):
     rdd.unpersist()
 
-  #########################
-  ##  Missing Value Test ##
-  #########################
+
 def is_missing(x):
     """ Tests for missing values. """
     if x is None: return True
     if isinstance(x, float) and math.isnan(x): return True
     return False
+
 
 def is_missing_or_empty(val):
     """ Tests for missing or empty values. """
@@ -481,4 +520,51 @@ def is_missing_or_empty(val):
     if type(val) in (list, dict):
         if len(val) == 0: return True
     return False
+
+
+def pytype_from_dtype(dtype):
+    if dtype == 'float': return float
+    if dtype == 'float32': return float
+    if dtype == 'float64': return float
+    if dtype == 'int': return int
+    if dtype == 'int32': return int
+    if dtype == 'int64': return int
+    if dtype == 'bool': return bool
+    if dtype == 'datetime64[ns]': return datetime.datetime
+    if dtype == 'object': return object
+    return None
+
+
+def to_ptype(schema_type):
+    if isinstance(schema_type, BooleanType): return bool
+    elif isinstance(schema_type, IntegerType): return int
+    elif isinstance(schema_type, ShortType): return int
+    elif isinstance(schema_type, LongType): return long
+    elif isinstance(schema_type, DoubleType): return float
+    elif isinstance(schema_type, FloatType): return float
+    elif isinstance(schema_type, StringType): return str
+    elif isinstance(schema_type, ArrayType): return list
+    elif isinstance(schema_type, MapType): return dict
+    else: return str
+
+
+def to_schema_type(typ, elem):
+    if typ == str: return StringType()
+    if typ == bool: return BooleanType()
+    if typ == float: return FloatType()
+    if typ == int or typ == long: return IntegerType()
+    if typ == list:
+        if elem is None or len(elem) == 0:
+            raise ValueError('frame not compatible with Spark DataFrame')
+        a_type = to_schema_type(type(elem[0]), None)
+        # todo set valueContainsNull correctly
+        return ArrayType(a_type)
+    if typ == dict:
+        if elem is None or len(elem) == 0:
+            raise ValueError('frame not compatible with Spark DataFrame')
+        key_type = to_schema_type(type(elem.keys()[0]), None)
+        val_type = to_schema_type(type(elem.values()[0]), None)
+        # todo set valueContainsNull correctly
+        return MapType(key_type, val_type)
+    return StringType()
 

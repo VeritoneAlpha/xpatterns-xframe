@@ -4,4 +4,4 @@
 
 ## TODO if $1 is set, use that is the setup 
 source setup
-ipython notebook --profile=xframe
+ipython notebook

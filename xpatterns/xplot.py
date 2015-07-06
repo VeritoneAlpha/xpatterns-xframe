@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 from xpatterns.aggregate import COUNT
 
+
 class XPlot(object):
     """
     Plotting library for xFrames.
@@ -70,29 +71,26 @@ class XPlot(object):
         --------
         (Come up with an example)
         """
-        top_rows = self.xframe.topk(x_col, k)
+        top_rows = self.xframe.topk(x_col, k=k)
         items = [(row[y_col], row[x_col]) for row in top_rows]
     
         try:
             y_pos = np.arange(len(items))
             vals = [int(key[1]) for key in items]
             labels = [key[0] for key in items]
-            fig = plt.figure()
-            axes = fig.add_axes(self.axes)
-            axes.barh(y_pos, vals, align='center', alpha=self.alpha)
-            axes.set_yticks(y_pos)
-            axes.set_yticklabels(labels)
+            plt.barh(y_pos, vals, align='center', alpha=self.alpha)
+            plt.yticks(y_pos, labels)
             xlabel = xlabel or x_col
             ylabel = ylabel or y_col
-            axes.set_xlabel(xlabel)
-            axes.set_ylabel(ylabel)
+            plt.xlabel(xlabel)
+            plt.ylabel(ylabel)
             if title:
-                axes.set_title(title)
+                plt.title(title)
+            plt.show()
         except Exception as e:
             print "got an exception!"
             print traceback.format_exc()
             print e
-
 
     def frequent_values(self, y_col, k=15, title=None, xlabel=None, ylabel=None):
         """
@@ -127,8 +125,8 @@ class XPlot(object):
         count.show().top_values('Count', y_col, k, title, xlabel, ylabel)
 
     def histogram(self, col_name, title=None, 
-                       lower_cutoff=0.0, upper_cutoff=0.99, 
-                       bins=None, xlabel=None, ylabel=None):
+                  lower_cutoff=0.0, upper_cutoff=0.99,
+                  bins=None, xlabel=None, ylabel=None):
         """ 
         Plot a histogram.
 
@@ -169,7 +167,7 @@ class XPlot(object):
             raise ValueError('upper cutoff must be between 0.0 and 1.0')
         if lower_cutoff >= upper_cutoff:
             raise ValueError('lower cutoff must be less than upper cutoff')
-        if not col_name in self.xframe.column_names():
+        if col_name not in self.xframe.column_names():
             raise ValueError('column name {} is not in the XFrame'.format(col_name))
 
         bins = bins or 50
@@ -178,22 +176,22 @@ class XPlot(object):
         q_lower = float(sk.quantile(lower_cutoff)) - q_epsilon
         q_upper = float(sk.quantile(upper_cutoff)) + q_epsilon
         try:
-            fig = plt.figure()
-            axes = fig.add_axes(self.axes)
             xlabel = xlabel or col_name
             ylabel = ylabel or 'Count'
             vals = self.xframe[col_name].dropna()
+
             def enforce_cutoff(x):
                 if x < q_lower: return q_lower
                 if x > q_upper: return q_upper
                 return x
             vals = vals.apply(enforce_cutoff)
             vals = list(vals)
-            axes.hist(vals, bins=bins, alpha=self.alpha)
-            axes.set_xlabel(xlabel)
-            axes.set_ylabel(ylabel)
+            plt.hist(vals, bins=bins, alpha=self.alpha)
+            plt.xlabel(xlabel)
+            plt.ylabel(ylabel)
             if title:
-                axes.set_title(title)
+                plt.title(title)
+            plt.show()
         except Exception as e:
             print "got an exception!"
             print traceback.format_exc()
@@ -256,6 +254,7 @@ class XPlot(object):
                 print 'StDev:', sk.std()
                 print 'Distribution Plot'
                 upper_cutoff = cutoff or 1.0
+                bins = bins or 50
                 self.histogram(col_name, title=title, upper_cutoff=upper_cutoff, bins=bins)
         else:
             # ordinal: show a histogram of frequent values
@@ -263,4 +262,5 @@ class XPlot(object):
             tmp = self.xframe.groupby(col_name, {'Count': COUNT})
             x_col = 'Count'
             y_col = col_name
+            bins = bins or 15
             tmp.show().top_values(x_col, y_col, title=title, k=bins)

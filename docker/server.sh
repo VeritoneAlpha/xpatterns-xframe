@@ -22,9 +22,10 @@ if [ $USE_HTTP -ne 0 ]; then
 fi
 
 #ipython2 notebook --no-browser --port 8888 --ip=* $CERTFILE_OPTION --NotebookApp.password="$HASH" --matplotlib=inline
+cd /notebooks
 source /setup
 cd /notebooks/docs && make html
+cp -r _build/html/* /usr/share/nginx/html
 cd /notebooks
-cp -r docs/_build/html/* /usr/share/nginx/html
 service nginx start
 ipython2 notebook --no-browser --port 8888 --ip=* --matplotlib=inline

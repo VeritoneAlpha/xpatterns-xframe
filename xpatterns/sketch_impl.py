@@ -5,17 +5,17 @@ This module provides an implementation of Sketch using pySpark RDDs.
 import inspect
 import math
 
-from xpatterns.xframe_impl import XFrameImpl
-from xpatterns.xrdd import XRdd
 from xpatterns.dsq import QuantileAccumulator
 from xpatterns.frequent import FreqSketch
 
 __all__ = ['Sketch']
 
+
 def is_missing(x):
     if x is None: return True
     if isinstance(x, float) and math.isnan(x): return True
     return False
+
 
 class SketchImpl(object):
 
@@ -24,14 +24,29 @@ class SketchImpl(object):
 
     def __init__(self):
         self._entry()
+        self._rdd = None
+        self.sketch_type = None
+        self.count = None
+        self.min_val = None
+        self.max_val = None
+        self.mean_val = None
+        self.sum_val = None
+        self.variance_val = None
+        self.stdev_val = None
+        self.num_undefined_val = None
+        self.num_unique_val = None
+        self.quantile_accumulator = None
+        self.frequency_sketch = None
         self.quantile_accum = None
         self._exit()
             
-    def _entry(self, *args):
+    @staticmethod
+    def _entry(*args):
         if SketchImpl.entry_trace:
             print 'enter sketch', inspect.stack()[1][3], args
 
-    def _exit(self):
+    @staticmethod
+    def _exit():
         if SketchImpl.exit_trace:
             print 'exit sketch', inspect.stack()[1][3]
         pass
@@ -47,7 +62,7 @@ class SketchImpl(object):
             raise NotImplementedError('sub_sketch_keys mode not implemented')
 
         # calculate some basic statistics in one pass
-        defined = xa._rdd.filter(lambda x: not is_missing(x))
+        defined = xa.to_rdd().filter(lambda x: not is_missing(x))
         self.sketch_type = 'numeric' if xa.dtype() in (int, float) else 'non-numeric'
         if self.sketch_type == 'numeric':
             stats = defined.stats()
@@ -60,31 +75,16 @@ class SketchImpl(object):
             self.stdev_val = stats.stdev()
         else:
             self.count = defined.count()
-            self.min_val = None
-            self.max_val = None
-            self.mean_val = None
-            self.sum_val = None
-            self.variance_val = None
-            self.stdev_val = None
 
         # compute these later if needed
-        self._rdd = xa._rdd
-        self.num_undefined_val = None
-        self.num_unique_val = None
-        self.quantile_accumulator = None
-        self.frequency_sketch = None
+        self._rdd = xa.to_rdd()
 
         self._exit()
 
     def _create_quantile_accumulator(self):
-#       With these values, the system runs out of memory
-#        num_levels = 12
-#        epsilon = 0.001
-#        delta = 0.01
-#        With these, it is OK.
-        num_levels = 10
-        epsilon = 0.01
-        delta = 0.1
+        num_levels = 12
+        epsilon = 0.001
+        delta = 0.01
         accumulator = QuantileAccumulator(self.min_val, self.max_val, num_levels, epsilon, delta)
         accumulators = self._rdd.mapPartitions(accumulator)
         return accumulators.reduce(lambda x, y: x.merge(y))

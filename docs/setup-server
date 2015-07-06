@@ -1,0 +1,98 @@
+Set up a new server from scratch
+--------------------------------
+
+These instructions contain information on setting up a server.
+You can use a subset of these instructions to set up the libraries so that you 
+can run the API server and ipython notebook locally.
+
+Preparation
+-----------
+Let's say the machines are 10.0.2.116, 10.0.2.117, 10.0.2.118, and 10.0.2.119.
+
+------------------------------------------------------------
+To log in to these machines, add the following to .ssh/config
+on your local workstation.  Modify appropriately, depending on where you store your keys.
+ 
+Host 10.0.2.116
+  IdentityFile ~/keys/emdeon-dev-cluster-key.pem
+  User ubuntu
+Host 10.0.2.117
+  IdentityFile ~/keys/emdeon-dev-cluster-key.pem
+  User ubuntu
+Host 10.0.2.118
+  IdentityFile ~/keys/emdeon-dev-cluster-key.pem
+  User ubuntu
+Host 10.0.2.119
+  IdentityFile ~/keys/emdeon-dev-cluster-key.pem
+  User ubuntu
+  
+ Then you can log in:
+  > ssh 10.0.2.116
+Similarly you can use scp and rsync without having to specify any additional parameters.
+
+emacs
+-----
+On each of the machines:
+  Add emacs (or your favorite editor): 
+  > sudo apt-get install emacs23
+  
+hosts
+-----
+Create host name mappings in /etc/hosts.
+Put these on all four machines, and also on your workstation.
+
+10.0.2.116      ip-10-0-2-116
+10.0.2.117      ip-10-0-2-117
+10.0.2.118      ip-10-0-2-118
+10.0.2.119      ip-10-0-2-119
+  
+Create a working directory:
+> mkdir chayden
+
+You also need to install the /usr/ubuntu/.ssh/config settings in each server.
+After you do this, check that you can ssh to each of them without specifying username or password.
+Make sure this includes your local server as well.
+> ssh 10.0.2.116
+
+spark
+-----
+
+Download a spark binary, or else build it from the git repository.
+
+Go to https://spark.apache.org/downloads.html and download a spark distribution.
+Recommend release 1.3.1, package prebuild for Hadoop 2.4 and later.
+Uncompress and unpack the file.  
+tar -zvf spark-<version>-bin.cdh4.tag
+Later, we will create an environment variable SPARK_HOME that points here.
+You can remove the tar file now if you want.
+
+#venv
+#----
+#Next, set up venv.
+Install virtualenv:
+sudo apt-get install python-virtualenv
+
+#Create venv:
+cd xframe
+virtualenv venv
+source venv/bin/activate
+
+#Install packages into virtual environment
+
+pip install "ipython[all]"
+
+pip install numpy
+pip install pandas
+sudo apt-get install libatlas-base-dev
+pip install scipy
+pip install scikit-learn
+easy_install prettytable
+
+east_install -U distribute
+pip install matplotlib
+
+export SPARK_HOME=~/spark
+export SPARK_CONF_DIR=${SPARK_HOME}/conf
+
+XPATTERNS_HOME=`pwd`
+export PYTHONPATH=`pwd`:${SPARK_HOME}/python:${SPARK_HOME}/python/lib/py4j-0.8.2.1-src.zip

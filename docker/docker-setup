@@ -6,6 +6,7 @@
 export LIB=`pwd`
 export PYTHONPATH=$LIB
 export SPARK_HOME=/usr/local/spark
+export SPARK_CONF_DIR=/notebooks/conf
 
 # Add the PySpark classes to the Python path:
 export PYTHONPATH="$SPARK_HOME/python/:$PYTHONPATH"

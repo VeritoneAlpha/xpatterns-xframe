@@ -1,12 +1,10 @@
-XArray Documentation
-====================
+XArray
+======
 
 .. toctree::
    :maxdepth: 2
 
-XArray
-------
-
-.. automodule:: xpatterns.xarray
+.. autoclass:: xpatterns.XArray
    :members:
+   :inherited-members:
 

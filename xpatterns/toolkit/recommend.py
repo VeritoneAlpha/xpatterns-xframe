@@ -102,9 +102,9 @@ class MatrixFactorizationModel(RecommenderModel):
         user_item[self.item_col] = self.items
         user_item[self.user_col] = user
         user_item.swap_columns(self.item_col, self.user_col)
-        rdd = user_item.to_spark_rdd()
+        rdd = user_item.to_rdd()
         res = self.model.predictAll(rdd)
-        res = res.map(lambda rating: [rating.user, rating.product, rating.rating])
+        res = res.map(lambda rating: (rating.user, rating.product, rating.rating))
         col_names = [self.user_col, self.item_col, self.rating_col]
         user_type = self.users.dtype()
         item_type = self.items.dtype()
@@ -289,7 +289,7 @@ class ALSBuilder(RecommenderBuilder):
         """
 
         ratings = self._prepare_ratings()
-        model = ALS.train(ratings.to_spark_rdd(), 
+        model = ALS.train(ratings.to_rdd(),
                           rank, 
                           iterations=iterations, 
                           lambda_=lambda_, 
@@ -326,7 +326,7 @@ class ALSBuilder(RecommenderBuilder):
         """
 
         ratings = self._prepare_ratings()
-        model = ALS.trainImplicit(ratings.to_spark_rdd(), 
+        model = ALS.trainImplicit(ratings.to_rdd(),
                           rank, 
                           iterations=iterations, 
                           lambda_=lambda_, 

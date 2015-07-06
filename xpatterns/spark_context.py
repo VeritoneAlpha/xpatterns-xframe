@@ -1,54 +1,39 @@
 """
-Provides shared implementation functions for XArrayImpl and XFrameImpl
+Provides functions to create and maintain the spark context.
 """
 
-from xpatterns.environment import Environment
+import os
+import atexit
+from zipfile import PyZipFile
+from tempfile import NamedTemporaryFile
 
 from pyspark import SparkConf, SparkContext, SQLContext
-import atexit
 
-class Singleton(object):
-    """
-    A non-thread-safe helper class to ease implementing singletons.
-    This should be used as a decorator -- not a metaclass -- to the
-    class that should be a singleton.
-
-    The decorated class can define one `__init__` function that
-    takes only the `self` argument. Other than that, there are
-    no restrictions that apply to the decorated class.
-
-    To get the singleton instance, use the `Instance` method. Trying
-    to use `__call__` will result in a `TypeError` being raised.
-
-    Limitations: The decorated class cannot be inherited from.
-
-    """
-
-    def __init__(self, decorated):
-        self._decorated = decorated
-
-    def Instance(self):
-        """
-        Returns the singleton instance. Upon its first call, it creates a
-        new instance of the decorated class and calls its `__init__` method.
-        On all subsequent calls, the already created instance is returned.
-
-        """
-        try:
-            return self._instance
-        except AttributeError:
-            self._instance = self._decorated()
-            return self._instance
-
-    def __call__(self):
-        raise TypeError('Singletons must be accessed through `Instance()`.')
-
-    def __instancecheck__(self, inst):
-        return isinstance(inst, self._decorated)
-
+from xpatterns.environment import Environment
+from xpatterns.singleton import Singleton
 
 # Context Defaults
-#CLUSTER_URL = 'spark://ip-10-0-1-212:7077'
+
+
+# noinspection PyClassHasNoInit
+class SparkInitContext():
+    """
+    Spark Context initialization.
+
+    This may be used to initialize the spark context.
+    If this mechanism is not used, then the spark context will be initialized
+    using the config file the first time a context is needed.
+    """
+    context = {}
+
+    @staticmethod
+    def set(**context):
+        """
+        Sets the spark context parameters, and then create a context.
+        If the spark context has already been created, then this will have no effect.
+        """
+        SparkInitContext.context = context
+        CommonSparkContext.Instance()
 
 @Singleton
 class CommonSparkContext(object):
@@ -56,10 +41,11 @@ class CommonSparkContext(object):
         """
         Create a spark context.
 
-        The spark configuration is taken from $XPATTERNS_HOME/config.ini.
+        The spark configuration is taken from $XPATTERNS_HOME/config.ini or from
+        the values set in SparkInitContext.set().
 
-        Config Parameters
-        -----------------
+        Notes
+        -----
         cluster_url : str, optional
             The url of the spark cluster to use.  To use the local spark, give
             'local'.  To use a spark cluster with its master on a specific IP addredd,
@@ -77,23 +63,27 @@ class CommonSparkContext(object):
         """
 
         env = Environment.create_default()
-        cluster_url = env.get_config('spark', 'cluster_url', default='local')
-        cores_max = env.get_config('spark', 'cores_max', default='8')
-        executor_memory = env.get_config('spark', 'executor_memory', default='8g')
-        app_name = env.get_config('spark', 'app_name', 'xFrame')
-        conf = (SparkConf()
-                .setMaster(cluster_url)
-                .setAppName(app_name)
-                .set("spark.cores-max", cores_max)
-                .set("spark.executor.memory", executor_memory))
+        config_context = {'cluster_url': env.get_config('spark', 'cluster_url', default='local'),
+                          'cores_max': env.get_config('spark', 'cores_max', default='8'),
+                          'executor_memory': env.get_config('spark', 'executor_memory', default='8g'),
+                          'app_name': env.get_config('spark', 'app_name', 'xFrame')}
+        config_context.update(SparkInitContext.context)
+        config_pairs = [(k, v) for k, v in config_context.iteritems()]
+        conf = (SparkConf().setAll(config_pairs))
         self._sc = SparkContext(conf=conf)
         self._sqlc = SQLContext(self._sc)
+
+        self.zip_path = self.build_zip()
+        if self.zip_path:
+            self._sc.addPyFile(self.zip_path)
         atexit.register(self.close_context)
 
     def close_context(self):
         if self._sc:
             self._sc.stop()
             self._sc = None
+            if self.zip_path:
+                os.remove(self.zip_path)
 
     def sc(self):
         return self._sc
@@ -101,9 +91,34 @@ class CommonSparkContext(object):
     def sqlc(self):
         return self._sqlc
 
+    @staticmethod
+    def build_zip():
+        if 'XPATTERNS_HOME' not in os.environ:
+            return None
+        # This can fail at writepy if there is something wrong with the files
+        #  in xpatterns.  Go ahead anyway, but things will probably fail of this job is
+        #  distributed
+        try:
+            tf = NamedTemporaryFile(suffix='.zip', delete=False)
+            z = PyZipFile(tf, 'w')
+            z.writepy(os.path.join(os.environ['XPATTERNS_HOME'], 'xpatterns'))
+            z.close()
+            return tf.name
+        except:
+            print 'Zip file distribution failed -- workers will not get xpatterns code.'
+            print 'Check for unexpected files in XPATTERNS_HOME/xpatterns.'
+            return None
+
+
 def spark_context():
+    """
+    Returns the spark context.
+    """
     return CommonSparkContext.Instance().sc()
 
 def spark_sql_context():
+    """
+    Returns the spark sql context.
+    """
     return CommonSparkContext.Instance().sqlc()
 

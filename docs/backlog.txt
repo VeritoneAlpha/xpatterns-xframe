@@ -6,29 +6,15 @@ Core feature backlog
 
 XFrame
 ------
-XFrame constructor (to be tested)
-       pandas dataframe
-       .txt file
-       XFrame
-       XArray
-       class with iteritems
-       class with __iter__
-       empty XFrame
-       array
-       dict of int
-       dict of float
-       dict of str
+support datetime as column type  (2d)
+(estimate includes all items marked * below)
 
-XFrame.read_csv_with_errors (not implemented)
+support array.array as column type (1d)
+
+XFrame.read_csv_with_errors (not implemented) (1d)
 	about 20 test cases
 
-XFrame.to_rdd (to be tested)
-	6 test cases
-
-XFrame.from_rdd (to be tested)
-	6 test cases
-
-XFrame.print_rows (to be tested)
+XFrame.print_rows (to be tested) (2h)
 	empty XFrame
 	materialized
 	not materialized
@@ -38,9 +24,9 @@ XFrame.print_rows (to be tested)
 	num_columns
 	column_width
 
-XFrame.to_str (to be tested)
+XFrame.to_str (to be tested) (2h)
 
-XFrame.getitem (square bracket syntax) (to be tested)
+XFrame.getitem (square bracket syntax) (to be tested) (2h)
 	index by XArray
 	slice [a:b]
 	slice [a:]
@@ -50,30 +36,30 @@ XFrame.getitem (square bracket syntax) (to be tested)
 XFrame.groupby
 	quantile (not implemented)
 
-XFrame.save
+XFrame.save (1h)
 	csv (to be tested)	
 
-XFrame.split_datetime (not implemented)
+XFrame.split_datetime (not implemented) (*)
 	good date-time
 	bad date-time
 
 XArray
 ------
 
-Implement and test datetime as a primitive datatype
+Implement and test datetime as a primitive datatype (*)
 Add test cases to many existing test classes
 
-XArray.count_words (not implemented)
+XArray.count_words (not implemented)  (4h)
 
-XArray.count_ngrams (not implemented)
+XArray.count_ngrams (not implemented) (4h)
 
-XArray.filter (to be tested)
+XArray.filter (to be tested) (2h)
 
-XArray.save_as_text (to be tested; on nonlocal filesystem)
+XArray.save_as_text (to be tested; on nonlocal filesystem) (2h)
 
-XArray.datetime_to_str (not implemented)
+XArray.datetime_to_str (not implemented) (*)
 
-XArray.strToDatetime (not implemented)
+XArray.strToDatetime (not implemented) (*)
 
 XArray.sketch_summary
 	separate tests for numeric and nonnumeric:
@@ -130,10 +116,6 @@ Toolkit
 
 Other Work Items
 ----------------
-Groupby bug
-    follow up on spark jira bug
-    remove code that allows repro
-
 Performance measurement and improvement
     detect and reduce repeated computation of RDDs by intelligent caching
     eliminate exponental growth of lazy execution plans
@@ -158,15 +140,32 @@ Integration with other xpatterns components
 
 Testing
     test with localhost cluster
-    test with remote cluster
     identify test speed bottleneck
 
 Example Code
     xframes tutorial notebooks (learn xframes)
     end-to-end tutorial notebooks using xframes and some ML library or libraries
         (focus on solving a problem using sample data)
-    
-
-xFrames brown bag
 
 
+Before Release
+--------------
+
+Documentation
+-------------
+Review all sphonx documentation.
+Try all documentation examples.
+Eliminate or replace reference to 'Users Guide'
+Replace all references to fixed URLs controlled by graphlab.
+Come up with different examples.
+Write library overview (index.rst, xframe.rst, xarray.rst, etc)
+Write and test install instructions
+    Docker on Windows, Mac, and Ubuntu
+    Install egg
+Make sure documentation displays in Docker and in local install.
+Document how to set spark configuration properties.
+
+Deploy
+------
+Build and install in PyPi (pip install)
+Upload documentation to ReadTheDocs

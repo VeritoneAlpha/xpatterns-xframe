@@ -1,27 +1,28 @@
 import unittest
 import math
-
-# Check the spark configuration
 import os
-if not 'SPARK_HOME' in os.environ:
-    print 'SPARK_HOME must be set'
-spark_home = os.environ['SPARK_HOME']
-
-# And Python path
-import sys
-sys.path.insert(0, os.path.join(spark_home, 'python'))
-sys.path.insert(1, os.path.join(spark_home, 'python/lib/py4j-0.8.2.1-src.zip'))
-
 
 # python testxarray.py
 # python -m unittest testxarray
-# python -m unittest testxarray.TestXArrayConstructorLocal
-# python -m unittest testxarray.TestXArrayConstructorLocal.test_construct_list_float_infer
+# python -m unittest testxarray.TestXArrayVersion
+# python -m unittest testxarray.TestXArrayVersion.test_version
 
 from xpatterns import XArray
 
+
 def eq_list(expected, result):
     return (XArray(expected) == result).all()
+
+
+class TestXArrayVersion(unittest.TestCase):
+    """
+    Tests XArray version
+    """
+
+    def test_version(self):
+        ver = XArray.version()
+        self.assertEqual(str, type(ver))
+
 
 class TestXArrayConstructorLocal(unittest.TestCase):
     """
@@ -125,6 +126,7 @@ class TestXArrayConstructorLocal(unittest.TestCase):
         self.assertEqual(None, t[2])
         self.assertEqual(int, t.dtype())
 
+
 class TestXArrayConstructorRange(unittest.TestCase):
     """ 
     Tests XArray constructors for sequential ranges.
@@ -132,15 +134,15 @@ class TestXArrayConstructorRange(unittest.TestCase):
 
     def test_construct_none(self):
         with self.assertRaises(TypeError):
-            t = XArray.from_sequence()
+            XArray.from_sequence()
 
     def test_construct_nonint_stop(self):
         with self.assertRaises(TypeError):
-            t = XArray.from_sequence(1.0)
+            XArray.from_sequence(1.0)
 
     def test_construct_nonint_start(self):
         with self.assertRaises(TypeError):
-            t = XArray.from_sequence(1.0, 10.0)
+            XArray.from_sequence(1.0, 10.0)
 
     def test_construct_stop(self):
         t = XArray.from_sequence(100, 200)
@@ -154,6 +156,7 @@ class TestXArrayConstructorRange(unittest.TestCase):
         self.assertEqual(0, t[0])
         self.assertEqual(int, t.dtype())
 
+
 class TestXArrayConstructFromRdd(unittest.TestCase):
     """ 
     Tests XArray from_rdd class method
@@ -162,6 +165,7 @@ class TestXArrayConstructFromRdd(unittest.TestCase):
     def test_construct_from_rdd(self):
         # TODO
         pass
+
 
 class TestXArrayConstructorLoad(unittest.TestCase):
     """ 
@@ -197,6 +201,7 @@ class TestXArrayConstructorLoad(unittest.TestCase):
         self.assertEqual(4, len(t))
         self.assertEqual(dict, t.dtype())
         self.assertEqual({1: 'a', 2: 'b'}, t[0])
+
 
 class TestXArrayFromConst(unittest.TestCase):
     """ 
@@ -234,16 +239,17 @@ class TestXArrayFromConst(unittest.TestCase):
         self.assertEqual(dict, t.dtype())
 
     def test_from_const_negint(self):
-        with self.assertRaises(AssertionError):
-            t = XArray.from_const(1, -10)
+        with self.assertRaises(ValueError):
+            XArray.from_const(1, -10)
 
     def test_from_const_nonint(self):
-        with self.assertRaises(AssertionError):
-            t = XArray.from_const(1, 'a')
+        with self.assertRaises(TypeError):
+            XArray.from_const(1, 'a')
 
     def test_from_const_bad_type(self):
         with self.assertRaises(TypeError):
-            t = XArray.from_const(True, 10)
+            XArray.from_const(True, 10)
+
 
 class TestXArraySaveBinary(unittest.TestCase):
     """ 
@@ -252,8 +258,17 @@ class TestXArraySaveBinary(unittest.TestCase):
     def test_save(self):
         t = XArray([1, 2, 3])
         path = 'tmp/array-binary'
+        t.save(path)
+        success_path = os.path.join(path, '_SUCCESS')
+        self.assertTrue(os.path.isfile(success_path))
+
+    def test_save_format(self):
+        t = XArray([1, 2, 3])
+        path = 'tmp/array-binary'
         t.save(path, format='binary')
-        # TODO open and read file and metadata ?
+        success_path = os.path.join(path, '_SUCCESS')
+        self.assertTrue(os.path.isfile(success_path))
+
 
 class TestXArraySaveText(unittest.TestCase):
     """ 
@@ -261,9 +276,40 @@ class TestXArraySaveText(unittest.TestCase):
     """
     def test_save(self):
         t = XArray([1, 2, 3])
+        path = 'tmp/array-text.txt'
+        t.save(path)
+        success_path = os.path.join(path, '_SUCCESS')
+        self.assertTrue(os.path.isfile(success_path))
+
+    def test_save_format(self):
+        t = XArray([1, 2, 3])
         path = 'tmp/array-text'
         t.save(path, format='text')
-        # TODO open and read file and metadata ?
+        success_path = os.path.join(path, '_SUCCESS')
+        self.assertTrue(os.path.isfile(success_path))
+
+class TestXArraySaveCsv(unittest.TestCase):
+    """
+    Tests XArray save csv format
+    """
+    def test_save(self):
+        t = XArray([1, 2, 3])
+        path = 'tmp/array-csv.csv'
+        t.save(path)
+        with open(path) as f:
+            self.assertEqual('1', f.readline().strip())
+            self.assertEqual('2', f.readline().strip())
+            self.assertEqual('3', f.readline().strip())
+
+    def test_save_format(self):
+        t = XArray([1, 2, 3])
+        path = 'tmp/array-csv'
+        t.save(path, format='csv')
+        with open(path) as f:
+            self.assertEqual('1', f.readline().strip())
+            self.assertEqual('2', f.readline().strip())
+            self.assertEqual('3', f.readline().strip())
+
 
 class TestXArrayRepr(unittest.TestCase):
     """ 
@@ -276,6 +322,7 @@ class TestXArrayRepr(unittest.TestCase):
 Rows: 3
 [1, 2, 3]""", s)
 
+
 class TestXArrayStr(unittest.TestCase):
     """ 
     Tests XArray __str__ function.
@@ -283,7 +330,13 @@ class TestXArrayStr(unittest.TestCase):
     def test_str(self):
         t = XArray(range(200))
         s = t.__repr__()
-        self.assertEqual("""dtype: <type 'int'>\nRows: 200\n[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, ... ]""", s)
+        self.assertEqual("dtype: <type 'int'>\nRows: 200\n[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11," +
+                         " 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25," +
+                         " 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41," +
+                         " 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57," +
+                         " 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73," +
+                         " 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90," +
+                         " 91, 92, 93, 94, 95, 96, 97, 98, 99, ... ]", s)
 
 
 class TestXArrayNonzero(unittest.TestCase):
@@ -297,6 +350,7 @@ class TestXArrayNonzero(unittest.TestCase):
     def test_nonzero_zero(self):
         t = XArray([])
         self.assertFalse(bool(t))
+
 
 class TestXArrayLen(unittest.TestCase):
     """ 
@@ -317,7 +371,7 @@ class TestXArrayIterator(unittest.TestCase):
     """
     def test_iter_empty(self):
         t = XArray([])
-        for elem in t:
+        for _ in t:
             self.assertEquals(False, True, 'should not iterate')
 
     def test_iter_1(self):
@@ -330,10 +384,12 @@ class TestXArrayIterator(unittest.TestCase):
         for elem, expect in zip(t, [0, 1, 2]):
             self.assertEquals(expect, elem)
 
+
 class TestXArrayAddScalar(unittest.TestCase):
     """ 
     Tests XArray Scalar Addition
     """
+    # noinspection PyAugmentAssignment
     def test_add_scalar(self):
         t = XArray([1, 2, 3])
         self.assertEqual(3, len(t))
@@ -343,6 +399,7 @@ class TestXArrayAddScalar(unittest.TestCase):
         self.assertEqual(3, t[0])
         self.assertEqual(4, t[1])
         self.assertEqual(5, t[2])
+
 
 class TestXArrayAddVector(unittest.TestCase):
     """ 
@@ -473,13 +530,15 @@ class TestXArrayOpScalar(unittest.TestCase):
     def test_and_scalar(self):
         t = XArray([1, 2, 3])
         with self.assertRaises(TypeError):
-            res = t & True
+            _ = t & True
 
     def test_or_scalar(self):
         t = XArray([1, 2, 3])
         with self.assertRaises(TypeError):
-            res = t | False
+            _ = t | False
 
+
+# noinspection PyUnresolvedReferences
 class TestXArrayOpVector(unittest.TestCase):
     """ 
     Tests XArray Vector operations other than addition
@@ -491,7 +550,6 @@ class TestXArrayOpVector(unittest.TestCase):
         self.assertEqual(3, t[0])
         self.assertEqual(3, t[1])
         self.assertEqual(3, t[2])
-
 
     def test_mul_vector(self):
         t1 = XArray([1, 2, 3])
@@ -573,6 +631,7 @@ class TestXArrayOpVector(unittest.TestCase):
         self.assertEqual(1, res[1])
         self.assertEqual(1, res[2])
 
+
 class TestXArrayOpUnary(unittest.TestCase):
     """ 
     Tests XArray Unary operations
@@ -598,6 +657,7 @@ class TestXArrayOpUnary(unittest.TestCase):
         self.assertEqual(2, res[1])
         self.assertEqual(3, res[2])
 
+
 class TestXArrayLogicalFilter(unittest.TestCase):
     """ 
     Tests XArray logical filter (XArray indexed by XArray)
@@ -621,7 +681,7 @@ class TestXArrayLogicalFilter(unittest.TestCase):
         t1 = XArray([1, 2, 3])
         t2 = XArray([1, 0])
         with self.assertRaises(IndexError):
-            res = t1[t2]
+            _ = t1[t2]
 
 
 class TestXArrayCopyRange(unittest.TestCase):
@@ -639,7 +699,7 @@ class TestXArrayCopyRange(unittest.TestCase):
     def test_copy_range_index_err(self):
         t = XArray([1, 2, 3])
         with self.assertRaises(IndexError):
-            res = t[3]
+            _ = t[3]
         
     def test_copy_range_slice(self):
         t = XArray([1, 2, 3])
@@ -672,7 +732,8 @@ class TestXArrayCopyRange(unittest.TestCase):
     def test_copy_range_bad_type(self):
         t = XArray([1, 2, 3])
         with self.assertRaises(IndexError):
-            res = t[{1, 2, 3}]
+            _ = t[{1, 2, 3}]
+
 
 class TestXArraySize(unittest.TestCase):
     """ 
@@ -682,6 +743,7 @@ class TestXArraySize(unittest.TestCase):
         t = XArray([1, 2, 3])
         self.assertEqual(3, t.size())
 
+
 class TestXArrayDtype(unittest.TestCase):
     """ 
     Tests XArray dtype operation
@@ -689,6 +751,7 @@ class TestXArrayDtype(unittest.TestCase):
     def test_dtype(self):
         t = XArray([1, 2, 3])
         self.assertEqual(int, t.dtype())
+
 
 class TestXArrayHead(unittest.TestCase):
     """ 
@@ -705,6 +768,7 @@ class TestXArrayHead(unittest.TestCase):
     def test_head_5(self):
         t = XArray(range(100))
         self.assertEqual(5, len(t.head(5)))
+
 
 class TestXArrayVectorSlice(unittest.TestCase):
     """ 
@@ -747,12 +811,14 @@ class TestXArrayVectorSlice(unittest.TestCase):
         self.assertTrue([1, 2], res[1])
         self.assertTrue([1, 2], res[2])
 
+
 class TestXArrayCountWords(unittest.TestCase):
     """ 
     Tests XArray count_words
     """
     def test_count_words(self):
         pass
+
 
 class TestXArrayCountNgrams(unittest.TestCase):
     """ 
@@ -761,47 +827,6 @@ class TestXArrayCountNgrams(unittest.TestCase):
     def test_count_ngrams(self):
         pass
 
-class TestXArrayDictTrimByKeys(unittest.TestCase):
-    """ 
-    Tests XArray dict_trim_by_keys
-    """
-    def test_dict_trim_by_keys(self):
-        pass
-
-class TestXArrayDictTrimByValues(unittest.TestCase):
-    """ 
-    Tests XArray dict_trim_by_values
-    """
-    def test_dict_trim_by_values(self):
-        pass
-
-class TestXArrayDictKeys(unittest.TestCase):
-    """ 
-    Tests XArray dict_keys
-    """
-    def test_dict_keys(self):
-        pass
-
-class TestXArrayDictValues(unittest.TestCase):
-    """ 
-    Tests XArray dict_values
-    """
-    def test_dict_values(self):
-        pass
-
-class TestXArrayDictHasAnyKeys(unittest.TestCase):
-    """ 
-    Tests XArray dict_has_any_keys
-    """
-    def test_dict_has_any_keys(self):
-        pass
-
-class TestXArrayDictHasAllKeys(unittest.TestCase):
-    """ 
-    Tests XArray dict_has_all_keys
-    """
-    def test_dict_has_all_keys(self):
-        pass
 
 class TestXArrayApply(unittest.TestCase):
     """ 
@@ -838,12 +863,95 @@ class TestXArrayApply(unittest.TestCase):
     def test_apply_type_err(self):
         t = XArray([1, 2, 3, None])
         with self.assertRaises(ValueError):
-            res = t.apply(lambda x: x * 2, skip_undefined=False)
+            t.apply(lambda x: x * 2, skip_undefined=False)
 
     def test_apply_fun_err(self):
         t = XArray([1, 2, 3, None])
-        with self.assertRaises(AssertionError):
-            res = t.apply(1)
+        with self.assertRaises(TypeError):
+            t.apply(1)
+
+
+class TestXArrayFlatMap(unittest.TestCase):
+    """ 
+    Tests XArray flat_map
+    """
+    def test_flat_map(self):
+        t = XArray([[1], [1, 2], [1, 2, 3]])
+        res = t.flat_map(lambda x: x)
+        self.assertEqual(6, len(res))
+        self.assertEqual(int, res.dtype())
+        self.assertEqual(1, res[0])
+        self.assertEqual(1, res[1])
+        self.assertEqual(2, res[2])
+        self.assertEqual(1, res[3])
+        self.assertEqual(2, res[4])
+        self.assertEqual(3, res[5])
+
+    def test_flat_map_int(self):
+        t = XArray([[1], [1, 2], [1, 2, 3]])
+        res = t.flat_map(lambda x: [v * 2 for v in x])
+        self.assertEqual(6, len(res))
+        self.assertEqual(int, res.dtype())
+        self.assertEqual(2, res[0])
+        self.assertEqual(2, res[1])
+        self.assertEqual(4, res[2])
+        self.assertEqual(2, res[3])
+        self.assertEqual(4, res[4])
+        self.assertEqual(6, res[5])
+
+    def test_flat_map_str(self):
+        t = XArray([['a'], ['a', 'b'], ['a', 'b', 'c']])
+        res = t.flat_map(lambda x: x)
+        self.assertEqual(6, len(res))
+        self.assertEqual(str, res.dtype())
+        self.assertEqual('a', res[0])
+        self.assertEqual('a', res[1])
+        self.assertEqual('b', res[2])
+        self.assertEqual('a', res[3])
+        self.assertEqual('b', res[4])
+        self.assertEqual('c', res[5])
+
+    def test_flat_map_float_cast(self):
+        t = XArray([[1], [1, 2], [1, 2, 3]])
+        res = t.flat_map(lambda x: x, dtype=float)
+        self.assertEqual(6, len(res))
+        self.assertEqual(float, res.dtype())
+        self.assertEqual(1.0, res[0])
+        self.assertEqual(1.0, res[1])
+        self.assertEqual(2.0, res[2])
+        self.assertEqual(1.0, res[3])
+        self.assertEqual(2.0, res[4])
+        self.assertEqual(3.0, res[5])
+
+    def test_flat_map_skip_undefined(self):
+        t = XArray([[1], [1, 2], [1, 2, 3], None, [None]])
+        res = t.flat_map(lambda x: x)
+        self.assertEqual(6, len(res))
+        self.assertEqual(int, res.dtype())
+        self.assertEqual(1, res[0])
+        self.assertEqual(1, res[1])
+        self.assertEqual(2, res[2])
+        self.assertEqual(1, res[3])
+        self.assertEqual(2, res[4])
+        self.assertEqual(3, res[5])
+
+    def test_flat_map_no_fun(self):
+        t = XArray([[1], [1, 2], [1, 2, 3]])
+        res = t.flat_map()
+        self.assertEqual(6, len(res))
+        self.assertEqual(int, res.dtype())
+        self.assertEqual(1, res[0])
+        self.assertEqual(1, res[1])
+        self.assertEqual(2, res[2])
+        self.assertEqual(1, res[3])
+        self.assertEqual(2, res[4])
+        self.assertEqual(3, res[5])
+
+    def test_flat_map_type_err(self):
+        t = XArray([[1], [1, 2], [1, 2, 3], [None]])
+        with self.assertRaises(ValueError):
+            t.flat_map(lambda x: x * 2, skip_undefined=False)
+
 
 class TestXArrayFilter(unittest.TestCase):
     """ 
@@ -851,6 +959,7 @@ class TestXArrayFilter(unittest.TestCase):
     """
     def test_filter(self):
         pass
+
 
 class TestXArraySample(unittest.TestCase):
     """ 
@@ -878,12 +987,13 @@ class TestXArraySample(unittest.TestCase):
     def test_sample_err_gt(self):
         t = XArray(range(10))
         with self.assertRaises(ValueError):
-            res = t.sample(2, seed=1)
+            t.sample(2, seed=1)
 
     def test_sample_err_lt(self):
         t = XArray(range(10))
         with self.assertRaises(ValueError):
-            res = t.sample(-0.5, seed=1)
+            t.sample(-0.5, seed=1)
+
 
 class TestXArraySaveAsText(unittest.TestCase):
     """ 
@@ -891,6 +1001,7 @@ class TestXArraySaveAsText(unittest.TestCase):
     """
     def test_save_as_text(self):
         pass
+
 
 class TestXArrayAll(unittest.TestCase):
     """ 
@@ -965,6 +1076,7 @@ class TestXArrayAll(unittest.TestCase):
     def test_all_empty(self):
         t = XArray([])
         self.assertTrue(t.all())
+
 
 class TestXArrayAny(unittest.TestCase):
     """ 
@@ -1068,7 +1180,7 @@ class TestXArrayAny(unittest.TestCase):
         self.assertTrue(t.any())
 
     def test_any_dict_true(self):
-        t = XArray([{}, {'a':  1}])
+        t = XArray([{}, {'a': 1}])
         self.assertTrue(t.any())
 
     def test_any_dict_false(self):
@@ -1087,6 +1199,7 @@ class TestXArrayAny(unittest.TestCase):
     def test_any_empty(self):
         t = XArray([])
         self.assertFalse(t.any())
+
 
 class TestXArrayMax(unittest.TestCase):
     """ 
@@ -1109,6 +1222,7 @@ class TestXArrayMax(unittest.TestCase):
         t = XArray([1.0, 2.0, 3.0])
         self.assertEqual(3.0, t.max())
 
+
 class TestXArrayMin(unittest.TestCase):
     """ 
     Tests XArray min
@@ -1129,6 +1243,7 @@ class TestXArrayMin(unittest.TestCase):
     def test_min_float(self):
         t = XArray([1.0, 2.0, 3.0])
         self.assertEqual(1.0, t.min())
+
 
 class TestXArraySum(unittest.TestCase):
     """ 
@@ -1151,6 +1266,7 @@ class TestXArraySum(unittest.TestCase):
         t = XArray([1.0, 2.0, 3.0])
         self.assertEqual(6.0, t.sum())
 
+
 class TestXArrayMean(unittest.TestCase):
     """ 
     Tests XArray mean
@@ -1172,6 +1288,7 @@ class TestXArrayMean(unittest.TestCase):
         t = XArray([1.0, 2.0, 3.0])
         self.assertEqual(2.0, t.mean())
 
+
 class TestXArrayStd(unittest.TestCase):
     """ 
     Tests XArray std
@@ -1187,13 +1304,14 @@ class TestXArrayStd(unittest.TestCase):
 
     def test_std_int(self):
         t = XArray([1, 2, 3])
-        expect = math.sqrt(2.0/3.0)
+        expect = math.sqrt(2.0 / 3.0)
         self.assertEqual(expect, t.std())
 
     def test_std_float(self):
         t = XArray([1.0, 2.0, 3.0])
-        expect = math.sqrt(2.0/3.0)
+        expect = math.sqrt(2.0 / 3.0)
         self.assertEqual(expect, t.std())
+
 
 class TestXArrayVar(unittest.TestCase):
     """ 
@@ -1210,13 +1328,14 @@ class TestXArrayVar(unittest.TestCase):
 
     def test_var_int(self):
         t = XArray([1, 2, 3])
-        expect = 2.0/3.0
+        expect = 2.0 / 3.0
         self.assertEqual(expect, t.var())
 
     def test_var_float(self):
         t = XArray([1.0, 2.0, 3.0])
-        expect = 2.0/3.0
+        expect = 2.0 / 3.0
         self.assertEqual(expect, t.var())
+
 
 class TestXArrayNumMissing(unittest.TestCase):
     """ 
@@ -1287,12 +1406,14 @@ class TestXArrayDatetimeToStr(unittest.TestCase):
     def test_datetime_to_str(self):
         pass
 
+
 class TestXArrayStrToDatetime(unittest.TestCase):
     """ 
     Tests XArray str_to_datetime
     """
     def test_str_to_datetime(self):
         pass
+
 
 class TestXArrayAstype(unittest.TestCase):
     """ 
@@ -1345,6 +1466,7 @@ class TestXArrayAstype(unittest.TestCase):
         self.assertEqual(dict, res.dtype())
         self.assertEqual({'a': 1, 'b': 2}, res[0])
 
+
 class TestXArrayClip(unittest.TestCase):
     """ 
     Tests XArray clip
@@ -1356,7 +1478,6 @@ class TestXArrayClip(unittest.TestCase):
         self.assertTrue(eq_list([1, 2, 3], res))
 
     def test_clip_int_def(self):
-        nan = float('nan')
         t = XArray([1, 2, 3])
         res = t.clip()
         self.assertTrue(eq_list([1, 2, 3], res))
@@ -1368,7 +1489,6 @@ class TestXArrayClip(unittest.TestCase):
         self.assertTrue(eq_list([1.0, 2.0, 3.0], res))
 
     def test_clip_float_def(self):
-        nan = float('nan')
         t = XArray([1.0, 2.0, 3.0])
         res = t.clip()
         self.assertTrue(eq_list([1.0, 2.0, 3.0], res))
@@ -1400,7 +1520,6 @@ class TestXArrayClip(unittest.TestCase):
         self.assertTrue(eq_list([[1, 2, 3]], res))
 
     def test_clip_list_def(self):
-        nan = float('nan')
         t = XArray([[1, 2, 3]])
         res = t.clip()
         self.assertTrue(eq_list([[1, 2, 3]], res))
@@ -1414,6 +1533,7 @@ class TestXArrayClip(unittest.TestCase):
         t = XArray([[1, 2, 3]])
         res = t.clip(2, 2)
         self.assertTrue(eq_list([[2, 2, 2]], res))
+
 
 class TestXArrayClipLower(unittest.TestCase):
     """ 
@@ -1464,6 +1584,7 @@ class TestXArrayClipUpper(unittest.TestCase):
         res = t.clip_upper(2)
         self.assertTrue(eq_list([[1, 2, 2]], res))
 
+
 class TestXArrayTail(unittest.TestCase):
     """ 
     Tests XArray tail
@@ -1471,10 +1592,10 @@ class TestXArrayTail(unittest.TestCase):
     def test_tail(self):
         t = XArray(range(1, 100))
         res = t.tail(10)
-        self.assertEqual(range(90,100), res)
+        self.assertEqual(range(90, 100), res)
 
     def test_tail_all(self):
-        t = XArray(range(1,100))
+        t = XArray(range(1, 100))
         res = t.tail(100)
         self.assertEqual(range(1, 100), res)
 
@@ -1527,6 +1648,7 @@ class TestXArrayFillna(unittest.TestCase):
         t = XArray([1.0, 2.0, float('nan')])
         res = t.fillna(10)
         self.assertTrue(eq_list([1.0, 2.0, 10.0], res))
+
 
 class TestXArrayTopkIndex(unittest.TestCase):
     """ 
@@ -1592,6 +1714,7 @@ class TestXArrayTopkIndex(unittest.TestCase):
         res = t.topk_index(1, reverse=True)
         self.assertTrue(eq_list([1, 0, 0], res))
 
+
 class TestXArraySketchSummary(unittest.TestCase):
     """ 
     Tests XArray sketch_summary
@@ -1655,6 +1778,7 @@ class TestXArraySketchSummary(unittest.TestCase):
         self.assertEqual(3, ss.frequency_count(3))
         self.assertEqual(1, ss.frequency_count(5))
 
+
 class TestXArrayAppend(unittest.TestCase):
     """ 
     Tests XArray append
@@ -1681,13 +1805,14 @@ class TestXArrayAppend(unittest.TestCase):
         t = XArray([1, 2, 3])
         u = XArray([10., 20., 30.])
         with self.assertRaises(RuntimeError):
-            res = t.append(u)
+            t.append(u)
 
     def test_append_int_str_err(self):
         t = XArray([1, 2, 3])
         u = XArray(['a', 'b', 'c'])
         with self.assertRaises(RuntimeError):
-            res = t.append(u)
+            t.append(u)
+
 
 class TestXArrayUnique(unittest.TestCase):
     """ 
@@ -1697,7 +1822,7 @@ class TestXArrayUnique(unittest.TestCase):
     def test_unique_dict_err(self):
         t = XArray([{'a': 1, 'b': 2, 'c': 3}])
         with self.assertRaises(TypeError):
-            res = t.unique()
+            t.unique()
 
     def test_unique_int_noop(self):
         t = XArray([1, 2, 3])
@@ -1725,7 +1850,7 @@ class TestXArrayUnique(unittest.TestCase):
         res = t.unique()
         print 'after unique; before compare'
         print res.dump_debug_info()
-        answer =  (expected == res)
+        answer = (expected == res)
         print answer
         print 'after compare; before all'
         result = answer.all()
@@ -1748,6 +1873,7 @@ class TestXArrayUnique(unittest.TestCase):
         res = t.unique()
         self.assertTrue(eq_list(['1', '3', '2'], res))
 
+
 class TestXArrayItemLength(unittest.TestCase):
     """ 
     Tests XArray item_length
@@ -1755,81 +1881,90 @@ class TestXArrayItemLength(unittest.TestCase):
     def test_item_length_int(self):
         t = XArray([1, 2, 3])
         with self.assertRaises(TypeError):
-            res = t.item_length()
+            t.item_length()
 
     def test_item_length_float(self):
         t = XArray([1.0, 2.0, 3.0])
         with self.assertRaises(TypeError):
-            res = t.item_length()
+            t.item_length()
 
     def test_item_length_str(self):
-        t = XArray(['a', 'b', 'c'])
-        with self.assertRaises(TypeError):
-            res = t.item_length()
+        t = XArray(['a', 'bb', 'ccc'])
+        res = t.item_length()
+        self.assertTrue(eq_list([1, 2, 3], res))
+        self.assertEqual(int, res.dtype())
 
     def test_item_length_list(self):
         t = XArray([[1], [1, 2], [1, 2, 3]])
         res = t.item_length()
         self.assertTrue(eq_list([1, 2, 3], res))
+        self.assertEqual(int, res.dtype())
 
     def test_item_length_dict(self):
-        pass
-##### something is missing here #####
+        t = XArray([{1: 'a'}, {1: 'a', 2: 'b'}, {1: 'a', 2: 'b', 3: '3'}])
+        res = t.item_length()
+        self.assertTrue(eq_list([1, 2, 3], res))
+        self.assertEqual(int, res.dtype())
 
+
+class TestXArrayUnpackErrors(unittest.TestCase):
+    """ 
+    Tests XArray unpack errors
+    """
     def test_unpack_str(self):
         t = XArray(['a', 'b', 'c'])
         with self.assertRaises(TypeError):
-            res = t.unpack()
+            t.unpack()
 
     def test_unpack_bad_prefix(self):
         t = XArray([[1, 2, 3], [4, 5, 6]])
         with self.assertRaises(TypeError):
-            res = t.unpack(column_name_prefix=1)
+            t.unpack(column_name_prefix=1)
 
     def test_unpack_bad_limit_type(self):
         t = XArray([[1, 2, 3], [4, 5, 6]])
         with self.assertRaises(TypeError):
-            res = t.unpack(limit=1)
+            t.unpack(limit=1)
 
     def test_unpack_bad_limit_val(self):
         t = XArray([[1, 2, 3], [4, 5, 6]])
         with self.assertRaises(TypeError):
-            res = t.unpack(limit=['a', 1])
+            t.unpack(limit=['a', 1])
 
     def test_unpack_bad_limit_dup(self):
         t = XArray([[1, 2, 3], [4, 5, 6]])
         with self.assertRaises(ValueError):
-            res = t.unpack(limit=[1, 1])
+            t.unpack(limit=[1, 1])
 
     def test_unpack_bad_column_types(self):
         t = XArray([[1, 2, 3], [4, 5, 6]])
         with self.assertRaises(TypeError):
-            res = t.unpack(column_types=1)
+            t.unpack(column_types=1)
 
     def test_unpack_bad_column_types_bool(self):
         t = XArray([[1, 2, 3], [4, 5, 6]])
         with self.assertRaises(TypeError):
-            res = t.unpack(column_types=[True])
+            t.unpack(column_types=[True])
 
     def test_unpack_column_types_limit_mismatch(self):
         t = XArray([[1, 2, 3], [4, 5, 6]])
         with self.assertRaises(ValueError):
-            res = t.unpack(limit=[1], column_types=[int, int])
+            t.unpack(limit=[1], column_types=[int, int])
 
     def test_unpack_dict_column_types_no_limit(self):
         t = XArray([{'a': 1, 'b': 2}, {'c': 3, 'd': 4}])
         with self.assertRaises(ValueError):
-            res = t.unpack(column_types=[int, int])
+            t.unpack(column_types=[int, int])
 
     def test_unpack_empty_no_column_types(self):
         t = XArray([], dtype=list)
         with self.assertRaises(RuntimeError):
-            res = t.unpack()
+            t.unpack()
 
     def test_unpack_empty_list_column_types(self):
         t = XArray([[]], dtype=list)
         with self.assertRaises(RuntimeError):
-            res = t.unpack()
+            t.unpack()
 
 
 class TestXArrayUnpack(unittest.TestCase):
@@ -1897,10 +2032,10 @@ class TestXArrayUnpack(unittest.TestCase):
         self.assertTrue([0, 1, None], res[2])
 
     def test_unpack_dict_limit(self):
-        t = XArray([{ 'word': 'a',     'count': 1},
-                    { 'word': 'cat',   'count': 2},
-                    { 'word': 'is',    'count': 3},
-                    { 'word': 'coming','count': 4}])
+        t = XArray([{'word': 'a', 'count': 1},
+                    {'word': 'cat', 'count': 2},
+                    {'word': 'is', 'count': 3},
+                    {'word': 'coming', 'count': 4}])
         res = t.unpack(limit=['word', 'count'], column_types=[str, int])
         self.assertEqual(['X.word', 'X.count'], res.column_names())
         self.assertTrue(['a', 1], res[0])
@@ -1909,10 +2044,10 @@ class TestXArrayUnpack(unittest.TestCase):
         self.assertTrue(['coming', 4], res[3])
 
     def test_unpack_dict_limit_word(self):
-        t = XArray([{ 'word': 'a',     'count': 1},
-                    { 'word': 'cat',   'count': 2},
-                    { 'word': 'is',    'count': 3},
-                    { 'word': 'coming','count': 4}])
+        t = XArray([{'word': 'a', 'count': 1},
+                    {'word': 'cat', 'count': 2},
+                    {'word': 'is', 'count': 3},
+                    {'word': 'coming', 'count': 4}])
         res = t.unpack(limit=['word'])
         self.assertEqual(['X.word'], res.column_names())
         self.assertTrue(['a'], res[0])
@@ -1921,10 +2056,10 @@ class TestXArrayUnpack(unittest.TestCase):
         self.assertTrue(['coming'], res[3])
 
     def test_unpack_dict_limit_count(self):
-        t = XArray([{ 'word': 'a',     'count': 1},
-                    { 'word': 'cat',   'count': 2},
-                    { 'word': 'is',    'count': 3},
-                    { 'word': 'coming','count': 4}])
+        t = XArray([{'word': 'a', 'count': 1},
+                    {'word': 'cat', 'count': 2},
+                    {'word': 'is', 'count': 3},
+                    {'word': 'coming', 'count': 4}])
         res = t.unpack(limit=['count'])
         self.assertEqual(['X.count'], res.column_names())
         self.assertTrue([1], res[0])
@@ -1933,10 +2068,10 @@ class TestXArrayUnpack(unittest.TestCase):
         self.assertTrue([4], res[3])
 
     def test_unpack_dict_incomplete(self):
-        t = XArray([{ 'word': 'a',     'count': 1},
-                    { 'word': 'cat',   'count': 2},
-                    { 'word': 'is'},
-                    { 'word': 'coming','count': 4}])
+        t = XArray([{'word': 'a', 'count': 1},
+                    {'word': 'cat', 'count': 2},
+                    {'word': 'is'},
+                    {'word': 'coming', 'count': 4}])
         res = t.unpack(limit=['word', 'count'], column_types=[str, int])
         self.assertEqual(['X.word', 'X.count'], res.column_names())
         self.assertTrue(['a', 1], res[0])
@@ -1945,10 +2080,10 @@ class TestXArrayUnpack(unittest.TestCase):
         self.assertTrue(['coming', 4], res[3])
 
     def test_unpack_dict(self):
-        t = XArray([{ 'word': 'a',     'count': 1},
-                    { 'word': 'cat',   'count': 2},
-                    { 'word': 'is',    'count': 3},
-                    { 'word': 'coming','count': 4}])
+        t = XArray([{'word': 'a', 'count': 1},
+                    {'word': 'cat', 'count': 2},
+                    {'word': 'is', 'count': 3},
+                    {'word': 'coming', 'count': 4}])
         res = t.unpack()
         self.assertEqual(['X.count', 'X.word'], res.column_names())
         self.assertTrue([1, 'a'], res[0])
@@ -1957,10 +2092,10 @@ class TestXArrayUnpack(unittest.TestCase):
         self.assertTrue([4, 'coming'], res[3])
 
     def test_unpack_dict_no_prefix(self):
-        t = XArray([{ 'word': 'a',     'count': 1},
-                    { 'word': 'cat',   'count': 2},
-                    { 'word': 'is',    'count': 3},
-                    { 'word': 'coming','count': 4}])
+        t = XArray([{'word': 'a', 'count': 1},
+                    {'word': 'cat', 'count': 2},
+                    {'word': 'is', 'count': 3},
+                    {'word': 'coming', 'count': 4}])
         res = t.unpack(column_name_prefix=None)
         self.assertEqual(['count', 'word'], res.column_names())
         self.assertTrue([1, 'a'], res[0])
@@ -1991,12 +2126,12 @@ class TestXArraySort(unittest.TestCase):
     def test_sort_list(self):
         t = XArray([[3, 4], [2, 3], [1, 2]])
         with self.assertRaises(TypeError):
-            res = t.sort()
+            t.sort()
 
     def test_sort_dict(self):
         t = XArray([{'c': 3}, {'b': 2}, {'a': 1}])
         with self.assertRaises(TypeError):
-            res = t.sort()
+            t.sort()
 
     def test_sort_int_desc(self):
         t = XArray([1, 2, 3])
@@ -2013,6 +2148,7 @@ class TestXArraySort(unittest.TestCase):
         res = t.sort(ascending=False)
         self.assertTrue(eq_list(['c', 'b', 'a'], res))
 
+
 class TestXArrayDictTrimByKeys(unittest.TestCase):
     """ 
     Tests XArray dict_trim_by_keys
@@ -2020,7 +2156,7 @@ class TestXArrayDictTrimByKeys(unittest.TestCase):
     def test_dict_trim_by_keys_bad_type(self):
         t = XArray([3, 2, 1])
         with self.assertRaises(TypeError):
-            res = t.dict_trim_by_keys(['a'])
+            t.dict_trim_by_keys(['a'])
 
     def test_dict_trim_by_keys_include(self):
         t = XArray([{'a': 0, 'b': 0, 'c': 0}, {'x': 1}])
@@ -2040,26 +2176,28 @@ class TestXArrayDictTrimByValues(unittest.TestCase):
     def test_dict_trim_by_values_bad_type(self):
         t = XArray([3, 2, 1])
         with self.assertRaises(TypeError):
-            res = t.dict_trim_by_values(1, 2)
+            t.dict_trim_by_values(1, 2)
 
     def test_dict_trim_by_values(self):
         t = XArray([{'a': 0, 'b': 1, 'c': 2, 'd': 3}, {'x': 1}])
         res = t.dict_trim_by_values(1, 2)
         self.assertEqual([{'b': 1, 'c': 2}, {'x': 1}], res)
 
+
 class TestXArrayDictKeys(unittest.TestCase):
     """ 
     Tests XArray dict_keys
     """
+    # noinspection PyArgumentList
     def test_dict_keys_bad_type(self):
         t = XArray([3, 2, 1])
         with self.assertRaises(TypeError):
-            res = t.dict_keys(['a'])
+            t.dict_keys(['a'])
 
     def test_dict_keys_bad_len(self):
         t = XArray([{'a': 0, 'b': 0, 'c': 0}, {'x': 1}])
         with self.assertRaises(ValueError):
-            res = t.dict_keys()
+            t.dict_keys()
 
     def test_dict_keys(self):
         t = XArray([{'a': 0, 'b': 0, 'c': 0}, {'x': 1, 'y': 2, 'z': 3}])
@@ -2068,19 +2206,21 @@ class TestXArrayDictKeys(unittest.TestCase):
         self.assertEqual({'X.0': 'a', 'X.1': 'c', 'X.2': 'b'}, res[0])
         self.assertEqual({'X.0': 'y', 'X.1': 'x', 'X.2': 'z'}, res[1])
 
+
 class TestXArrayDictValues(unittest.TestCase):
     """ 
     Tests XArray dict_values
     """
+    # noinspection PyArgumentList
     def test_values_bad_type(self):
         t = XArray([3, 2, 1])
         with self.assertRaises(TypeError):
-            res = t.dict_values(['a'])
+            t.dict_values(['a'])
 
     def test_values_bad_len(self):
         t = XArray([{'a': 0, 'b': 1, 'c': 2}, {'x': 10}])
         with self.assertRaises(ValueError):
-            res = t.dict_values()
+            t.dict_values()
 
     def test_values(self):
         t = XArray([{'a': 0, 'b': 1, 'c': 2}, {'x': 10, 'y': 20, 'z': 30}])
@@ -2089,6 +2229,7 @@ class TestXArrayDictValues(unittest.TestCase):
         self.assertEqual({'X.0': 0, 'X.1': 2, 'X.2': 1}, res[0])
         self.assertEqual({'X.0': 20, 'X.1': 10, 'X.2': 30}, res[1])
 
+
 class TestXArrayDictHasAnyKeys(unittest.TestCase):
     """ 
     Tests XArray dict_has_any_keys
@@ -2096,12 +2237,13 @@ class TestXArrayDictHasAnyKeys(unittest.TestCase):
     def test_dict_has_any_keys_bad(self):
         t = XArray([3, 2, 1])
         with self.assertRaises(TypeError):
-            res = t.dict_has_any_keys(['a'])
+            t.dict_has_any_keys(['a'])
 
     def test_dict_has_any_keys(self):
         t = XArray([{'a': 0, 'b': 0, 'c': 0}, {'x': 1}])
         res = t.dict_has_any_keys(['a'])
         self.assertEqual([True, False], res)
+
 
 class TestXArrayDictHasAllKeys(unittest.TestCase):
     """ 
@@ -2110,7 +2252,7 @@ class TestXArrayDictHasAllKeys(unittest.TestCase):
     def test_dict_has_all_keys_bad(self):
         t = XArray([3, 2, 1])
         with self.assertRaises(TypeError):
-            res = t.dict_has_all_keys(['a'])
+            t.dict_has_all_keys(['a'])
 
     def test_dict_has_all_keys(self):
         t = XArray([{'a': 0, 'b': 0, 'c': 0}, {'a': 1, 'b': 1}])
@@ -2119,4 +2261,3 @@ class TestXArrayDictHasAllKeys(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
