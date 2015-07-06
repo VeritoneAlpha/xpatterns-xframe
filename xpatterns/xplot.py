@@ -78,17 +78,6 @@ class XPlot(object):
             y_pos = np.arange(len(items))
             vals = [int(key[1]) for key in items]
             labels = [key[0] for key in items]
-#            fig = plt.figure()
-#            axes = fig.add_axes(self.axes)
-#            axes.barh(y_pos, vals, align='center', alpha=self.alpha)
-#            axes.set_yticks(y_pos)
-#            axes.set_yticklabels(labels)
-#            xlabel = xlabel or x_col
-#            ylabel = ylabel or y_col
-#            axes.set_xlabel(xlabel)
-#            axes.set_ylabel(ylabel)
-#            if title:
-#                axes.set_title(title)
             plt.barh(y_pos, vals, align='center', alpha=self.alpha)
             plt.yticks(y_pos, labels)
             xlabel = xlabel or x_col
@@ -187,8 +176,6 @@ class XPlot(object):
         q_lower = float(sk.quantile(lower_cutoff)) - q_epsilon
         q_upper = float(sk.quantile(upper_cutoff)) + q_epsilon
         try:
-            #fig = plt.figure()
-            #axes = fig.add_axes(self.axes)
             xlabel = xlabel or col_name
             ylabel = ylabel or 'Count'
             vals = self.xframe[col_name].dropna()
