@@ -1,4 +1,4 @@
-xFrame 0.1 Library (BETA)
+xFrame 0.2 Library (BETA)
 ==============================
 
 The xFrame Library provides a consistent and scaleable data science library that is built on top of industry-standard open source technologies. 
@@ -34,7 +34,7 @@ Minimum Requirements
 Download Library
 ----------------
 ```
-git clone https://github.com/atigeo/xframe.git xframe
+git clone https://github.com/Atigeo/xpatterns-xframe.git xframe
 ```
 
 Build docker container

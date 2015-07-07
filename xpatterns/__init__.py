@@ -1,6 +1,6 @@
 __all__ = ['xframe', 'xarray', 'xplot', 'sketch']
 
-__version__ = '0.1.1'
+__version__ = '0.2.0'
 
 
 from xpatterns.spark_context import SparkInitContext
