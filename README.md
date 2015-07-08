@@ -1,5 +1,5 @@
 xFrame 0.2 Library (BETA)
-==============================
+=========================
 
 The xFrame Library provides a consistent and scaleable data science library that is built on top of industry-standard open source technologies. 
 xFrame provides the following advantages compared to other DataFrame implementations:
