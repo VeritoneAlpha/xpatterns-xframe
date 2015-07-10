@@ -38,6 +38,18 @@ class XRdd(object):
         self._entry(structure_id)
         self._exit()
 
+    def print_trace(self):
+        stack = inspect.stack()
+        caller = stack[1]
+        called_by = stack[2]
+        print 'enter method:', caller[3], \
+                'called by', called_by[3], '({}: {})'.format(called_by[1], called_by[2]), \
+                'id:', self.structure_id, self.id
+        # print a few frames beyond the top
+        for i in range(3, 8): 
+                if stack[i][3] == '<module>': break
+                print '   ', stack[i][3], stack[i][1], stack[i][2]
+
     def _entry(self, *args):
         """ Trace function entry. """
         if not XRdd.entry_trace and not XRdd.perf_count: return
