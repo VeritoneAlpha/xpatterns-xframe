@@ -12,6 +12,8 @@ import copy
 import StringIO
 import random
 
+import numpy as np
+
 from xpatterns.xobject_impl import XObjectImpl
 from xpatterns.spark_context import spark_context
 from xpatterns.util import infer_type_of_list, cache, uncache
@@ -680,17 +682,18 @@ class XArrayImpl(XObjectImpl):
             random.seed(seed)
 
         def apply_and_cast(x, fn, dtype, skip_undefined):
-            if is_missing(x) and skip_undefined: return None
+            fnx = fn(x)
+            if is_missing(fnx) and skip_undefined: return None
             try:
-                return dtype(fn(x))
+                return dtype(fnx)
             except TypeError:
-                return TypeError
+                return TypeError('error converting "{}" to {}'.format(fnx, dtype))
 
         res = self._rdd.map(lambda x: apply_and_cast(x, fn, dtype, skip_undefined))
         # search for type error and throw exception
         errs = res.filter(lambda x: x is TypeError).take(1)
         if len(errs) > 0:
-            raise ValueError('type conversion failure')
+            raise ValueError('Type conversion failure: {}'.format(errs[0].msg))
         self._exit()
         return self._rv(res, dtype)
 
@@ -751,7 +754,7 @@ class XArrayImpl(XObjectImpl):
                 raise ValueError
             except ValueError as e:
                 if undefined_on_failure:
-                    return float('nan') if dtype == float else None
+                    return np.nan if dtype == float else None
                 raise e
         res = self._rdd.map(lambda x: convert_type(x, dtype))
         self._exit()
@@ -768,8 +771,8 @@ class XArrayImpl(XObjectImpl):
         self._entry(lower, upper)
 
         def clip_val(x, lower, upper):
-            if x < lower: return lower
-            elif x > upper: return upper
+            if not math.isnan(lower) and x < lower: return lower
+            elif not math.isnan(upper) and x > upper: return upper
             else: return x
 
         def clip_list(x, lower, upper):
