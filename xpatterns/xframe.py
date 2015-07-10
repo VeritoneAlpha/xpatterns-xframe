@@ -22,6 +22,8 @@ import inspect
 import time
 import itertools
 
+import numpy
+
 from xpatterns.deps import pandas, HAS_PANDAS
 from xpatterns.deps import dataframeplus, HAS_DATAFRAME_PLUS
 from xpatterns.xobject import XObject
@@ -482,7 +484,8 @@ class XFrame(XObject):
                 # Get the first 100 rows (using all the desired arguments).
                 # first row may be excluded (based on heder setting)
                 first_rows = xpatterns.XFrame.read_csv(
-                    url, nrows=100,
+                    url,
+                    nrows=100,
                     column_type_hints=str,
                     header=header,
                     delimiter=delimiter,
@@ -4125,8 +4128,9 @@ class XFrame(XObject):
                 raise TypeError('Only string parameter can be passed in as column names.')
             if column not in my_column_names:
                 raise ValueError("XFrame has no column named: '{}'.".format(column))
-            if self[column].dtype() not in (str, int, float, datetime.datetime):
-                raise TypeError("Only columns of type ('str', 'int', 'float') can be sorted.")
+            if self[column].dtype() not in (str, int, float, numpy.int32, datetime.datetime):
+                raise TypeError("Only columns of type ('str', 'int', 'float', 'numpy.int32') can be sorted: {}."
+                                .format(self[column].dtype()))
 
         return XFrame(impl=self.__impl__.sort(sort_column_names, sort_column_orders))
 
