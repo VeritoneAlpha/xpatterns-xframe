@@ -235,6 +235,16 @@ class FreqSketch(object):
     def merge_accumulators(acc1, acc2):
         """
         Add two accumulators, for use with aggregate.
+
+        Notes
+        -----
+        If the dictionaries contain keys of float('nan') then this will not work.
+        To begin with, dictionaries treat different instances of float('nan') as distinct
+        so there may be many keys that look alike.  Even if you use the singleton np.nan, spark
+        serialization does not seem to preserve this property.
+
+        It is recommended that the caller transform NaN into None before doing frequency
+        counts to work around this limitation.
         """
         ans = dict(acc1)
         for key in acc2:
