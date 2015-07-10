@@ -35,8 +35,8 @@ class SketchImpl(object):
         self.sum_val = 0
         self.variance_val = 0.0
         self.stdev_val = 0.0
-        self.num_undefined_val = 0
-        self.num_unique_val = 0
+        self.num_undefined_val = None
+        self.num_unique_val = None
         self.quantile_accumulator = None
         self.frequency_sketch = None
         self.quantile_accum = None
@@ -93,8 +93,8 @@ class SketchImpl(object):
 
     def _create_frequency_sketch(self):
         num_items = 500
-        epsilon = 0.01
-        delta = 0.1
+        epsilon = 0.0001
+        delta = 0.01
         accumulator = FreqSketch(num_items, epsilon, delta)
         accumulators = self._rdd.mapPartitions(accumulator.iterate_values)
         return accumulators.aggregate(FreqSketch.initial_accumulator_value(), 
