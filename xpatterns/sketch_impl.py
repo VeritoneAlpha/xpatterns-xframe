@@ -5,6 +5,8 @@ This module provides an implementation of Sketch using pySpark RDDs.
 import inspect
 import math
 
+import numpy as np
+
 from xpatterns.dsq import QuantileAccumulator
 from xpatterns.frequent import FreqSketch
 
@@ -26,15 +28,15 @@ class SketchImpl(object):
         self._entry()
         self._rdd = None
         self.sketch_type = None
-        self.count = None
-        self.min_val = None
-        self.max_val = None
-        self.mean_val = None
-        self.sum_val = None
-        self.variance_val = None
-        self.stdev_val = None
-        self.num_undefined_val = None
-        self.num_unique_val = None
+        self.count = 0
+        self.min_val = np.nan
+        self.max_val = np.nan
+        self.mean_val = 0
+        self.sum_val = 0
+        self.variance_val = 0.0
+        self.stdev_val = 0.0
+        self.num_undefined_val = 0
+        self.num_unique_val = 0
         self.quantile_accumulator = None
         self.frequency_sketch = None
         self.quantile_accum = None
