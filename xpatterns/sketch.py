@@ -260,7 +260,7 @@ class Sketch(object):
         Returns
         -------
         out : type of XArray
-            Maximum value of XArray. Returns nan if the XArray is empty.
+            Maximum value of XArray. Returns *nan* if the XArray is empty.
         """
         return self.__impl__.max()
 
@@ -277,7 +277,7 @@ class Sketch(object):
         Returns
         -------
         out : type of XArray
-            Minimum value of XArray. Returns nan if the xarray is empty.
+            Minimum value of XArray. Returns *nan* if the xarray is empty.
         """
         return self.__impl__.min()
 
