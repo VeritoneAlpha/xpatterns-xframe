@@ -22,15 +22,14 @@ import inspect
 import time
 import itertools
 
-import numpy
-
 from xpatterns.deps import pandas, HAS_PANDAS
 from xpatterns.deps import dataframeplus, HAS_DATAFRAME_PLUS
 from xpatterns.xobject import XObject
 from xpatterns.xframe_impl import XFrameImpl
 from xpatterns.xplot import XPlot
 from xpatterns.xarray_impl import infer_type_of_list
-from util import make_internal_url, classify_type
+from xpatterns.util import make_internal_url, classify_type
+import xpatterns.util as util
 from xpatterns.xarray import XArray
 import xpatterns
 
@@ -1763,7 +1762,7 @@ class XFrame(XObject):
                 return [None]
             val = val.replace('$', '', 1).replace(',', '')
             if len(val) == 0:
-                return [numpy.nan]
+                return [util.nan]
             try:
                 return [float(val)]
             except ValueError:
@@ -4203,7 +4202,11 @@ class XFrame(XObject):
                 raise TypeError('Only string parameter can be passed in as column names.')
             if column not in my_column_names:
                 raise ValueError("XFrame has no column named: '{}'.".format(column))
-            if self[column].dtype() not in (str, int, float, numpy.int32, datetime.datetime):
+            if USE_NUMPY:
+                sortable_types = (str, int, float, numpy.int32, datetime.datetime)
+            else:
+                sortable_types = (str, int, float, datetime.datetime)
+            if self[column].dtype() not in sortable_types:
                 raise TypeError("Only columns of type ('str', 'int', 'float', 'numpy.int32') can be sorted: {}."
                                 .format(self[column].dtype()))
 

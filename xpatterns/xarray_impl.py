@@ -12,10 +12,9 @@ import copy
 import StringIO
 import random
 
-import numpy as np
-
 from xpatterns.xobject_impl import XObjectImpl
 from xpatterns.spark_context import spark_context
+import xpatterns.util as util
 from xpatterns.util import infer_type_of_list, cache, uncache
 from xpatterns.util import delete_file_or_dir, infer_type, infer_types
 from xpatterns.util import is_missing
@@ -758,7 +757,7 @@ class XArrayImpl(XObjectImpl):
                 raise ValueError
             except ValueError as e:
                 if undefined_on_failure:
-                    return np.nan if dtype == float else None
+                    return util.nan if dtype == float else None
                 raise e
         res = self._rdd.map(lambda x: convert_type(x, dtype))
         self._exit()

@@ -3,7 +3,7 @@ This module provides aggregator properties, used to define aggregators for group
 """
 
 import random
-import numpy
+import math
 
 # Each of these functions operates on a pyspark resultIterable
 #  produced by groupByKey and directly produces the aggregated result.
@@ -44,17 +44,17 @@ def agg_count(rows, cols):
 def agg_avg(rows, cols): 
     # cols: [src_col]
     vals = [row[cols[0]] for row in rows]
-    return numpy.mean(vals)
+    return sum(vals) / float(len(vals))
 
 def agg_var(rows, cols): 
     # cols: [src_col]
     vals = [row[cols[0]] for row in rows]
-    return numpy.var(vals)
+    avg = sum(vals) / float(len(vals))
+    return sum([(avg - val) ** 2 for val in vals]) / float(len(vals))
 
 def agg_std(rows, cols): 
     # cols: [src_col]
-    vals = [row[cols[0]] for row in rows]
-    return numpy.std(vals)
+    return math.sqrt(agg_var(rows, cols))
 
 def agg_select_one(rows, cols):
     # cols: [src_col, seed]

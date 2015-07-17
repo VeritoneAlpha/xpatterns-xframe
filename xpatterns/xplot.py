@@ -3,7 +3,6 @@ import traceback
 import operator
 import math
 
-import numpy as np
 import matplotlib.pyplot as plt
 
 import xpatterns
@@ -46,7 +45,7 @@ class XPlot(object):
     def make_barh(self, items, xlabel, ylabel, title=None):
         if items is not None and len(items) > 0:
             try:
-                y_pos = np.arange(len(items))
+                y_pos = range(len(items))
                 vals = [int(key[1]) for key in items]
                 labels = [str(key[0])[:30] for key in items]
                 plt.barh(y_pos, vals, align='center', alpha=self.alpha)
@@ -67,7 +66,7 @@ class XPlot(object):
             try:
                 counts = [col[1] for col in items]
                 vals = [col[0] for col in items]
-                y_pos = np.arange(len(counts))
+                y_pos = range(len(counts))
                 plt.bar(y_pos, counts, align='center', alpha=self.alpha)
                 plt.xlabel(xlabel)
                 plt.ylabel(ylabel)

@@ -16,7 +16,6 @@ All rights reserved.
 
 import inspect
 import math
-import numpy
 import time
 import array
 import warnings
@@ -144,7 +143,7 @@ class XArray(XObject):
 
         if HAS_PANDAS and isinstance(data, pandas.Series):
             self.__impl__ = XArrayImpl.load_from_iterable(data.values, dtype, ignore_cast_failure)
-        elif isinstance(data, numpy.ndarray) \
+        elif HAS_NUMPY and isinstance(data, numpy.ndarray) \
                 or isinstance(data, list) \
                 or isinstance(data, array.array):
             self.__impl__ = XArrayImpl.load_from_iterable(data, dtype, ignore_cast_failure)
@@ -174,7 +173,7 @@ class XArray(XObject):
                 dtype = infer_type_of_list(data)
             return dtype
 
-        elif isinstance(data, numpy.ndarray):
+        elif HAS_NUMPY and isinstance(data, numpy.ndarray):
             # if it is a numpy array, get the dtype of the array
             dtype = pytype_from_dtype(data.dtype)
             if dtype == object:

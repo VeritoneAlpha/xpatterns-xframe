@@ -14,7 +14,6 @@ import ast
 
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField
-import numpy as np
 
 from xpatterns.xobject_impl import XObjectImpl
 from xpatterns.util import infer_type_of_rdd
@@ -158,8 +157,9 @@ class XFrameImpl(XObjectImpl):
         columns = data.columns
         dtypes = data.dtypes
         column_names = [col for col in columns]
+        #column_types = [type(np.zeros(1, dtype).tolist()[0]) for dtype in dtypes]
+        column_types = dtypes
 
-        column_types = [type(np.zeros(1, dtype).tolist()[0]) for dtype in dtypes]
         res = []
         for row in data.iterrows():
             rowval = row[1]
