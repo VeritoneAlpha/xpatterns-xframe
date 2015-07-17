@@ -32,6 +32,8 @@ from xpatterns.xobject import XObject
 
 __LOGGER__ = _logging.getLogger(__name__)
 
+# Not a number singleton
+nan = float('nan')
 
 # noinspection PyUnresolvedReferences
 def get_credentials():
