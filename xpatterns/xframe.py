@@ -1649,7 +1649,7 @@ class XFrame(XObject):
             The function to transform each row of the XFrame. The return
             value should be a list of values, one for each column of cols.
             each type should be convertible to the corresponding `dtype` if `dtype` is not None.
-            If the function is not give, an identity function is used.
+            If the function is not given, an identity function is used.
 
         dtypes : list of dtype, optional
             The dtypes of the new XArray. There must be one
@@ -1669,7 +1669,7 @@ class XFrame(XObject):
         >>> xf.transform_col(['movie_id', 'rating'], lambda row: [row['movie_id'] + 1, row['rating'] * 2])
 
 
-        Case types in several columns:
+        Cast types in several columns:
 
         >>> xf = xpatterns.XFrame({'user_id': [1, 2, 3], 'movie_id': [3, 3, 6],
                                   'rating': [4, 5, 1]})
@@ -1702,6 +1702,81 @@ class XFrame(XObject):
             seed = int(time.time())
 
         return XFrame(impl=self.__impl__.transform_cols(cols, fn, dtypes, seed))
+
+    def detect_type_and_cast(self, column_name):
+        """
+        If the column is of string type, and the values can all be interpreted as
+        integer or float values, then cast the column to the numerical type.
+
+        Parameters
+        ----------
+        column_name : str
+        The name of the column to cast.
+
+        Example
+        --------
+
+        >>> xf = xpatterns.XFrame({'value': ['1', '2', '3']})
+        >>> xf.detect_type_and_cast('value')
+
+        """
+        column = self.__getitem__(column_name)
+        if column.dtype() is not str:
+            return self
+
+        def classify_type(s):
+            if type(s) != str:
+                return 'expected str, got {}: {}'.format(type(s), s)
+            if len(s) == 0:
+                return ''
+            s = s.replace('$', '', 1).replace(',', '')
+            if s.startswith('-'):
+                s = s[1:]
+            if s.isdigit(): return 'int'
+            if s.replace('.', '', 1).isdigit(): return 'float'
+            return 'str'
+
+        types = list(column.apply(classify_type).unique())
+        if len(types) == 2 and '' in types and 'int' in types:
+            types = ['float']
+        if '' in types: types.remove('')
+        if len(types) != 1:
+            return self
+        if len(types) == 1 and types[0] == 'str':
+            return self
+
+        def cast_int(row):
+            val = row[column_name]
+            if val is None:
+                return [None]
+            val = val.replace('$', '', 1).replace(',', '')
+            if len(val) == 0:
+                return [None]
+            try:
+                return [int(val)]
+            except ValueError:
+                raise ValueError('Cast failed: (int) {}'.format(val))
+
+        def cast_float(row):
+            val = row[column_name]
+            if val is None:
+                return [None]
+            val = val.replace('$', '', 1).replace(',', '')
+            if len(val) == 0:
+                return [numpy.nan]
+            try:
+                return [float(val)]
+            except ValueError:
+                raise ValueError('Cast failed: (float) {}'.format(val))
+
+        if len(types) == 1 and 'int' in types:
+            return XFrame(impl=self.__impl__.transform_cols([column_name], cast_int, [int], 0))
+        if len(types) == 1 and 'float' in types:
+            return XFrame(impl=self.__impl__.transform_cols([column_name], cast_float, [float], 0))
+        if len(types) == 2 and 'float' in types and 'int' in types:
+            return XFrame(impl=self.__impl__.transform_cols([column_name], cast_float, [float], 0))
+
+        return self
 
     def flat_map(self, column_names, fn, column_types='auto', seed=None):
         """
