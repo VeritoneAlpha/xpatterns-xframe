@@ -40,6 +40,16 @@ except:
 
 
 try:
+    import matplotlib
+
+    HAS_MATPLOTLIB = True
+
+except:
+    HAS_MATPLOTLIB = False
+    import matplotlib_mock as matplotlib
+
+
+try:
     from xpatterns.analytics import dataframeplus
     HAS_DATAFRAME_PLUS = True
 
