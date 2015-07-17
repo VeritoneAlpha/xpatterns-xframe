@@ -24,6 +24,7 @@ import itertools
 
 from xpatterns.deps import pandas, HAS_PANDAS
 from xpatterns.deps import dataframeplus, HAS_DATAFRAME_PLUS
+from xpatterns.deps import numpy, HAS_NUMPY
 from xpatterns.xobject import XObject
 from xpatterns.xframe_impl import XFrameImpl
 from xpatterns.xplot import XPlot
@@ -4202,7 +4203,7 @@ class XFrame(XObject):
                 raise TypeError('Only string parameter can be passed in as column names.')
             if column not in my_column_names:
                 raise ValueError("XFrame has no column named: '{}'.".format(column))
-            if USE_NUMPY:
+            if HAS_NUMPY:
                 sortable_types = (str, int, float, numpy.int32, datetime.datetime)
             else:
                 sortable_types = (str, int, float, datetime.datetime)

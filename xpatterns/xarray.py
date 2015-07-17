@@ -22,6 +22,7 @@ import warnings
 import datetime
 
 from xpatterns.deps import pandas, HAS_PANDAS
+from xpatterns.deps import numpy, HAS_NUMPY
 from xpatterns.xobject import XObject
 from xpatterns.xarray_impl import XArrayImpl, infer_type_of_list
 from util import make_internal_url

@@ -15,6 +15,8 @@ import ast
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField
 
+from xpatterns.deps import pandas, HAS_PANDAS
+from xpatterns.deps import numpy, HAS_NUMPY
 from xpatterns.xobject_impl import XObjectImpl
 from xpatterns.util import infer_type_of_rdd
 from xpatterns.util import cache, uncache, persist
@@ -152,13 +154,15 @@ class XFrameImpl(XObjectImpl):
         Load from a pandas.DataFrame.
         """
         cls._entry(data)
+        if not HAS_PANDAS or not HAS_NUMPY:
+            raise NotImplementedError('Pandas and numpy are required.')
+
         # build something we can parallelize
         # list of rows, each row is a tuple
         columns = data.columns
         dtypes = data.dtypes
         column_names = [col for col in columns]
-        #column_types = [type(np.zeros(1, dtype).tolist()[0]) for dtype in dtypes]
-        column_types = dtypes
+        column_types = [type(numpy.zeros(1, dtype).tolist()[0]) for dtype in dtypes]
 
         res = []
         for row in data.iterrows():

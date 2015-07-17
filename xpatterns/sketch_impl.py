@@ -7,7 +7,7 @@ import math
 
 from xpatterns.dsq import QuantileAccumulator
 from xpatterns.frequent import FreqSketch
-from xpatterns.util import util
+import xpatterns.util as util
 
 __all__ = ['Sketch']
 
