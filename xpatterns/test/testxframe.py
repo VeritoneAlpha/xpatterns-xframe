@@ -1074,36 +1074,36 @@ class TestXFrameTransformCols(unittest.TestCase):
     """
 
     def test_transform_cols_identity(self):
-        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        t = XFrame({'other': ['x', 'y', 'z'], 'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         res = t.transform_cols(['id', 'val'])
         self.assertEqual(3, len(res))
-        self.assertEqual([int, str], res.dtype())
-        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
-        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertEqual([int, str, str], res.dtype())
+        self.assertEqual({'other': 'x', 'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual({'other': 'y', 'id': 2, 'val': 'b'}, res[1])
 
     def test_transform_cols_lambda(self):
-        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        t = XFrame({'other': ['x', 'y', 'z'], 'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         res = t.transform_cols(['id', 'val'], lambda row: [row['id'] * 2, row['val'] + 'x'])
         self.assertEqual(3, len(res))
-        self.assertEqual([int, str], res.dtype())
-        self.assertEqual({'id': 2, 'val': 'ax'}, res[0])
-        self.assertEqual({'id': 4, 'val': 'bx'}, res[1])
+        self.assertEqual([int, str, str], res.dtype())
+        self.assertEqual({'other': 'x', 'id': 2, 'val': 'ax'}, res[0])
+        self.assertEqual({'other': 'y', 'id': 4, 'val': 'bx'}, res[1])
 
     def test_transform_cols_type(self):
-        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        t = XFrame({'other': ['x', 'y', 'z'], 'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         res = t.transform_cols(['id', 'val'], lambda row: ['x' * row['id'], ord(row['val'][0])])
         self.assertEqual(3, len(res))
-        self.assertEqual([str, int], res.dtype())
-        self.assertEqual({'id': 'x', 'val': 97}, res[0])
-        self.assertEqual({'id': 'xx', 'val': 98}, res[1])
+        self.assertEqual([str, str, int], res.dtype())
+        self.assertEqual({'other': 'x', 'id': 'x', 'val': 97}, res[0])
+        self.assertEqual({'other': 'y', 'id': 'xx', 'val': 98}, res[1])
 
     def test_transform_cols_cast(self):
-        t = XFrame({'id': ['1', '2', '3'], 'val': [10, 20, 30]})
+        t = XFrame({'other': ['x', 'y', 'z'], 'id': ['1', '2', '3'], 'val': [10, 20, 30]})
         res = t.transform_cols(['id', 'val'], dtypes=[int, str])
         self.assertEqual(3, len(res))
-        self.assertEqual([int, str], res.dtype())
-        self.assertEqual({'id': 1, 'val': '10'}, res[0])
-        self.assertEqual({'id': 2, 'val': '20'}, res[1])
+        self.assertEqual([int, str, str], res.dtype())
+        self.assertEqual({'other': 'x', 'id': 1, 'val': '10'}, res[0])
+        self.assertEqual({'other': 'y', 'id': 2, 'val': '20'}, res[1])
 
 
 class TestXFrameFlatMap(unittest.TestCase):
