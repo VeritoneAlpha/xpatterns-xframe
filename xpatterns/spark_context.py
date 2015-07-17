@@ -63,20 +63,23 @@ class CommonSparkContext(object):
         """
 
         env = Environment.create_default()
-        config_context = {'cluster_url': env.get_config('spark', 'cluster_url', default='local'),
+        config_context = {'master': env.get_config('spark', 'master', default='local'),
                           'cores_max': env.get_config('spark', 'cores_max', default='8'),
                           'executor_memory': env.get_config('spark', 'executor_memory', default='8g'),
                           'app_name': env.get_config('spark', 'app_name', 'xFrame')}
         config_context.update(SparkInitContext.context)
         config_pairs = [(k, v) for k, v in config_context.iteritems()]
-        conf = (SparkConf().setAll(config_pairs))
-        self._sc = SparkContext(conf=conf)
+        self._config = (SparkConf().setMaster(config_context['master']).setAppName(config_context['app_name']).setAll(config_pairs))
+        self._sc = SparkContext(conf=self._config)
         self._sqlc = SQLContext(self._sc)
 
         self.zip_path = self.build_zip()
         if self.zip_path:
             self._sc.addPyFile(self.zip_path)
         atexit.register(self.close_context)
+
+    def config(self):
+        return self._config
 
     def close_context(self):
         if self._sc:
@@ -96,7 +99,7 @@ class CommonSparkContext(object):
         if 'XPATTERNS_HOME' not in os.environ:
             return None
         # This can fail at writepy if there is something wrong with the files
-        #  in xpatterns.  Go ahead anyway, but things will probably fail of this job is
+        #  in xpatterns.  Go ahead anyway, but things will probably fail if this job is
         #  distributed
         try:
             tf = NamedTemporaryFile(suffix='.zip', delete=False)
