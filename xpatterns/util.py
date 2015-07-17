@@ -510,6 +510,7 @@ def unpersist(rdd):
 def is_missing(x):
     """ Tests for missing values. """
     if x is None: return True
+    if type(x) in [str, dict, list] and len(x) == 0: return True
     if isinstance(x, float) and math.isnan(x): return True
     return False
 
