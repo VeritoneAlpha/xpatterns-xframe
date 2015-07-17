@@ -284,12 +284,16 @@ class XFrameImpl(XObjectImpl):
         # See p 106: Learning Spark
         # See mapPartitions
         def csv_to_array(line, params):
+            line = line.replace('\r', '').replace('\n', '') + '\n'
             reader = csv.reader([line.encode('utf-8')], **params)
             try:
                 res = reader.next()
                 return res
             except IOError:
                 print 'Malformed line:', line
+                return ''
+            except Exception as e:
+                print 'Error', e
                 return ''
         res = raw.map(lambda row: csv_to_array(row, params))
 
@@ -375,21 +379,34 @@ class XFrameImpl(XObjectImpl):
         res = res.map(lambda row: apply_na(row, na_values))
 
         # cast to desired type
-        def cast_val(val, typ):
-            if val is None: return None
-            if len(val) == 0: return 0
+        def cast_val(val, typ, name):
+            if val is None:
+                return None
+            if len(val) == 0:
+                if typ is int:
+                    return 0
+                if typ is float:
+                    return 0.0
+                if typ is str:
+                    return ''
+                if typ is dict:
+                    return {}
+                if typ is list:
+                    return []
             try:
                 if typ == dict or typ == list:
                     return ast.literal_eval(val)
                 return typ(val)
             except ValueError:
-                raise ValueError('Cast failed: ({}) {}'.format(typ, val))
+                raise ValueError('Cast failed: ({}) {}  col: {}'.format(typ, val, name))
 
-        def cast_row(row, types):
-            return tuple([cast_val(val, typ) for val, typ in zip(row, types)])
+        def cast_row(row, types, names):
+            return tuple([cast_val(val, typ, name) for val, typ, name in zip(row, types, names)])
 
-        res = res.map(lambda row: cast_row(row, types))
-        persist(res)
+        # TODO -- if cast fails, then don't cast and adjust type appropriately ??
+        res = res.map(lambda row: cast_row(row, types, col_names))
+        if row_limit is None:
+            persist(res)
         self._replace(res, col_names, column_types)
 
         self._exit()
@@ -1283,17 +1300,17 @@ class XFrameImpl(XObjectImpl):
         def transformer(row):
             row_as_dict = dict(zip(names, row))
             result = fn(row_as_dict)
-            lst = list(result)
-            for col_index in col_indexes:
-                dtype = dtypes[col_index]
-                result_item = result[col_index]
+            lst = list(row)
+            for dtype_index, col_index in enumerate(col_indexes):
+                dtype = dtypes[dtype_index]
+                result_item = result[dtype_index]
                 lst[col_index] = result_item if type(result_item) == dtype else dtype(result_item)
             return tuple(lst)
 
         res = self._rdd.map(transformer)
         new_col_types = list(self.column_types)
-        for col_index in col_indexes:
-            new_col_types[col_index] = dtypes[col_index]
+        for dtype_index, col_index in enumerate(col_indexes):
+            new_col_types[col_index] = dtypes[dtype_index]
         self._exit(res, new_col_types)
         return self._rv(res, column_types=new_col_types)
 
