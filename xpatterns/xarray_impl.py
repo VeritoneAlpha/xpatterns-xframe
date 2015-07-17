@@ -682,18 +682,22 @@ class XArrayImpl(XObjectImpl):
             random.seed(seed)
 
         def apply_and_cast(x, fn, dtype, skip_undefined):
-            fnx = fn(x)
+            if is_missing(x) and skip_undefined: return None
+            try:
+                fnx = fn(x)
+            except Exception:
+                return ValueError('Error evaluating function on "{}"'.format(x))
             if is_missing(fnx) and skip_undefined: return None
             try:
                 return dtype(fnx)
             except TypeError:
-                return TypeError('error converting "{}" to {}'.format(fnx, dtype))
+                return ValueError('Error converting "{}" to {}'.format(fnx, dtype))
 
         res = self._rdd.map(lambda x: apply_and_cast(x, fn, dtype, skip_undefined))
         # search for type error and throw exception
-        errs = res.filter(lambda x: x is TypeError).take(1)
+        errs = res.filter(lambda x: type(x) is ValueError).collect()
         if len(errs) > 0:
-            raise ValueError('Type conversion failure: {}'.format(errs[0].msg))
+            raise ValueError('Transformation failures: ({}) {}'.format(len(errs), errs[0].args[0]))
         self._exit()
         return self._rv(res, dtype)
 
