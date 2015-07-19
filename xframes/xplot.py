@@ -75,7 +75,10 @@ class XPlot(object):
                 max = min + bins * delta
                 n_ticks = 8
                 tick_delta = (max - min)/float(n_ticks)
-                tick_pos = range(0, bins+1, int(bins/float(n_ticks)))
+                step = int(bins/float(n_ticks))
+                if step <= 0: step = 1
+                print 'step', step
+                tick_pos = range(0, bins+1, step)
                 tick_labels = [ min + i *tick_delta for i in range(n_ticks+1)]
                 tick_labels = [str(lab)[:5] for lab in tick_labels]
                 plt.xticks(tick_pos, tick_labels)
@@ -158,7 +161,7 @@ class XPlot(object):
         if len(fi) > 0:
             sorted_fi = sorted(fi.iteritems(), key=operator.itemgetter(1), reverse=True)
         frequent = [x for x in sorted_fi[:k] if x[1] > 1]
-        self.make_bar(frequent, 'Count', y_col, title=title, xlabel=xlabel, ylabel=ylabel)
+        self.make_barh(frequent, xlabel=xlabel, ylabel=ylabel, title=title)
 
     @staticmethod
     def create_histogram_buckets(vals, bins, min_val, max_val):
@@ -247,8 +250,6 @@ class XPlot(object):
             raise ValueError('upper cutoff must be between 0.0 and 1.0')
         if lower_cutoff >= upper_cutoff:
             raise ValueError('lower cutoff must be less than upper cutoff')
-        if col_name not in self.xframe.column_names():
-            raise ValueError('column name {} is not in the XFrame'.format(col_name))
 
         bins = bins or 50
         sk = sketch or column.sketch_summary()
