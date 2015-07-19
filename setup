@@ -3,7 +3,7 @@
 # This file should be run as follows:
 # source setup
 
-. ../venv/bin/activate
+source ../venv/bin/activate
 
 here=`pwd`
 
@@ -11,8 +11,9 @@ here=`pwd`
 export SPARK_HOME=~/spark
 export SPARK_CONF_DIR=$here/conf
 
-# PYTHONPATH is used to find the xpatterns python libraries
-export PYTHONPATH=$here:${SPARK_HOME}/python:${SPARK_HOME}/python/lib/py4j-0.8.2.1-src.zip
+# XFRAMES_HOME is used to find config.ini
+export XFRAMES_HOME=$here
 
-# XPATTERNS_HOME is used to find config.ini
-export XPATTERNS_HOME=$here
+# PYTHONPATH is used to find the xFrames python libraries
+export PYTHONPATH=${XFRAMES_HOME}:${SPARK_HOME}/python:${SPARK_HOME}/python/lib/py4j-0.8.2.1-src.zip
+
