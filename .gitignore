@@ -6,3 +6,4 @@ venv
 dist
 xframe.egg-info
 .idea
+*.pyc
