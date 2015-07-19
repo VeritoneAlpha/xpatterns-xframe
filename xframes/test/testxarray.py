@@ -7,12 +7,11 @@ import os
 # python -m unittest testxarray.TestXArrayVersion
 # python -m unittest testxarray.TestXArrayVersion.test_version
 
-from xpatterns import XArray
+from xframes import XArray
 
 
 def eq_list(expected, result):
-    return (XArray(expected) == result).all()
-
+    return expected == list(result)
 
 class TestXArrayVersion(unittest.TestCase):
     """
@@ -1818,7 +1817,6 @@ class TestXArrayUnique(unittest.TestCase):
     """ 
     Tests XArray unique
     """
-    # Note: results are not guaranteed to be in any particular order.  In our case, they are predictable.
     def test_unique_dict_err(self):
         t = XArray([{'a': 1, 'b': 2, 'c': 3}])
         with self.assertRaises(TypeError):
@@ -1827,51 +1825,38 @@ class TestXArrayUnique(unittest.TestCase):
     def test_unique_int_noop(self):
         t = XArray([1, 2, 3])
         res = t.unique()
-        self.assertTrue(eq_list([1, 2, 3], res))
+        self.assertEquals(3, len(res))
+        self.assertTrue(eq_list([1, 2, 3], sorted(list(res))))
 
     def test_unique_float_noop(self):
         t = XArray([1.0, 2.0, 3.0])
         res = t.unique()
-        self.assertTrue(eq_list([1.0, 2.0, 3.0], res))
+        self.assertEquals(3, len(res))
+        self.assertTrue(eq_list([1.0, 2.0, 3.0], sorted(list(res))))
 
     def test_unique_str_noop(self):
         t = XArray(['1', '2', '3'])
         res = t.unique()
-        self.assertTrue(eq_list(['1', '3', '2'], res))
-
-    def xx_test_unique_str_XXX(self):
-        from xpatterns import XRdd
-        XRdd.set_trace(True)
-        t = XArray(['1', '2', '3'])
-        expected = XArray(['1', '2', '3'])
-        print 'before unique'
-        print t.dump_debug_info()
-        print expected.dump_debug_info()
-        res = t.unique()
-        print 'after unique; before compare'
-        print res.dump_debug_info()
-        answer = (expected == res)
-        print answer
-        print 'after compare; before all'
-        result = answer.all()
-        print 'after all'
-        self.assertTrue(result)
-        XRdd.set_trace(False)
+        self.assertEquals(3, len(res))
+        self.assertTrue(eq_list(['1', '2', '3'], sorted(list(res))))
 
     def test_unique_int(self):
         t = XArray([1, 2, 3, 1, 2])
         res = t.unique()
-        self.assertTrue(eq_list([1, 2, 3], res))
+        self.assertEquals(3, len(res))
+        self.assertTrue(eq_list([1, 2, 3], sorted(list(res))))
 
     def test_unique_float(self):
         t = XArray([1.0, 2.0, 3.0, 1.0, 2.0])
         res = t.unique()
-        self.assertTrue(eq_list([1.0, 2.0, 3.0], res))
+        self.assertEquals(3, len(res))
+        self.assertTrue(eq_list([1.0, 2.0, 3.0], sorted(list(res))))
 
     def test_unique_str(self):
         t = XArray(['1', '2', '3', '1', '2'])
         res = t.unique()
-        self.assertTrue(eq_list(['1', '3', '2'], res))
+        self.assertEquals(3, len(res))
+        self.assertTrue(eq_list(['1', '2', '3'], sorted(list(res))))
 
 
 class TestXArrayItemLength(unittest.TestCase):

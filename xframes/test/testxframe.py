@@ -8,20 +8,21 @@ import pickle
 
 from pyspark.sql.types import StructType, StructField, IntegerType, StringType
 
+import pandas
+
 # python testxframe.py
 # python -m unittest testxframe
 # python -m unittest testxframe.TestXFrameVersion
 # python -m unittest testxframe.TestXFrameVersion.test_version
 
-from xpatterns import XArray
-from xpatterns import XFrame
-from xpatterns.aggregate import SUM, ARGMAX, ARGMIN, MAX, MIN, COUNT, MEAN, \
+from xframes import XArray
+from xframes import XFrame
+from xframes.aggregate import SUM, ARGMAX, ARGMIN, MAX, MIN, COUNT, MEAN, \
     VARIANCE, STDV, SELECT_ONE, CONCAT
-import pandas
 
 
-def eq_array(expected, result):
-    return (XArray(expected) == result).all()
+def eq_list(expected, result):
+    return expected == list(result)
 
 
 class TestXFrameVersion(unittest.TestCase):
@@ -147,7 +148,7 @@ class TestXFrameConstructor(unittest.TestCase):
         res = XFrame(t)
         self.assertEqual(3, len(res))
         res = res.sort('id')
-        self.assertTrue(eq_array([1, 2, 3], res['id']))
+        self.assertTrue(eq_list([1, 2, 3], res['id']))
         self.assertEqual([int, str], res.column_types())
         self.assertEqual(['id', 'val'], res.column_names())
 
@@ -300,7 +301,7 @@ class TestXFrameConstructor(unittest.TestCase):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']}, format='dict')
         self.assertEqual(3, len(t))
         t = t.sort('id')
-        self.assertTrue(eq_array([1, 2, 3], t['id']))
+        self.assertTrue(eq_list([1, 2, 3], t['id']))
         self.assertEqual([int, str], t.column_types())
         self.assertEqual(['id', 'val'], t.column_names())
 
@@ -834,7 +835,7 @@ class TestXFrameCopy(unittest.TestCase):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         x = copy.copy(t)
         self.assertEqual(3, len(x))
-        self.assertTrue(eq_array([1, 2, 3], x['id']))
+        self.assertTrue(eq_list([1, 2, 3], x['id']))
         self.assertEqual([int, str], x.column_types())
         self.assertEqual(['id', 'val'], x.column_names())
 
@@ -912,8 +913,8 @@ class TestXFrameHead(unittest.TestCase):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         hd = t.head(2)
         self.assertEqual(2, len(hd))
-        self.assertTrue(eq_array([1, 2], hd['id']))
-        self.assertTrue(eq_array(['a', 'b'], hd['val']))
+        self.assertTrue(eq_list([1, 2], hd['id']))
+        self.assertTrue(eq_list(['a', 'b'], hd['val']))
 
 
 class TestXFrameTail(unittest.TestCase):
@@ -925,8 +926,8 @@ class TestXFrameTail(unittest.TestCase):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         tl = t.tail(2)
         self.assertEqual(2, len(tl))
-        self.assertTrue(eq_array([2, 3], tl['id']))
-        self.assertTrue(eq_array(['b', 'c'], tl['val']))
+        self.assertTrue(eq_list([2, 3], tl['id']))
+        self.assertTrue(eq_list(['b', 'c'], tl['val']))
 
 
 class TestXFrameToPandasDataframe(unittest.TestCase):
@@ -1013,21 +1014,21 @@ class TestXFrameApply(unittest.TestCase):
         res = t.apply(lambda row: row['id'] * 2)
         self.assertEqual(3, len(res))
         self.assertEqual(int, res.dtype())
-        self.assertTrue(eq_array([2, 4, 6], res))
+        self.assertTrue(eq_list([2, 4, 6], res))
 
     def test_apply_float(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         res = t.apply(lambda row: row['id'] * 2, dtype=float)
         self.assertEqual(3, len(res))
         self.assertEqual(float, res.dtype())
-        self.assertTrue(eq_array([2.0, 4.0, 6.0], res))
+        self.assertTrue(eq_list([2.0, 4.0, 6.0], res))
 
     def test_apply_str(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         res = t.apply(lambda row: row['id'] * 2, dtype=str)
         self.assertEqual(3, len(res))
         self.assertEqual(str, res.dtype())
-        self.assertTrue(eq_array(['2', '4', '6'], res))
+        self.assertTrue(eq_list(['2', '4', '6'], res))
 
 
 class TestXFrameTransformCol(unittest.TestCase):
@@ -1210,7 +1211,7 @@ class TestXFrameTopk(unittest.TestCase):
         res = t.topk('id', 2)
         self.assertEqual(2, len(res))
         self.assertTrue((XArray([30, 20]) == res['id']).all())
-        self.assertTrue(eq_array(['c', 'b'], res['val']))
+        self.assertTrue(eq_list(['c', 'b'], res['val']))
         self.assertEqual([int, str], res.column_types())
         self.assertEqual(['id', 'val'], res.column_names())
 
@@ -1218,15 +1219,15 @@ class TestXFrameTopk(unittest.TestCase):
         t = XFrame({'id': [30, 20, 10], 'val': ['c', 'b', 'a']})
         res = t.topk('id', 2, reverse=True)
         self.assertEqual(2, len(res))
-        self.assertTrue(eq_array([10, 20], res['id']))
-        self.assertTrue(eq_array(['a', 'b'], res['val']))
+        self.assertTrue(eq_list([10, 20], res['id']))
+        self.assertTrue(eq_list(['a', 'b'], res['val']))
 
     def test_topk_float(self):
         t = XFrame({'id': [10.0, 20.0, 30.0], 'val': ['a', 'b', 'c']})
         res = t.topk('id', 2)
         self.assertEqual(2, len(res))
         self.assertTrue((XArray([30.0, 20.0]) == res['id']).all())
-        self.assertTrue(eq_array(['c', 'b'], res['val']))
+        self.assertTrue(eq_list(['c', 'b'], res['val']))
         self.assertEqual([float, str], res.column_types())
         self.assertEqual(['id', 'val'], res.column_names())
 
@@ -1234,15 +1235,15 @@ class TestXFrameTopk(unittest.TestCase):
         t = XFrame({'id': [30.0, 20.0, 10.0], 'val': ['c', 'b', 'a']})
         res = t.topk('id', 2, reverse=True)
         self.assertEqual(2, len(res))
-        self.assertTrue(eq_array([10.0, 20.0], res['id']))
-        self.assertTrue(eq_array(['a', 'b'], res['val']))
+        self.assertTrue(eq_list([10.0, 20.0], res['id']))
+        self.assertTrue(eq_list(['a', 'b'], res['val']))
 
     def test_topk_str(self):
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
         res = t.topk('val', 2)
         self.assertEqual(2, len(res))
-        self.assertTrue(eq_array([10, 20], res['id']))
-        self.assertTrue(eq_array(['c', 'b'], res['val']))
+        self.assertTrue(eq_list([10, 20], res['id']))
+        self.assertTrue(eq_list(['c', 'b'], res['val']))
         self.assertEqual([int, str], res.column_types())
         self.assertEqual(['id', 'val'], res.column_names())
 
@@ -1250,8 +1251,8 @@ class TestXFrameTopk(unittest.TestCase):
         t = XFrame({'id': [10, 20, 30], 'val': ['c', 'b', 'a']})
         res = t.topk('val', 2, reverse=True)
         self.assertEqual(2, len(res))
-        self.assertTrue(eq_array([30, 20], res['id']))
-        self.assertTrue(eq_array(['a', 'b'], res['val']))
+        self.assertTrue(eq_list([30, 20], res['id']))
+        self.assertTrue(eq_list(['a', 'b'], res['val']))
 
 
 class TestXFrameSaveBinary(unittest.TestCase):
@@ -1300,12 +1301,12 @@ class TestXFrameSelectColumn(unittest.TestCase):
     def test_select_column_id(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         res = t.select_column('id')
-        self.assertTrue(eq_array([1, 2, 3], res))
+        self.assertTrue(eq_list([1, 2, 3], res))
 
     def test_select_column_val(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         res = t.select_column('val')
-        self.assertTrue(eq_array(['a', 'b', 'c'], res))
+        self.assertTrue(eq_list(['a', 'b', 'c'], res))
 
     def test_select_column_bad_name(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
@@ -1540,7 +1541,7 @@ class TestXFrameGetitem(unittest.TestCase):
     def test_getitem_str(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         res = t['id']
-        self.assertTrue(eq_array([1, 2, 3], res))
+        self.assertTrue(eq_list([1, 2, 3], res))
 
     def test_getitem_int_pos(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
@@ -1593,7 +1594,7 @@ class TestXFrameGetattr(unittest.TestCase):
     def test_getattr(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         res = t.id
-        self.assertTrue(eq_array([1, 2, 3], res))
+        self.assertTrue(eq_list([1, 2, 3], res))
 
 
 class TestXFrameSetitem(unittest.TestCase):
@@ -2318,8 +2319,7 @@ class TestXFrameFilterBy(unittest.TestCase):
         self.assertEquals(2, len(res))
         self.assertEquals({'id': 2, 'val': 'b'}, top[0])
         self.assertEquals({'id': 1, 'val': 'a'}, top[1])
-#        TODO: following does not work
-#        self.assertTrue(eq_array(['a', 'b'], res['val']))
+        self.assertTrue(eq_list(['a', 'b'], res['val']))
 
     def test_filter_by_xarray(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
@@ -2329,7 +2329,7 @@ class TestXFrameFilterBy(unittest.TestCase):
         self.assertEquals(2, len(res))
         self.assertEquals({'id': 3, 'val': 'c'}, top[0])
         self.assertEquals({'id': 1, 'val': 'a'}, top[1])
-#        self.assertTrue(eq_array([1, 3], res['id']))
+        self.assertTrue(eq_list([1, 3], res['id']))
 
     def test_filter_by_list_exclude(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
@@ -2338,7 +2338,7 @@ class TestXFrameFilterBy(unittest.TestCase):
         self.assertEquals(2, len(res))
         self.assertEquals({'id': 4, 'val': 'd'}, top[0])
         self.assertEquals({'id': 2, 'val': 'b'}, top[1])
-#        self.assertTrue(eq_array([2, 4], res['id']))
+        self.assertTrue(eq_list([2, 4], res['id']))
 
     def test_filter_by_xarray_exclude(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
@@ -2348,7 +2348,7 @@ class TestXFrameFilterBy(unittest.TestCase):
         self.assertEquals(2, len(res))
         self.assertEquals({'id': 4, 'val': 'd'}, top[0])
         self.assertEquals({'id': 2, 'val': 'b'}, top[1])
-#        self.assertTrue(eq_array([2, 4], res['id']))
+        self.assertTrue(eq_list([2, 4], res['id']))
 
     def test_filter_by_bad_column_name_type(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
@@ -2931,26 +2931,26 @@ class TestXFrameSort(unittest.TestCase):
     def test_sort(self):
         t = XFrame({'id': [3, 2, 1], 'val': ['c', 'b', 'a']})
         res = t.sort('id')
-        self.assertTrue(eq_array([1, 2, 3], res['id']))
-        self.assertTrue(eq_array(['a', 'b', 'c'], res['val']))
+        self.assertTrue(eq_list([1, 2, 3], res['id']))
+        self.assertTrue(eq_list(['a', 'b', 'c'], res['val']))
 
     def test_sort_descending(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         res = t.sort('id', ascending=False)
-        self.assertTrue(eq_array([3, 2, 1], res['id']))
-        self.assertTrue(eq_array(['c', 'b', 'a'], res['val']))
+        self.assertTrue(eq_list([3, 2, 1], res['id']))
+        self.assertTrue(eq_list(['c', 'b', 'a'], res['val']))
 
     def test_sort_multi_col(self):
         t = XFrame({'id': [3, 2, 1, 1], 'val': ['c', 'b', 'b', 'a']})
         res = t.sort(['id', 'val'])
-        self.assertTrue(eq_array([1, 1, 2, 3], res['id']))
-        self.assertTrue(eq_array(['a', 'b', 'b', 'c'], res['val']))
+        self.assertTrue(eq_list([1, 1, 2, 3], res['id']))
+        self.assertTrue(eq_list(['a', 'b', 'b', 'c'], res['val']))
 
     def test_sort_multi_col_asc_desc(self):
         t = XFrame({'id': [3, 2, 1, 1], 'val': ['c', 'b', 'b', 'a']})
         res = t.sort([('id', True), ('val', False)])
-        self.assertTrue(eq_array([1, 1, 2, 3], res['id']))
-        self.assertTrue(eq_array(['b', 'a', 'b', 'c'], res['val']))
+        self.assertTrue(eq_list([1, 1, 2, 3], res['id']))
+        self.assertTrue(eq_list(['b', 'a', 'b', 'c'], res['val']))
 
 
 class TestXFrameDropna(unittest.TestCase):

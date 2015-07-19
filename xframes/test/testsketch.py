@@ -5,7 +5,7 @@ import unittest
 # python -m unittest testsketch.TestSketchConstructor
 # python -m unittest testsketch.TestSketchConstructor.test_construct
 
-from xpatterns.xarray import XArray
+from xframes.xarray import XArray
 
 
 def eq_list(expected, result):
