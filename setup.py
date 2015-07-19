@@ -1,8 +1,11 @@
+"""
+This builds the setup files.
+"""
 import os, sys, io
 import codecs
 
 from setuptools import setup, find_packages
-import xpatterns
+import xframes
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -18,10 +21,10 @@ def read(*filenames, **kwargs):
 long_description = read('docs/README.rst')
 
 setup(name='xframe',
-      version=xpatterns.__version__,
-      url='https://github.com/Atigeo/xframe',
+      version=xframes.__version__,
+      url='https://github.com/Atigeo/xpatterns-xframe',
       license='Apache Software License 2.0',
-      packages=['xpatterns'],
+      packages=['xframes'],
       include_package_data=True,
       platforms='any',
       author='Charles Hayden',
