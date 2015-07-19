@@ -1,8 +1,8 @@
 """
 This builds the setup files.
 """
-import os, sys, io
-import codecs
+import os
+import io
 
 from setuptools import setup, find_packages
 import xframes
