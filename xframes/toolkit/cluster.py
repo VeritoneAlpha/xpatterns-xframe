@@ -1,6 +1,6 @@
 from abc import ABCMeta
 
-from xpatterns.toolkit.model import Model, ModelBuilder
+from xframes.toolkit.model import Model, ModelBuilder
 
 
 

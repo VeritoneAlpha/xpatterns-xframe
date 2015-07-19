@@ -12,7 +12,7 @@ from pyspark.mllib.tree import DecisionTree
 
 
 
-from xpatterns.toolkit.model import Model, ModelBuilder
+from xframes.toolkit.model import Model, ModelBuilder
 
 # Models
 class RegressionModel(Model):

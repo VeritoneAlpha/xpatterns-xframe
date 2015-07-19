@@ -13,11 +13,11 @@ from pyspark.mllib.tree import DecisionTree
 
 import matplotlib.pyplot as plt
 
-from xpatterns.spark_context import CommonSparkContext
-from xpatterns.toolkit.model import Model, ModelBuilder
-from xpatterns import XFrame, XArray
-from xpatterns.xarray_impl import XArrayImpl
-from xpatterns.util import delete_file_or_dir
+from xframes.spark_context import CommonSparkContext
+from xframes.toolkit.model import Model, ModelBuilder
+from xframes import XFrame, XArray
+from xframes.xarray_impl import XArrayImpl
+from xframes.util import delete_file_or_dir
 
 __all__ = ['LogisticRegressionWithSGDBuilder', 
            'LogisticRegressionWithLBFGSBuilder', 
@@ -243,7 +243,7 @@ class ClassificationModel(Model):
 #        print 'model_type', model_type
 #        print 'feature_cols', feature_cols
         try:
-            klass = getattr(xpatterns.toolkit.classify, model_type)
+            klass = getattr(xframes.toolkit.classify, model_type)
         except:
             raise ValueError('model type is not valid: {}'.format(model_type))
 

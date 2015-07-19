@@ -3,12 +3,12 @@ from abc import ABCMeta, abstractmethod
 import os
 import pickle
 
-from xpatterns.spark_context import CommonSparkContext
-from xpatterns.toolkit.model import Model, ModelBuilder
-from xpatterns import XArray, XFrame
-from xpatterns.xarray_impl import XArrayImpl
-from xpatterns.xframe_impl import XFrameImpl
-from xpatterns.util import delete_file_or_dir
+from xframes.spark_context import CommonSparkContext
+from xframes.toolkit.model import Model, ModelBuilder
+from xframes import XArray, XFrame
+from xframes.xarray_impl import XArrayImpl
+from xframes.xframe_impl import XFrameImpl
+from xframes.util import delete_file_or_dir
 
 from pyspark import RDD
 from pyspark.mllib import recommendation

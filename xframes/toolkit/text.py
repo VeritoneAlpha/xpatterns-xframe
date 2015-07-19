@@ -1,6 +1,6 @@
 from pyspark.mllib.feature import Word2Vec
 
-from xpatterns.spark_context import CommonSparkContext
+from xframes.spark_context import CommonSparkContext
 
 class TextModel(object):
     def __init__(self, model):
