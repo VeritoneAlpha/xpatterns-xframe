@@ -5,7 +5,7 @@ import math
 
 import matplotlib.pyplot as plt
 
-from xframes.aggregate import COUNT
+import xframes
 
 
 class XPlot(object):
@@ -77,7 +77,6 @@ class XPlot(object):
                 tick_delta = (max - min)/float(n_ticks)
                 step = int(bins/float(n_ticks))
                 if step <= 0: step = 1
-                print 'step', step
                 tick_pos = range(0, bins+1, step)
                 tick_labels = [ min + i *tick_delta for i in range(n_ticks+1)]
                 tick_labels = [str(lab)[:5] for lab in tick_labels]
@@ -339,10 +338,10 @@ class XPlot(object):
         # ordinal: show a bar chart of frequent values
         # set x_col and y_col
         if top is not None:
-            vals = xpatterns.XArray([key[0] for key in top], dtype=col_type)
-            counts = xpatterns.XArray([key[1] for key in top], dtype=int)
+            vals = xframes.XArray([key[0] for key in top], dtype=col_type)
+            counts = xframes.XArray([key[1] for key in top], dtype=int)
             x_col = 'Count'
             y_col = col_name
-            tmp = xpatterns.XFrame({x_col: counts, y_col: vals})
+            tmp = xframes.XFrame({x_col: counts, y_col: vals})
             tmp.show().top_values(x_col, y_col, title=title, k=topk)
 
