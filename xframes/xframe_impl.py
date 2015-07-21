@@ -382,6 +382,13 @@ class XFrameImpl(XObjectImpl):
             return [None if val in na_values else val for val in row]
         res = res.map(lambda row: apply_na(row, na_values))
 
+        # drop columns with empty header
+        remove_cols = [col_index for col_index, col_name in enumerate(col_names) if len(col_name) == 0]
+        def remove_columns(row):
+            return [val for index, val in enumerate(row) if not index in remove_cols]
+        res = res.map(remove_columns)
+        col_names = remove_columns(col_names)
+
         # cast to desired type
         def cast_val(val, typ, name):
             if val is None:
