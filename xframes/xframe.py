@@ -1704,26 +1704,33 @@ class XFrame(XObject):
 
         return XFrame(impl=self.__impl__.transform_cols(cols, fn, dtypes, seed))
 
-    def detect_type_and_cast(self, column_name):
+    def detect_type(self, column_name):
         """
-        If the column is of string type, and the values can all be interpreted as
-        integer or float values, then cast the column to the numerical type.
+        If the column is of string type, and the values can safely be cast to int or float, then
+        return the type to be cast to.  Uses the entire column to detect the type.
 
         Parameters
         ----------
         column_name : str
         The name of the column to cast.
 
+        Returns
+        -------
+        out: type
+            int or float: The column can be cast to this type.
+
+            str: The column cannot be cast to one of the types above.
+
         Example
         --------
 
         >>> xf = xpatterns.XFrame({'value': ['1', '2', '3']})
-        >>> xf.detect_type_and_cast('value')
+        >>> xf.detect_type('value')
 
         """
         column = self.__getitem__(column_name)
         if column.dtype() is not str:
-            return self
+            return str
 
         def classify_type(s):
             if type(s) != str:
@@ -1742,8 +1749,38 @@ class XFrame(XObject):
             types = ['float']
         if '' in types: types.remove('')
         if len(types) != 1:
-            return self
+            return str
         if len(types) == 1 and types[0] == 'str':
+            return str
+
+        if len(types) == 1 and 'int' in types:
+            return int
+        if len(types) == 1 and 'float' in types:
+            return float
+        if len(types) == 2 and 'float' in types and 'int' in types:
+            return float
+
+        return str
+
+    def detect_type_and_cast(self, column_name):
+        """
+        If the column is of string type, and the values can all be interpreted as
+        integer or float values, then cast the column to the numerical type.
+
+        Parameters
+        ----------
+        column_name : str
+        The name of the column to cast.
+
+        Example
+        --------
+
+        >>> xf = xpatterns.XFrame({'value': ['1', '2', '3']})
+        >>> xf.detect_type_and_cast('value')
+
+        """
+        new_type = self.detect_type(column_name)
+        if new_type is None:
             return self
 
         def cast_int(row):
@@ -1770,11 +1807,9 @@ class XFrame(XObject):
             except ValueError:
                 raise ValueError('Cast failed: (float) {}'.format(val))
 
-        if len(types) == 1 and 'int' in types:
+        if new_type in [int]:
             return XFrame(impl=self.__impl__.transform_cols([column_name], cast_int, [int], 0))
-        if len(types) == 1 and 'float' in types:
-            return XFrame(impl=self.__impl__.transform_cols([column_name], cast_float, [float], 0))
-        if len(types) == 2 and 'float' in types and 'int' in types:
+        if new_type in [float]:
             return XFrame(impl=self.__impl__.transform_cols([column_name], cast_float, [float], 0))
 
         return self
