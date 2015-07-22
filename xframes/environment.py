@@ -100,11 +100,5 @@ class Environment(object):
         try:
             items = self.cfg.items(section, raw=True)
             return {item[0]: item[1] for item in items}
-        except ConfigParser.NoSectionError as e:
-            print >>stderr, "FAILED -- missing section: ", section
-            print >>stderr, e
-            return {}
-        except ConfigError as e:
-            print >>stderr, "FAILED -- missing config file"
-            print >>stderr, e
+        except (ConfigError, ConfigParser.NoSectionError) as e:
             return {}
