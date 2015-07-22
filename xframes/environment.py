@@ -27,8 +27,8 @@ class Environment(object):
 
         Parameters
         ----------
-        config_file : string
-            The file name of a file in ini file format.
+        config_files : [ string ]
+            A list of config file names in ini file format.
 
         Returns
         -------
