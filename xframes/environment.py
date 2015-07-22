@@ -7,11 +7,11 @@
 import ConfigParser
 import os
 from sys import stderr
-from operator import itemgetter
-from itertools import chain
+
 
 class ConfigError(Exception):
     pass
+
 
 class Environment(object):
     def __init__(self):
@@ -46,12 +46,7 @@ class Environment(object):
 
         """
         env = Environment()
-        files_to_read = []
-
-        # defaults
-        files_to_read.append('default.ini')
-        # general-purpose config files, such as for resource files
-        files_to_read.append(config_file)
+        files_to_read = ['default.ini', config_file]
         env.read(files_to_read)
         return env
 
@@ -98,42 +93,29 @@ class Environment(object):
             print >>stderr, e
             return None
 
-    def get_config_list(self, section, prefix, default=None):
+    def get_config_items(self, section):
         """
-        Gets list of option values from a named section of the environment.
+        Gets all option values from a named section of the environment.
 
         Parameters
         ----------
         section : string
             The section name.
-        option : string
-            The option base name.  The values returned are formed using two methods.
-
-            1. all option names starting with `option` are collected.
-            2. all the values obtained in this way are split using ';'.
 
         Returns
         -------
-        [str]
-            The option value.
+        out: dict
+            The option values.
+
         """
         try:
-            items = self.cfg.items(section, False, Environment.default_config_vars())
-            matches = [i for i in items if i[0].startswith(prefix)]
-            vals = [i[1].split(';') for i in sorted(matches, key=itemgetter(0))]
-            return [x for x in list(chain(*vals))]
-        except (ConfigParser.NoSectionError, ConfigParser.NoOptionError) as e:
-            if default:
-                return [default]
-            print >>stderr, "FAILED -- missing section in config file:", section
+            items = self.cfg.items(section, raw=True)
+            return items
+        except ConfigParser.NoSectionError as e:
+            print >>stderr, "FAILED -- missing section: ", section
             print >>stderr, e
-            return None
-        except ConfigParser.InterpolationMissingOptionError as e:
-            print >>stderr, "FAILED -- missing substitution in config file DEFAULT section"
-            print >>stderr, e
-            return None
+            return {}
         except ConfigError as e:
             print >>stderr, "FAILED -- missing config file"
             print >>stderr, e
-            return None
-
+            return {}
