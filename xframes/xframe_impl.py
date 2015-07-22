@@ -11,6 +11,8 @@ import pickle
 import csv
 import StringIO
 import ast
+from sys import stderr
+
 
 from xframes.deps import HAS_PANDAS
 from xframes.deps import numpy, HAS_NUMPY
@@ -120,7 +122,7 @@ class XFrameImpl(XObjectImpl):
         caller = stack[1]
         called_by = stack[2]
         if XFrameImpl.entry_trace:
-            print 'enter xFrame', caller[3], args, 'called by', called_by[3]
+            print >>stderr, 'Enter xFrame', caller[3], args, 'called by', called_by[3]
         if XFrameImpl.perf_count:
             my_fun = caller[3]
             if my_fun not in XFrameImpl.perf_count:
@@ -131,7 +133,7 @@ class XFrameImpl(XObjectImpl):
     def _exit(*args):
         """ Trace function exit. """
         if XFrameImpl.exit_trace:
-            print 'exit xFrame', inspect.stack()[1][3], args
+            print >>stderr, 'Exit xFrame', inspect.stack()[1][3], args
 
     def rdd(self):
         return self._rdd
@@ -294,10 +296,10 @@ class XFrameImpl(XObjectImpl):
                 res = reader.next()
                 return res
             except IOError:
-                print 'Malformed line:', line
+                print >>stderr, 'Malformed line:', line
                 return ''
             except Exception as e:
-                print 'Error', e
+                print >>stderr, 'Error', e
                 return ''
         res = raw.map(lambda row: csv_to_array(row, params))
 
@@ -343,7 +345,7 @@ class XFrameImpl(XObjectImpl):
         filter_diff = before_count - after_count
         if use_header: filter_diff -= 1
         if filter_diff > 0:
-            print '{} rows dropped because of incorrect column count'.format(filter_diff)
+            print >>stderr, '{} rows dropped because of incorrect column count'.format(filter_diff)
         res = res.values()
 
         # Transform hints: __X{}__ ==> name.
@@ -889,7 +891,7 @@ class XFrameImpl(XObjectImpl):
                 lst[col1], lst[col2] = lst[col2], lst[col1]
                 return tuple(lst)
             except IndexError:
-                print col1, col2, row, len(row)
+                print >>stderr, 'Swap index error', col1, col2, row, len(row)
         col1 = self.col_names.index(column_1)
         col2 = self.col_names.index(column_2)
         names = swap_list(self.col_names, col1, col2)

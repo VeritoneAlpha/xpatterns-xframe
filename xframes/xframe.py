@@ -21,8 +21,7 @@ import datetime
 import inspect
 import time
 import itertools
-
-import numpy
+from sys import stderr
 
 from xframes.deps import pandas, HAS_PANDAS
 from xframes.deps import dataframeplus, HAS_DATAFRAME_PLUS
@@ -191,7 +190,7 @@ class XFrame(XObject):
             return
 
         _format = self._classify_auto(data) if format == 'auto' else format
-        # print 'format', _format
+        # print >>stderr, 'format', _format
 
         if _format == 'pandas.dataframe':
             self.__impl__ = XFrameImpl.load_from_pandas_dataframe(data)
@@ -360,10 +359,10 @@ class XFrame(XObject):
     @staticmethod
     def _infer_column_types_from_lines(first_rows, na_values):
         if len(first_rows.column_names()) < 1:
-            print 'Insufficient number of columns to perform type inference.'
+            print >>stderr, 'Insufficient number of columns to perform type inference.'
             raise RuntimeError('Insufficient columns.')
         if len(first_rows) < 1:
-            print 'Insufficient number of rows to perform type inference.'
+            print >>stderr, 'Insufficient number of rows to perform type inference.'
             raise RuntimeError('Insufficient rows.')
 
         col_names = first_rows.column_names()
@@ -498,19 +497,19 @@ class XFrame(XObject):
                 column_type_hints = XFrame._infer_column_types_from_lines(first_rows, na_values)
                 typelist = '[' + ','.join(t.__name__ for t in column_type_hints) + ']'
                 if verbose:
-                    print '------------------------------------------------------'
-                    print 'Inferred types from first line of file as '
-                    print 'column_type_hints=' + typelist
-                    print 'If parsing fails due to incorrect types, you can correct'
-                    print 'the inferred type list above and pass it to read_csv in'
-                    print 'the column_type_hints argument'
-                    print '------------------------------------------------------'
+                    print >>stderr, '------------------------------------------------------'
+                    print >>stderr, 'Inferred types from first line of file as '
+                    print >>stderr, 'column_type_hints=' + typelist
+                    print >>stderr, 'If parsing fails due to incorrect types, you can correct'
+                    print >>stderr, 'the inferred type list above and pass it to read_csv in'
+                    print >>stderr, 'the column_type_hints argument'
+                    print >>stderr, '------------------------------------------------------'
                 column_type_inference_was_used = True
             except Exception as e:
                 # If the above fails, default back to str for all columns.
                 if verbose:
-                    print 'Error', type(e), e
-                    print 'Could not detect types. Using str for each column.'
+                    print >>stderr, 'Error', type(e), e
+                    print >>stderr, 'Could not detect types. Using str for each column.'
                 column_type_hints = str
 
         if type(column_type_hints) is type:
@@ -527,8 +526,8 @@ class XFrame(XObject):
         except IOError:
             if column_type_inference_was_used:
                 # try again
-                print 'Unable to parse the file with automatic type inference.'
-                print 'Defaulting to column_type_hints=str'
+                print >>stderr, 'Unable to parse the file with automatic type inference.'
+                print >>stderr, 'Defaulting to column_type_hints=str'
                 type_hints = {'__all_columns__': str}
                 try:
                     errors = impl.load_from_csv(internal_url, parsing_config, type_hints)

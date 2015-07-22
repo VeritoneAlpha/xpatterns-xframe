@@ -11,8 +11,8 @@ import csv
 import copy
 import StringIO
 import random
+from sys import stderr
 
-import numpy as np
 
 from xframes.xobject_impl import XObjectImpl
 from xframes.spark_context import spark_context
@@ -102,7 +102,7 @@ class XArrayImpl(XObjectImpl):
         stack = inspect.stack()
         caller = stack[1]
         if XArrayImpl.entry_trace:
-            print 'enter xArray', caller[3], args
+            print >>stderr, 'Enter xArray', caller[3], args
         if XArrayImpl.perf_count is not None:
             my_fun = caller[3]
             if my_fun not in XArrayImpl.perf_count:
@@ -112,7 +112,7 @@ class XArrayImpl(XObjectImpl):
     @staticmethod
     def _exit():
         if XArrayImpl.exit_trace:
-            print 'exit xArray', inspect.stack()[1][3]
+            print >>stderr, 'Exit xArray', inspect.stack()[1][3]
         pass
 
     def rdd(self):

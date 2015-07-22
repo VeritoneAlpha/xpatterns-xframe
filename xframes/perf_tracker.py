@@ -1,9 +1,11 @@
 
 from pprint import pprint
+from sys import stderr
+
 
 from xframes.xrdd import XRdd
-from xframes.XArray_impl import XArrayImpl
-from xframes.XFrame_impl import XFrameImpl
+from xframes.xarray_impl import XArrayImpl
+from xframes.xframe_impl import XFrameImpl
  
 
 class PerfTracker(object):
@@ -28,13 +30,13 @@ class PerfTracker(object):
     def print_perf():
         perf = XRdd.get_perf_count()
         if perf:
-            print 'XRDD'
-            pprint(perf)
+            print >>stderr, 'XRDD'
+            pprint(perf, stream=stderr)
         perf = XArrayImpl.get_perf_count()
         if perf:
-            print 'XArray'
-            pprint(perf)
+            print >>stderr, 'XArray'
+            pprint(perf, stream=stderr)
         perf = XFrameImpl.get_perf_count()
         if perf:
-            print 'XFrame'
-            pprint(perf)
+            print >>stderr, 'XFrame'
+            pprint(perf, stream=stderr)

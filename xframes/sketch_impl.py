@@ -4,8 +4,8 @@ This module provides an implementation of Sketch using pySpark RDDs.
 
 import inspect
 import math
+from sys import stderr
 
-import numpy as np
 
 from xframes.dsq import QuantileAccumulator
 from xframes.frequent import FreqSketch
@@ -46,12 +46,12 @@ class SketchImpl(object):
     @staticmethod
     def _entry(*args):
         if SketchImpl.entry_trace:
-            print 'enter sketch', inspect.stack()[1][3], args
+            print >>stderr, 'Enter sketch', inspect.stack()[1][3], args
 
     @staticmethod
     def _exit():
         if SketchImpl.exit_trace:
-            print 'exit sketch', inspect.stack()[1][3]
+            print >>stderr, 'Exit sketch', inspect.stack()[1][3]
         pass
         
     @classmethod

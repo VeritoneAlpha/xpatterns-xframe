@@ -9,6 +9,7 @@ Wrapped functions allow entry and exit tracing and keeps perf counts.
 # If new RDD functions are called, they must be added here.
 
 import inspect
+from sys import stderr
 
 from pyspark import RDD, StorageLevel
 from pyspark.sql import *
@@ -42,13 +43,13 @@ class XRdd(object):
         stack = inspect.stack()
         caller = stack[1]
         called_by = stack[2]
-        print 'enter method:', caller[3], \
+        print >>stderr, 'Enter method:', caller[3], \
                 'called by', called_by[3], '({}: {})'.format(called_by[1], called_by[2]), \
                 'id:', self.structure_id, self.id
         # print a few frames beyond the top
         for i in range(3, 8): 
                 if stack[i][3] == '<module>': break
-                print '   ', stack[i][3], stack[i][1], stack[i][2]
+                print >>stderr, '   ', stack[i][3], stack[i][1], stack[i][2]
 
     def _entry(self, *args):
         """ Trace function entry. """
@@ -57,13 +58,13 @@ class XRdd(object):
         caller = stack[1]
         called_by = stack[2]
         if XRdd.entry_trace:
-            print 'enter RDD', caller[3], args, \
+            print >>stderr, 'Enter RDD', caller[3], args, \
                 'called by', called_by[3], '({}: {})'.format(called_by[1], called_by[2]), \
                 'id:', self.structure_id, self.id
             # print a few frames beyond the top
             for i in range(4, 6): 
                 if stack[i][3] == '<module>': break
-                print '   ', stack[i][3], stack[i][1], stack[i][2]
+                print >>stderr, '   ', stack[i][3], stack[i][1], stack[i][2]
         if XRdd.perf_count is not None:
             my_fun = caller[3]
             if not my_fun in XRdd.perf_count:
@@ -73,7 +74,7 @@ class XRdd(object):
     def _exit(self, *args):
         """ Trace function exit. """
         if XRdd.exit_trace:
-            print 'exit RDD', inspect.stack()[1][3], args
+            print >>stderr, 'Exit RDD', inspect.stack()[1][3], args
 
     @classmethod
     def set_trace(cls, entry_trace=None, exit_trace=None):
