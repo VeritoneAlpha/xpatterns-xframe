@@ -296,10 +296,10 @@ class XFrameImpl(XObjectImpl):
                 res = reader.next()
                 return res
             except IOError:
-                print >>stderr, 'Malformed line:', line
+                print 'Malformed line:', line
                 return ''
             except Exception as e:
-                print >>stderr, 'Error', e
+                print 'Error', e
                 return ''
         res = raw.map(lambda row: csv_to_array(row, params))
 
