@@ -1737,7 +1737,6 @@ class XFrame(XObject):
                 return 'expected str, got {}: {}'.format(type(s), s)
             if len(s) == 0:
                 return ''
-            s = s.replace('$', '', 1).replace(',', '')
             if s.startswith('-'):
                 s = s[1:]
             if s.isdigit(): return 'int'
@@ -1787,7 +1786,6 @@ class XFrame(XObject):
             val = row[column_name]
             if val is None:
                 return [None]
-            val = val.replace('$', '', 1).replace(',', '')
             if len(val) == 0:
                 return [None]
             try:
@@ -1799,7 +1797,6 @@ class XFrame(XObject):
             val = row[column_name]
             if val is None:
                 return [None]
-            val = val.replace('$', '', 1).replace(',', '')
             if len(val) == 0:
                 return [util.nan]
             try:
