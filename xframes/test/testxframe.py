@@ -1525,12 +1525,20 @@ class TestXFrameRename(unittest.TestCase):
     def test_rename_arg_not_dict(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         with self.assertRaises(TypeError):
-            t.rename(['id', 'new_id'])
+            t.rename('id')
 
     def test_rename_col_not_found(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         with self.assertRaises(ValueError):
             t.rename({'xx': 'new_id'})
+
+    def test_rename_list(self):
+        t = XFrame({'X0': [1, 2, 3], 'X1': ['a', 'b', 'c']})
+        t.rename(['id', 'val'])
+        self.assertEqual(['id', 'val'], t.column_names())
+        self.assertEqual({'id': 1, 'val': 'a'}, t[0])
+
+    # TODO test column rename with list wrong length
 
 
 class TestXFrameGetitem(unittest.TestCase):

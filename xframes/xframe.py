@@ -2437,15 +2437,17 @@ class XFrame(XObject):
 
     def rename(self, names):
         """
-        Rename the given columns. ``names`` is expected to be a dict specifying
+        Rename the given columns. ``names`` can be a dict specifying
         the old and new names. This changes the names of the columns given as
-        the keys and replaces them with the names given as the values.  This
+        the keys and replaces them with the names given as the values.  Alternatively,
+        ``names`` can be a list of the new column names.  In this case it must be
+        the same length as the number of columns.  This
         operation modifies the current XFrame in place and returns self.
 
         Parameters
         ----------
-        names : dict [string, string]
-            Dictionary of [old_name, new_name]
+        names : dict [string, string] | list [ string ]
+            Dictionary of [old_name, new_name] or list of names
 
         Returns
         -------
@@ -2470,14 +2472,20 @@ class XFrame(XObject):
         +-------+-----------------+
         [2 rows x 2 columns]
         """
-        if type(names) is not dict:
-            raise TypeError('Names must be a dictionary: oldname -> newname.')
+        if type(names) not in [list, dict]:
+            raise TypeError('Names must be a dictionary: oldname -> newname or a list of newname.')
         all_columns = set(self.column_names())
-        for k in names:
-            if k not in all_columns:
-                raise ValueError("Cannot find column '{}' in the XFrame.".format(k))
-        for k in names:
-            self.__impl__.set_column_name(k, names[k])
+        if type(names) == dict:
+            for k in names:
+                if k not in all_columns:
+                    raise ValueError("Cannot find column '{}' in the XFrame.".format(k))
+            for k in names:
+                self.__impl__.set_column_name(k, names[k])
+        else:
+            if len(names) != len(self.column_names()):
+                raise ValueError('Names must be the same length as the number of columns ({})'
+                                 .format(len(self.column_names())))
+            self.__impl__.replace_column_names(names)
         return self
 
     def __getattr__(self, key):

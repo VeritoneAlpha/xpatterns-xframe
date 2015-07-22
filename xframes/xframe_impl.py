@@ -911,6 +911,16 @@ class XFrameImpl(XObjectImpl):
         self.col_names[col] = new_name
         self._exit()
 
+    def replace_column_names(self, new_names):
+        """
+        Rename all the column names.
+
+        No return value.
+        """
+        self._entry(new_names)
+        self.col_names = new_names
+        self._exit()
+
     # Iteration
 
     # Begin_iterator is called by a generator function, local to __iter__.
