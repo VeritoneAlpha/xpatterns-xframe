@@ -16,21 +16,12 @@ class ConfigError(Exception):
 class Environment(object):
     def __init__(self):
         """ Create an empty environment. """
-        self.files_to_read = []
-        self.files_read = []
-        defaults = {}
-        for v in os.environ:
-            if v in v in os.environ:
-                defaults[v] = os.environ[v]
-        self.cfg = ConfigParser.SafeConfigParser(defaults)
+        self._files_to_read = None
+        self._files_read = None
+        self.cfg = ConfigParser.SafeConfigParser()
 
     @staticmethod
-    def create_empty():
-        """ Create and return an empty environment. """
-        return Environment()
-
-    @staticmethod
-    def create_from_file(config_file):
+    def create(config_files=None):
         """
         Create an Environment by reading an ini file and default config files.
 
@@ -45,20 +36,18 @@ class Environment(object):
             The environment resulting from the ini file(s).
 
         """
+        files_to_read = []
+        if 'XFRAMES_HOME' in os.environ:
+            files_to_read.append(os.path.join(os.environ['XFRAMES_HOME'], 'default.ini'))
+        files_to_read.append('config.ini')
+        if config_files: files_to_read.append(config_files)
         env = Environment()
-        files_to_read = ['default.ini', config_file]
-        env.read(files_to_read)
+        env._read(files_to_read)
         return env
 
-    @staticmethod
-    def create_default():
-        config_dir = os.environ['XFRAMES_HOME'] if 'XFRAMES_HOME' in os.environ else '.'
-        return Environment.create_from_file(os.path.join(config_dir, 'config.ini'))
-
-    def read(self, files_to_read):
-        files_read = self.cfg.read(files_to_read)
-        self.files_to_read.extend(files_to_read)
-        self.files_read.extend(files_read)
+    def _read(self, files_to_read):
+        self._files_to_read = files_to_read
+        self._files_read = self.cfg.read(files_to_read)
 
     def get_config(self, section, item, default=None):
         """
@@ -110,7 +99,7 @@ class Environment(object):
         """
         try:
             items = self.cfg.items(section, raw=True)
-            return items
+            return {item[0]: item[1] for item in items}
         except ConfigParser.NoSectionError as e:
             print >>stderr, "FAILED -- missing section: ", section
             print >>stderr, e
