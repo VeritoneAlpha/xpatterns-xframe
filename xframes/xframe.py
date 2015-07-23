@@ -2714,7 +2714,7 @@ class XFrame(XObject):
 
         return XFrame(impl=self.__impl__.append(other.__impl__))
 
-    def groupby(self, key_columns, operations, *args):
+    def groupby(self, key_columns, operations=None, *args):
         """
         Perform a group on the key_columns followed by aggregations on the
         columns listed in operations.
@@ -2980,6 +2980,11 @@ class XFrame(XObject):
         +---------+--------------+
         [9852 rows x 2 columns]
         """
+
+        # TODO: groupby CONCAT produces unicode output from utf8 input
+        # TODO: Preserve character encoding.
+
+        operations = operations or []
         # some basic checking first
         # make sure key_columns is a list
         if isinstance(key_columns, str):
