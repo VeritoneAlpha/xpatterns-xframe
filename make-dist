@@ -1,7 +1,13 @@
 #!/bin/bash
 
+source setup
+
 here=`pwd`
+
+# Make documentation
 cd docs
 ./make-readme
+
+# Make zip file
 cd $here
 python setup.py sdist --formats=zip
