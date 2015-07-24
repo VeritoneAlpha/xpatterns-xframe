@@ -2732,7 +2732,7 @@ class XFrame(XObject):
             Column(s) to group by. Key columns can be of any type other than
             dictionary.
 
-        operations : dict, list
+        operations : dict, list, optional
             Dictionary of columns and aggregation operations. Each key is a
             output column name and each value is an aggregator. This can also
             be a list of aggregators, in which case column names will be
@@ -2984,7 +2984,7 @@ class XFrame(XObject):
         # TODO: groupby CONCAT produces unicode output from utf8 input
         # TODO: Preserve character encoding.
 
-        operations = operations or []
+        operations = operations or {}
         # some basic checking first
         # make sure key_columns is a list
         if isinstance(key_columns, str):

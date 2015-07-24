@@ -1796,6 +1796,19 @@ class TestXFrameGroupby(unittest.TestCase):
         self.assertEqual({'id': 2}, res[1])
         self.assertEqual({'id': 3}, res[2])
 
+    def test_groupby_nooperation(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, 30, 40, 50, 60]})
+        res = t.groupby('id')
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id'], res.column_names())
+        self.assertEqual([int], res.column_types())
+        self.assertEqual({'id': 1}, res[0])
+        self.assertEqual({'id': 2}, res[1])
+        self.assertEqual({'id': 3}, res[2])
+
     def test_groupby_bad_col_name_type(self):
         t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
                     'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
