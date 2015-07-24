@@ -4,7 +4,7 @@ This builds the setup files.
 import os
 import io
 
-from setuptools import setup, find_packages
+from distutils.core import setup
 import xframes
 
 here = os.path.abspath(os.path.dirname(__file__))
@@ -24,8 +24,10 @@ setup(name='xframe',
       version=xframes.__version__,
       url='https://github.com/Atigeo/xpatterns-xframe',
       license='Apache Software License 2.0',
-      packages=['xframes'],
-      include_package_data=True,
+      packages=['xframes', 'xframes.deps', 'xframes.toolkit'],
+      package_data={'xframes': ['conf/*.properties', 'conf/*.template']},
+      #include_package_data=True,
+      data_files=[('docs', ['docs/README.rst'])],
       platforms='any',
       author='Charles Hayden',
       author_email='charles.hayden@atigeo.com',
