@@ -20,7 +20,7 @@ def read(*filenames, **kwargs):
 
 long_description = read('docs/README.rst')
 
-setup(name='xframe',
+setup(name='xframes',
       version=xframes.__version__,
       url='https://github.com/Atigeo/xpatterns-xframe',
       license='Apache Software License 2.0',
