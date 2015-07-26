@@ -1,4 +1,5 @@
 import xframes
+import xframes.version
 from xframes.xobject_impl import XObjectImpl
 
 
@@ -12,7 +13,7 @@ class XObject(object):
         """
         Returns the xframes library version.
         """
-        return xframes.__version__
+        return xframes.version.__version__
 
     @staticmethod
     def set_trace(entry_trace=None, exit_trace=None):
