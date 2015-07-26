@@ -13,7 +13,9 @@ from pyspark import SparkConf, SparkContext, SQLContext
 from xframes.environment import Environment
 from xframes.singleton import Singleton
 
-# Context Defaults
+def get_xframes_home():
+    import xframes
+    return os.path.dirname(xframes.__file__)
 
 
 # noinspection PyClassHasNoInit
@@ -49,7 +51,7 @@ class CommonSparkContext(object):
         """
         Create a spark context.
 
-        The spark configuration is taken from $XFRAMES_HOME/config.ini and from
+        The spark configuration is taken from xframes/config.ini and from
         the values set in SparkInitContext.set() if this has been called.
 
         Notes
@@ -82,7 +84,7 @@ class CommonSparkContext(object):
             z.update(y)
             return z
 
-        # This reads from default.ini and then $XFRAMES_HOME/config.ini
+        # This reads from default.ini and then xframes/config.ini
         # if they exist.
         env = Environment.create()
         default_context = {'master': 'local',
@@ -153,20 +155,18 @@ class CommonSparkContext(object):
 
     @staticmethod
     def build_zip():
-        if 'XFRAMES_HOME' not in os.environ:
-            return None
         # This can fail at writepy if there is something wrong with the files
         #  in xframes.  Go ahead anyway, but things will probably fail of this job is
         #  distributed
         try:
             tf = NamedTemporaryFile(suffix='.zip', delete=False)
             z = PyZipFile(tf, 'w')
-            z.writepy(os.environ['XFRAMES_HOME'])
+            z.writepy(get_xframes_home())
             z.close()
             return tf.name
         except:
             print >>stderr, 'Zip file distribution failed -- workers will not get xframes code.'
-            print >>stderr, 'Check for unexpected files in XFRAMES_HOME.'
+            print >>stderr, 'Check for unexpected files in xframes directory.'
             return None
 
 
