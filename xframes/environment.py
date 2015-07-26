@@ -12,6 +12,9 @@ from sys import stderr
 class ConfigError(Exception):
     pass
 
+def get_xframes_home():
+    import xframes
+    return os.path.dirname(xframes.__file__)
 
 class Environment(object):
     def __init__(self):
@@ -37,8 +40,7 @@ class Environment(object):
 
         """
         files_to_read = []
-        if 'XFRAMES_HOME' in os.environ:
-            files_to_read.append(os.path.join(os.environ['XFRAMES_HOME'], 'xframes/default.ini'))
+        files_to_read.append(os.path.join(get_xframes_home(), 'xframes/default.ini'))
         files_to_read.append('config.ini')
         if config_files: files_to_read.append(config_files)
         env = Environment()
