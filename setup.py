@@ -5,7 +5,7 @@ import os
 import io
 import re
 
-from distutils.core import setup
+from setuptools import setup
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -32,7 +32,6 @@ def read(*filenames, **kwargs):
             buf.append(f.read())
     return sep.join(buf)
 
-long_description = read('docs/README.rst')
 
 setup(name='xframes',
       version=get_version(),
@@ -40,8 +39,8 @@ setup(name='xframes',
       license='Apache Software License 2.0',
       packages=['xframes', 'xframes.deps', 'xframes.toolkit'],
       package_data={'xframes': ['conf/*.properties', 'conf/*.template', 'default.ini']},
-      data_files=[('docs', ['docs/README.rst'])],
-      requires=['prettytable', 'numpy'],
+      data_files=[('', ['README.rst'])],
+      install_requires=['prettytable', 'numpy'],
       provides=['xframes'],
       platforms='any',
       author='Charles Hayden',
