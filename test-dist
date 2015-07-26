@@ -1,0 +1,83 @@
+#!/bin/bash
+
+# This file documents the manual steps
+#  having to do with interacting with pypi.
+
+# Register xframes with pypi
+############################
+python setup.py register -r pypi
+
+# Upload a new version
+######################
+# edit version.py and increment the version
+
+python setup.py sdist upload -r pypi
+
+
+
+# Install xframes
+#################
+# Activate the virtual env, if this is where xframes is going to be installed.
+# Otherwise it will install into the global environment, which will
+#  probably require sudo.
+mkdir tmp
+cd tmp
+virtualenv venv
+source venv/bin/activate
+#
+# For now, install dependencies
+pip install prettytables
+pip install numpy
+
+# Install xframes
+pip install xframes
+
+# To run xFrames application
+#
+# Set up pyspark -- replace with where you have unpacked spark
+export SPARK_HOME=~/spark
+export PYTHONPATH=${SPARK_HOME}/python:${SPARK_HOME}/python/lib/py4j-0.8.2.1-src.zip
+#
+# You probably want to set up spark config.
+# If you do not, you will see a lot of debug output on stdout.
+# There is a sample config in conf.
+cp -r ~/workspaces/xframes-os/xframes/conf .
+export SPARK_CONF_DIR=`pwd`/conf
+
+# Run test
+python test.py
+
+
+# Setting up .pypirc
+####################
+# This supplies information for pypi
+# Put the following in ~/.pypirc
+[distutils]
+index-servers =
+  pypi
+  pypitest
+
+[pypi]
+repository: https://pypi.python.org/pypi
+username: cchayden
+password: ******
+
+[pypitest]
+repository: https://testpypi.python.org/pypi
+username: cchayden
+password: ******
+
+Using the PyPi Test Server
+##########################
+
+Since version numbers can never be reused, each time a new
+version is uploaded that number can never be used again.
+To experiment with issues involving upload and download you can
+use the test server.  Although it enforces the same rules about version
+numbers, they do not share with the regular server.
+
+First, make an account with the server at pypitest.
+Second, change "-r pypi" to "-r py[pitest" above.
+
+Finally, on pip install, use "-i https://testpypi.pryhon.org/pypi"
+
