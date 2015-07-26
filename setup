@@ -15,6 +15,6 @@ export PYTHONPATH=${SPARK_HOME}/python:${SPARK_HOME}/python/lib/py4j-0.8.2.1-src
 # It is a good idea to set the spark conf directory.
 #export SPARK_CONF_DIR=$here/xframes/conf
 
-# This is not needed if python is installed in the python path
+# This is not needed if xframes is installed in the python path
 #export PYTHONPATH=$here:$PYTHONPATH
 
