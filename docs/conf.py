@@ -20,7 +20,7 @@ class Mock(MagicMock):
     def __getattr__(cls, name):
             return Mock()
 
-MOCK_MODULES = ['numpy', 'pandas', 'matplotlib', 'pyspark', 'pyspark.sql', 'pyspark.sql.types']
+MOCK_MODULES = ['numpy', 'pandas', 'matplotlib', 'pyspark', 'pyspark.sql', 'pyspark.sql.types', 'matplotlib.pyplot']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 # If extensions (or modules to document with autodoc) are in another directory,
