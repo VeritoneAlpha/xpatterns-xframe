@@ -3,7 +3,9 @@ import traceback
 import operator
 import math
 
-import matplotlib.pyplot as plt
+from xframes.deps import matplotlib, HAS_MATPLOTLIB
+if HAS_MATPLOTLIB:
+  import matplotlib.pyplot as plt
 
 import xframes
 

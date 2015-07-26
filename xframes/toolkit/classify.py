@@ -11,7 +11,9 @@ from pyspark.mllib.classification import SVMWithSGD
 from pyspark.mllib.classification import NaiveBayes
 from pyspark.mllib.tree import DecisionTree
 
-import matplotlib.pyplot as plt
+from xframes.deps import matplotlib, HAS_MATPLOTLIB
+if HAS_MATPLOTLIB:
+    import matplotlib.pyplot as plt
 
 from xframes.spark_context import CommonSparkContext
 from xframes.toolkit.model import Model, ModelBuilder
