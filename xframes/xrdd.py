@@ -11,9 +11,11 @@ Wrapped functions allow entry and exit tracing and keeps perf counts.
 import inspect
 from sys import stderr
 
-from pyspark import RDD, StorageLevel
-from pyspark.sql import *
+import pyspark
+from pyspark import RDD
 
+
+# noinspection PyPep8Naming
 class XRdd(object):
     entry_trace = False
     exit_trace = False
@@ -44,8 +46,8 @@ class XRdd(object):
         caller = stack[1]
         called_by = stack[2]
         print >>stderr, 'Enter method:', caller[3], \
-                'called by', called_by[3], '({}: {})'.format(called_by[1], called_by[2]), \
-                'id:', self.structure_id, self.id
+                        'called by', called_by[3], '({}: {})'.format(called_by[1], called_by[2]), \
+                        'id:', self.structure_id, self.id
         # print a few frames beyond the top
         for i in range(3, 8): 
                 if stack[i][3] == '<module>': break
@@ -67,7 +69,7 @@ class XRdd(object):
                 print >>stderr, '   ', stack[i][3], stack[i][1], stack[i][2]
         if XRdd.perf_count is not None:
             my_fun = caller[3]
-            if not my_fun in XRdd.perf_count:
+            if my_fun not in XRdd.perf_count:
                 XRdd.perf_count[my_fun] = 0
             XRdd.perf_count[my_fun] += 1
 
@@ -98,7 +100,7 @@ class XRdd(object):
 
     @staticmethod
     def is_dataframe(rdd):
-        return isinstance(rdd, DataFrame)
+        return isinstance(rdd, pyspark.sql.DataFrame)
 
     # getters
     def RDD(self):
@@ -106,7 +108,7 @@ class XRdd(object):
 
     # actions
     def name(self):
-        self._entry();
+        self._entry()
         res = self._rdd.name()
         self._exit()
         return res
@@ -122,7 +124,7 @@ class XRdd(object):
         return self.structure_id
 
     def count(self):
-        self._entry();
+        self._entry()
         res = self._rdd.count()
         self._exit()
         return res
@@ -300,7 +302,7 @@ class XRdd(object):
         else:
             res = self.safe_zip(other)
             structure_id = None
-        res.persist(StorageLevel.MEMORY_AND_DISK)
+        res.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
         self._exit()
         return XRdd(res, structure_id=structure_id)
 
@@ -340,12 +342,6 @@ class XRdd(object):
         self._exit()
         return XRdd(res, self.structure_id)
         
-    def repartition(self, number_of_partitions):
-        self._entry(number_of_partitions)
-        res = self._rdd.repartition(number_of_partitions)
-        self._exit()
-        return XRdd(res)
-
     def sample(self, with_replacement, fraction, seed=None):
         self._entry(with_replacement, fraction, seed)
         res = self._rdd.sample(with_replacement, fraction, seed)
