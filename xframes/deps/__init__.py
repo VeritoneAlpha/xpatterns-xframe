@@ -23,22 +23,6 @@ except:
     import pandas_mock as pandas
 
 
-NUMPY_MIN_VERSION = '1.8.0'
-try:
-    import numpy
-
-    if __get_version(numpy.__version__) < StrictVersion(NUMPY_MIN_VERSION):
-        HAS_NUMPY = False
-        logging.warn('Numpy version {} is not supported. Minimum required version: {}. '
-                     'Numpy support will be disabled.'.format(numpy.__version__, NUMPY_MIN_VERSION))
-    else:
-        HAS_NUMPY = True
-
-except:
-    HAS_NUMPY = False
-    import numpy_mock as numpy
-
-
 try:
     import matplotlib
 
