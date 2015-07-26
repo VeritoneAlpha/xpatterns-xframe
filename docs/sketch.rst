@@ -4,6 +4,6 @@ Sketch
 .. toctree::
    :maxdepth: 2
 
-.. autoclass:: xpatterns.Sketch
+.. autoclass:: xframes.Sketch
    :members:
 

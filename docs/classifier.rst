@@ -7,6 +7,6 @@ Classifier Documentation
 Classifier
 ----------
 
-.. automodule:: xpatterns.toolkit.classify
+.. automodule:: xframes.toolkit.classify
    :members:
 

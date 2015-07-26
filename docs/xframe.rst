@@ -4,7 +4,7 @@ XFrame
 .. toctree::
    :maxdepth: 2
 
-.. autoclass:: xpatterns.XFrame
+.. autoclass:: xframes.XFrame
    :members:
    :inherited-members:
 

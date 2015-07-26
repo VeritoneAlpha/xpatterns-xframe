@@ -7,6 +7,6 @@ Cluster Documentation
 Cluster
 -------
 
-.. automodule:: xpatterns.toolkit.cluster
+.. automodule:: xframes.toolkit.cluster
    :members:
 

@@ -4,7 +4,7 @@ XArray
 .. toctree::
    :maxdepth: 2
 
-.. autoclass:: xpatterns.XArray
+.. autoclass:: xframes.XArray
    :members:
    :inherited-members:
 

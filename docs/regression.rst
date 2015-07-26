@@ -7,6 +7,6 @@ Regression Documentation
 Regression
 ----------
 
-.. automodule:: xpatterns.toolkit.regression
+.. automodule:: xframes.toolkit.regression
    :members:
 

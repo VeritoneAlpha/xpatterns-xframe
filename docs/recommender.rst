@@ -7,6 +7,6 @@ Recommender Documentation
 Recommender
 -----------
 
-.. automodule:: xpatterns.toolkit.recommend
+.. automodule:: xframes.toolkit.recommend
    :members:
 
