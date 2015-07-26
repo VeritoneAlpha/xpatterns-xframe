@@ -23,9 +23,10 @@ import time
 import itertools
 from sys import stderr
 
+import numpy
+
 from xframes.deps import pandas, HAS_PANDAS
 from xframes.deps import dataframeplus, HAS_DATAFRAME_PLUS
-from xframes.deps import numpy, HAS_NUMPY
 from xframes.xobject import XObject
 from xframes.xframe_impl import XFrameImpl
 from xframes.xplot import XPlot
@@ -4248,7 +4249,6 @@ class XFrame(XObject):
                 raise TypeError('Only string parameter can be passed in as column names.')
             if column not in my_column_names:
                 raise ValueError("XFrame has no column named: '{}'.".format(column))
-            if HAS_NUMPY:
                 sortable_types = (str, int, float, numpy.int32, datetime.datetime)
             else:
                 sortable_types = (str, int, float, datetime.datetime)

@@ -21,8 +21,9 @@ import array
 import warnings
 import datetime
 
+import numpy
+
 from xframes.deps import pandas, HAS_PANDAS
-from xframes.deps import numpy, HAS_NUMPY
 from xframes.xobject import XObject
 from xframes.xarray_impl import XArrayImpl, infer_type_of_list
 from xframes.util import make_internal_url,  pytype_from_dtype
@@ -142,8 +143,7 @@ class XArray(XObject):
 
         if HAS_PANDAS and isinstance(data, pandas.Series):
             self.__impl__ = XArrayImpl.load_from_iterable(data.values, dtype, ignore_cast_failure)
-        elif HAS_NUMPY and isinstance(data, numpy.ndarray) \
-                or isinstance(data, list) \
+        elif isinstance(data, numpy.ndarray) or isinstance(data, list) \
                 or isinstance(data, array.array):
             self.__impl__ = XArrayImpl.load_from_iterable(data, dtype, ignore_cast_failure)
         elif hasattr(data, '__iter__'):
@@ -172,7 +172,7 @@ class XArray(XObject):
                 dtype = infer_type_of_list(data)
             return dtype
 
-        elif HAS_NUMPY and isinstance(data, numpy.ndarray):
+        elif isinstance(data, numpy.ndarray):
             # if it is a numpy array, get the dtype of the array
             dtype = pytype_from_dtype(data.dtype)
             if dtype == object:

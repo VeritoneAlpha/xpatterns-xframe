@@ -13,9 +13,9 @@ import StringIO
 import ast
 from sys import stderr
 
+import numpy
 
 from xframes.deps import HAS_PANDAS
-from xframes.deps import numpy, HAS_NUMPY
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField
 
@@ -156,8 +156,8 @@ class XFrameImpl(XObjectImpl):
         Load from a pandas.DataFrame.
         """
         cls._entry(data)
-        if not HAS_PANDAS or not HAS_NUMPY:
-            raise NotImplementedError('Pandas and numpy are required.')
+        if not HAS_PANDAS:
+            raise NotImplementedError('Pandas is required.')
 
         # build something we can parallelize
         # list of rows, each row is a tuple
