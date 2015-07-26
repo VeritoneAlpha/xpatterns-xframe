@@ -11,3 +11,36 @@ cd docs
 # Make zip file
 cd $here
 python setup.py sdist --formats=zip
+
+
+
+
+# register xframes with pypi
+# python setup.py register -r pypi
+
+# upload a new version
+# edit __init__.py and increment the version
+# python setup.py sdist upload -r pypi
+
+
+
+#  install
+#
+# activate the virtual env, if this is where xframes is going to be installed
+# source ../venv/bin/activate
+#
+# for now, install dependencies
+# pip install prettytables
+# pip install numpy
+# install xframes
+# pip install xframes
+
+# To run
+# Set up pyspark
+# export SPARK_HOME=~/spark
+# export PYTHONPATH=${SPARK_HOME}/python:${SPARK_HOME}/python/lib/py4j-0.8.2.1-src.zip
+#
+# You probably want to set up spark config.
+# If you do not, you will see a lot of debug output on stdout.
+# There is a sample config in conf.
+# export SPARK_CONF_DIR=<path to conf>
