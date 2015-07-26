@@ -58,15 +58,8 @@ class FreqSketch(object):
         ------
         ValueError
             If if k is not a positive integer, or epsilon or delta are not in the unit interval.
-
-        Note
-        ----
-        # This code will fail if numpy is not available.
-        # It is optional in xFrames, but is replaced by a mock that does not have the required
-        # methods and data types.
-
-
         """
+
         seed = seed or 1729
         random.seed(seed)
         if k < 1:
