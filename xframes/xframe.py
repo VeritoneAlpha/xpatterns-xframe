@@ -7,7 +7,7 @@ and is stored as Spark RDDs.
 """
 
 """
-Copyright (c) 2015, Dato, Inc.
+Copyright (c) 2014, Dato, Inc.
 All rights reserved.
 
 Copyright (c) 2015, Atigeo, Inc.

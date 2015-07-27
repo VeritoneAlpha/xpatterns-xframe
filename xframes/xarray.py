@@ -7,7 +7,7 @@ The data is immutable, homogeneous, and is stored in a Spark RDD.
 """
 
 """
-Copyright (c) 2015, Dato, Inc.
+Copyright (c) 2014, Dato, Inc.
 All rights reserved.
 
 Copyright (c) 2015, Atigeo, Inc.
@@ -103,10 +103,10 @@ class XArray(XObject):
     xframes.XArray.set_trace
         Controls entry and exit tracing.
 
-    xframes.XArray.spark_context:
+    xframes.XArray.spark_context
         Returns the spark context.
 
-    xframes.XArray.spark_sql_context:
+    xframes.XArray.spark_sql_context
         Returns the spark sql context.
 
     Examples
@@ -206,9 +206,10 @@ class XArray(XObject):
         Parameters
         ----------
         value : [int | float | str | array.array | list | dict]
-          The value to fill the XArray
+          The value to fill the XArray.
+
         size : int
-          The size of the XArray
+          The size of the XArray.
 
         Examples
         --------
@@ -230,11 +231,13 @@ class XArray(XObject):
 
         Parameters
         ----------
-        start : int, optional
-            The start of the sequence. The sequence will contain this value.
+        start : int
+            If `end` is not given, the sequence consists of numbers 0 .. `start`-1.
+            Otherwise, the sequence starts with `start`.
 
-        stop : int
-          The end of the sequence. The sequence will not contain this value.
+        stop : int, optional
+          If given, the sequence consists of the numbers `start`, `start`+1 ... `end`-1.
+          The sequence will not contain this value.
 
         Examples
         --------
@@ -288,7 +291,7 @@ class XArray(XObject):
         """
         Saves the XArray to file.
 
-        The saved XArray will be in a directory named with the `targetfile`
+        The saved XArray will be in a directory named with the `filename`
         parameter.
 
         Parameters
@@ -301,10 +304,10 @@ class XArray(XObject):
         format : {'binary', 'text', 'csv'}, optional
             Format in which to save the XFrame. Binary saved XArrays can be
             loaded much faster and without any format conversion losses.
-            'text' and 'csv' are synonymous: Each XArray row will be written
+            The values 'text' and 'csv' are synonymous: Each XArray row will be written
             as a single line in an output text file. If not
             given, will try to infer the format from filename given. If file
-            name ends with 'csv', 'txt' or '.csv.gz', then save as 'csv' format,
+            name ends with 'csv', or 'txt', then save as 'csv' format,
             otherwise save as 'binary' format.
 
         """
@@ -329,6 +332,7 @@ class XArray(XObject):
 
         ----------
         out: RDD
+            The internal RDD used to stores XArray instances.
 
         """
 
@@ -344,23 +348,30 @@ class XArray(XObject):
         """
         Convert a Spark RDD into an XArray
 
-
         Parameters
         ----------
         rdd : pyspark.rdd.RDD
+            The Spark RDD containing the XArray values.
 
         dtype : type
+            The values in `rdd` should have the data type `dtype`.
 
         Returns
         -------
         out : XArray
+            This incorporates the given RDD.
 
         """
         return cls(impl=XArrayImpl.from_rdd(rdd, dtype))
 
     def __repr__(self):
         """
-        Returns a string description of the XArray.
+        A string description of the XArray.
+
+        Returns
+        -------
+        out : string
+            A string representation of the XArray.
         """
         ret = 'dtype: ' + str(self.dtype()) + '\n'
         ret = ret + 'Rows: ' + str(self.size()) + '\n'
@@ -369,7 +380,12 @@ class XArray(XObject):
 
     def __str__(self):
         """
-        Returns a string containing the first 100 elements of the array.
+        A string containing the first 100 elements of the array.
+
+        Returns
+        -------
+        out : str
+            Returns a string containing the first 100 elements of the array.
         """
         h = self.__impl__.head_as_list(100)
         headln = str(h)
@@ -381,7 +397,7 @@ class XArray(XObject):
 
     def __nonzero__(self):
         """
-        Returns true if the array is not empty.
+        Returns True if the array is not empty.
         """
         return self.size() != 0
 
@@ -1095,7 +1111,9 @@ class XArray(XObject):
     def dict_has_all_keys(self, keys):
         """
         Create a boolean XArray by checking the keys of an XArray of
-        dictionaries. An element of the output XArray is True if the
+        dictionaries.
+
+        An element of the output XArray is True if the
         corresponding input element's dictionary has all of the given keys.
         Fails on XArrays whose data type is not ``dict``.
 
@@ -1131,10 +1149,9 @@ class XArray(XObject):
 
     def apply(self, fn, dtype=None, skip_undefined=True, seed=None):
         """
-        apply(fn, dtype=None, skip_undefined=True, seed=None)
+        Transform each element of the XArray by a given function.
 
-        Transform each element of the XArray by a given function. The result
-        XArray is of type `dtype`. `fn` should be a function that returns
+        The result XArray is of type `dtype`. `fn` should be a function that returns
         exactly one value which can be cast into the type specified by
         `dtype`. If `dtype` is not specified, the first 100 elements of the
         XArray are used to make a guess about the data type.
@@ -1145,12 +1162,12 @@ class XArray(XObject):
             The function to transform each element. Must return exactly one
             value which can be cast into the type specified by `dtype`.
 
-        dtype : {None, int, float, str, list, array.array, dict}, optional
-            The data type of the new XArray. If None, the first 100 elements
+        dtype : {int, float, str, list, array.array, dict}, optional
+            The data type of the new XArray. If not supplied, the first 100 elements
             of the array are used to guess the target data type.
 
         skip_undefined : bool, optional
-            If True, will not apply `fn` to any undefined values.
+            If True, will not apply `fn` to any missing values.
 
         seed : int, optional
             Used as the seed if a random number generator is included in `fn`.
@@ -1164,6 +1181,9 @@ class XArray(XObject):
         See Also
         --------
         xframes.XFrame.apply
+            Applies a function to a column of an XFrame.  Note that the functions differ in these
+            two cases: on an XArray the function receives one value, on an XFrame it receives a dict of the
+            column name/value pairs.
 
         Examples
         --------
@@ -1188,10 +1208,10 @@ class XArray(XObject):
 
     def flat_map(self, fn=None, dtype=None, skip_undefined=True, seed=None):
         """
-        flat_map(fn, dtype=None, skip_undefined=True)
-
         Transform each element of the XArray by a given function, which must return 
-        a list. Each item in the result XArray is made up of a list element.
+        a list.
+
+        Each item in the result XArray is made up of a list element.
         The result XArray is of type `dtype`. `fn` should be a function that returns
         a list of values which can be cast into the type specified by
         `dtype`. If `dtype` is not specified, the first 100 elements of the
@@ -1334,8 +1354,9 @@ class XArray(XObject):
 
     def all(self):
         """
-        Return True if every element of the XArray evaluates to True. For
-        numeric XArrays zeros and missing values (None) evaluate to False,
+        Return True if every element of the XArray evaluates to True.
+
+        For numeric XArrays zeros and missing values (None) evaluate to False,
         while all non-zero, non-missing values evaluate to True. For string,
         list, and dictionary XArrays, empty values (zero length strings, lists
         or dictionaries) or missing values (None) evaluate to False. All
@@ -1371,8 +1392,9 @@ class XArray(XObject):
 
     def any(self):
         """
-        Return True if any element of the XArray evaluates to True. For numeric
-        XArrays any non-zero value evaluates to True. For string, list, and
+        Return True if any element of the XArray evaluates to True.
+
+        For numeric XArrays any non-zero value evaluates to True. For string, list, and
         dictionary XArrays, any element of non-zero length evaluates to True.
 
         Returns False on an empty XArray.
@@ -1570,12 +1592,6 @@ class XArray(XObject):
         See Also
         ----------
         xframes.XArray.str_to_datetime
-
-        References
-        ----------
-        [1] Boost date time from string conversion guide
-            (http://www.boost.org/doc/libs/1_48_0/doc/html/date_time/date_time_io.html)
-
         """
         if self.dtype() != datetime.datetime:
             raise TypeError('Datetime_to_str expects XArray of datetime as input XArray.')
@@ -1608,12 +1624,6 @@ class XArray(XObject):
         See Also
         ----------
         xframes.XArray.datetime_to_str
-
-        References
-        ----------
-        [1] boost date time to string conversion guide (
-            http://www.boost.org/doc/libs/1_48_0/doc/html/date_time/date_time_io.html)
-
         """
         if self.dtype() != str:
             raise TypeError("'Str_to_datetime' expects XArray of str as input XArray.")
@@ -1773,18 +1783,19 @@ class XArray(XObject):
 
     def tail(self, n=10):
         """
-        Get an XArray that contains the last n elements in the XArray.
+        Creates an XArray that contains the last n elements in the given XArray.
 
         Parameters
         ----------
         n : int
-            The number of elements to fetch
+            The number of elements.
 
         Returns
         -------
         out : XArray
             A new XArray which contains the last n rows of the current XArray.
         """
+
         return XArray(impl=self.__impl__.tail(n))
 
     def dropna(self):
@@ -1792,8 +1803,8 @@ class XArray(XObject):
         Create new XArray containing only the non-missing values of the
         XArray.
 
-        A missing value shows up in an XArray as 'None'.  This will also drop
-        float('nan').
+        A missing value shows up in a numeric XArray as 'NaN'.  A missing value in a string
+        XArray is empty.
 
         Returns
         -------
@@ -1816,12 +1827,12 @@ class XArray(XObject):
         Parameters
         ----------
         value : type convertible to XArray's type
-            The value used to replace all missing values
+            The value used to replace all missing values.
 
         Returns
         -------
         out : XArray
-            A new XArray with all missing values filled
+            A new XArray with all missing values filled.
         """
         return XArray(impl=self.__impl__.fill_missing_values(value))
 
@@ -1849,6 +1860,7 @@ class XArray(XObject):
         -----
         This is used internally by XFrame's topk function.
         """
+
         if type(topk) is not int:
             raise TypeError("'Topk_index': topk must be an integer ({})".format(topk))
         return XArray(impl=self.__impl__.topk_index(topk, reverse))
@@ -1902,7 +1914,7 @@ class XArray(XObject):
     def append(self, other):
         """
         Append an XArray to the current XArray. Creates a new XArray with the
-        rows from both XArrays. Both XArrays must be of the same type.
+        rows from both XArrays. Both XArrays must be of the same data type.
 
         Parameters
         ----------
@@ -1918,6 +1930,7 @@ class XArray(XObject):
         See Also
         --------
         xframes.XFrame.append
+            Appends XFrames.
 
         Examples
         --------
@@ -1940,9 +1953,8 @@ class XArray(XObject):
         """
         Get all unique values in the current XArray.
 
-        Raises a TypeError if the XArray is of dictionary type. Will not
-        necessarily preserve the order of the given XArray in the new XArray.
-
+        Will not necessarily preserve the order of the given XArray in the new XArray.
+        Raises a TypeError if the XArray is of dictionary type.
 
         Returns
         -------
@@ -1952,7 +1964,9 @@ class XArray(XObject):
         See Also
         --------
         xframes.XFrame.unique
+            Unique rows in XFrames.
         """
+
         return XArray(impl=self.__impl__.unique())
 
     def item_length(self):
@@ -1967,7 +1981,7 @@ class XArray(XObject):
 
         Returns
         -------
-        out_xf : XArray
+        out : XArray
             A new XArray, each element in the XArray is the len of the corresponding
             items in original XArray.
 
@@ -2344,7 +2358,7 @@ class XArray(XObject):
         Parameters
         ----------
         ascending: boolean, optional
-           If true, the xarray values are sorted in ascending order, otherwise,
+           If True, the xarray values are sorted in ascending order, otherwise,
            descending order.
 
         Returns
