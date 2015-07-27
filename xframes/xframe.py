@@ -3663,7 +3663,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        pack_columns, unpack
+        pack_columns
 
         Examples
         ---------
