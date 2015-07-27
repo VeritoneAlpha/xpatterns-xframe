@@ -627,7 +627,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        xframes.XFrame.read_csv, xframes.XFrame
+        XFrame.read_csv, xframes.XFrame
 
         Examples
         --------
