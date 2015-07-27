@@ -87,11 +87,11 @@ class XFrame(XObject):
     Parameters
     ----------
     data : array | pandas.DataFrame | spark.rdd | spark.DataFrame | string | dict, optional
-        The actual interpretation of this field is dependent on the ``format``
-        parameter. If ``data`` is an array, Pandas DataFrame or Spark RDD, the contents are
-        stored in the XFrame. If ``data`` is an object supporting iteritems, then is is handled
-        like a dictionary.  If ``data`` is an object supporting iteration, then the values
-        are iterated to form the XFrame.  If ``data`` is a string, it is interpreted as a
+        The actual interpretation of this field is dependent on the `format`
+        parameter. If `data` is an array, Pandas DataFrame or Spark RDD, the contents are
+        stored in the XFrame. If `data` is an object supporting iteritems, then is is handled
+        like a dictionary.  If `data` is an object supporting iteration, then the values
+        are iterated to form the XFrame.  If `data` is a string, it is interpreted as a
         file. Files can be read from local file system or urls (local://,
         hdfs://, s3://, http://, or remote://).
 
@@ -303,7 +303,6 @@ class XFrame(XObject):
         ----------
         width : int
             The maximum width of the table when printing.
-            As many columns
         """
         global MAX_ROW_WIDTH
         MAX_ROW_WIDTH = width
@@ -316,8 +315,7 @@ class XFrame(XObject):
         Parameters
         ----------
         width : int
-            The maximum width of the table when printing.
-            As many columns
+            The maximum width of the table when printing in html.
         """
         global HTML_MAX_ROW_WIDTH
         HTML_MAX_ROW_WIDTH = width
@@ -349,7 +347,7 @@ class XFrame(XObject):
         footer_strs : list
             A list of strings.  Each string is a separate line, printed beneath
             a table.  This footer is used when the length of the table
-            is not known because the XFrame has not been evaluated..
+            is not known because the XFrame has not been evaluated.
             To disable printing the footer, pass an empty list.
         """
         global LAZY_FOOTER_STRS
@@ -399,7 +397,7 @@ class XFrame(XObject):
         """
         Load an XFrame. The filename extension is used to determine the format
         automatically. This function is particularly useful for XFrames previously
-        saved in binary format. For CSV imports the ``XFrame.read_csv`` function
+        saved in binary format. For CSV imports the ``~xframes.XFrame.read_csv`` function
         provides greater control. If the XFrame is in binary format, `filename` is
         actually a directory, created when the XFrame is saved.
 
@@ -414,7 +412,8 @@ class XFrame(XObject):
 
         See Also
         --------
-        save, read_csv
+        save : saves file 
+        read_csv : allows more control over csv parsing
 
         Examples
         --------
