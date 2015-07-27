@@ -62,7 +62,7 @@ class XArray(XObject):
         the data in the list is converted and stored in an XArray.
         Alternatively if this is a string, it is interpreted as a path (or
         url) to a text file. Each line of the text file is loaded as a
-        separate row. If ``data`` is a directory where an XArray was previously
+        separate row. If `data` is a directory where an XArray was previously
         saved, this is loaded as an XArray read directly out of that
         directory.
 
@@ -79,7 +79,7 @@ class XArray(XObject):
 
     Notes
     -----
-    - If ``data`` is pandas.Series, the index will be ignored.
+    - If `data` is pandas.Series, the index will be ignored.
     - The datetime is based on the Boost datetime format
       (see http://www.boost.org/doc/libs/1_48_0/doc/html/date_time/date_time_io.html for details)
 
@@ -825,7 +825,7 @@ class XArray(XObject):
         Parameters
         ----------
         n : int, optional
-            The number of words in each n-gram. An ``n`` value of 1 returns word
+            The number of words in each n-gram. An `n` value of 1 returns word
             counts.
 
         method : {'word', 'character'}, optional
@@ -839,7 +839,7 @@ class XArray(XObject):
             If method is "character", indicates if spaces between words are
             counted as part of the n-gram. For instance, with the input XArray
             element of "fun games", if this parameter is set to False one
-            tri-gram would be 'n g'. If ``ignore_space`` is set to True, there
+            tri-gram would be 'n g'. If `ignore_space` is set to True, there
             would be no such tri-gram (there would still be 'nga'). This
             parameter has no effect if the method is set to "word".
 
@@ -855,8 +855,8 @@ class XArray(XObject):
 
         Notes
         -----
-            - Ignoring case (with ``to_lower``) involves a full string copy of the
-            XArray data. To increase speed for large documents, set ``to_lower``
+            - Ignoring case (with `to_lower`) involves a full string copy of the
+            XArray data. To increase speed for large documents, set `to_lower`
             to False.
 
             - Punctuation and spaces are both delimiters when counting word n-grams.
@@ -913,7 +913,7 @@ class XArray(XObject):
     def dict_trim_by_keys(self, keys, exclude=True):
         """
         Filter an XArray of dictionary type by the given keys. By default, all
-        keys that are in the provided list in ``keys`` are *excluded* from the
+        keys that are in the provided list in `keys` are *excluded* from the
         returned XArray.
 
         Parameters
@@ -1136,32 +1136,32 @@ class XArray(XObject):
         apply(fn, dtype=None, skip_undefined=True, seed=None)
 
         Transform each element of the XArray by a given function. The result
-        XArray is of type ``dtype``. ``fn`` should be a function that returns
+        XArray is of type `dtype`. `fn` should be a function that returns
         exactly one value which can be cast into the type specified by
-        ``dtype``. If ``dtype`` is not specified, the first 100 elements of the
+        `dtype`. If `dtype` is not specified, the first 100 elements of the
         XArray are used to make a guess about the data type.
 
         Parameters
         ----------
         fn : function
             The function to transform each element. Must return exactly one
-            value which can be cast into the type specified by ``dtype``.
+            value which can be cast into the type specified by `dtype`.
 
         dtype : {None, int, float, str, list, array.array, dict}, optional
             The data type of the new XArray. If ``None``, the first 100 elements
             of the array are used to guess the target data type.
 
         skip_undefined : bool, optional
-            If True, will not apply ``fn`` to any undefined values.
+            If True, will not apply `fn` to any undefined values.
 
         seed : int, optional
-            Used as the seed if a random number generator is included in ``fn``.
+            Used as the seed if a random number generator is included in `fn`.
 
         Returns
         -------
         out : XArray
-            The XArray transformed by ``fn``. Each element of the XArray is of
-            type ``dtype``.
+            The XArray transformed by `fn`. Each element of the XArray is of
+            type `dtype`.
 
         See Also
         --------
@@ -1194,32 +1194,32 @@ class XArray(XObject):
 
         Transform each element of the XArray by a given function, which must return 
         a list. Each item in the result XArray is made up of a list element.
-        The result XArray is of type ``dtype``. ``fn`` should be a function that returns
+        The result XArray is of type `dtype`. `fn` should be a function that returns
         a list of values which can be cast into the type specified by
-        ``dtype``. If ``dtype`` is not specified, the first 100 elements of the
+        `dtype`. If `dtype` is not specified, the first 100 elements of the
         XArray are used to make a guess about the data type.
 
         Parameters
         ----------
         fn : function
             The function to transform each element. Must return a list of 
-            values which can be cast into the type specified by ``dtype``.
+            values which can be cast into the type specified by `dtype`.
 
         dtype : {None, int, float, str, list, array.array, dict}, optional
             The data type of the new XArray. If ``None``, the first 100 elements
             of the array are used to guess the target data type.
 
         skip_undefined : bool, optional
-            If True, will not apply ``fn`` to any undefined values.
+            If True, will not apply `fn` to any undefined values.
 
         seed : int, optional
-            Used as the seed if a random number generator is included in ``fn``.
+            Used as the seed if a random number generator is included in `fn`.
 
         Returns
         -------
         out : XArray
-            The XArray transformed by ``fn`` and flattened. Each element of the XArray is of
-            type ``dtype``.
+            The XArray transformed by `fn` and flattened. Each element of the XArray is of
+            type `dtype`.
 
         See Also
         --------
@@ -1639,7 +1639,7 @@ class XArray(XObject):
         Returns
         -------
         out : XArray [dtype]
-            The XArray converted to the type ``dtype``.
+            The XArray converted to the type `dtype`.
 
         Notes
         -----
@@ -1679,7 +1679,7 @@ class XArray(XObject):
         set to the lower bound value. Values above the upper bound will be set
         to the upper bound value. This function can operate on XArrays of
         numeric type as well as array type, in which case each individual
-        element in each array is clipped. By default ``lower`` and ``upper`` are
+        element in each array is clipped. By default `lower` and `upper` are
         set to ``float('nan')`` which indicates the respective bound should be
         ignored. The method fails if invoked on an XArray of non-numeric type.
 

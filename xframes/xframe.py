@@ -141,7 +141,7 @@ class XFrame(XObject):
         they are taken from the DataFrame.
 
     xframes.XFrame.save
-        Save an XFrame for later use.
+        Save an XFrame in a file for later use within XFrames or Spark.
 
     xframes.XFrame.load
         Load an XFrame from a file.  The filename extension is used to determine the
@@ -184,7 +184,7 @@ class XFrame(XObject):
     # noinspection PyShadowingBuiltins
     def __init__(self, data=None, format='auto', impl=None, verbose=False):
         """__init__(data=list(), format='auto')
-        Construct a new XFrame from a url, a pandas.DataFrame or a spark RDD or DataFrame.
+        Construct a new XFrame from a url, a pandas.DataFrame or a Spark RDD or DataFrame.
         """
         if impl:
             self.__impl__ = impl
@@ -1499,9 +1499,9 @@ class XFrame(XObject):
     def apply(self, fn, dtype=None, seed=None):
         """
         Transform each row to an :class:`~xframes.XArray` according to a
-        specified function. Returns a new XArray of ``dtype`` where each element
+        specified function. Returns a new XArray of `dtype` where each element
         in this XArray is transformed by `fn(x)` where `x` is a single row in
-        the xframe represented as a dictionary.  The ``fn`` should return
+        the xframe represented as a dictionary.  The `fn` should return
         exactly one value which can be cast into type `dtype`. If `dtype` is
         not specified, the first 100 rows of the XFrame are used to make a guess
         of the target data type.
@@ -1524,7 +1524,7 @@ class XFrame(XObject):
         -------
         out : XArray
             The XArray transformed by fn.  Each element of the XArray is of
-            type ``dtype``
+            type `dtype`
 
         Examples
         --------
@@ -1554,10 +1554,10 @@ class XFrame(XObject):
         """
         Transform a single column according to a specified function. 
         The remaining columns are not modified.
-        The type of the transformed column types becomes ``dtype``, with
+        The type of the transformed column types becomes `dtype`, with
         the new value being the result of `fn(x)`, where `x` is a single row in
-        the XFrame represented as a dictionary.  The ``fn`` should return
-        exactly one value which can be cast into type ``dtype``. If ``dtype`` is
+        the XFrame represented as a dictionary.  The `fn` should return
+        exactly one value which can be cast into type `dtype`. If `dtype` is
         not specified, the first 100 rows of the XFrame are used to make a guess
         of the target data type.
 
@@ -1618,11 +1618,11 @@ class XFrame(XObject):
         """
         Transform multiple columns according to a specified function. 
         The remaining columns are not modified.
-        The type of the transformed column types are given by  ``dtypes``, with
+        The type of the transformed column types are given by  `dtypes`, with
         the new values being the result of `fn(x)` where `x` is a single row in
-        the xframe represented as a dictionary.  The ``fn`` should return
-        a value for each element of cols, which can be cast into the corresponding ``dtype``. 
-        If ``dtype`` is not specified, the first 100 rows of the XFrame are 
+        the xframe represented as a dictionary.  The `fn` should return
+        a value for each element of cols, which can be cast into the corresponding `dtype`.
+        If `dtypes` is not specified, the first 100 rows of the XFrame are
         used to make a guess of the target data types.
 
         Parameters
@@ -2120,7 +2120,7 @@ class XFrame(XObject):
         Returns
         -------
         out : XArray
-            The XArray that is referred by ``key``.
+            The XArray that is referred by `column_name`.
 
         See Also
         --------
@@ -2145,7 +2145,7 @@ class XFrame(XObject):
         """
         Get XFrame composed only of the columns referred to in the given list of
         keys. Throws an exception if ANY of the keys are not in this XFrame or
-        if ``keylist`` is anything other than a list of strings.
+        if `keylist` is anything other than a list of strings.
 
         Parameters
         ----------
@@ -2156,7 +2156,7 @@ class XFrame(XObject):
         -------
         out : XFrame
             A new XFrame that is made up of the columns referred to in
-            ``keylist`` from the current XFrame.
+            `keylist` from the current XFrame.
 
         See Also
         --------
@@ -2195,10 +2195,10 @@ class XFrame(XObject):
 
     def add_column(self, data, name=''):
         """
-        Add a column to this XFrame. The number of elements in the data given
-        must match the length of every other column of the XFrame. This
+        Add a column to this XFrame. The length of the new column
+        must match the length of the existing XFrame. This
         operation modifies the current XFrame in place and returns self. If no
-        name is given, a default name is chosen.
+        `name` is given, a default name is chosen.
 
         Parameters
         ----------
@@ -2217,6 +2217,7 @@ class XFrame(XObject):
         See Also
         --------
         xframes.XFrame.add_columns
+            adds multiple columns
 
         Examples
         --------
@@ -2244,18 +2245,18 @@ class XFrame(XObject):
 
     def add_columns(self, data, namelist=None):
         """
-        Adds multiple columns to this XFrame. The number of elements in all
-        columns must match the length of every other column of the XFrame. This
+        Adds multiple columns to this XFrame. The length of the new columns
+        must match the length of the existing XFrame. This
         operation modifies the current XFrame in place and returns self.
 
         Parameters
         ----------
-        data : list[XArray] or XFrame
-            The columns to add.
+        data : list of XArray or XFrame
+            The columns to add.  If `data` is an XFrame, all columns in it are added.
 
         namelist : list of string, optional
-            A list of column names. All names must be specified. ``namelist`` is
-            ignored if data is an XFrame.
+            A list of column names. All names must be specified. `Namelist` is
+            ignored if `data` is an XFrame.
 
         Returns
         -------
@@ -2265,6 +2266,7 @@ class XFrame(XObject):
         See Also
         --------
         xframes.XFrame.add_column
+            adds one column
 
         Examples
         --------
@@ -2423,10 +2425,10 @@ class XFrame(XObject):
 
     def rename(self, names):
         """
-        Rename the given columns. ``Names`` can be a dict specifying
+        Rename the given columns. `Names` can be a dict specifying
         the old and new names. This changes the names of the columns given as
         the keys and replaces them with the names given as the values.  Alternatively,
-        ``names`` can be a list of the new column names.  In this case it must be
+        `names` can be a list of the new column names.  In this case it must be
         the same length as the number of columns.  This
         operation modifies the current XFrame in place and returns self.
 
@@ -3291,8 +3293,8 @@ class XFrame(XObject):
         """
         Filter an XFrame by values inside an iterable object. Result is an
         XFrame that only includes (or excludes) the rows that have a column
-        with the given ``column_name`` which holds one of the values in the
-        given ``values`` :class:`~xframes.XArray`. If ``values`` is not an
+        with the given `column_name` which holds one of the values in the
+        given `values` :class:`~xframes.XArray`. If `values` is not an
         XArray, we attempt to convert it to one before filtering.
 
         Parameters
@@ -3307,7 +3309,7 @@ class XFrame(XObject):
 
         exclude : bool
             If True, the result XFrame will contain all rows EXCEPT those that
-            have one of ``values`` in ``column_name``.
+            have one of `values` in `column_name`.
 
         Returns
         -------
@@ -3393,20 +3395,20 @@ class XFrame(XObject):
         original XFrame plus the newly created column.
 
         The list of columns that are packed is chosen through either the
-        ``columns`` or ``column_prefix`` parameter. Only one of the parameters
-        is allowed to be provided: ``columns`` explicitly specifies the list of
-        columns to pack, while ``column_prefix`` specifies that all columns that
+        `columns` or `column_prefix` parameter. Only one of the parameters
+        is allowed to be provided: `columns` explicitly specifies the list of
+        columns to pack, while `column_prefix` specifies that all columns that
         have the given prefix are to be packed.
 
-        The type of the resulting column is decided by the ``dtype`` parameter.
-        Allowed values for ``dtype`` are `dict`, `array.array` and `list`:
+        The type of the resulting column is decided by the `dtype` parameter.
+        Allowed values for `dtype` are ``dict``, ``array.array`` and ``list``:
 
-         - `dict`: pack to a dictionary XArray where column name becomes
+         - ``dict``: pack to a dictionary XArray where column name becomes
            dictionary key and column value becomes dictionary value
 
-         - `array.array`: pack all values from the packing columns into an array
+         - ``array.array``: pack all values from the packing columns into an array
 
-         - `list`: pack all values from the packing columns into a list.
+         - ``list``: pack all values from the packing columns into a list.
 
         Parameters
         ----------
@@ -3941,9 +3943,9 @@ class XFrame(XObject):
         """
         Concatenate values from one or two columns into one column, grouping by
         all other columns. The resulting column could be of type list, array or
-        dictionary.  If ``column`` is a numeric column, the result will be of
-        array.array type.  If ``column`` is a non-numeric column, the new column
-        will be of list type. If ``column`` is a list of two columns, the new
+        dictionary.  If `column` is a numeric column, the result will be of
+        array.array type.  If `column` is a non-numeric column, the new column
+        will be of list type. If `column` is a list of two columns, the new
         column will be of dict type where the keys are taken from the first
         column in the list.
 
@@ -4084,9 +4086,9 @@ class XFrame(XObject):
         sort_columns : str | list of str | list of (str, bool) pairs
             Names of columns to be sorted.  The result will be sorted first by
             first column, followed by second column, and so on. All columns will
-            be sorted in the same order as governed by the ``ascending``
+            be sorted in the same order as governed by the `ascending`
             parameter. To control the sort ordering for each column
-            individually, ``sort_columns`` must be a list of (str, bool) pairs.
+            individually, `sort_columns` must be a list of (str, bool) pairs.
             Given this case, the first value is the column name and the second
             value is a boolean indicating whether the sort order is ascending.
 
@@ -4219,12 +4221,12 @@ class XFrame(XObject):
     def dropna(self, columns=None, how='any'):
         """
         Remove missing values from an XFrame. A missing value is either ``None``
-        or ``NaN``.  If ``how`` is 'any', a row will be removed if any of the
-        columns in the ``columns`` parameter contains at least one missing
-        value.  If ``how`` is 'all', a row will be removed if all of the columns
-        in the ``columns`` parameter are missing values.
+        or ``NaN``.  If `how` is 'any', a row will be removed if any of the
+        columns in the `columns` parameter contains at least one missing
+        value.  If `how` is 'all', a row will be removed if all of the columns
+        in the `columns` parameter are missing values.
 
-        If the ``columns`` parameter is not specified, the default is to
+        If the `columns` parameter is not specified, the default is to
         consider all columns when searching for missing values.
 
         Parameters
@@ -4388,7 +4390,7 @@ class XFrame(XObject):
     def fillna(self, column, value):
         """
         Fill all missing values with a given value in a given column. If the
-        ``value`` is not the same type as the values in ``column``, this method
+        `value` is not the same type as the values in `column`, this method
         attempts to convert the value to the original column's type. If this
         fails, an error is raised.
 
