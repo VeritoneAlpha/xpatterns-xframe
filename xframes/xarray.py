@@ -101,22 +101,22 @@ class XArray(XObject):
 
     See Also
     --------
-    from_const
+    xframes.XArray.from_const
         Constructs an XArray of a given size with a const value.
 
-    from_sequence
+    xframes.XArray.from_sequence
         Constructs an XArray by generating a sequence of consecutive numbers.
 
-    from_rdd
+    xframes.XArray.from_rdd
         Create a new XArray from a Spark RDD or Spark DataFrame.  
 
-    set_trace
+    xframes.XArray.set_trace
         Controls entry and exit tracing.
 
-    spark_context
+    xframes.XArray.spark_context:
         Returns the spark context.
 
-    spark_sql_context
+    xframes.XArray.spark_sql_context:
         Returns the spark sql context.
 
     """
@@ -796,7 +796,7 @@ class XArray(XObject):
 
         See Also
         --------
-        count_ngrams
+        xframes.XArray.count_ngrams
 
         Examples
         --------
@@ -851,7 +851,7 @@ class XArray(XObject):
 
         See Also
         --------
-        count_words
+        xframes.XArray.count_words
 
         Notes
         -----
@@ -933,7 +933,7 @@ class XArray(XObject):
 
         See Also
         --------
-        dict_trim_by_values
+        xframes.XArray.dict_trim_by_values
 
         Examples
         --------
@@ -974,7 +974,7 @@ class XArray(XObject):
 
         See Also
         --------
-        dict_trim_by_keys
+        xframes.XArray.dict_trim_by_keys
 
         Examples
         --------
@@ -1016,7 +1016,7 @@ class XArray(XObject):
 
         See Also
         --------
-        dict_values
+        xframes.XArray.dict_values
 
         Examples
         ---------
@@ -1043,7 +1043,7 @@ class XArray(XObject):
 
         See Also
         --------
-        dict_keys
+        xframes.XArray.dict_keys
 
         Examples
         --------
@@ -1077,7 +1077,7 @@ class XArray(XObject):
 
         See Also
         --------
-        dict_has_all_keys
+        xframes.XArray.dict_has_all_keys
 
         Examples
         --------
@@ -1114,7 +1114,7 @@ class XArray(XObject):
 
         See Also
         --------
-        dict_has_any_keys
+        xframes.XArray.dict_has_any_keys
 
         Examples
         --------
@@ -1165,7 +1165,7 @@ class XArray(XObject):
 
         See Also
         --------
-        apply
+        xframes.XFrame.apply
 
         Examples
         --------
@@ -1223,7 +1223,7 @@ class XArray(XObject):
 
         See Also
         --------
-        flat_map
+        xframes.XFrame.flat_map
 
         Examples
         --------
@@ -1351,7 +1351,7 @@ class XArray(XObject):
 
         See Also
         --------
-        any
+        xframes.XArray.any
 
         Examples
         --------
@@ -1385,7 +1385,7 @@ class XArray(XObject):
 
         See Also
         --------
-        all
+        xframes.XArray.all
 
         Examples
         --------
@@ -1421,7 +1421,7 @@ class XArray(XObject):
 
         See Also
         --------
-        min
+        xframes.XArray.min
 
         Examples
         --------
@@ -1445,7 +1445,7 @@ class XArray(XObject):
 
         See Also
         --------
-        max
+        xframes.XArray.max
 
         Examples
         --------
@@ -1571,7 +1571,7 @@ class XArray(XObject):
 
         See Also
         ----------
-        str_to_datetime
+        xframes.XArray.str_to_datetime
 
         References
         ----------
@@ -1609,7 +1609,7 @@ class XArray(XObject):
 
         See Also
         ----------
-        datetime_to_str
+        xframes.XArray.datetime_to_str
 
         References
         ----------
@@ -1699,7 +1699,8 @@ class XArray(XObject):
 
         See Also
         --------
-        clip_lower, clip_upper
+        xframes.XArray.clip_lower
+        xframes.XArray.clip_upper
 
         Examples
         --------
@@ -1729,7 +1730,8 @@ class XArray(XObject):
 
         See Also
         --------
-        clip, clip_upper
+        xframes.XArray.clip
+        xframes.XArray.clip_upper
 
         Examples
         --------
@@ -1758,7 +1760,8 @@ class XArray(XObject):
 
         See Also
         --------
-        clip, clip_lower
+        xframes.XArray.clip
+        xframes.XArray.clip_lower
 
         Examples
         --------
@@ -1912,11 +1915,11 @@ class XArray(XObject):
         -------
         out : XArray
             A new XArray that contains rows from both XArrays, with rows from
-            the ``other`` XArray coming after all rows from the current XArray.
+            the other XArray coming after all rows from the current XArray.
 
         See Also
         --------
-        append
+        xframes.XFrame.append
 
         Examples
         --------
@@ -1950,7 +1953,7 @@ class XArray(XObject):
 
         See Also
         --------
-        unique
+        xframes.XFrame.unique
         """
         return XArray(impl=self.__impl__.unique())
 
