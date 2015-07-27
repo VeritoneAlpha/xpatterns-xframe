@@ -4079,9 +4079,9 @@ class XFrame(XObject):
         sort_columns : str | list of str | list of (str, bool) pairs
             Names of columns to be sorted.  The result will be sorted first by
             first column, followed by second column, and so on. All columns will
-            be sorted in the same order as governed by the `ascending`
+            be sorted in the same order as governed by the ``ascending``
             parameter. To control the sort ordering for each column
-            individually, `sort_columns` must be a list of (str, bool) pairs.
+            individually, ``sort_columns`` must be a list of (str, bool) pairs.
             Given this case, the first value is the column name and the second
             value is a boolean indicating whether the sort order is ascending.
 
