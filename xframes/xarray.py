@@ -101,10 +101,10 @@ class XArray(XObject):
 
     See Also
     --------
-    :py:func:`xframes.XArray.from_const`
+    :py:func:`~xframes.XArray.from_const`
         Constructs an XArray of a given size with a const value.
 
-    :py:func:`xframes.XArray.from_sequence`
+    :py:func:`~xframes.XArray.from_sequence`
         Constructs an XArray by generating a sequence of consecutive numbers.
 
     :py:func:`xframes.XArray.from_rdd`
@@ -1043,7 +1043,7 @@ class XArray(XObject):
 
         See Also
         --------
-        `dict_keys`:py:func:`xframes.XArray.
+        :py:func:`xframes.XArray.dict_keys`
 
         Examples
         --------
@@ -1571,7 +1571,7 @@ class XArray(XObject):
 
         See Also
         ----------
-        :py:func:`xframes.XArray.str_to_datetime`
+        :py:func:`~xframes.XArray.str_to_datetime`
 
         References
         ----------
