@@ -412,7 +412,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        save : saves file 
+        save
         read_csv : allows more control over csv parsing
 
         Examples
@@ -627,7 +627,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        read_csv, xframes.XFrame
+        xframes.XFrame.read_csv, xframes.XFrame
 
         Examples
         --------
