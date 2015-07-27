@@ -66,22 +66,20 @@ class XArray(XObject):
         saved, this is loaded as an XArray read directly out of that
         directory.
 
-    dtype : {None, int, float, str, list, array.array, dict, datetime.datetime}, optional
-        The data type of the XArray. If not specified (None), we attempt to
+    dtype : {int, float, str, list, array.array, dict, datetime.datetime}, optional
+        The data type of the XArray. If not specified, we attempt to
         infer it from the input. If it is a numpy array or a Pandas series, the
-        dtype of the array/series is used. If it is a list, the dtype is
+        data type of the array or series is used. If it is a list, the data type is
         inferred from the inner list. If it is a URL or path to a text file, we
-        default the dtype to str.
+        default the data type to str.
 
     ignore_cast_failure : bool, optional
         If True, ignores casting failures but warns when elements cannot be
-        casted into the specified dtype.
+        cast into the specified data type.
 
     Notes
     -----
     - If `data` is pandas.Series, the index will be ignored.
-    - The datetime is based on the Boost datetime format
-      (see http://www.boost.org/doc/libs/1_48_0/doc/html/date_time/date_time_io.html for details)
 
     The following functionality is currently not implemented:
         - numpy.ndarray as row data
@@ -90,14 +88,6 @@ class XArray(XObject):
         - datetime.datetime data type
         - count_words, count_ngrams
         - sketch sub_sketch_keys
-
-    Examples
-    --------
-    >>> xa = XArray(data=[1,2,3,4,5], dtype=int)
-    >>> xa = XArray('http://s3-us-west-2.amazonaws.com/testdatasets/a_to_z.txt.gz')
-    >>> xa = XArray([[1,2,3], [3,4,5]])
-    >>> xa = XArray(data=[{'a':1, 'b': 2}, {'b':2, 'c': 1}])
-    >>> xa = XArray(data=[datetime.datetime(2011, 10, 20, 9, 30, 10)])
 
     See Also
     --------
@@ -118,6 +108,14 @@ class XArray(XObject):
 
     xframes.XArray.spark_sql_context:
         Returns the spark sql context.
+
+    Examples
+    --------
+    >>> xa = XArray(data=[1,2,3,4,5], dtype=int)
+    >>> xa = XArray('http://s3-us-west-2.amazonaws.com/testdatasets/a_to_z.txt.gz')
+    >>> xa = XArray([[1,2,3], [3,4,5]])
+    >>> xa = XArray(data=[{'a':1, 'b': 2}, {'b':2, 'c': 1}])
+    >>> xa = XArray(data=[datetime.datetime(2011, 10, 20, 9, 30, 10)])
 
     """
 
