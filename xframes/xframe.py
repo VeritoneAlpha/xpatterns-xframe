@@ -128,32 +128,32 @@ class XFrame(XObject):
 
     See Also
     --------
-    read_csv:
+    xframes.XFrame.read_csv:
         Create a new XFrame from a csv file. Preferred for text and CSV formats,
         because it has a lot more options for controlling the parser.
 
-    read_parquet`
+    xframes.XFrame.read_parquet`
         Read an XFrame from a parquet file.
 
-    from_rdd
+    xframes.XFrame.from_rdd
         Create a new XFrame from a Spark RDD or Spark DataFrame.  
         Column names and types can be specified if a spark RDD is given; otherwise 
         they are taken from the DataFrame.
 
-    save
+    xframes.XFrame.save
         Save an XFrame for later use.
 
-    load
+    xframes.XFrame.load
         Load an XFrame from a file.  The filename extension is used to determine the
         file format.
 
-    set_trace
+    xframes.XFrame.set_trace
         Controls entry and exit tracing.
 
-    spark_context
+    xframes.XFrame.spark_context
         Returns the spark context.
 
-    spark_sql_context
+    xframes.XFrame.spark_sql_context
         Returns the spark sql context.
 
     Examples
@@ -412,8 +412,8 @@ class XFrame(XObject):
 
         See Also
         --------
-        save
-        read_csv : allows more control over csv parsing
+        xframes.XFrame.save
+        xframes.XFrame.read_csv : allows more control over csv parsing
 
         Examples
         --------
@@ -627,7 +627,8 @@ class XFrame(XObject):
 
         See Also
         --------
-        XFrame.read_csv, xframes.XFrame
+        xframes.XFrame.read_csv
+        xframes.XFrame
 
         Examples
         --------
@@ -758,7 +759,8 @@ class XFrame(XObject):
 
         See Also
         --------
-        read_csv_with_errors, XFrame
+        xframes.XFrame.read_csv_with_errors
+        xframes.XFrame
 
         Examples
         --------
@@ -1027,7 +1029,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        :class:`xframes.XFrame`
+        xframes.XFrame
 
         """
         impl = XFrameImpl()
@@ -1179,7 +1181,8 @@ class XFrame(XObject):
 
         See Also
         --------
-        head, tail
+        xframes.XFrame.head
+        xframes.XFrame.tail
         """
 
         max_row_width = max(max_row_width, max_column_width + 1)
@@ -1271,7 +1274,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        column_types
+        xframes.XFrame.column_types
         """
         return self.column_types()
 
@@ -1292,7 +1295,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        num_columns
+        xframes.XFrame.num_columns
         """
         return self.__impl__.num_rows()
 
@@ -1307,7 +1310,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        num_rows
+        xframes.XFrame.num_rows
         """
         return self.__impl__.num_columns()
 
@@ -1322,7 +1325,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        rename
+        xframes.XFrame.rename
         """
         return self.__impl__.column_names()
 
@@ -1337,7 +1340,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        dtype
+        xframes.XFrame.dtype
         """
         return self.__impl__.dtype()
 
@@ -1357,7 +1360,8 @@ class XFrame(XObject):
 
         See Also
         --------
-        tail, print_rows
+        xframes.XFrame.tail
+        xframes.XFrame.print_rows
         """
         return XFrame(impl=self.__impl__.head(n))
 
@@ -1377,7 +1381,8 @@ class XFrame(XObject):
 
         See Also
         --------
-        head, print_rows
+        xframes.XFrame.head
+        xframes.XFrame.print_rows
         """
         return XFrame(impl=self.__impl__.tail(n))
 
@@ -1999,7 +2004,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        sort
+        xframes.XFrame.sort
 
         Examples
         --------
@@ -2052,7 +2057,8 @@ class XFrame(XObject):
 
         See Also
         --------
-        load, XFrame
+        xframes.XFrame.load
+        xframes.XFrame.XFrame
 
         Examples
         --------
@@ -2118,7 +2124,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        select_columns
+        xframes.XFrame.select_columns
 
         Examples
         --------
@@ -2154,7 +2160,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        select_column
+        xframes.XFrame.select_column
 
         Examples
         --------
@@ -2210,7 +2216,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        add_columns
+        xframes.XFrame.add_columns
 
         Examples
         --------
@@ -2258,7 +2264,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        add_column
+        xframes.XFrame.add_column
 
         Examples
         --------
@@ -2436,7 +2442,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        column_names
+        xframes.XFrame.column_names
 
         Examples
         --------
@@ -2729,7 +2735,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        aggregate
+        xframes.aggregate
 
         Examples
         --------
@@ -3440,7 +3446,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        unpack
+        xframes.XFrame.unpack
 
         Notes
         -----
@@ -3662,7 +3668,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        pack_columns
+        xframes.XFrame.pack_columns
 
         Examples
         ---------
@@ -3797,7 +3803,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        unstack
+        xframes.XFrame.unstack
 
         Examples
         ---------
@@ -3959,9 +3965,9 @@ class XFrame(XObject):
 
         See Also
         --------
-        stack: The inverse of unstack.
+        xframes.XFrame.stack: The inverse of unstack.
 
-        groupby : ``unstack`` is a special version of ``groupby`` that uses the
+        xframes.XFrame.groupby : ``unstack`` is a special version of ``groupby`` that uses the
           :mod:`~xframes.aggregate.CONCAT` aggregator
 
         Notes
@@ -4038,7 +4044,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        unique
+        xframes.XFrame.unique
 
         Examples
         --------
@@ -4094,7 +4100,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        topk
+        xframes.XFrame.topk
 
         Examples
         --------
@@ -4239,7 +4245,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        dropna_split:  Drops missing rows from the XFrame and returns them.
+        xframes.XFrame.dropna_split:  Drops missing rows from the XFrame and returns them.
 
         Examples
         --------
@@ -4313,7 +4319,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        dropna
+        xframes.XFrame.dropna
 
         Examples
         --------
@@ -4401,7 +4407,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        dropna
+        xframes.XFrame.dropna
 
         Examples
         --------
@@ -4538,7 +4544,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        XPlot : Plot library
+        xframes.XPlot : Plot library
         """
 
         return XPlot(self)
