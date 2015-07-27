@@ -20,6 +20,7 @@ class Mock(MagicMock):
     def __getattr__(cls, name):
             return Mock()
 
+# Mock these to avoid import errors when running doc generation on readthedocs.
 MOCK_MODULES = ['numpy', 'pandas', 'matplotlib', 'pyspark',
                 'pyspark.sql', 'pyspark.sql.types', 'matplotlib.pyplot',
                 'pyspark.mllib', 'pyspark.mllib.recommendation',
