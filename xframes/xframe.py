@@ -128,32 +128,32 @@ class XFrame(XObject):
 
     See Also
     --------
-    read_csv:
+    `~XFrame.read_csv`:
         Create a new XFrame from a csv file. Preferred for text and CSV formats,
         because it has a lot more options for controlling the parser.
 
-    read_parquet: 
+    `~XFrame.read_parquet`:
         Read an XFrame from a parquet file.
 
-    from_rdd:
+    `~XFrame.from_rdd`:
         Create a new XFrame from a Spark RDD or Spark DataFrame.  
         Column names and types can be specified if a spark RDD is given; otherwise 
         they are taken from the DataFrame.
 
-    save : 
+    `~XFrame.save`:
         Save an XFrame for later use.
 
-    load:
+    `~XFrame.load`:
         Load an XFrame from a file.  The filename extension is used to determine the
         file format.
 
-    set_trace : 
+    `~XFrame.set_trace`:
         Controls entry and exit tracing.
 
-    spark_context: 
+    `~XFrame.spark_context`:
         Returns the spark context.
 
-    spark_sql_context: 
+    `~XFrame.spark_sql_context`:
         Returns the spark sql context.
 
     Examples
@@ -400,7 +400,7 @@ class XFrame(XObject):
         Load an XFrame. The filename extension is used to determine the format
         automatically. This function is particularly useful for XFrames previously
         saved in binary format. For CSV imports the ``XFrame.read_csv`` function
-        provides greater control. If the XFrame is in binary format, ``filename`` is
+        provides greater control. If the XFrame is in binary format, `filename` is
         actually a directory, created when the XFrame is saved.
 
         Parameters
@@ -414,7 +414,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        XFrame.save, XFrame.read_csv
+        `~XFrame.save`, `~XFrame.read_csv`
 
         Examples
         --------
@@ -628,7 +628,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        read_csv, XFrame
+        `~XFrame.read_csv`, `XFrame`
 
         Examples
         --------
@@ -759,7 +759,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        read_csv_with_errors, XFrame
+        `~XFrame.read_csv_with_errors`, `XFrame`
 
         Examples
         --------
@@ -1028,7 +1028,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        XFrame
+        X`Frame`
 
         """
         impl = XFrameImpl()
@@ -1148,7 +1148,7 @@ class XFrame(XObject):
             row_of_tables.append(tbl)
 
         # add a column of all "..." if there are more columns than displayed
-        if self.num_cols() > max_columns:
+        if self.num_columns() > max_columns:
             row_of_tables[-1].add_column('...', ['...'] * len(headxf))
             num_column_of_last_table += 1
 
@@ -1180,7 +1180,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        head, tail
+        `~XFrame.head`, `~XFrame.tail`
         """
 
         max_row_width = max(max_row_width, max_column_width + 1)
@@ -1272,7 +1272,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        column_types
+        `~XFrame.column_types`
         """
         return self.column_types()
 
@@ -1293,24 +1293,9 @@ class XFrame(XObject):
 
         See Also
         --------
-        num_columns
+        `~XFrame.num_columns`
         """
         return self.__impl__.num_rows()
-
-    def num_cols(self):
-        """
-        The number of columns in this XFrame.
-
-        Returns
-        -------
-        out : int
-            Number of columns in the XFrame.
-
-        See Also
-        --------
-        num_columns, num_rows
-        """
-        return self.__impl__.num_columns()
 
     def num_columns(self):
         """
@@ -1323,7 +1308,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        num_cols, num_rows
+        `~XFrame.num_rows`
         """
         return self.__impl__.num_columns()
 
@@ -1338,7 +1323,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        rename
+        `~XFrame.rename`
         """
         return self.__impl__.column_names()
 
@@ -1353,7 +1338,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        dtype
+        `~XFrame.dtype`
         """
         return self.__impl__.dtype()
 
@@ -1373,7 +1358,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        tail, print_rows
+        `~XFrame.tail`, `~XFrame.print_rows`
         """
         return XFrame(impl=self.__impl__.head(n))
 
@@ -1393,7 +1378,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        head, print_rows
+        `~XFrame.head`, `~XFrame.print_rows`
         """
         return XFrame(impl=self.__impl__.tail(n))
 
@@ -1481,11 +1466,6 @@ class XFrame(XObject):
         rdd: spark.RDD or spark.DataFrame
             Data used to populate the XFrame
 
-        Notes
-        -----
-        rdd
-            The spark.RDD or spark.DataFrame to use as the source of the XFrame.
-
         column_names : list of string, optional
             The column names to use.  Ignored for Spark DataFrames.
 
@@ -1518,7 +1498,7 @@ class XFrame(XObject):
         specified function. Returns a new XArray of ``dtype`` where each element
         in this XArray is transformed by `fn(x)` where `x` is a single row in
         the xframe represented as a dictionary.  The ``fn`` should return
-        exactly one value which can be cast into type ``dtype``. If ``dtype`` is
+        exactly one value which can be cast into type `dtype`. If `dtype` is
         not specified, the first 100 rows of the XFrame are used to make a guess
         of the target data type.
 
@@ -1528,8 +1508,8 @@ class XFrame(XObject):
             The function to transform each row of the XFrame. The return
             type should be convertible to `dtype` if `dtype` is not None.
 
-        dtype : dtype, optional
-            The dtype of the new XArray. If None, the first 100
+        dtype : data type, optional
+            The `dtype` of the new XArray. If None, the first 100
             elements of the array are used to guess the target
             data type.
 
@@ -1571,8 +1551,8 @@ class XFrame(XObject):
         Transform a single column according to a specified function. 
         The remaining columns are not modified.
         The type of the transformed column types becomes ``dtype``, with
-        the new value being the result of `fn(x)` where `x` is a single row in
-        the xframe represented as a dictionary.  The ``fn`` should return
+        the new value being the result of `fn(x)`, where `x` is a single row in
+        the XFrame represented as a dictionary.  The ``fn`` should return
         exactly one value which can be cast into type ``dtype``. If ``dtype`` is
         not specified, the first 100 rows of the XFrame are used to make a guess
         of the target data type.
@@ -1585,7 +1565,7 @@ class XFrame(XObject):
         fn : function, optional
             The function to transform each row of the XFrame. The return
             type should be convertible to `dtype` if `dtype` is not None.
-            If the function is not give, an identity function is used.
+            If the function is not given, an identity function is used.
 
         dtype : dtype, optional
             The dtype of the new XArray. If None, the first 100
@@ -1712,16 +1692,16 @@ class XFrame(XObject):
         Parameters
         ----------
         column_name : str
-        The name of the column to cast.
+            The name of the column to cast.
 
         Returns
         -------
-        out: type
+        out : type
             int or float: The column can be cast to this type.
 
             str: The column cannot be cast to one of the types above.
 
-        Example
+        Examples
         --------
 
         >>> xf = xpatterns.XFrame({'value': ['1', '2', '3']})
@@ -1769,9 +1749,9 @@ class XFrame(XObject):
         Parameters
         ----------
         column_name : str
-        The name of the column to cast.
+            The name of the column to cast.
 
-        Example
+        Examples
         --------
 
         >>> xf = xpatterns.XFrame({'value': ['1', '2', '3']})
@@ -1816,17 +1796,17 @@ class XFrame(XObject):
         Map each row of the XFrame to multiple rows in a new XFrame via a
         function.
 
-        The output of `fn` must have type List[List[...]].  Each inner list
+        The output of `fn` must have type ``list[list[...]]``.  Each inner list
         will be a single row in the new output, and the collection of these
         rows within the outer list make up the data for the output XFrame.
         All rows must have the same length and the same order of types to
         make sure the result columns are homogeneously typed.  For example, if
         the first element emitted into in the outer list by `fn` is
-        [43, 2.3, 'string'], then all other elements emitted into the outer
-        list must be a list with three elements, where the first is an int,
-        second is a float, and third is a string.  If column_types is not
+        ``[43, 2.3, 'string']``, then all other elements emitted into the outer
+        list must be a list with three elements, where the first is an `int`,
+        second is a `float`, and third is a `string`.  If column_types is not
         specified, the first 10 rows of the XFrame are used to determine the
-        column types of the returned xframe.
+        column types of the returned XFrame.
 
         Parameters
         ----------
@@ -1835,13 +1815,13 @@ class XFrame(XObject):
 
         fn : function
             The function that maps each of the xframe row into multiple rows,
-            returning List[List[...]].  All outputted rows must have the same
+            returning ``list[list[...]]``.  All output rows must have the same
             length and order of types.
 
         column_types : list[type], optional
             The column types of the output XFrame. Default value
             will be automatically inferred by running `fn` on the first
-            10 rows of the input.
+            10 rows of the output.
 
         seed : int, optional
             Used as the seed if a random number generator is included in `fn`.
@@ -1849,7 +1829,7 @@ class XFrame(XObject):
         Returns
         -------
         out : XFrame
-            A new XFrame containing the results of the flat_map of the
+            A new XFrame containing the results of the ``flat_map`` of the
             original XFrame.
 
         Examples
@@ -1941,7 +1921,7 @@ class XFrame(XObject):
         if fraction > 1 or fraction < 0:
             raise ValueError('Invalid sampling rate: {}.'.format(fraction))
 
-        if self.num_rows() == 0 or self.num_cols() == 0:
+        if self.num_rows() == 0 or self.num_columns() == 0:
             return self
         else:
             return XFrame(impl=self.__impl__.sample(fraction, seed))
@@ -1980,7 +1960,7 @@ class XFrame(XObject):
         """
         if fraction > 1 or fraction < 0:
             raise ValueError('Invalid sampling rate: {}.'.format(fraction))
-        if self.num_rows() == 0 or self.num_cols() == 0:
+        if self.num_rows() == 0 or self.num_columns() == 0:
             return XFrame(), XFrame()
 
         if not seed:
@@ -2020,7 +2000,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        sort
+        `~XFrame.sort`
 
         Examples
         --------
@@ -2073,7 +2053,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        XFrame.load, XFrame
+        `~XFrame.load`, `XFrame`
 
         Examples
         --------
@@ -2139,7 +2119,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        select_columns
+        `~XFrame.select_columns`
 
         Examples
         --------
@@ -2175,7 +2155,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        select_column
+        `~XFrame.select_column`
 
         Examples
         --------
@@ -2231,7 +2211,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        add_columns
+        `~XFrame.add_columns`
 
         Examples
         --------
@@ -2279,7 +2259,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        add_column
+        `~XFrame.add_column`
 
         Examples
         --------
@@ -2438,7 +2418,7 @@ class XFrame(XObject):
 
     def rename(self, names):
         """
-        Rename the given columns. ``names`` can be a dict specifying
+        Rename the given columns. ``Names`` can be a dict specifying
         the old and new names. This changes the names of the columns given as
         the keys and replaces them with the names given as the values.  Alternatively,
         ``names`` can be a list of the new column names.  In this case it must be
@@ -2457,7 +2437,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        column_names
+        `~XFrame.column_names`
 
         Examples
         --------
@@ -2591,7 +2571,7 @@ class XFrame(XObject):
                 # length than current one, which doesn't make sense if we are replacing
                 # the only column. To support this, we call a different function in the 
                 # implementation.
-                single_column = (self.num_cols() == 1)
+                single_column = (self.num_columns() == 1)
                 if single_column:
                     self.__impl__.replace_single_column(sa_value)
                 else:
@@ -2722,10 +2702,9 @@ class XFrame(XObject):
 
         The operations parameter is a dictionary that indicates which
         aggregation operators to use and which columns to use them on. The
-        available operators are SUM, MAX, MIN, COUNT, AVG, VAR, STDV, CONCAT,
-        SELECT_ONE, ARGMIN, ARGMAX, and QUANTILE. For convenience, aggregators
-        MEAN, STD, and VARIANCE are available as synonyms for AVG, STDV, and
-        VAR. See :mod:`~xframes.aggregate` for more detail on the aggregators.
+        available operators are SUM, MAX, MIN, COUNT, MEAN, VARIANCE, STD, CONCAT,
+        SELECT_ONE, ARGMIN, ARGMAX, and QUANTILE.
+        See :mod:`~xframes.aggregate` for more detail on the aggregators.
 
         Parameters
         ----------
@@ -2751,7 +2730,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        aggregate
+        `~XFrame.aggregate`
 
         Examples
         --------
@@ -3088,19 +3067,6 @@ class XFrame(XObject):
                                                            group_output_columns,
                                                            group_ops))
 
-    def group_by(self, key_columns, operations, *args):
-        """
-        Perform a group on the key_columns followed by aggregations on the
-        columns listed in operations.
-
-        Alternative spelling for groupby
-
-        See Also
-        --------
-        groupby
-        """
-        return self.groupby(key_columns, operations, *args)
-
     def join(self, right, on=None, how='inner'):
         """
         Merge two XFrames. Merges the current (left) XFrame with the given
@@ -3349,7 +3315,7 @@ class XFrame(XObject):
         ...                      'animal_type': ['dog', 'cat', 'cow', 'horse'],
         ...                      'name': ['bob', 'jim', 'jimbob', 'bobjim']})
         >>> household_pets = ['cat', 'hamster', 'dog', 'fish', 'bird', 'snake']
-        >>> xf.filter_by(household_pets, 'animal_type')
+        >>> xf.filterby(household_pets, 'animal_type')
         +-------------+----+------+
         | animal_type | id | name |
         +-------------+----+------+
@@ -3357,7 +3323,7 @@ class XFrame(XObject):
         |     cat     | 2  | jim  |
         +-------------+----+------+
         [2 rows x 3 columns]
-        >>> xf.filter_by(household_pets, 'animal_type', exclude=True)
+        >>> xf.filterby(household_pets, 'animal_type', exclude=True)
         +-------------+----+--------+
         | animal_type | id |  name  |
         +-------------+----+--------+
@@ -3413,42 +3379,29 @@ class XFrame(XObject):
                                                   'inner',
                                                   {column_name: column_name}))
 
-    def filter_by(self, values, column_name, exclude=False):
-        """
-        Filter an XFrame by values inside an iterable object.
-
-        Alternative spelling for filter_by
-
-        See Also
-        --------
-        filter_by
-        """
-
-        return self.filterby(values, column_name, exclude)
-
     # noinspection PyTypeChecker
     def pack_columns(self, columns=None, column_prefix=None, dtype=list,
                      fill_na=None, remove_prefix=True, new_column_name=None):
         """
         Pack two or more columns of the current XFrame into one single
-        column.The result is a new XFrame with the unaffected columns from the
+        column.  The result is a new XFrame with the unaffected columns from the
         original XFrame plus the newly created column.
 
         The list of columns that are packed is chosen through either the
         ``columns`` or ``column_prefix`` parameter. Only one of the parameters
-        is allowed to be provided. ``columns`` explicitly specifies the list of
+        is allowed to be provided: ``columns`` explicitly specifies the list of
         columns to pack, while ``column_prefix`` specifies that all columns that
         have the given prefix are to be packed.
 
         The type of the resulting column is decided by the ``dtype`` parameter.
-        Allowed values for ``dtype`` are dict, array.array and list:
+        Allowed values for ``dtype`` are `dict`, `array.array` and `list`:
 
-         - *dict*: pack to a dictionary XArray where column name becomes
+         - `dict`: pack to a dictionary XArray where column name becomes
            dictionary key and column value becomes dictionary value
 
-         - *array.array*: pack all values from the packing columns into an array
+         - `array.array`: pack all values from the packing columns into an array
 
-         - *list*: pack all values from the packing columns into a list.
+         - `list`: pack all values from the packing columns into a list.
 
         Parameters
         ----------
@@ -3488,7 +3441,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        unpack
+        `~XFrame.unpack`
 
         Notes
         -----
@@ -3710,7 +3663,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        pack_columns, XArray.unpack
+        `~XFrame.pack_columns`, `~XArray.unpack`
 
         Examples
         ---------
@@ -3845,7 +3798,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        unstack
+        `~XFrame.unstack`
 
         Examples
         ---------
@@ -4007,7 +3960,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        stack : The inverse of unstack.
+        `~XFrame.stack `: The inverse of unstack.
 
         groupby : ``unstack`` is a special version of ``groupby`` that uses the
           :mod:`~xframes.aggregate.CONCAT` aggregator
@@ -4086,7 +4039,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        XArray.unique
+        `~XArray.unique`
 
         Examples
         --------
@@ -4142,7 +4095,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        topk
+        `~XFrame.topk`
 
         Examples
         --------
@@ -4287,7 +4240,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        dropna_split :  Drops missing rows from the XFrame and returns them.
+        `~XFrame.dropna_split`:  Drops missing rows from the XFrame and returns them.
 
         Examples
         --------
@@ -4361,7 +4314,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        dropna
+        `~XFrame.dropna`
 
         Examples
         --------
@@ -4449,7 +4402,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        dropna
+        `~XFrame.dropna`
 
         Examples
         --------
@@ -4491,7 +4444,7 @@ class XFrame(XObject):
 
         Returns
         -------
-v        out : XFrame
+        out : XFrame
             The new XFrame with a column name
 
         Notes
@@ -4576,7 +4529,7 @@ v        out : XFrame
         >>> xf.shape
         (3, 2)
         """
-        return self.num_rows(), self.num_cols()
+        return self.num_rows(), self.num_columns()
 
     def show(self):
         """
@@ -4586,7 +4539,7 @@ v        out : XFrame
 
         See Also
         --------
-        xframes.XPlot : Plot library
+        `~xframes.XPlot` : Plot library
         """
 
         return XPlot(self)
