@@ -128,32 +128,32 @@ class XFrame(XObject):
 
     See Also
     --------
-    `~XFrame.read_csv`:
+    :py:func:`~xframes.XFrame.read_csv`:
         Create a new XFrame from a csv file. Preferred for text and CSV formats,
         because it has a lot more options for controlling the parser.
 
-    `~XFrame.read_parquet`:
+    :py:func:`~xframes.XFrame.read_parquet`:
         Read an XFrame from a parquet file.
 
-    `~XFrame.from_rdd`:
+    :py:func:`~xframes.XFrame.from_rdd`:
         Create a new XFrame from a Spark RDD or Spark DataFrame.  
         Column names and types can be specified if a spark RDD is given; otherwise 
         they are taken from the DataFrame.
 
-    `~XFrame.save`:
+    :py:func:`~xframes.XFrame.save`:
         Save an XFrame for later use.
 
-    `~XFrame.load`:
+    :py:func:`~xframes.XFrame.load`:
         Load an XFrame from a file.  The filename extension is used to determine the
         file format.
 
-    `~XFrame.set_trace`:
+    :py:func:`~xframes.XFrame.set_trace`:
         Controls entry and exit tracing.
 
-    `~XFrame.spark_context`:
+    :py:func:`~xframes.XFrame.spark_context`:
         Returns the spark context.
 
-    `~XFrame.spark_sql_context`:
+    :py:func:`~xframes.XFrame.spark_sql_context`:
         Returns the spark sql context.
 
     Examples
@@ -414,7 +414,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.save`, `~XFrame.read_csv`
+        :py:func:`~xframes.XFrame.save`, :py:func:`~xframes.XFrame.read_csv`
 
         Examples
         --------
@@ -628,7 +628,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.read_csv`, `XFrame`
+        :py:func:`~xframes.XFrame.read_csv`, :class:`xframes.XFrame`
 
         Examples
         --------
@@ -759,7 +759,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.read_csv_with_errors`, `XFrame`
+        :py:func:`~xframes.XFrame.read_csv_with_errors`, :class:`xframes.XFrame`
 
         Examples
         --------
@@ -1028,7 +1028,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        X`Frame`
+        :class:`xframes.XFrame`
 
         """
         impl = XFrameImpl()
@@ -1180,7 +1180,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.head`, `~XFrame.tail`
+        :py:func:`~xframes.XFrame.head`, :py:func:`~xframes.XFrame.tail`
         """
 
         max_row_width = max(max_row_width, max_column_width + 1)
@@ -1272,13 +1272,13 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.column_types`
+        :py:func:`~xframes.XFrame.column_types`
         """
         return self.column_types()
 
     def width(self):
         """
-        Diagnostic: tne number of elements in each tuple.
+        Diagnostic: the number of elements in each tuple of the RDD.
         """
         return XArray(impl=self.__impl__.width())
 
@@ -1293,7 +1293,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.num_columns`
+        :py:func:`~xframes.XFrame.num_columns`
         """
         return self.__impl__.num_rows()
 
@@ -1308,7 +1308,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.num_rows`
+        :py:func:`~xframes.XFrame.num_rows`
         """
         return self.__impl__.num_columns()
 
@@ -1323,7 +1323,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.rename`
+        :py:func:`~xframes.XFrame.rename`
         """
         return self.__impl__.column_names()
 
@@ -1338,7 +1338,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.dtype`
+        :py:func:`~xframes.XFrame.dtype`
         """
         return self.__impl__.dtype()
 
@@ -1358,7 +1358,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.tail`, `~XFrame.print_rows`
+        :py:func:`~xframes.XFrame.tail`, `~XFrame.print_rows`
         """
         return XFrame(impl=self.__impl__.head(n))
 
@@ -1378,7 +1378,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.head`, `~XFrame.print_rows`
+        :py:func:`~xframes.XFrame.head`, :py:func:`~xframes.XFrame.print_rows`
         """
         return XFrame(impl=self.__impl__.tail(n))
 
@@ -2000,7 +2000,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.sort`
+        :py:func:`~xframes.XFrame.sort`
 
         Examples
         --------
@@ -2053,7 +2053,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.load`, `XFrame`
+        :py:func:`~xframes.XFrame.load`, :class:`xframes.XFrame`
 
         Examples
         --------
@@ -2119,7 +2119,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.select_columns`
+        :py:func:`~xframes.XFrame.select_columns`
 
         Examples
         --------
@@ -2155,7 +2155,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.select_column`
+        :py:func:`~xframes.XFrame.select_column`
 
         Examples
         --------
@@ -2211,7 +2211,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.add_columns`
+        :py:func:`~xframes.XFrame.add_columns`
 
         Examples
         --------
@@ -2259,7 +2259,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.add_column`
+        :py:func:`~xframes.XFrame.add_column`
 
         Examples
         --------
@@ -2437,7 +2437,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.column_names`
+        :py:func:`~xframes.XFrame.column_names`
 
         Examples
         --------
@@ -2730,7 +2730,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.aggregate`
+        :mod:`xframes.aggregate`
 
         Examples
         --------
@@ -3441,7 +3441,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.unpack`
+        :py:func:`xframes.XFrame.unpack`
 
         Notes
         -----
@@ -3663,7 +3663,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.pack_columns`, `~XArray.unpack`
+        :py:func:`~xframes.XFrame.pack_columns`, :py:func:`~xframes.XArray.unpack`
 
         Examples
         ---------
@@ -3798,7 +3798,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.unstack`
+        :py:func:`~xframes.XFrame.unstack`
 
         Examples
         ---------
@@ -3960,7 +3960,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.stack `: The inverse of unstack.
+        :py:func:`~xframes.XFrame.stack `: The inverse of unstack.
 
         groupby : ``unstack`` is a special version of ``groupby`` that uses the
           :mod:`~xframes.aggregate.CONCAT` aggregator
@@ -4039,7 +4039,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XArray.unique`
+        :py:func:`~xframes.XArray.unique`
 
         Examples
         --------
@@ -4095,7 +4095,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.topk`
+        :py:func:`~xframes.XFrame.topk`
 
         Examples
         --------
@@ -4240,7 +4240,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.dropna_split`:  Drops missing rows from the XFrame and returns them.
+        :py:func:`~xframes.XFrame.dropna_split`:  Drops missing rows from the XFrame and returns them.
 
         Examples
         --------
@@ -4314,7 +4314,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.dropna`
+        :py:func:`~xframes.XFrame.dropna`
 
         Examples
         --------
@@ -4402,7 +4402,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~XFrame.dropna`
+        :py:func:`~xframes.XFrame.dropna`
 
         Examples
         --------
@@ -4539,7 +4539,7 @@ class XFrame(XObject):
 
         See Also
         --------
-        `~xframes.XPlot` : Plot library
+        :class:`~xframes.XPlot` : Plot library
         """
 
         return XPlot(self)

@@ -44,14 +44,14 @@ class XObject(object):
 
         Parameters
         ----------
-        cluster_url : str, optional
-            The url of the spark cluster to use.  To use the local spark, give
-            'local'.  To use a spark cluster with its master on a specific IP addredd,
+        master : str, optional
+            The url of the spark master to use.  To use the local spark, give
+            'local'.  To use a spark cluster with its master on a specific IP address,
             give the IP address or the hostname as in the following example:
-            cluster_url=spark://my_spark_host:7077
+            master=spark://my_spark_host:7077
 
         app_name : str, optional
-            The app name is used on the job monitoring server, and for logging.
+            The app name is used on the job monitoring server and for logging.
 
         cores_max : str, optional
             The maximum number of cores to use for execution.
