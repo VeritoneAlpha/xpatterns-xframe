@@ -39,19 +39,21 @@ class XObject(object):
     @classmethod
     def init_context(cls, **context):
         """
-        Sets the spark context parameters, and then create a context.
-        If the spark context has already been created, then this will have no effect.
+        Set the SparkContext parameters, and then create a context.
+        The parameters listed below, as well as any other parameters allowed by SparkContext
+        may be given.
+        If the Spark context has already been created, then this will have no effect.
 
         Parameters
         ----------
         master : str, optional
-            The url of the spark master to use.  To use the local spark, give
+            The url of the spark cluster to use.  To use the local spark, give
             'local'.  To use a spark cluster with its master on a specific IP address,
             give the IP address or the hostname as in the following example:
             master=spark://my_spark_host:7077
 
         app_name : str, optional
-            The app name is used on the job monitoring server and for logging.
+            The app name is used on the job monitoring server, and for logging.
 
         cores_max : str, optional
             The maximum number of cores to use for execution.
@@ -59,13 +61,16 @@ class XObject(object):
         executor_memory : str, optional
             The amount of main memory to allocate to executors.  For example, '2g'.
 
+        References
+        ----------
+        .. _Cofiguration: http://spark.apache.org/docs/latest/configuration.html
         """
         xframes.SparkInitContext().set(**context)
 
     @staticmethod
     def spark_context():
         """
-        Get the spark context.
+        Get the Spark context.
 
         Returns
         -------

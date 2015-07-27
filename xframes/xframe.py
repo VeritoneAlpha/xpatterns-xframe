@@ -397,7 +397,7 @@ class XFrame(XObject):
         """
         Load an XFrame. The filename extension is used to determine the format
         automatically. This function is particularly useful for XFrames previously
-        saved in binary format. For CSV imports the ``~xframes.XFrame.read_csv`` function
+        saved in binary format. For CSV imports the :py:meth:`~xframes.XFrame.read_csv` function
         provides greater control. If the XFrame is in binary format, `filename` is
         actually a directory, created when the XFrame is saved.
 
@@ -413,7 +413,10 @@ class XFrame(XObject):
         See Also
         --------
         xframes.XFrame.save
-        xframes.XFrame.read_csv : allows more control over csv parsing
+            Saves the XFrame to a file.
+
+        xframes.XFrame.read_csv
+            Allows more control over csv parsing.
 
         Examples
         --------
@@ -628,7 +631,9 @@ class XFrame(XObject):
         See Also
         --------
         xframes.XFrame.read_csv
+            Reads csv without error controls.
         xframes.XFrame
+            The constructor can read csv files, but is not configurable.
 
         Examples
         --------
@@ -760,7 +765,10 @@ class XFrame(XObject):
         See Also
         --------
         xframes.XFrame.read_csv_with_errors
+            Allows more control over errors.
+
         xframes.XFrame
+            The constructor can read csv files, but is not configurable.
 
         Examples
         --------
@@ -1030,6 +1038,7 @@ class XFrame(XObject):
         See Also
         --------
         xframes.XFrame
+            The constructor can read parquet files.
 
         """
         impl = XFrameImpl()
@@ -1160,8 +1169,7 @@ class XFrame(XObject):
 
     def print_rows(self, num_rows=10, num_columns=40, max_column_width=30, max_row_width=MAX_ROW_WIDTH):
         """
-        Print the first M rows and N columns of the XFrame in human readable
-        format.
+        Print the first rows and columns of the XFrame in human readable format.
 
         Parameters
         ----------
@@ -1182,7 +1190,10 @@ class XFrame(XObject):
         See Also
         --------
         xframes.XFrame.head
+            Returns the first part of a XFrame.
+
         xframes.XFrame.tail
+            Returns the last part of an XFrame.
         """
 
         max_row_width = max(max_row_width, max_column_width + 1)
@@ -1263,21 +1274,6 @@ class XFrame(XObject):
         if type(other) is XArray:
             return XFrame(impl=self.__impl__.logical_filter(other.__impl__))
 
-    def dtype(self):
-        """
-        The type of each column.
-
-        Returns
-        -------
-        out : list[type]
-            Column types of the XFrame.
-
-        See Also
-        --------
-        xframes.XFrame.column_types
-        """
-        return self.column_types()
-
     def width(self):
         """
         Diagnostic: the number of elements in each tuple of the RDD.
@@ -1296,6 +1292,7 @@ class XFrame(XObject):
         See Also
         --------
         xframes.XFrame.num_columns
+            Returns the number of columns.
         """
         return self.__impl__.num_rows()
 
@@ -1311,6 +1308,7 @@ class XFrame(XObject):
         See Also
         --------
         xframes.XFrame.num_rows
+            Returns the number of rows.
         """
         return self.__impl__.num_columns()
 
@@ -1326,6 +1324,7 @@ class XFrame(XObject):
         See Also
         --------
         xframes.XFrame.rename
+            Renames the columns.
         """
         return self.__impl__.column_names()
 
@@ -1341,8 +1340,25 @@ class XFrame(XObject):
         See Also
         --------
         xframes.XFrame.dtype
+            This is a synonym for column_types.
         """
         return self.__impl__.dtype()
+
+    def dtype(self):
+        """
+        The type of each column in the XFrame.
+
+        Returns
+        -------
+        out : list[type]
+            Column types of the XFrame.
+
+        See Also
+        --------
+        xframes.XFrame.column_types
+            This is a synonym for dtype.
+        """
+        return self.column_types()
 
     def head(self, n=10):
         """
@@ -1361,7 +1377,10 @@ class XFrame(XObject):
         See Also
         --------
         xframes.XFrame.tail
+            Returns the last part of the XFrame.
+
         xframes.XFrame.print_rows
+            Prints the XFrame.
         """
         return XFrame(impl=self.__impl__.head(n))
 
@@ -1382,7 +1401,10 @@ class XFrame(XObject):
         See Also
         --------
         xframes.XFrame.head
+            Returns the first part of the XFrame.
+
         xframes.XFrame.print_rows
+            Prints the XFrame.
         """
         return XFrame(impl=self.__impl__.tail(n))
 
@@ -1432,12 +1454,19 @@ class XFrame(XObject):
 
     def to_rdd(self):
         """
-        Convert the current XFrame to a Spark RDD
+        Convert the current XFrame to a Spark RDD.  The RDD consists of tuples
+        containing the column data.  No conversion is necessary: the internal RDD is
+        returned.
 
         Returns
         -------
         out : spark.RDD
             The spark RDD that is used to represent the XFrame.
+
+        See Also
+        --------
+        from_rdd
+            Converts from a Spark RDD.
         """
         return self.__impl__.to_rdd()
 
@@ -1463,7 +1492,10 @@ class XFrame(XObject):
     @classmethod
     def from_rdd(cls, rdd, column_names=None, column_types=None):
         """
-        Create a XFrame from a spark RDD or spark DataFrame.
+        Create a XFrame from a spark RDD or spark DataFrame.  The data should be:
+        * an RDD of tuples
+        * Each tuple should be of the same length.
+        * Each "column" should be of a uniform type.
 
         Parameters
         ----------
@@ -1479,6 +1511,11 @@ class XFrame(XObject):
         Returns
         -------
         out : XFrame
+
+        See Also
+        --------
+        to_rdd
+            Converts to a Spark RDD.
         """
         check_res = rdd.take(1)
 
@@ -1572,12 +1609,17 @@ class XFrame(XObject):
             If the function is not given, an identity function is used.
 
         dtype : dtype, optional
-            The dtype of the new XArray. If None, the first 100
+            The column data type of the new XArray. If None, the first 100
             elements of the array are used to guess the target
             data type.
 
         seed : int, optional
             Used as the seed if a random number generator is included in `fn`.
+
+        Returns
+        -------
+        out : XFrame
+            An XFrame with the given column transformed by the function and cast to the given type.
 
         Examples
         --------
@@ -1594,10 +1636,6 @@ class XFrame(XObject):
                                   'rating': [4, 5, 1]})
         >>> xf.transform_col('user_id', dtype=str)
 
-        Returns
-        -------
-        out : XFrame
-            An XFrame with the given column transformed by the function.
         """
         if fn is None:
             fn = lambda row: row[col]
@@ -1637,13 +1675,18 @@ class XFrame(XObject):
             If the function is not given, an identity function is used.
 
         dtypes : list of dtype, optional
-            The dtypes of the new XArray. There must be one
-            for each column in cols.  If None, the first 100
+            The data types of the new columns. There must be one data type
+            for each column in cols.  If not supplied, the first 100
             elements of the array are used to guess the target
-            data type.
+            data types.
 
         seed : int, optional
             Used as the seed if a random number generator is included in `fn`.
+
+        Returns
+        -------
+        out : XFrame
+            An XFrame with the given columns transformed by the function and cast to the given types.
 
         Examples
         --------
@@ -1660,10 +1703,6 @@ class XFrame(XObject):
                                   'rating': [4, 5, 1]})
         >>> xf.transform_col(['movie_id', 'rating'], dtype=[str, str])
 
-        Returns
-        -------
-        out : XFrame
-            An XFrame with the given columns transformed by the function.
         """
         if fn is None:
             fn = lambda row: [row[col] for col in cols]
@@ -1808,7 +1847,7 @@ class XFrame(XObject):
         the first element emitted into in the outer list by `fn` is
         ``[43, 2.3, 'string']``, then all other elements emitted into the outer
         list must be a list with three elements, where the first is an `int`,
-        second is a `float`, and third is a `string`.  If column_types is not
+        second is a `float`, and third is a `string`.  If `column_types` is not
         specified, the first 10 rows of the XFrame are used to determine the
         column types of the returned XFrame.
 
@@ -1981,7 +2020,7 @@ class XFrame(XObject):
 
     def topk(self, column_name, k=10, reverse=False):
         """
-        Get top k rows according to the given column. Result is according to and
+        Get k rows according to the largest values in the given column. Result is
         sorted by `column_name` in the given order (default is descending).
         When `k` is small, `topk` is more efficient than `sort`.
 
@@ -2106,7 +2145,7 @@ class XFrame(XObject):
 
     def select_column(self, column_name):
         """
-        Get an  :class:`~xframes.XArray` that corresponds with
+        Return an  :class:`~xframes.XArray` that corresponds with
         the given column name. Throws an exception if the column name is something other than a
         string or if the column name is not found.
 
@@ -2125,6 +2164,7 @@ class XFrame(XObject):
         See Also
         --------
         xframes.XFrame.select_columns
+            Returns multiple columns.
 
         Examples
         --------
@@ -2161,6 +2201,7 @@ class XFrame(XObject):
         See Also
         --------
         xframes.XFrame.select_column
+            Returns a single column.
 
         Examples
         --------
@@ -2217,7 +2258,7 @@ class XFrame(XObject):
         See Also
         --------
         xframes.XFrame.add_columns
-            adds multiple columns
+            Adds multiple columns.
 
         Examples
         --------
@@ -2704,10 +2745,10 @@ class XFrame(XObject):
 
     def groupby(self, key_columns, operations=None, *args):
         """
-        Perform a group on the key_columns followed by aggregations on the
-        columns listed in operations.
+        Perform a group on the `key_columns` followed by aggregations on the
+        columns listed in `operations`.
 
-        The operations parameter is a dictionary that indicates which
+        The `operations` parameter is a dictionary that indicates which
         aggregation operators to use and which columns to use them on. The
         available operators are SUM, MAX, MIN, COUNT, MEAN, VARIANCE, STD, CONCAT,
         SELECT_ONE, ARGMIN, ARGMAX, and QUANTILE.
@@ -2766,8 +2807,8 @@ class XFrame(XObject):
 
         Compute the number of occurrences of each user.
 
-        >>> user_count = xf.groupby(key_columns='user_id',
-        ...                         operations={'count': agg.COUNT()})
+        >>> user_count = xf.groupby('user_id',
+        ...                         {'count': agg.COUNT()})
         >>> user_count
         +---------+-------+
         | user_id | count |
@@ -2788,8 +2829,8 @@ class XFrame(XObject):
 
         Compute the mean and standard deviation of ratings per user.
 
-        >>> user_rating_stats = xf.groupby(key_columns='user_id',
-        ...                                operations={
+        >>> user_rating_stats = xf.groupby('user_id',
+        ...                                {
         ...                                    'mean_rating': agg.MEAN('rating'),
         ...                                    'std_rating': agg.STD('rating')
         ...                                })
@@ -2813,8 +2854,8 @@ class XFrame(XObject):
 
         Compute the movie with the minimum rating per user.
 
-        >>> chosen_movies = xf.groupby(key_columns='user_id',
-        ...                            operations={
+        >>> chosen_movies = xf.groupby('user_id',
+        ...                            {
         ...                                'worst_movies': agg.ARGMIN('rating','movie_id')
         ...                            })
         >>> chosen_movies
@@ -2839,9 +2880,9 @@ class XFrame(XObject):
         the maximum imdb-ranking per user.
 
         >>> xf['imdb-ranking'] = xf['rating'] * 10
-        >>> chosen_movies = xf.groupby(key_columns='user_id',
-        ...         operations={('max_rating_movie','max_imdb_ranking_movie'):
-                    agg.ARGMAX(('rating','imdb-ranking'),'movie_id')})
+        >>> chosen_movies = xf.groupby('user_id',
+        ...         {('max_rating_movie','max_imdb_ranking_movie'):
+        ...            agg.ARGMAX(('rating','imdb-ranking'),'movie_id')})
         >>> chosen_movies
         +---------+------------------+------------------------+
         | user_id | max_rating_movie | max_imdb_ranking_movie |
@@ -2862,14 +2903,14 @@ class XFrame(XObject):
 
         Compute the movie with the max rating per user.
 
-        >>> chosen_movies = xf.groupby(key_columns='user_id',
-                    operations={'best_movies': agg.ARGMAX('rating','movie')})
+        >>> chosen_movies = xf.groupby('user_id',
+        ...         {'best_movies': agg.ARGMAX('rating','movie')})
 
         Compute the movie with the max rating per user and also the movie with the maximum imdb-ranking per user.
 
-        >>> chosen_movies = xf.groupby(key_columns='user_id',
-                   operations={('max_rating_movie','max_imdb_ranking_movie'):
-                                         agg.ARGMAX(('rating','imdb-ranking'),'movie')})
+        >>> chosen_movies = xf.groupby('user_id',
+        ...        {('max_rating_movie','max_imdb_ranking_movie'):
+        ...                              agg.ARGMAX(('rating','imdb-ranking'),'movie')})
 
         Compute the count, mean, and standard deviation of ratings per (user,
         time), automatically assigning output column names.
@@ -2877,7 +2918,7 @@ class XFrame(XObject):
         >>> xf['time'] = xf.apply(lambda x: (x['user_id'] + x['movie_id']) % 11 + 2000)
         >>> user_rating_stats = xf.groupby(['user_id', 'time'],
         ...                                [agg.COUNT(),
-        ...                                 agg.AVG('rating'),
+        ...                                 agg.MEAN('rating'),
         ...                                 agg.STDV('rating')])
         >>> user_rating_stats
         +------+---------+-------+---------------+----------------+
@@ -2925,7 +2966,7 @@ class XFrame(XObject):
         To put all items a user rated into one list value by their star rating:
 
         >>> user_rating_stats = xf.groupby(["user_id", "rating"],
-        ...                                {"rated_movie_ids":agg.CONCAT("movie_id")})
+        ...                                {"rated_movie_ids": agg.CONCAT("movie_id")})
         >>> user_rating_stats
         +--------+---------+----------------------+
         | rating | user_id |     rated_movie_ids  |
@@ -2948,7 +2989,7 @@ class XFrame(XObject):
         value:
 
         >>> user_rating_stats = xf.groupby("user_id",
-        ...                                {"movie_rating":agg.CONCAT("movie_id", "rating")})
+        ...                                {"movie_rating": agg.CONCAT("movie_id", "rating")})
         >>> user_rating_stats
         +---------+--------------+
         | user_id | movie_rating |
@@ -3401,14 +3442,14 @@ class XFrame(XObject):
         have the given prefix are to be packed.
 
         The type of the resulting column is decided by the `dtype` parameter.
-        Allowed values for `dtype` are ``dict``, ``array.array`` and ``list``:
+        Allowed values for `dtype` are dict, array.array and list:
 
-         - ``dict``: pack to a dictionary XArray where column name becomes
+         - dict: pack to a dictionary XArray where column name becomes
            dictionary key and column value becomes dictionary value
 
-         - ``array.array``: pack all values from the packing columns into an array
+         - array.array: pack all values from the packing columns into an array
 
-         - ``list``: pack all values from the packing columns into a list.
+         - list: pack all values from the packing columns into a list.
 
         Parameters
         ----------
@@ -3454,11 +3495,11 @@ class XFrame(XObject):
         -----
         - There must be at least two columns to pack.
 
-        - If packing to dictionary, missing key is always dropped. Missing
-          values are dropped if fill_na is not provided, otherwise, missing
-          value is replaced by 'fill_na'. If packing to list or array, missing
-          values will be kept. If 'fill_na' is provided, the missing value is
-          replaced with 'fill_na' value.
+        - If packing to dictionary, a missing key is always dropped. Missing
+          values are dropped if `fill_na` is not provided, otherwise, missing
+          value is replaced by `fill_na`. If packing to list or array, missing
+          values will be kept. If `fill_na` is provided, the missing value is
+          replaced with `fill_na` value.
 
         Examples
         --------
@@ -3511,7 +3552,7 @@ class XFrame(XObject):
         To keep column prefix in the resulting dict key:
 
         >>> xf.pack_columns(column_prefix='category', dtype=dict,
-                            remove_prefix=False)
+        ...                 remove_prefix=False)
         +----------+--------------------------------+
         | business |               X2               |
         +----------+--------------------------------+
@@ -3525,8 +3566,8 @@ class XFrame(XObject):
         To explicitly pack a set of columns:
 
         >>> xf.pack_columns(columns = ['business', 'category.retail',
-                                       'category.food', 'category.service',
-                                       'category.shop'])
+        ...                            'category.food', 'category.service',
+        ...                            'category.shop'])
         +-----------------------+
         |           X1          |
         +-----------------------+
@@ -3630,7 +3671,7 @@ class XFrame(XObject):
         Expand one column of this XFrame to multiple columns with each value in
         a separate column. Returns a new XFrame with the unpacked column
         replaced with a list of new columns.  The column must be of
-        list/array/dict type.
+        list, array, or dict type.
 
         For more details regarding name generation, missing value handling and
         other, refer to the XArray version of
@@ -3671,6 +3712,7 @@ class XFrame(XObject):
         See Also
         --------
         xframes.XFrame.pack_columns
+            The opposite of unpack.
 
         Examples
         ---------
@@ -3806,6 +3848,7 @@ class XFrame(XObject):
         See Also
         --------
         xframes.XFrame.unstack
+            Undo the effect of stack.
 
         Examples
         ---------
@@ -3845,7 +3888,7 @@ class XFrame(XObject):
         [7 rows x 3 columns]
 
         Observe that since topic 4 had no words, an empty row is inserted.
-        To drop that row, set dropna=True in the parameters to stack.
+        To drop that row, set ``dropna=True`` in the parameters to stack.
 
         Suppose 'xf' is an XFrame that contains a user and his/her friends,
         where 'friends' columns is an array type. Stack on 'friends' column
@@ -3967,9 +4010,10 @@ class XFrame(XObject):
 
         See Also
         --------
-        xframes.XFrame.stack: The inverse of unstack.
+        xframes.XFrame.stack
+            The inverse of unstack.
 
-        xframes.XFrame.groupby : ``unstack`` is a special version of ``groupby`` that uses the
+        xframes.XFrame.groupby : ``Unstack`` is a special version of ``groupby`` that uses the
           :mod:`~xframes.aggregate.CONCAT` aggregator
 
         Notes
@@ -4220,8 +4264,8 @@ class XFrame(XObject):
 
     def dropna(self, columns=None, how='any'):
         """
-        Remove missing values from an XFrame. A missing value is either ``None``
-        or ``NaN``.  If `how` is 'any', a row will be removed if any of the
+        Remove missing values from an XFrame. A missing value is either None
+        or NaN.  If `how` is 'any', a row will be removed if any of the
         columns in the `columns` parameter contains at least one missing
         value.  If `how` is 'all', a row will be removed if all of the columns
         in the `columns` parameter are missing values.

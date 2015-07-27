@@ -1148,7 +1148,7 @@ class XArray(XObject):
             value which can be cast into the type specified by `dtype`.
 
         dtype : {None, int, float, str, list, array.array, dict}, optional
-            The data type of the new XArray. If ``None``, the first 100 elements
+            The data type of the new XArray. If None, the first 100 elements
             of the array are used to guess the target data type.
 
         skip_undefined : bool, optional
@@ -1206,7 +1206,7 @@ class XArray(XObject):
             values which can be cast into the type specified by `dtype`.
 
         dtype : {None, int, float, str, list, array.array, dict}, optional
-            The data type of the new XArray. If ``None``, the first 100 elements
+            The data type of the new XArray. If None, the first 100 elements
             of the array are used to guess the target data type.
 
         skip_undefined : bool, optional
@@ -1337,10 +1337,10 @@ class XArray(XObject):
     def all(self):
         """
         Return True if every element of the XArray evaluates to True. For
-        numeric XArrays zeros and missing values (``None``) evaluate to False,
+        numeric XArrays zeros and missing values (None) evaluate to False,
         while all non-zero, non-missing values evaluate to True. For string,
         list, and dictionary XArrays, empty values (zero length strings, lists
-        or dictionaries) or missing values (``None``) evaluate to False. All
+        or dictionaries) or missing values (None) evaluate to False. All
         other values evaluate to True.
 
         Returns True on an empty XArray.
