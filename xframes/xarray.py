@@ -101,10 +101,10 @@ class XArray(XObject):
 
     See Also
     --------
-    :py:func:`~xframes.XArray.from_const`
+    :py:meth:`~xframes.XArray.from_const`
         Constructs an XArray of a given size with a const value.
 
-    :py:func:`~xframes.XArray.from_sequence`
+    :py:meth:`~xframes.XArray.from_sequence`
         Constructs an XArray by generating a sequence of consecutive numbers.
 
     :py:func:`xframes.XArray.from_rdd`
