@@ -88,14 +88,14 @@ From the source distribution, you can either:
 Building the Library
 --------------------
 
-In the source distribution, run
+In the source distribution, run::
 
   python setup.py sdist --formats=zip
 
 This will create a file dist/xframes-<version>.zip This file can be copied to
 the server where you want to install xframes.
 
-Install by:
+Install by::
 
     unzip xframes.<version>.zip
     cd xframes.<version>
@@ -104,7 +104,7 @@ Install by:
 Install With Pip
 ----------------
 
-You can also install with pip:
+You can also install with pip::
 
     pip install xframes
 
@@ -128,7 +128,7 @@ Then set:
     export SPARK_HOME=<spark distribution>
     export PYTHONPATH=${SPARK_HOME}/python:${SPARK_HOME}/python/lib/py4j-0.8.2.1-src.zip
 
-You can test by running this program:
+You can test by running this program::
 
     test.py:
     from xframes import XFrame
@@ -137,7 +137,7 @@ You can test by running this program:
     Run:
     $ python test.py
 
-This should print:
+This should print::
 
     +----+-----+
     | id | val |
@@ -154,7 +154,7 @@ This is because, by default, Spark displays log output on stdout.
 You can change this by supplying a log4j.properties file and setting
 SPARK_CONF_DIR to the directory containing it.  There is a sample
 config dir "conf" under the xframes install directory.  You can copy this
-to your current directory and set:
+to your current directory and set::
 
     export SPARK_CONF_DIR=`pwd`/conf
 
@@ -173,23 +173,23 @@ Running in a Virtual Environment
 
 XFrames alwo works well in a virtual environment.
 
-Create a virtual environment:
+Create a virtual environment::
 
     virtualenv venv
 
-And then install into it:
+And then install into it::
 
     source venv/bin/activate
     pip install xframes
 
 XFrames depends on numpy, which it installs into the virtual environment.
 XFrames includes support for pandas and matplotlib, which you can
-install if you want to use them.
+install if you want to use them.  For exammple::
 
     pip install pandas
     pip install matplotlib
 
-If running in a notebook, you would then run the notebook server:
+If running in a notebook, you would then run the notebook server::
 
   ipython notebook
 
