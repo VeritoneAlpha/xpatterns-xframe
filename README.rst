@@ -1,14 +1,14 @@
 xFrames 0.2 Library (BETA)
 ==========================
 
-The xFrames Library provides a consistent and scaleable data science
+The xFrames Library provides a consistent and scalable data science
 library that is built on top of industry-standard open source
 technologies. xFrames provides the following advantages compared to other
 DataFrame implementations:
 
 -  A simple and well-tested Data Science library and Python based
    interface.
--  Powerful abstraction over underlying scaleable big data and machine
+-  Powerful abstraction over underlying scalable big data and machine
    learning frameworks: Apache Spark, Spark DataFrames and ML libraries.
 -  Dockerized container that bundles IPython notebooks, scientific
    libraries, Apache Spark and other dependencies for painless setup.
@@ -51,7 +51,7 @@ Getting Started
 ---------------
 
 The easiest way to get started is to download the xframes library, build a
-Docker container that has everything you need, and run an ipythin notebook
+Docker container that has everything you need, and run using an ipython notebook
 within Docker.
 
 Download Library
@@ -59,24 +59,27 @@ Download Library
 
 Clone xFrames this way::
 
-    git clone https://github.com/Atigeo/xpatterns-xframe.git xframes
+    git clone https://github.com/Atigeo/xpatterns-xframe.git xframes-lib
 
-Build docker container
+Build Docker Container
 ----------------------
 
 Go to the docker directory and follow the build instructions in
 README.md.
 
-Review introductory presentation
+Review Introductory Presentation
 --------------------------------
 
 After starting docker container, browse to http://localhost:7777/tree.
-Then open info/Presentation.ipynb.
+Then open info/Presentation.ipynb.  If you execute the cells in this
+notebook, then xFrames is up and running.
 
 Documentation
 -------------
 
-You can view local documentation in localhost:8000
+You can view local documentation with the Docker container on http://localhost:8000.
+
+You can also view documentation at http://xframes.readthedocs.org/
 
 
 
@@ -98,8 +101,8 @@ You can also install with pip::
 
     pip install xframes
 
-Using xframe Directory
-----------------------
+Using xframes Directory
+-----------------------
 
 If you want to run using the source distribution, the most direct way
 is to include its xframes directory in PYTHONPATH::
