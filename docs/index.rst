@@ -1,9 +1,9 @@
-XFrame Documentation
-====================
+XFrames Documentation
+=====================
 
 Contents:
 
-The xFrame library provides powerful and convenient abstractions used
+The xFrames library provides powerful and convenient abstractions used
 for operating on large datasets.  It is implemented in python and
 runs on Spark.
 
@@ -21,7 +21,7 @@ The main classes that make up XFrames are:
 
 
 
-Indices and tables
+Indices and Tables
 ==================
 
 * :ref:`genindex`
