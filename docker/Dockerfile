@@ -26,7 +26,6 @@ ENV PEM_FILE /key.pem
 # $PASSWORD will get `unset` within server.sh, turned into an IPython style hash
 ENV PASSWORD Dont make this your default
 ENV USE_HTTP 0
-ENV XPATTERNS_HOME=/notebooks
 ENV LIB=/notebooks
 ENV SPARK_HOME=/usr/local/spark
 ENV SPARK_CONF_DIR=/notebooks/conf
@@ -41,9 +40,9 @@ RUN easy_install cloud-sptheme
 RUN python /notebooks/docs/patch_help_menu.py /usr/local
 
 ADD server.sh /
-ADD xpatterns /notebooks/xpatterns
+ADD xframes /notebooks/xframes
 ADD intro /notebooks/intro
-ADD conf /notebooks/conf
+ADD xframes/conf /notebooks/conf
 ADD docker-setup /setup
 RUN chmod u+x /server.sh
 CMD ["/server.sh"]

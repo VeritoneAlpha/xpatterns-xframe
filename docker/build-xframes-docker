@@ -5,7 +5,7 @@ build_dir=/tmp/docker-build
 rm -rf /tmp/docker-build
 mkdir /tmp/docker-build
 cp -r ../docs /tmp/docker-build
-cp -r ../xpatterns /tmp/docker-build
+cp -r ../xframes /tmp/docker-build
 cp -r ../intro /tmp/docker-build
 cp -r ../conf /tmp/docker-build
 cp Dockerfile /tmp/docker-build
