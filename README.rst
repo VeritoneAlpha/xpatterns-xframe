@@ -47,8 +47,17 @@ Minimum Requirements
 
 -  Run in VM
 
+Getting Started
+---------------
+
+The easiest way to get started is to download the xframes library, build a
+Docker container that has everything you need, and run an ipythin notebook
+within Docker.
+
 Download Library
 ----------------
+
+Clone xFrames this way::
 
     git clone https://github.com/Atigeo/xpatterns-xframe.git xframes
 
@@ -69,10 +78,7 @@ Documentation
 
 You can view local documentation in localhost:8000
 
-License
--------
 
-This SDK is provided under the 3-clause BSD `license <LICENSE>`__.
 
 Install Library On Existing Spark Installation
 ----------------------------------------------
@@ -80,15 +86,31 @@ Install Library On Existing Spark Installation
 If you have an existing Spark installation that you already use with
 pySpark, then you can simply install the library to work with that.
 
-From the source distribution, you can either:
+You can install using pip or you can get the source and either:
 
-1. Include the xpatterns directory in PYTHONPATH, or
+1. Include the xframes directory in PYTHONPATH, or
 2. Build an archive (see below) and install it on a different machine.
+
+Install With Pip
+----------------
+
+You can also install with pip::
+
+    pip install xframes
+
+Using xframe Directory
+----------------------
+
+If you want to run using the source distribution, the most direct way
+is to include its xframes directory in PYTHONPATH::
+
+    export PYTHONPATH=<path to xframes>:$PYTHONPATH
 
 Building the Library
 --------------------
 
-In the source distribution, run::
+If you want to make a zip file that you can use to install xframes on a
+different machine, go to the source main directory and run::
 
   python setup.py sdist --formats=zip
 
@@ -101,13 +123,6 @@ Install by::
     cd xframes.<version>
     python setup.py install
 
-Install With Pip
-----------------
-
-You can also install with pip::
-
-    pip install xframes
-
 
 Running xFrames
 ---------------
@@ -115,15 +130,18 @@ xFrames uses pySpark, so you have to have Spark set up.
 
 You might have an existing Spark installation running in Cluster Mode,
 managed by the the Standalone, YARN, or Mesos cluster manager.
- In this case, you need to set "master" to point to the cluster, using one
- of the configuration methods described below.
+In this case, you need to set "master" to point to the cluster, using one
+of the configuration methods described below.
 
-If not, it is easy to set up spark in local mode.
-Download spark from
-http://spark.apache.org/downloads.html.
+Setting Up Spark
+----------------
+
+If you do not already have Spark, it is easy to set it up in local mode.
+
+Download spark from http://spark.apache.org/downloads.html
 
 Get the tar.gz, uncompress it, and put it in some convenient directory.
-Then set:
+Then set::
 
     export SPARK_HOME=<spark distribution>
     export PYTHONPATH=${SPARK_HOME}/python:${SPARK_HOME}/python/lib/py4j-0.8.2.1-src.zip
@@ -215,6 +233,11 @@ directory in the xframe installation.
 For application-specific defaults, use a file "config.ini" in the current directory where you run
 your xFrames application.  It is structured similarly to "defaults.ini".
 
-To provide run-time configuration, use SparkInitContext.set() to set configuration parameters before
+To provide run-time configuration, use XFrame.init_context to set configuration parameters before
 running any Spark operations.
+
+License
+-------
+
+This SDK is provided under the 3-clause BSD `license <LICENSE>`__.
 
