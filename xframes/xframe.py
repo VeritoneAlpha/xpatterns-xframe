@@ -2,7 +2,7 @@
 This module defines the XFrame class which provides the
 ability to create, access and manipulate a remote scalable dataframe object.
 
-XFrame acts similarly to pandas.DataFrame, but the data is completely immutable
+XFrame acts similarly to pandas.DataFrame, but the data is immutable
 and is stored as Spark RDDs.
 """
 
@@ -3125,14 +3125,14 @@ class XFrame(XObject):
         right : XFrame
             The XFrame to join.
 
-        on : None | str | list | dict, optional
+        on : str | list | dict, optional
             The column name(s) representing the set of join keys.  Each row that
             has the same value in this set of columns will be merged together.
 
-            * If 'None' is given, join will use all columns that have the same
-              name as the set of join keys.
+            * If `on` is not given, the join keyd are all columns in the left and right
+              XFrames that have the same name
 
-            * If a str is given, this is interpreted as a join using one column,
+            * If a string is given, this is interpreted as a join using one column,
               where both XFrames have the same column name.
 
             * If a list is given, this is interpreted as a join using one or
@@ -3166,6 +3166,7 @@ class XFrame(XObject):
         Returns
         -------
         out : XFrame
+            The joined XFrames.
 
         Examples
         --------
@@ -3419,7 +3420,7 @@ class XFrame(XObject):
             tmp = XFrame(impl=self.__impl__.join(value_xf.__impl__,
                                                  'left',
                                                  {column_name: column_name}))
-            ret_xf = tmp[tmp[id_name] == None]       # this is an xarray operator
+            ret_xf = tmp[tmp[id_name] == None]       # this is an xarray operator -- do not change
             del ret_xf[id_name]
             return ret_xf
         else:
@@ -4253,9 +4254,8 @@ class XFrame(XObject):
                 raise TypeError('Only string parameter can be passed in as column names.')
             if column not in my_column_names:
                 raise ValueError("XFrame has no column named: '{}'.".format(column))
-                sortable_types = (str, int, float, numpy.int32, datetime.datetime)
             else:
-                sortable_types = (str, int, float, datetime.datetime)
+                sortable_types = (str, int, float, numpy.int32, datetime.datetime)
             if self[column].dtype() not in sortable_types:
                 raise TypeError("Only columns of type ('str', 'int', 'float', 'numpy.int32') can be sorted: {}."
                                 .format(self[column].dtype()))

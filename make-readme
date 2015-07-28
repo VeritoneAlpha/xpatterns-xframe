@@ -1,0 +1,3 @@
+#!/bin/bash
+
+pandoc -t rst -t markdown <README.rst >README.md
