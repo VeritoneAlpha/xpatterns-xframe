@@ -7,7 +7,7 @@ mkdir /tmp/docker-build
 cp -r ../docs /tmp/docker-build
 cp -r ../xframes /tmp/docker-build
 cp -r ../intro /tmp/docker-build
-cp -r ../conf /tmp/docker-build
+cp -r ../xframes/conf /tmp/docker-build
 cp Dockerfile /tmp/docker-build
 cp server.sh /tmp/docker-build
 cp docker-setup /tmp/docker-build
