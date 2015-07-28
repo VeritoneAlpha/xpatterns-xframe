@@ -37,7 +37,7 @@ class XObject(object):
         XObjectImpl.set_trace(entry_trace, exit_trace)
 
     @classmethod
-    def init_context(cls, **context):
+    def init_context(cls, context):
         """
         Set the SparkContext parameters, and then create a context.
         The parameters listed below, as well as any other parameters allowed by SparkContext
@@ -46,6 +46,15 @@ class XObject(object):
 
         Parameters
         ----------
+        context: dict
+            A dictionary of attribute/value pairs: spark configuration
+            property names and values.
+
+        Notes
+        -----
+
+        The most common properties are the following.
+
         master : str, optional
             The url of the spark cluster to use.  To use the local spark, give
             'local'.  To use a spark cluster with its master on a specific IP address,
@@ -65,7 +74,7 @@ class XObject(object):
         ----------
         .. _Cofiguration: http://spark.apache.org/docs/latest/configuration.html
         """
-        xframes.SparkInitContext().set(**context)
+        xframes.SparkInitContext().set(context)
 
     @staticmethod
     def spark_context():
