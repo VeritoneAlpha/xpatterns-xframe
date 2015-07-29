@@ -99,7 +99,6 @@ class TestXArrayConstructorLocal(unittest.TestCase):
     def test_construct_list_dict(self):
         t = XArray([{'a': 1, 'b': 2}, {'x': 10}], dtype=dict)
         self.assertEqual(2, len(t))
-        # TODO does this actually work ?
         self.assertEqual({'a': 1, 'b': 2}, t[0])
         self.assertEqual(dict, t.dtype())
 
