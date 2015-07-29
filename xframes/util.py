@@ -151,7 +151,7 @@ def make_internal_url(url):
 
 def has_hdfs():
     # TODO -- detect if we have hdfs
-    return False
+    return True
 
 
 def download_dataset(url_str, extract=True, force=False, output_dir="."):
@@ -419,16 +419,21 @@ def delete_file_or_dir(path):
             raise err
 
 
-# TODO: if delimiter == space, then these do not work
 def classify_type(s):
     if s.startswith('-'):
         rest = s[1:]
-        if rest.isdigit(): return int
-        if rest.replace('.', '', 1).isdigit(): return float
-    if s.isdigit(): return int
-    if s.replace('.', '', 1).isdigit(): return float
-    if s.startswith('['): return list
-    if s.startswith('{'): return dict
+        if rest.isdigit():
+            return int
+        if rest.replace('.', '', 1).isdigit():
+            return float
+    if s.isdigit():
+        return int
+    if s.replace('.', '', 1).isdigit():
+        return float
+    if s.startswith('['):
+        return list
+    if s.startswith('{'):
+        return dict
     return str
 
 
@@ -484,6 +489,7 @@ def infer_type_of_list(data):
 def infer_type_of_rdd(rdd):
     return infer_type_of_list(rdd.take(100))
 
+
 # Random seed
 def distribute_seed(rdd, seed):
     def set_seed(iterator):
@@ -492,7 +498,6 @@ def distribute_seed(rdd, seed):
     rdd.mapPartitions(set_seed)
 
 
-# TODO make this something that works with 'with'
 def cache(rdd):
     rdd.persist(StorageLevel.MEMORY_ONLY)
 
