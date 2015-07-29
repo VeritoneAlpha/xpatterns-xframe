@@ -862,14 +862,14 @@ class TestXFrameNumRows(unittest.TestCase):
         self.assertEqual(3, t.num_rows())
 
 
-class TestXFrameNumCols(unittest.TestCase):
+class TestXFrameNumColumns(unittest.TestCase):
     """
-    Tests XFrame num_cols
+    Tests XFrame num_columns
     """
 
-    def test_num_cols(self):
+    def test_num_columns(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        self.assertEqual(2, t.num_cols())
+        self.assertEqual(2, t.num_columns())
 
 
 class TestXFrameNumColumns(unittest.TestCase):
@@ -2327,64 +2327,59 @@ class TestXFrameFilterBy(unittest.TestCase):
     # not tested -- test after group by
     def test_filter_by_list_id(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
-        res = t.filter_by([1, 3], 'id')
-        top = res.topk('id')
-        self.assertEquals(2, len(top))
-        self.assertEquals({'id': 3, 'val': 'c'}, top[0])
-        self.assertEquals({'id': 1, 'val': 'a'}, top[1])
+        res = t.filterby([1, 3], 'id').sort('id')
+        self.assertEquals(2, len(res))
+        self.assertEquals({'id': 1, 'val': 'a'}, res[0])
+        self.assertEquals({'id': 3, 'val': 'c'}, res[1])
 
     def test_filter_by_list_val(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        res = t.filter_by(['a', 'b'], 'val')
-        top = res.topk('id')
+        res = t.filterby(['a', 'b'], 'val').sort('id')
         self.assertEquals(2, len(res))
-        self.assertEquals({'id': 2, 'val': 'b'}, top[0])
-        self.assertEquals({'id': 1, 'val': 'a'}, top[1])
-        self.assertTrue(eq_list(['a', 'b'], res['val']))
+        self.assertEquals({'id': 1, 'val': 'a'}, res[0])
+        self.assertEquals({'id': 2, 'val': 'b'}, res[1])
+        self.assertTrue(eq_list([1, 2], res['id']))
 
     def test_filter_by_xarray(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         a = XArray([1, 3])
-        res = t.filter_by(a, 'id')
-        top = res.topk('id')
+        res = t.filterby(a, 'id').sort('id')
         self.assertEquals(2, len(res))
-        self.assertEquals({'id': 3, 'val': 'c'}, top[0])
-        self.assertEquals({'id': 1, 'val': 'a'}, top[1])
+        self.assertEquals({'id': 1, 'val': 'a'}, res[0])
+        self.assertEquals({'id': 3, 'val': 'c'}, res[1])
         self.assertTrue(eq_list([1, 3], res['id']))
 
     def test_filter_by_list_exclude(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
-        res = t.filter_by([1, 3], 'id', exclude=True)
-        top = res.topk('id')
+        res = t.filterby([1, 3], 'id', exclude=True).sort('id')
         self.assertEquals(2, len(res))
-        self.assertEquals({'id': 4, 'val': 'd'}, top[0])
-        self.assertEquals({'id': 2, 'val': 'b'}, top[1])
+        self.assertEquals({'id': 2, 'val': 'b'}, res[0])
+        self.assertEquals({'id': 4, 'val': 'd'}, res[1])
         self.assertTrue(eq_list([2, 4], res['id']))
 
     def test_filter_by_xarray_exclude(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         a = XArray([1, 3])
-        res = t.filter_by(a, 'id', exclude=True)
-        top = res.topk('id')
+        res = t.filterby(a, 'id', exclude=True).sort('id')
         self.assertEquals(2, len(res))
-        self.assertEquals({'id': 4, 'val': 'd'}, top[0])
-        self.assertEquals({'id': 2, 'val': 'b'}, top[1])
+        self.assertEquals({'id': 2, 'val': 'b'}, res[0])
+        self.assertEquals({'id': 4, 'val': 'd'}, res[1])
         self.assertTrue(eq_list([2, 4], res['id']))
 
     def test_filter_by_bad_column_name_type(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         with self.assertRaises(TypeError):
-            t.filter_by([1, 3], 1)
+            t.filterby([1, 3], 1)
 
     def test_filter_by_bad_column_name(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         with self.assertRaises(KeyError):
-            t.filter_by([1, 3], 'xx')
+            t.filterby([1, 3], 'xx')
 
     def test_filter_by_bad_column_type(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         with self.assertRaises(TypeError):
-            t.filter_by([1, 3], 'val')
+            t.filterby([1, 3], 'val')
 
 
 class TestXFramePackColumnsList(unittest.TestCase):
