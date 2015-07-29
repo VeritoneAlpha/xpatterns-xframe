@@ -4,6 +4,6 @@ bug-notebooks
 /MANIFEST
 venv
 dist
-xframe.egg-info
+xframes.egg-info
 .idea
 *.pyc
