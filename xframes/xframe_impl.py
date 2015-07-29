@@ -933,7 +933,6 @@ class XFrameImpl(XObjectImpl):
         # Is it better to use take or collect ?  OR are they effectively the same since zipWithIndex 
         # has just run?
     def begin_iterator(self):
-        # TODO: be sure to reset this when the RDD changes.
         self._entry()
         self._exit()
         self.iter_pos = -1
