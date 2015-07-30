@@ -1,2 +1,5 @@
 find . -name \*.pyc|xargs rm -f
 find . -name \*~|xargs rm -f
+rm -rf xframe.egg-info
+rm -rf docs/_build/*
+find . -name logs|rm -rf
