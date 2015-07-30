@@ -24,7 +24,7 @@ except:
 
 
 try:
-    import matplotlib
+    import matplotlib.pyplot
 
     HAS_MATPLOTLIB = True
 
