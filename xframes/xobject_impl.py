@@ -9,6 +9,7 @@ from xframes.xrdd import XRdd
 
 class XObjectImpl(object):
     """ Implementation for XObject. """
+    perf_count = None
 
     def __init__(self, rdd):
         self._rdd = self._wrap_rdd(rdd)

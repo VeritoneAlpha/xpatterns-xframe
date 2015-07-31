@@ -26,7 +26,7 @@ import numpy
 from xframes.deps import pandas, HAS_PANDAS
 from xframes.xobject import XObject
 from xframes.xarray_impl import XArrayImpl, infer_type_of_list
-from xframes.util import make_internal_url,  pytype_from_dtype
+from xframes.util import make_internal_url, pytype_from_dtype
 import xframes
 
 __all__ = ['XArray']

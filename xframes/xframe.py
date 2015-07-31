@@ -15,6 +15,7 @@ All rights reserved.
 """
 
 import array
+# noinspection PyUnresolvedReferences
 from prettytable import PrettyTable
 from textwrap import wrap
 import datetime
@@ -3420,7 +3421,7 @@ class XFrame(XObject):
             tmp = XFrame(impl=self.__impl__.join(value_xf.__impl__,
                                                  'left',
                                                  {column_name: column_name}))
-            ret_xf = tmp[tmp[id_name] == None]       # this is an xarray operator -- do not change
+            ret_xf = tmp[tmp[id_name] is None]       # this is an xarray operator -- do not change
             del ret_xf[id_name]
             return ret_xf
         else:

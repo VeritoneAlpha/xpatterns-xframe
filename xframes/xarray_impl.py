@@ -14,14 +14,15 @@ import random
 from sys import stderr
 
 
+import xframes
 from xframes.xobject_impl import XObjectImpl
 from xframes.spark_context import spark_context
+import xframes.util as util
 from xframes.util import infer_type_of_list, cache, uncache
 from xframes.util import delete_file_or_dir, infer_type, infer_types
 from xframes.util import is_missing
 from xframes.util import distribute_seed
 from xframes.xrdd import XRdd
-import xframes
 
 
 class ReverseCmp(object):
@@ -79,6 +80,7 @@ class XArrayImpl(XObjectImpl):
         """
         return XArrayImpl(rdd, typ or self.elem_type)
 
+    # noinspection PyUnresolvedReferences
     @staticmethod
     def _rv_frame(rdd, col_names=None, types=None):
         """
@@ -151,8 +153,8 @@ class XArrayImpl(XObjectImpl):
         try:
             if len(values) == 0:
                 cls._exit()
-                return XArrayImpl(XRdd(sc.parallelize([])), dtype)
                 dtype = dtype or infer_type_of_list(values[0:100])
+                return XArrayImpl(XRdd(sc.parallelize([])), dtype)
         except TypeError:
             # get here if values does not support len or __getitem
             pass
@@ -634,6 +636,7 @@ class XArrayImpl(XObjectImpl):
         if seed:
             distribute_seed(self._rdd, seed)
             random.seed(seed)
+
         def apply_filter(x, fn, skip_undefined):
             if x is None and skip_undefined: return None
             return fn(x)

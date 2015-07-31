@@ -285,13 +285,13 @@ class XRdd(object):
     def basic_zip(self, other):
         # these are separate so they can have their own tracing
         self._entry()
-        return self._rdd.zip(other._rdd)
+        return self._rdd.zip(other.rdd())
 
     def safe_zip(self, other):
         # do the zip operation safely
         self._entry()
         ix_left = self._rdd.zipWithIndex().map(lambda row: (row[1], row[0]))
-        ix_right = other._rdd.zipWithIndex().map(lambda row: (row[1], row[0]))
+        ix_right = other.rdd().zipWithIndex().map(lambda row: (row[1], row[0]))
         return ix_left.join(ix_right).sortByKey().values()
 
     def zip(self, other):
@@ -350,7 +350,7 @@ class XRdd(object):
 
     def union(self, other):
         self._entry(other)
-        res = self._rdd.union(other._rdd)
+        res = self._rdd.union(other.rdd())
         self._exit()
         return XRdd(res)
 
@@ -362,25 +362,25 @@ class XRdd(object):
 
     def cartesian(self, right):
         self._entry()
-        res = self._rdd.cartesian(right._rdd)
+        res = self._rdd.cartesian(right.rdd())
         self._exit()
         return XRdd(res)
         
     def join(self, right):
         self._entry()
-        res = self._rdd.join(right._rdd)
+        res = self._rdd.join(right.rdd())
         self._exit()
         return XRdd(res)
         
     def leftOuterJoin(self, right):
         self._entry()
-        res = self._rdd.leftOuterJoin(right._rdd)
+        res = self._rdd.leftOuterJoin(right.rdd())
         self._exit()
         return XRdd(res)
         
     def rightOuterJoin(self, right):
         self._entry()
-        res = self._rdd.rightOuterJoin(right._rdd)
+        res = self._rdd.rightOuterJoin(right.rdd())
         self._exit()
         return XRdd(res)
         
