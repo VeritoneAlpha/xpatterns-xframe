@@ -12,11 +12,9 @@ from sys import stderr
 class ConfigError(Exception):
     pass
 
-
 def get_xframes_home():
     import xframes
     return os.path.dirname(xframes.__file__)
-
 
 class Environment(object):
     def __init__(self):
@@ -41,7 +39,9 @@ class Environment(object):
             The environment resulting from the ini file(s).
 
         """
-        files_to_read = [os.path.join(get_xframes_home(), 'default.ini'), 'config.ini']
+        files_to_read = []
+        files_to_read.append(os.path.join(get_xframes_home(), 'default.ini'))
+        files_to_read.append('config.ini')
         if config_files: files_to_read.append(config_files)
         env = Environment()
         env._read(files_to_read)
@@ -102,5 +102,5 @@ class Environment(object):
         try:
             items = self.cfg.items(section, raw=True)
             return {item[0]: item[1] for item in items}
-        except (ConfigError, ConfigParser.NoSectionError):
+        except (ConfigError, ConfigParser.NoSectionError) as e:
             return {}

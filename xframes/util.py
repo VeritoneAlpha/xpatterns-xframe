@@ -35,7 +35,6 @@ __LOGGER__ = _logging.getLogger(__name__)
 # Not a number singleton
 nan = float('nan')
 
-
 # noinspection PyUnresolvedReferences
 def get_credentials():
     """
@@ -115,8 +114,9 @@ def make_internal_url(url):
                 return url
             else:
                 # s3 url does not contain secret key/id pair, query the environment variables
-                k, v = get_credentials()
-                return 's3n://' + k + ':' + v + '@' + path
+#                k, v = get_credentials()
+#                return 's3n://' + k + ':' + v + '@' + path
+                return 's3n://' + path
         elif protocol == 'remote':
             # url for files on the server
             path_on_server = path

@@ -2,6 +2,7 @@
 This module provides an implementation of XFrame using pySpark RDDs.
 """
 import os
+import sys
 import inspect
 import json
 import random
@@ -385,9 +386,8 @@ class XFrameImpl(XObjectImpl):
 
         # drop columns with empty header
         remove_cols = [col_index for col_index, col_name in enumerate(col_names) if len(col_name) == 0]
-
         def remove_columns(row):
-            return [val for index, val in enumerate(row) if index not in remove_cols]
+            return [val for index, val in enumerate(row) if not index in remove_cols]
         res = res.map(remove_columns)
         col_names = remove_columns(col_names)
 
