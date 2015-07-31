@@ -134,8 +134,7 @@ class Sketch(object):
       <http://dimacs.rutgers.edu/~graham/pubs/papers/cm-latin.pdf>`_
     """
 
-    # TODO handle the default sub_sketch_keys without mutating empty list
-    def __init__(self, array=None, sub_sketch_keys=[], impl=None):
+    def __init__(self, array=None, sub_sketch_keys=None, impl=None):
         """__init__(array)
         Construct a new Sketch from an XArray.
 
@@ -152,6 +151,7 @@ class Sketch(object):
         if impl:
             self.__impl__ = impl
         else:
+            sub_sketch_keys = sub_sketch_keys or []
             self.__impl__ = SketchImpl()
             if not isinstance(array, XArray):
                 raise TypeError("Sketch object can only be constructed from XArrays")
@@ -601,7 +601,7 @@ class Sketch(object):
         | 1.0 | 1.0 | 1.0 | 2.0 | 3.0 | 4.0 | 5.0 | 5.0 | 5.0  |
         +-----+-----+-----+-----+-----+-----+-----+-----+------+
         """
-        return Sketch(impl = self.__impl__.element_summary())
+        return Sketch(impl=self.__impl__.element_summary())
 
     def element_sub_sketch(self, keys=None):
         """
