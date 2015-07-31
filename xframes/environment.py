@@ -40,7 +40,7 @@ class Environment(object):
 
         """
         files_to_read = []
-        files_to_read.append(os.path.join(get_xframes_home(), 'xframes/default.ini'))
+        files_to_read.append(os.path.join(get_xframes_home(), 'default.ini'))
         files_to_read.append('config.ini')
         if config_files: files_to_read.append(config_files)
         env = Environment()
