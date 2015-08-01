@@ -21,6 +21,7 @@ from xframes.sketch_impl import SketchImpl
 __all__ = ['Sketch']
 
 
+# noinspection PyUnresolvedReferences
 class Sketch(object):
     """
     The Sketch object contains a sketch of a single XArray (a column of an
@@ -30,14 +31,14 @@ class Sketch(object):
     To construct a Sketch object, the following methods are equivalent:
 
     >>> my_xarray = xframes.XArray([1,2,3,4,5])
-    >>> sketch = xframes.Sketch(my_xarray)
-    >>> sketch = my_xarray.sketch_summary()
+    >>> sketch_ctor = xframes.Sketch(my_xarray)
+    >>> sketch_factory = my_xarray.sketch_summary()
 
     Typically, the XArray is a column of an XFrame:
 
     >>> my_sframe =  xframes.XFrame({'column1': [1,2,3]})
-    >>> sketch = xframes.Sketch(my_sframe['column1'])
-    >>> sketch = my_sframe['column1'].sketch_summary()
+    >>> sketch_ctor = xframes.Sketch(my_sframe['column1'])
+    >>> sketch_factory = my_sframe['column1'].sketch_summary()
 
     The sketch computation is fast, with complexity approximately linear in the
     length of the XArray. After the Sketch is computed, all queryable functions
@@ -132,6 +133,7 @@ class Sketch(object):
       <http://dimacs.rutgers.edu/~graham/pubs/papers/cm-latin.pdf>`_
     """
 
+    # todo rewrite to not take mutable default
     def __init__(self, array=None, sub_sketch_keys=[], impl=None):
         """__init__(array)
         Construct a new Sketch from an XArray.
@@ -155,6 +157,7 @@ class Sketch(object):
 
             self.__impl__.construct_from_xarray(array.__impl__, sub_sketch_keys)
 
+    # noinspection PyBroadException
     def __repr__(self):
         """
         Emits a brief summary of all the statistics as a string.
@@ -181,8 +184,8 @@ class Sketch(object):
                 result.append([field[1], str(method_to_call()), field[2]])
             except:
                 pass
-        sf = XArray(result).unpack(column_name_prefix = "")
-        sf.rename({'0': 'item', '1':'value', '2': 'is exact'})
+        sf = XArray(result).unpack(column_name_prefix="")
+        sf.rename({'0': 'item', '1': 'value', '2': 'is exact'})
         s += sf.__str__(footer=False)
         s += "\n"
 
@@ -205,7 +208,7 @@ class Sketch(object):
             t = self.quantile(0)
             s += "Quantiles: \n"
             sf = XFrame()
-            for q in [0.0,0.01,0.05,0.25,0.5,0.75,0.95,0.99,1.00]:
+            for q in [0.0, 0.01, 0.05, 0.25, 0.5, 0.75, 0.95, 0.99, 1.00]:
                 sf.add_column(XArray([self.quantile(q)]), str(int(q * 100)) + '%')
             s += sf.__str__(footer=False) + "\n"
         except:
@@ -490,7 +493,7 @@ class Sketch(object):
         out : Sketch
           An new sketch object regarding the element length of the current XArray
         """
-        return Sketch(impl = self.__impl__.element_length_summary())
+        return Sketch(impl=self.__impl__.element_length_summary())
 
     def dict_key_summary(self):
         """
@@ -517,7 +520,7 @@ class Sketch(object):
         +-------+---+------+--------+--------+
 
         """
-        return Sketch(impl = self.__impl__.dict_key_summary())
+        return Sketch(impl=self.__impl__.dict_key_summary())
 
     def dict_value_summary(self):
         """
@@ -558,7 +561,7 @@ class Sketch(object):
         +-----+-----+-----+-----+-----+-----+-----+-----+------+
 
         """
-        return Sketch(impl = self.__impl__.dict_value_summary())
+        return Sketch(impl=self.__impl__.dict_value_summary())
 
     def element_summary(self):
         """
@@ -598,9 +601,9 @@ class Sketch(object):
         | 1.0 | 1.0 | 1.0 | 2.0 | 3.0 | 4.0 | 5.0 | 5.0 | 5.0  |
         +-----+-----+-----+-----+-----+-----+-----+-----+------+
         """
-        return Sketch(impl = self.__impl__.element_summary())
+        return Sketch(impl=self.__impl__.element_summary())
 
-    def element_sub_sketch(self, keys = None):
+    def element_sub_sketch(self, keys=None):
         """
         Returns the sketch summary for the given set of keys. This is only
         applicable for sketch summary created from XArray of xarray or dict type.
@@ -669,13 +672,13 @@ class Sketch(object):
 
         # check return key matches input key
         for key in keys:
-          if key not in ret_sketches:
-            raise KeyError("Cannot retrieve element sub sketch for key '" + 
-                           str(key) + 
-                           "'. Element sub sketch can only be retrieved when the sketch_summary " + 
-                           "object was created using the 'sub_sketch_keys' option.")
+            if key not in ret_sketches:
+                raise KeyError("Cannot retrieve element sub sketch for key '" +
+                               str(key) +
+                               "'. Element sub sketch can only be retrieved when the sketch_summary " +
+                               "object was created using the 'sub_sketch_keys' option.")
         for key in ret_sketches:
-            ret[key] = Sketch(impl = ret_sketches[key])
+            ret[key] = Sketch(impl=ret_sketches[key])
 
         if single_val:
             return ret[keys[0]]

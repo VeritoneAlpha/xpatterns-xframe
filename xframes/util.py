@@ -35,6 +35,7 @@ __LOGGER__ = _logging.getLogger(__name__)
 # Not a number singleton
 nan = float('nan')
 
+
 # noinspection PyUnresolvedReferences
 def get_credentials():
     """
@@ -476,12 +477,15 @@ def infer_type_of_list(data):
     """
     candidate = None
     for d in data:
-        if d is None: continue
+        if d is None:
+            continue
         d_type = type(d)
-        if candidate is None: candidate = d_type
+        if candidate is None:
+            candidate = d_type
         if d_type != candidate: 
             numeric = (float, int, long)
-            if d_type in numeric and candidate in numeric: continue
+            if d_type in numeric and candidate in numeric:
+                continue
             raise TypeError('infer_type_of_list: mixed types in list: {} {}'.format(d_type, candidate))
     return candidate
 
@@ -516,51 +520,79 @@ def unpersist(rdd):
 
 def is_missing(x):
     """ Tests for missing values. """
-    if x is None: return True
-    if type(x) in [str, dict, list] and len(x) == 0: return True
-    if isinstance(x, float) and math.isnan(x): return True
+    if x is None:
+        return True
+    if type(x) in [str, dict, list] and len(x) == 0:
+        return True
+    if isinstance(x, float) and math.isnan(x):
+        return True
     return False
 
 
 def is_missing_or_empty(val):
     """ Tests for missing or empty values. """
-    if is_missing(val): return True
+    if is_missing(val):
+        return True
     if type(val) in (list, dict):
-        if len(val) == 0: return True
+        if len(val) == 0:
+            return True
     return False
 
 
 def pytype_from_dtype(dtype):
-    if dtype == 'float': return float
-    if dtype == 'float32': return float
-    if dtype == 'float64': return float
-    if dtype == 'int': return int
-    if dtype == 'int32': return int
-    if dtype == 'int64': return int
-    if dtype == 'bool': return bool
-    if dtype == 'datetime64[ns]': return datetime.datetime
-    if dtype == 'object': return object
+    if dtype == 'float':
+        return float
+    if dtype == 'float32':
+        return float
+    if dtype == 'float64':
+        return float
+    if dtype == 'int':
+        return int
+    if dtype == 'int32':
+        return int
+    if dtype == 'int64':
+        return int
+    if dtype == 'bool':
+        return bool
+    if dtype == 'datetime64[ns]':
+        return datetime.datetime
+    if dtype == 'object':
+        return object
     return None
 
 
 def to_ptype(schema_type):
-    if isinstance(schema_type, BooleanType): return bool
-    elif isinstance(schema_type, IntegerType): return int
-    elif isinstance(schema_type, ShortType): return int
-    elif isinstance(schema_type, LongType): return long
-    elif isinstance(schema_type, DoubleType): return float
-    elif isinstance(schema_type, FloatType): return float
-    elif isinstance(schema_type, StringType): return str
-    elif isinstance(schema_type, ArrayType): return list
-    elif isinstance(schema_type, MapType): return dict
-    else: return str
+    if isinstance(schema_type, BooleanType):
+        return bool
+    elif isinstance(schema_type, IntegerType):
+        return int
+    elif isinstance(schema_type, ShortType):
+        return int
+    elif isinstance(schema_type, LongType):
+        return long
+    elif isinstance(schema_type, DoubleType):
+        return float
+    elif isinstance(schema_type, FloatType):
+        return float
+    elif isinstance(schema_type, StringType):
+        return str
+    elif isinstance(schema_type, ArrayType):
+        return list
+    elif isinstance(schema_type, MapType):
+        return dict
+    else:
+        return str
 
 
 def to_schema_type(typ, elem):
-    if typ == str: return StringType()
-    if typ == bool: return BooleanType()
-    if typ == float: return FloatType()
-    if typ == int or typ == long: return IntegerType()
+    if typ == str:
+        return StringType()
+    if typ == bool:
+        return BooleanType()
+    if typ == float:
+        return FloatType()
+    if typ == int or typ == long:
+        return IntegerType()
     if typ == list:
         if elem is None or len(elem) == 0:
             raise ValueError('frame not compatible with Spark DataFrame')

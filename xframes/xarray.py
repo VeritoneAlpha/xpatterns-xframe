@@ -26,7 +26,7 @@ import numpy
 from xframes.deps import pandas, HAS_PANDAS
 from xframes.xobject import XObject
 from xframes.xarray_impl import XArrayImpl, infer_type_of_list
-from xframes.util import make_internal_url,  pytype_from_dtype
+from xframes.util import make_internal_url, pytype_from_dtype
 import xframes
 
 __all__ = ['XArray']
@@ -2249,8 +2249,10 @@ class XArray(XObject):
         <BLANKLINE>
         """
         def is_missing(val):
-            if val is None: return True
-            if type(val) == float and math.isnan(val): return True
+            if val is None:
+                return True
+            if type(val) == float and math.isnan(val):
+                return True
             return False
 
         def make_column_types(head_rows, keys):
@@ -2261,10 +2263,7 @@ class XArray(XObject):
                     if key not in col_types and not is_missing(val):
                         col_types[key] = type(val)
                         
-            column_types = []
-            for key in keys:
-                column_types.append(col_types[key])
-            return column_types
+            return [col_types[key] for key in keys]
 
         if self.dtype() not in [dict, array.array, list]:
             raise TypeError('Only XArray of dict/list/array type supports unpack.')

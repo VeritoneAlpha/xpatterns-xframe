@@ -14,8 +14,10 @@ import random
 from sys import stderr
 
 
+import xframes
 from xframes.xobject_impl import XObjectImpl
 from xframes.spark_context import spark_context
+import xframes.util as util
 from xframes.util import infer_type_of_list, cache, uncache
 from xframes.util import delete_file_or_dir, infer_type, infer_types
 from xframes.util import is_missing
@@ -634,8 +636,10 @@ class XArrayImpl(XObjectImpl):
         if seed:
             distribute_seed(self._rdd, seed)
             random.seed(seed)
+
         def apply_filter(x, fn, skip_undefined):
-            if x is None and skip_undefined: return None
+            if x is None and skip_undefined:
+                return None
             return fn(x)
         res = self._rdd.filter(lambda x: apply_filter(x, fn, skip_undefined))
         self._exit()
@@ -682,12 +686,14 @@ class XArrayImpl(XObjectImpl):
             random.seed(seed)
 
         def apply_and_cast(x, fn, dtype, skip_undefined):
-            if is_missing(x) and skip_undefined: return None
+            if is_missing(x) and skip_undefined:
+                return None
             try:
                 fnx = fn(x)
             except Exception:
                 return ValueError('Error evaluating function on "{}"'.format(x))
-            if is_missing(fnx) and skip_undefined: return None
+            if is_missing(fnx) and skip_undefined:
+                return None
             try:
                 return dtype(fnx)
             except TypeError:
@@ -918,10 +924,14 @@ class XArrayImpl(XObjectImpl):
             return True
 
         def do_all(val1, val2):
-            if isinstance(val1, float) and math.isnan(val1): val1 = False
-            if isinstance(val2, float) and math.isnan(val2): val2 = False
-            if val1 is None: val1 = False
-            if val2 is None: val2 = False
+            if isinstance(val1, float) and math.isnan(val1):
+                val1 = False
+            if isinstance(val2, float) and math.isnan(val2):
+                val2 = False
+            if val1 is None:
+                val1 = False
+            if val2 is None:
+                val2 = False
             return bool(val1 and val2)
 
         def combine(acc1, acc2): 
@@ -943,10 +953,14 @@ class XArrayImpl(XObjectImpl):
             return False
 
         def do_any(val1, val2):
-            if isinstance(val1, float) and math.isnan(val1): val1 = False
-            if isinstance(val2, float) and math.isnan(val2): val2 = False
-            if val1 is None: val1 = False
-            if val2 is None: val2 = False
+            if isinstance(val1, float) and math.isnan(val1):
+                val1 = False
+            if isinstance(val2, float) and math.isnan(val2):
+                val2 = False
+            if val1 is None:
+                val1 = False
+            if val2 is None:
+                val2 = False
             return bool(val1 or val2)
 
         def combine(acc1, acc2): 
@@ -1088,7 +1102,8 @@ class XArrayImpl(XObjectImpl):
         self.materialized = True
 
         def ne_zero(x):
-            if is_missing(x): return False
+            if is_missing(x):
+                return False
             return x != 0
         res = self._rdd.aggregate(0,            # action
                                   lambda acc, v: acc + 1 if ne_zero(v) else acc,

@@ -18,6 +18,7 @@ class Singleton(object):
     def __init__(self, decorated):
         self._decorated = decorated
 
+    # noinspection PyAttributeOutsideInit,PyPep8Naming
     def Instance(self):
         """
         Returns the singleton instance. Upon its first call, it creates a
@@ -36,5 +37,3 @@ class Singleton(object):
 
     def __instancecheck__(self, inst):
         return isinstance(inst, self._decorated)
-
-

@@ -47,7 +47,7 @@ MAX_ROW_WIDTH = 80
 HTML_MAX_ROW_WIDTH = 120
 
 
-# noinspection PyUnresolvedReferences
+# noinspection PyUnresolvedReferences,PyShadowingNames
 class XFrame(XObject):
     """
     A tabular, column-mutable dataframe object that can scale to big data. 
@@ -366,6 +366,7 @@ class XFrame(XObject):
 
         col_names = first_rows.column_names()
 
+        # TODO get this in a way that does not require an iterator
         def row_as_array(row, col_names):
             return [row[col] for col in col_names]
         head = [row_as_array(row, col_names) for row in first_rows]
@@ -1762,14 +1763,17 @@ class XFrame(XObject):
                 return ''
             if s.startswith('-'):
                 s = s[1:]
-            if s.isdigit(): return 'int'
-            if s.replace('.', '', 1).isdigit(): return 'float'
+            if s.isdigit():
+                return 'int'
+            if s.replace('.', '', 1).isdigit():
+                return 'float'
             return 'str'
 
         types = list(column.apply(classify_type).unique())
         if len(types) == 2 and '' in types and 'int' in types:
             types = ['float']
-        if '' in types: types.remove('')
+        if '' in types:
+            types.remove('')
         if len(types) != 1:
             return str
         if len(types) == 1 and types[0] == 'str':
@@ -3420,7 +3424,8 @@ class XFrame(XObject):
             tmp = XFrame(impl=self.__impl__.join(value_xf.__impl__,
                                                  'left',
                                                  {column_name: column_name}))
-            ret_xf = tmp[tmp[id_name] == None]       # this is an xarray operator -- do not change
+            # DO NOT CHANGE the next line -- it in xArray operator
+            ret_xf = tmp[tmp[id_name] == None]
             del ret_xf[id_name]
             return ret_xf
         else:

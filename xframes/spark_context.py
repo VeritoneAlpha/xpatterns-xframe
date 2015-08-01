@@ -13,13 +13,14 @@ from pyspark import SparkConf, SparkContext, SQLContext
 from xframes.environment import Environment
 from xframes.singleton import Singleton
 
+
 def get_xframes_home():
     import xframes
     return os.path.dirname(xframes.__file__)
 
 
 # noinspection PyClassHasNoInit
-class SparkInitContext():
+class SparkInitContext:
     """
     Spark Context initialization.
 
@@ -44,6 +45,7 @@ class SparkInitContext():
         """
         SparkInitContext.context = context
         CommonSparkContext.Instance()
+
 
 @Singleton
 class CommonSparkContext(object):
@@ -153,6 +155,7 @@ class CommonSparkContext(object):
 
         return self._sqlc
 
+    # noinspection PyBroadException
     @staticmethod
     def build_zip():
         # This can fail at writepy if there is something wrong with the files
@@ -184,6 +187,7 @@ def common_spark_context():
 
     return CommonSparkContext.Instance()
 
+
 def spark_context():
     """
     Returns the spark context.
@@ -195,6 +199,7 @@ def spark_context():
     """
 
     return CommonSparkContext.Instance().sc()
+
 
 def spark_sql_context():
     """

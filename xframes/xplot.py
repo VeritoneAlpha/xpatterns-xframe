@@ -3,9 +3,10 @@ import traceback
 import operator
 import math
 
-from xframes.deps import matplotlib, HAS_MATPLOTLIB
+from xframes.deps import HAS_MATPLOTLIB
+
 if HAS_MATPLOTLIB:
-  import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt
 
 import xframes
 
@@ -45,6 +46,8 @@ class XPlot(object):
         self.alpha = alpha or 0.5
 
     def make_barh(self, items, xlabel, ylabel, title=None):
+        if not HAS_MATPLOTLIB:
+            return
         if items is not None and len(items) > 0:
             try:
                 y_pos = range(len(items))
@@ -63,6 +66,8 @@ class XPlot(object):
                 print e
 
     def make_bar(self, items, xlabel, ylabel, title=None):
+        if not HAS_MATPLOTLIB:
+            return
         if items is not None:
             bins = len(items)
             try:
@@ -80,7 +85,7 @@ class XPlot(object):
                 step = int(bins/float(n_ticks))
                 if step <= 0: step = 1
                 tick_pos = range(0, bins+1, step)
-                tick_labels = [ min + i *tick_delta for i in range(n_ticks+1)]
+                tick_labels = [min + i *tick_delta for i in range(n_ticks+1)]
                 tick_labels = [str(lab)[:5] for lab in tick_labels]
                 plt.xticks(tick_pos, tick_labels)
                 if title:
@@ -161,8 +166,11 @@ class XPlot(object):
         fi = sk.frequent_items()
         if len(fi) > 0:
             sorted_fi = sorted(fi.iteritems(), key=operator.itemgetter(1), reverse=True)
+        else:
+            return
         frequent = [x for x in sorted_fi[:k] if x[1] > 1]
-        self.make_barh(frequent, xlabel=xlabel, ylabel=ylabel, title=title)
+        if len(frequent) > 0:
+            self.make_barh(frequent, xlabel=xlabel, ylabel=ylabel, title=title)
 
     @staticmethod
     def create_histogram_buckets(vals, bins, min_val, max_val):
@@ -171,7 +179,6 @@ class XPlot(object):
             return None, None
         n_buckets = bins or 50
         delta = float(delta) / n_buckets
-        bucket_counts = [0] * n_buckets
         bucket_vals = [0] * n_buckets
         for i in range(0, n_buckets):
             bucket_vals[i] = min_val + (i * delta)
@@ -190,7 +197,7 @@ class XPlot(object):
             yield bucket_counts
 
         def merge_accumulators(acc1, acc2):
-            return [ a1 + a2 for a1, a2 in zip(acc1, acc2)]
+            return [a1 + a2 for a1, a2 in zip(acc1, acc2)]
 
         accumulators = vals.__impl__._rdd.mapPartitions(iterate_values)
         bucket_counts = accumulators.reduce(merge_accumulators)
@@ -262,12 +269,14 @@ class XPlot(object):
         vals = column.dropna()
 
         def enforce_cutoff(x):
-            if x < q_lower: return q_lower
-            if x > q_upper: return q_upper
+            if x < q_lower:
+                return q_lower
+            if x > q_upper:
+                return q_upper
             return x
         vals = vals.apply(enforce_cutoff)
-        bucket_counts, bucket_vals = self.create_histogram_buckets(column, bins, sk.min(), sk.max())
-        column = [ (x, y) for x, y in zip(bucket_counts, bucket_vals)]
+        bucket_counts, bucket_vals = self.create_histogram_buckets(vals, bins, sk.min(), sk.max())
+        column = [(x, y) for x, y in zip(bucket_counts, bucket_vals)]
         self.make_bar(column, xlabel=xlabel, ylabel=ylabel, title=title)
 
     def col_info(self, col_name, table_name=None, title=None, topk=None, bins=None, cutoff=False):
@@ -323,7 +332,8 @@ class XPlot(object):
         else:
             sorted_fi = sorted(fi.iteritems(), key=operator.itemgetter(1), reverse=True)
             top = [x for x in sorted_fi[:topk] if x[1] > 1]
-            for key in top: print '   {:10}  {:10}'.format(key[1], key[0])
+            for key in top:
+                print '   {:10}  {:10}'.format(key[1], key[0])
         col_type = self.xframe[col_name].dtype()
         if col_type is int or col_type is float:
             # number: show a histogram

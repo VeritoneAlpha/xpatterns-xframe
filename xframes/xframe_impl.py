@@ -2,7 +2,6 @@
 This module provides an implementation of XFrame using pySpark RDDs.
 """
 import os
-import sys
 import inspect
 import json
 import random
@@ -47,7 +46,7 @@ def name_col(existing_col_names, proposed_name):
     return candidate
 
 
-# noinspection PyUnresolvedReferences
+# noinspection PyUnresolvedReferences,PyShadowingNames
 class XFrameImpl(XObjectImpl):
     """ Implementation for XFrame. """
 
@@ -69,7 +68,8 @@ class XFrameImpl(XObjectImpl):
         column_types = column_types or []
         self.col_names = list(col_names)
         self.column_types = list(column_types)
-        self.iter_pos = -1
+        self.iter_pos = None
+        self._num_rows = None
 
         self.materialized = False
         self._exit()
@@ -104,6 +104,7 @@ class XFrameImpl(XObjectImpl):
             self.col_names = col_names
         if column_types is not None:
             self.column_types = column_types
+        self._num_rows = None
         self.materialized = False
         return self
 
@@ -271,7 +272,8 @@ class XFrameImpl(XObjectImpl):
                 'skip_initial_space': 'skipinitialspace'
             }
             for pc, rc in parm_map.iteritems():
-                if pc in config: params[rc] = config[pc]
+                if pc in config:
+                    params[rc] = config[pc]
             return params
 
         params = to_format_params(parsing_config)
@@ -343,7 +345,8 @@ class XFrameImpl(XObjectImpl):
         res = res.filter(lambda fv: fv[0])
         after_count = res.count()
         filter_diff = before_count - after_count
-        if use_header: filter_diff -= 1
+        if use_header:
+            filter_diff -= 1
         if filter_diff > 0:
             print >>stderr, '{} rows dropped because of incorrect column count'.format(filter_diff)
         res = res.values()
@@ -386,8 +389,9 @@ class XFrameImpl(XObjectImpl):
 
         # drop columns with empty header
         remove_cols = [col_index for col_index, col_name in enumerate(col_names) if len(col_name) == 0]
+
         def remove_columns(row):
-            return [val for index, val in enumerate(row) if not index in remove_cols]
+            return [val for index, val in enumerate(row) if index not in remove_cols]
         res = res.map(remove_columns)
         col_names = remove_columns(col_names)
 
@@ -508,7 +512,7 @@ class XFrameImpl(XObjectImpl):
             heading = to_csv(self.column_names(), **params)
             f.write(heading)
             self.begin_iterator()
-            elems_at_a_time = 10000
+            elems_at_a_time = 100000
             ret = self.iterator_get_next(elems_at_a_time)
             while True:
                 for row in ret:
@@ -571,7 +575,8 @@ class XFrameImpl(XObjectImpl):
         """
         Diagnostic function: count the number in the RDD tuple.
         """
-        if self._rdd is None: return 0
+        if self._rdd is None:
+            return 0
         res = self._rdd.map(lambda row: len(row))
         return xframes.xarray_impl.XArrayImpl(res, int)
 
@@ -579,13 +584,14 @@ class XFrameImpl(XObjectImpl):
         """
         Returns the number of rows of the RDD.
         """
-        # TODO: this forces the RDD to be computed.
-        # When it is used again, it must be recomputed.
         self._entry()
-        if self._rdd is None: return 0
-        count = self._count()      # action
-        self._exit(count)
-        return count
+        if self._rdd is None:
+            return 0
+        if self._num_rows is not None:
+            return self._num_rows
+        self._num_rows = self._count()      # action
+        self._exit(self._num_rows)
+        return self._num_rows
 
     def num_columns(self):
         """
@@ -935,7 +941,7 @@ class XFrameImpl(XObjectImpl):
     def begin_iterator(self):
         self._entry()
         self._exit()
-        self.iter_pos = -1
+        self.iter_pos = 0
 
     def iterator_get_next(self, elems_at_a_time):
         self._entry(elems_at_a_time)
@@ -1075,7 +1081,8 @@ class XFrameImpl(XObjectImpl):
         def stack_row(row, col, drop_na):
             res = []
             for key, val in row[col].iteritems():
-                if drop_na and is_missing_or_empty(val): continue
+                if drop_na and is_missing_or_empty(val):
+                    continue
                 res.append(subs_row(row, col, key, val))
             if len(res) > 0 or drop_na:
                 return res
@@ -1116,7 +1123,8 @@ class XFrameImpl(XObjectImpl):
         self._entry(start, step, stop)
 
         def select_row(x, start, step, stop):
-            if x < start or x >= stop: return False
+            if x < start or x >= stop:
+                return False
             return (x - start) % step == 0
         pairs = self._rdd.zipWithIndex()
         res = pairs.filter(lambda x: select_row(x[1], start, step, stop)).map(lambda x: x[0])
@@ -1138,12 +1146,14 @@ class XFrameImpl(XObjectImpl):
 
         def keep_row_all(row, cols):
             for col in cols:
-                if not is_missing(row[col]): return True
+                if not is_missing(row[col]):
+                    return True
             return False
 
         def keep_row_any(row, cols):
             for col in cols:
-                if is_missing(row[col]): return False
+                if is_missing(row[col]):
+                    return False
             return True
 
         column_names = self.col_names if len(columns) == 0 else columns
@@ -1222,7 +1232,8 @@ class XFrameImpl(XObjectImpl):
             d = {}
             for val, key in zip(row, dict_keys):
                 new_val = substitute_missing(val, fill_na)
-                if new_val is not None: d[key] = new_val
+                if new_val is not None:
+                    d[key] = new_val
             return d
 
         if dtype == list:

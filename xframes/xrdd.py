@@ -15,7 +15,7 @@ import pyspark
 from pyspark import RDD
 
 
-# noinspection PyPep8Naming
+# noinspection PyPep8Naming,PyProtectedMember
 class XRdd(object):
     entry_trace = False
     exit_trace = False
@@ -50,12 +50,14 @@ class XRdd(object):
                         'id:', self.structure_id, self.id
         # print a few frames beyond the top
         for i in range(3, 8): 
-                if stack[i][3] == '<module>': break
+                if stack[i][3] == '<module>':
+                    break
                 print >>stderr, '   ', stack[i][3], stack[i][1], stack[i][2]
 
     def _entry(self, *args):
         """ Trace function entry. """
-        if not XRdd.entry_trace and not XRdd.perf_count: return
+        if not XRdd.entry_trace and not XRdd.perf_count:
+            return
         stack = inspect.stack()
         caller = stack[1]
         called_by = stack[2]
@@ -65,7 +67,8 @@ class XRdd(object):
                 'id:', self.structure_id, self.id
             # print a few frames beyond the top
             for i in range(4, 6): 
-                if stack[i][3] == '<module>': break
+                if stack[i][3] == '<module>':
+                    break
                 print >>stderr, '   ', stack[i][3], stack[i][1], stack[i][2]
         if XRdd.perf_count is not None:
             my_fun = caller[3]
@@ -73,7 +76,8 @@ class XRdd(object):
                 XRdd.perf_count[my_fun] = 0
             XRdd.perf_count[my_fun] += 1
 
-    def _exit(self, *args):
+    @staticmethod
+    def _exit(*args):
         """ Trace function exit. """
         if XRdd.exit_trace:
             print >>stderr, 'Exit RDD', inspect.stack()[1][3], args
@@ -302,6 +306,7 @@ class XRdd(object):
         else:
             res = self.safe_zip(other)
             structure_id = None
+        # noinspection PyUnresolvedReferences
         res.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
         self._exit()
         return XRdd(res, structure_id=structure_id)
