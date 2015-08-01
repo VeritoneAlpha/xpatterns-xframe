@@ -337,5 +337,4 @@ class QuantileAccumulator(object):
     
     @staticmethod
     def _left_child_contains_value(value, level, index):
-        return (value > (2 * index) * exp2(-(level + 1)) and 
-                value <= (2 * index + 1) * exp2(-(level + 1)))
+        return (2 * index) * exp2(-(level + 1)) < value <= (2 * index + 1) * exp2(-(level + 1))

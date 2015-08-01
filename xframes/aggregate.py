@@ -137,7 +137,6 @@ def VARIANCE(src_column):
     return '__builtin__var__', [src_column]
 
 
-
 # noinspection PyPep8Naming
 def STDV(src_column):
     """

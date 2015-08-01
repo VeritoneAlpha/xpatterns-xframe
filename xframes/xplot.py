@@ -65,6 +65,7 @@ class XPlot(object):
                 print traceback.format_exc()
                 print e
 
+    # noinspection PyShadowingBuiltins
     def make_bar(self, items, xlabel, ylabel, title=None):
         if not HAS_MATPLOTLIB:
             return
@@ -81,11 +82,11 @@ class XPlot(object):
                 min = vals[0]
                 max = min + bins * delta
                 n_ticks = 8
-                tick_delta = (max - min)/float(n_ticks)
-                step = int(bins/float(n_ticks))
+                tick_delta = (max - min) / float(n_ticks)
+                step = int(bins / float(n_ticks))
                 if step <= 0: step = 1
-                tick_pos = range(0, bins+1, step)
-                tick_labels = [min + i *tick_delta for i in range(n_ticks+1)]
+                tick_pos = range(0, bins + 1, step)
+                tick_labels = [min + i * tick_delta for i in range(n_ticks + 1)]
                 tick_labels = [str(lab)[:5] for lab in tick_labels]
                 plt.xticks(tick_pos, tick_labels)
                 if title:
@@ -188,7 +189,7 @@ class XPlot(object):
             for val in value_iterator:
                 if val is None or math.isnan(val):
                     continue
-                b = int((val - min_val)/delta)
+                b = int((val - min_val) / delta)
                 if b >= n_buckets:
                     b = n_buckets - 1
                 elif b < 0:
@@ -356,4 +357,3 @@ class XPlot(object):
             y_col = col_name
             tmp = xframes.XFrame({x_col: counts, y_col: vals})
             tmp.show().top_values(x_col, y_col, title=title, k=topk)
-

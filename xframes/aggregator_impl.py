@@ -8,10 +8,12 @@ import math
 # Each of these functions operates on a pyspark resultIterable
 #  produced by groupByKey and directly produces the aggregated result.
 
+
 def agg_sum(rows, cols): 
     # cols: [src_col]
     vals = [row[cols[0]] for row in rows]
     return sum(vals)
+
 
 def agg_argmax(rows, cols): 
     # cols: [agg_col, out_col]
@@ -20,6 +22,7 @@ def agg_argmax(rows, cols):
     vals = [row[cols[1]] for row in rows]
     return vals[row_index]
 
+
 def agg_argmin(rows, cols): 
     # cols: [agg_col, out_col]
     vals = [row[cols[0]] for row in rows]
@@ -27,24 +30,29 @@ def agg_argmin(rows, cols):
     vals = [row[cols[1]] for row in rows]
     return vals[row_index]
 
+
 def agg_max(rows, cols): 
     # cols: [src_col]
     vals = [row[cols[0]] for row in rows]
     return max(vals)
+
 
 def agg_min(rows, cols): 
     # cols: [src_col]
     vals = [row[cols[0]] for row in rows]
     return min(vals)
 
+
 def agg_count(rows, cols): 
     # cols: []
     return len(rows)
+
 
 def agg_avg(rows, cols): 
     # cols: [src_col]
     vals = [row[cols[0]] for row in rows]
     return sum(vals) / float(len(vals))
+
 
 def agg_var(rows, cols): 
     # cols: [src_col]
@@ -52,29 +60,34 @@ def agg_var(rows, cols):
     avg = sum(vals) / float(len(vals))
     return sum([(avg - val) ** 2 for val in vals]) / float(len(vals))
 
+
 def agg_std(rows, cols): 
     # cols: [src_col]
     return math.sqrt(agg_var(rows, cols))
+
 
 def agg_select_one(rows, cols):
     # cols: [src_col, seed]
     num_rows = len(rows)
     seed = cols[1]
     random.seed(seed)
-    row_index = random.randint(0, num_rows-1)
+    row_index = random.randint(0, num_rows - 1)
     vals = [row[cols[0]] for row in rows]
     val = vals[row_index]
     return val
+
 
 def agg_concat_list(rows, cols): 
     # cols: [src_col]
     vals = [row[cols[0]] for row in rows]
     return vals
 
+
 def agg_concat_dict(rows, cols): 
     # cols: [src_col dict_value_column]
     vals = {row[cols[0]]: row[cols[1]] for row in rows}
     return vals
+
 
 def agg_quantile(rows, cols): 
     # cols: [src_col, quantile]
@@ -120,6 +133,7 @@ class AggregatorPropertySet(object):
         if type(candidate) is int: return input_type[candidate]
         return candidate
 
+
 class AggregatorProperties(object):
     """ Manage aggregator properties for all known aggregators. """
     def __init__(self):
@@ -129,7 +143,7 @@ class AggregatorProperties(object):
         self.aggregator_properties[aggregator_property_set.name] = aggregator_property_set
 
     def __getitem__(self, op):
-        if not op in self.aggregator_properties:
+        if op not in self.aggregator_properties:
             raise ValueError('unrecognized aggregation operator: {}'.format(op))
         return self.aggregator_properties[op]
 
@@ -151,5 +165,3 @@ aggregator_properties.add(AggregatorPropertySet('__builtin__select_one__', agg_s
 aggregator_properties.add(AggregatorPropertySet('__builtin__concat__list__', agg_concat_list, 'concat', list))
 aggregator_properties.add(AggregatorPropertySet('__builtin__concat__dict__', agg_concat_dict, 'concat', dict))
 aggregator_properties.add(AggregatorPropertySet('__builtin__quantile__', agg_quantile, 'quantile', float))
-
-

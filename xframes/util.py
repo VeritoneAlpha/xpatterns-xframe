@@ -502,6 +502,7 @@ def distribute_seed(rdd, seed):
     rdd.mapPartitions(set_seed)
 
 
+# noinspection PyUnresolvedReferences
 def cache(rdd):
     rdd.persist(StorageLevel.MEMORY_ONLY)
 
@@ -510,6 +511,7 @@ def uncache(rdd):
     rdd.unpersist()
 
 
+# noinspection PyUnresolvedReferences
 def persist(rdd):
     rdd.persist(StorageLevel.MEMORY_AND_DISK)
     

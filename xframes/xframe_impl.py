@@ -52,7 +52,6 @@ class XFrameImpl(XObjectImpl):
 
     entry_trace = False
     exit_trace = False
-    perf_count = None
 
     def __init__(self, rdd=None, col_names=None, column_types=None):
         """ Instantiate a XFrame implementation.

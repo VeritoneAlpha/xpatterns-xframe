@@ -23,7 +23,6 @@ from xframes.util import delete_file_or_dir, infer_type, infer_types
 from xframes.util import is_missing
 from xframes.util import distribute_seed
 from xframes.xrdd import XRdd
-import xframes
 
 
 class ReverseCmp(object):
@@ -153,8 +152,8 @@ class XArrayImpl(XObjectImpl):
         try:
             if len(values) == 0:
                 cls._exit()
-                return XArrayImpl(XRdd(sc.parallelize([])), dtype)
                 dtype = dtype or infer_type_of_list(values[0:100])
+                return XArrayImpl(XRdd(sc.parallelize([])), dtype)
         except TypeError:
             # get here if values does not support len or __getitem
             pass
