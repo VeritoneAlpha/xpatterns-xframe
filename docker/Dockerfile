@@ -11,10 +11,10 @@ EXPOSE 8081
 EXPOSE 80
 
 #xFrames Pre-reqs
-RUN apt-get update
-RUN apt-get install -y wget default-jdk
-RUN apt-get install -y emacs23
-RUN apt-get install -y nginx
+RUN apt-get update --fix-missing
+RUN apt-get install -y --fix-missing wget default-jdk
+RUN apt-get install -y --fix-missing emacs23
+RUN apt-get install -y --fix-missing nginx
 RUN wget -q http://www.us.apache.org/dist/spark/spark-1.3.1/spark-1.3.1-bin-cdh4.tgz -O /tmp/spark-1.3.1-bin-cdh4.tgz
 RUN tar -zxvf /tmp/spark-1.3.1-bin-cdh4.tgz --directory /tmp
 RUN rm /tmp/spark-1.3.1-bin-cdh4.tgz
