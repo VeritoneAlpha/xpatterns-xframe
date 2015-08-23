@@ -574,7 +574,7 @@ class XFrame(XObject):
 
         header : bool, optional
             If true, uses the first row as the column names. Otherwise use the
-            default column names: 'X1, X2, ...'.
+            default column names: 'X.1, X.2, ...'.
 
         comment_char : string, optional
             The character which denotes that the
