@@ -10,8 +10,6 @@ from xframes.xrdd import XRdd
 class XObjectImpl(object):
     """ Implementation for XObject. """
 
-    perf_count = None
-
     def __init__(self, rdd):
         self._rdd = self._wrap_rdd(rdd)
 
@@ -32,19 +30,6 @@ class XObjectImpl(object):
     @staticmethod
     def spark_sql_context():
         return spark_sql_context()
-
-    @classmethod
-    def set_trace(cls, entry_trace=None, exit_trace=None):
-        cls.entry_trace = cls.entry_trace if entry_trace is None else entry_trace
-        cls.exit_trace = cls.exit_trace if exit_trace is None else exit_trace
-
-    @classmethod
-    def set_perf_count(cls, enable=True):
-        cls.perf_count = {} if enable else None
-
-    @classmethod
-    def get_perf_count(cls):
-        return cls.perf_count
 
     def _replace_rdd(self, rdd):
         self._rdd = self._wrap_rdd(rdd)
