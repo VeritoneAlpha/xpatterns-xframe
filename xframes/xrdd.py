@@ -54,22 +54,24 @@ class XRdd(object):
                     break
                 print >>stderr, '   ', stack[i][3], stack[i][1], stack[i][2]
 
-    def _entry(self, *args):
+    def _entry(self, *args, **kwargs):
         """ Trace function entry. """
-        if not XRdd.entry_trace and not XRdd.perf_count:
+        force = 'force' in kwargs and kwargs['force']
+        if not force and not XRdd.entry_trace and not XRdd.perf_count:
             return
         stack = inspect.stack()
         caller = stack[1]
         called_by = stack[2]
-        if XRdd.entry_trace:
+        if force or XRdd.entry_trace:
             print >>stderr, 'Enter RDD', caller[3], args, \
                 'called by', called_by[3], '({}: {})'.format(called_by[1], called_by[2]), \
                 'id:', self.structure_id, self.id
             # print a few frames beyond the top
-            for i in range(4, 6): 
+            for i in range(3, 6):
                 if stack[i][3] == '<module>':
                     break
                 print >>stderr, '   ', stack[i][3], stack[i][1], stack[i][2]
+            stderr.flush()
         if XRdd.perf_count is not None:
             my_fun = caller[3]
             if my_fun not in XRdd.perf_count:
