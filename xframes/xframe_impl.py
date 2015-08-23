@@ -2,7 +2,6 @@
 This module provides an implementation of XFrame using pySpark RDDs.
 """
 import os
-import inspect
 import json
 import random
 import array
@@ -19,6 +18,7 @@ from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField
 
 from xframes.xobject_impl import XObjectImpl
+from xframes.traced_object import TracedObject
 from xframes.util import infer_type_of_rdd
 from xframes.util import cache, uncache, persist
 from xframes.util import is_missing, is_missing_or_empty
@@ -47,11 +47,8 @@ def name_col(existing_col_names, proposed_name):
 
 
 # noinspection PyUnresolvedReferences,PyShadowingNames
-class XFrameImpl(XObjectImpl):
+class XFrameImpl(XObjectImpl, TracedObject):
     """ Implementation for XFrame. """
-
-    entry_trace = False
-    exit_trace = False
 
     def __init__(self, rdd=None, col_names=None, column_types=None):
         """ Instantiate a XFrame implementation.
@@ -61,7 +58,7 @@ class XFrameImpl(XObjectImpl):
         Each column must be of uniform type.
         Types permitted include int, long, float, string, list, and dict.
         """
-        self._entry(col_names, column_types)
+        self._entry(col_names=col_names, column_types=column_types)
         super(XFrameImpl, self).__init__(rdd)
         col_names = col_names or []
         column_types = column_types or []
@@ -113,28 +110,6 @@ class XFrameImpl(XObjectImpl):
         self.materialized = True
         return count
 
-    @staticmethod
-    def _entry(*args):
-        """ Trace function entry. """
-        if not XFrameImpl.entry_trace and not XFrameImpl.perf_count:
-            return
-        stack = inspect.stack()
-        caller = stack[1]
-        called_by = stack[2]
-        if XFrameImpl.entry_trace:
-            print >>stderr, 'Enter xFrame', caller[3], args, 'called by', called_by[3]
-        if XFrameImpl.perf_count:
-            my_fun = caller[3]
-            if my_fun not in XFrameImpl.perf_count:
-                XFrameImpl.perf_count[my_fun] = 0
-            XFrameImpl.perf_count[my_fun] += 1
-
-    @staticmethod
-    def _exit(*args):
-        """ Trace function exit. """
-        if XFrameImpl.exit_trace:
-            print >>stderr, 'Exit xFrame', inspect.stack()[1][3], args
-
     def rdd(self):
         return self._rdd
 
@@ -155,7 +130,7 @@ class XFrameImpl(XObjectImpl):
         """
         Load from a pandas.DataFrame.
         """
-        cls._entry(data)
+        cls._entry()
         if not HAS_PANDAS:
             raise NotImplementedError('Pandas is required.')
 
@@ -181,7 +156,7 @@ class XFrameImpl(XObjectImpl):
         """
         Load from a saved xframe.
         """
-        cls._entry(path)
+        cls._entry(path=path)
         sc = cls.spark_context()
         res = sc.pickleFile(path)
         # read metadata from the same directory
@@ -209,7 +184,7 @@ class XFrameImpl(XObjectImpl):
 
     @classmethod
     def load_from_rdd(cls, rdd, names=None, types=None):
-        cls._entry(names, types)
+        cls._entry(names=names, types=types)
         first_row = rdd.take(1)[0]
         if names is not None:
             if len(names) != len(first_row):
@@ -227,7 +202,7 @@ class XFrameImpl(XObjectImpl):
         """
         Load RDD from a csv file
         """
-        self._entry(path, parsing_config, type_hints)
+        self._entry(path=path, parsing_config=parsing_config, type_hints=type_hints)
 
         def get_config(name):
             return parsing_config[name] if name in parsing_config else None
@@ -438,12 +413,13 @@ class XFrameImpl(XObjectImpl):
         # returns a dict of errors
         return errors
 
+    # noinspection PyUnusedLocal
     def read_from_text(self, path, delimiter, nrows, verbose):
         """
         Load RDD from a text file
         """
         # TODO handle nrows, verbose
-        self._entry(path)
+        self._entry(path=path)
         sc = self.spark_context()
         if delimiter is None:
             rdd = sc.textFile(path)
@@ -468,7 +444,7 @@ class XFrameImpl(XObjectImpl):
         """
         Load RDD from a parquet file
         """
-        self._entry(path)
+        self._entry(path=path)
         sqlc = self.spark_sql_context()
         s_rdd = sqlc.parquetFile(path)
         schema = s_rdd.schema
@@ -488,7 +464,7 @@ class XFrameImpl(XObjectImpl):
 
         Saved in an efficient internal format, intended for reading back into an RDD.
         """
-        self._entry(path)
+        self._entry(path=path)
         delete_file_or_dir(path)
         # save rdd
         self._rdd.saveAsPickleFile(path)        # action ?
@@ -505,7 +481,7 @@ class XFrameImpl(XObjectImpl):
         Save to a text file in csv format.
         """
         # Transform into RDD of csv-encoded lines, then write
-        self._entry(path, **params)
+        self._entry(path=path, **params)
 
         def to_csv(row, **params):
             sio = StringIO.StringIO()
@@ -536,7 +512,7 @@ class XFrameImpl(XObjectImpl):
         """
         Save to a parquet file.
         """
-        self._entry(url, number_of_partitions)
+        self._entry(url=url, number_of_partitions=number_of_partitions)
         delete_file_or_dir(url)
         dataframe = self.to_spark_dataframe(table_name=None,
                                             number_of_partitions=number_of_partitions)
@@ -549,7 +525,7 @@ class XFrameImpl(XObjectImpl):
 
         Discards the column name and type information.
         """
-        self._entry(number_of_partitions)
+        self._entry(number_of_partitions=number_of_partitions)
         res = self._rdd.repartition(number_of_partitions) if number_of_partitions is not None else self._rdd
         self._exit()
         return res.RDD()
@@ -561,7 +537,7 @@ class XFrameImpl(XObjectImpl):
         # TODO: add the option to give schema type hints, or look further to find
         #   types for list and dict
 
-        self._entry(table_name, number_of_partitions)
+        self._entry(table_name=table_name, number_of_partitions=number_of_partitions)
         if isinstance(self._rdd, DataFrame):
             res = self._rdd
         else:
@@ -598,7 +574,7 @@ class XFrameImpl(XObjectImpl):
         if self._num_rows is not None:
             return self._num_rows
         self._num_rows = self._count()      # action
-        self._exit(self._num_rows)
+        self._exit(num_rows=self._num_rows)
         return self._num_rows
 
     def num_columns(self):
@@ -606,27 +582,27 @@ class XFrameImpl(XObjectImpl):
         Returns the number of columns in the XFrame.
         """
         self._entry()
-        res = len(self.col_names)
-        self._exit(res)
-        return res
+        num_cols = len(self.col_names)
+        self._exit(num_cols=num_cols)
+        return num_cols
 
     def column_names(self):
         """
         Returns the column names in the XFrame.
         """
         self._entry()
-        res = self.col_names
-        self._exit(res)
-        return res
+        col_names = self.col_names
+        self._exit(col_names=col_names)
+        return col_names
 
     def dtype(self):
         """
         Returns the column data types in the XFrame.
         """
         self._entry()
-        res = self.column_types
-        self._exit(res)
-        return res
+        column_types = self.column_types
+        self._exit(column_types=column_types)
+        return column_types
 
     # Get Data
     def head(self, n):
@@ -637,41 +613,41 @@ class XFrameImpl(XObjectImpl):
         # TODO: this is really inefficient: it numbers the whole thing, and
         #  then filters most of it out.
         # Maybe it would be better to use take(n) then parallelize ?
-        self._entry(n)
+        self._entry(n=n)
         if n <= 100:
             data = self._rdd.take(n)
             sc = self.spark_context()
             res = sc.parallelize(data)
-            self._exit(res)
+            self._exit()
             return self._rv(res)
         pairs = self._rdd.zipWithIndex()
         cache(pairs)
         filtered_pairs = pairs.filter(lambda x: x[1] < n)
         uncache(pairs)
         res = filtered_pairs.keys()
-        self._exit(res)
         self.materialized = True
+        self._exit()
         return self._rv(res)
 
     def head_as_list(self, n):
         # Used in xframe when doing dry runs to determine type
-        self._entry(n)
+        self._entry(n=n)
         lst = self._rdd.take(n)      # action
-        self._exit(lst)
+        self._exit()
         return lst
 
     def tail(self, n):
         """
         Return the last n rows of the RDD as an XFrame.
         """
-        self._entry(n)
+        self._entry(n=n)
         pairs = self._rdd.zipWithIndex()
         cache(pairs)
         start = pairs.count() - n
         filtered_pairs = pairs.filter(lambda x: x[1] >= start)
         uncache(pairs)
         res = filtered_pairs.map(lambda x: x[0])
-        self._exit(res)
+        self._exit()
         return self._rv(res)
 
     # Sampling
@@ -679,9 +655,9 @@ class XFrameImpl(XObjectImpl):
         """
         Sample the current RDDs rows as an XFrame.
         """
-        self._entry(fraction, seed)
+        self._entry(fraction=fraction, seed=seed)
         res = self._rdd.sample(False, fraction, seed)
-        self._exit(res)
+        self._exit()
         return self._rv(res)
 
     def random_split(self, fraction, seed):
@@ -694,7 +670,7 @@ class XFrameImpl(XObjectImpl):
         """
         # There is random split in the scala RDD interface, but not in pySpark.
         # Assign random number to each row and filter the two sets.
-        self._entry(fraction, seed)
+        self._entry(fraction=fraction, seed=seed)
         distribute_seed(self._rdd, seed)
         rng = random.Random(seed)
         rand_col = self._rdd.map(lambda row: rng.uniform(0.0, 1.0))
@@ -703,7 +679,7 @@ class XFrameImpl(XObjectImpl):
         rdd1 = labeled_rdd.filter(lambda row: row[1] < fraction).keys()
         rdd2 = labeled_rdd.filter(lambda row: row[1] >= fraction).keys()
         uncache(labeled_rdd)
-        self._exit(rdd1, rdd2)
+        self._exit()
         return self._rv(rdd1), self._rv(rdd2)
 
     # Materialization
@@ -721,18 +697,18 @@ class XFrameImpl(XObjectImpl):
         Returns whether or not the RDD has been materialized.
         """
         self._entry()
-        res = self.materialized
-        self._exit(res)
-        return res
+        materialized = self.materialized
+        self._exit(materialized=materialized)
+        return materialized
 
     def has_size(self):
         """
         Returns whether or not the size of the XFrame is known.
         """
         self._entry()
-        res = self.materialized
-        self._exit(res)
-        return res
+        materialized = self.materialized
+        self._exit(materialized=materialized)
+        return materialized
 
     # Column Manipulation
     def select_column(self, column_name):
@@ -740,14 +716,14 @@ class XFrameImpl(XObjectImpl):
         Get the array RDD that corresponds with
         the given column_name as an XArray.
         """
-        self._entry(column_name)
+        self._entry(column_name=column_name)
         if column_name not in self.col_names:
             raise ValueError("Column name does not exist: '{}'.".format(column_name))
 
         col = self.col_names.index(column_name)
         res = self._rdd.map(lambda row: row[col])
         col_type = self.column_types[col]
-        self._exit(res, col_type)
+        self._exit(col_type=col_type)
         return xframes.xarray_impl.XArrayImpl(res, col_type)
 
     def select_columns(self, keylist):
@@ -755,7 +731,7 @@ class XFrameImpl(XObjectImpl):
         Creates RDD composed only of the columns referred to in the given list of
         keys, as an XFrame.
         """
-        self._entry(keylist)
+        self._entry(keylist=keylist)
 
         def get_columns(row, cols):
             return tuple([row[col] for col in cols])
@@ -763,7 +739,7 @@ class XFrameImpl(XObjectImpl):
         names = [self.col_names[col] for col in cols]
         types = [self.column_types[col] for col in cols]
         res = self._rdd.map(lambda row: get_columns(row, cols))
-        self._exit(res, names, types)
+        self._exit(names=names, types=types)
         return self._rv(res, names, types)
 
     def add_column(self, data, name):
@@ -776,7 +752,7 @@ class XFrameImpl(XObjectImpl):
 
         This operation modifies the current XFrame in place and returns self.         
         """
-        self._entry(data, name)
+        self._entry(name=name)
         col = len(self.col_names)
         if name == '':
             name = 'X{}'.format(col)
@@ -793,7 +769,7 @@ class XFrameImpl(XObjectImpl):
             def move_inside(old_val, new_elem):
                 return tuple(old_val + (new_elem, ))
             res = res.map(lambda pair: move_inside(pair[0], pair[1]))
-        self._exit(res)
+        self._exit()
         return self._replace(res)
 
     def add_columns_array(self, cols, namelist):
@@ -806,7 +782,7 @@ class XFrameImpl(XObjectImpl):
 
         This operation modifies the current XFrame in place and returns self.
         """
-        self._entry(cols, namelist)
+        self._entry(namelist=namelist)
         names = self.col_names + namelist
         types = self.column_types + [col.__impl__.elem_type for col in cols]
         rdd = self._rdd
@@ -816,7 +792,7 @@ class XFrameImpl(XObjectImpl):
             def move_inside(old_val, new_elem):
                 return tuple(old_val + (new_elem, ))
             rdd = rdd.map(lambda pair: move_inside(pair[0], pair[1]))
-        self._exit(rdd, names, types)
+        self._exit(names=names, types=types)
         return self._replace(rdd, names, types)
 
     def add_columns_frame(self, other):
@@ -829,7 +805,7 @@ class XFrameImpl(XObjectImpl):
 
         This operation modifies the current XFrame in place and returns self.
         """
-        self._entry(other)
+        self._entry()
         names = self.col_names + other.__impl__.col_names
         types = self.column_types + other.__impl__.column_types
 
@@ -838,7 +814,7 @@ class XFrameImpl(XObjectImpl):
 
         rdd = self._rdd.zip(other.__impl__.rdd())
         res = rdd.map(lambda pair: merge(pair[0], pair[1]))
-        self._exit(res, names, types)
+        self._exit(names=names, types=types)
         return self._replace(res, names, types)
 
     def remove_column(self, name):
@@ -847,7 +823,7 @@ class XFrameImpl(XObjectImpl):
 
         This operation modifies the current XFrame in place and returns self.
         """
-        self._entry(name)
+        self._entry(name=name)
         col = self.col_names.index(name)
         self.col_names.pop(col)
         self.column_types.pop(col)
@@ -857,7 +833,7 @@ class XFrameImpl(XObjectImpl):
             lst.pop(col)
             return tuple(lst)
         res = self._rdd.map(lambda row: pop_col(row, col))
-        self._exit(res)
+        self._exit()
         return self._replace(res)
 
     def remove_columns(self, col_names):
@@ -866,7 +842,7 @@ class XFrameImpl(XObjectImpl):
 
         This operation modifies the current XFrame in place and returns self.
         """
-        self._entry(col_names)
+        self._entry(col_names=col_names)
         cols = [self.col_names.index(name) for name in col_names]
         # pop from highets to lowest does not foul up indexes
         cols.sort(reverse=True)
@@ -880,7 +856,7 @@ class XFrameImpl(XObjectImpl):
                 lst.pop(col)
             return tuple(lst)
         res = self._rdd.map(lambda row: pop_cols(row, cols))
-        self._exit(res)
+        self._exit()
         return self._replace(res)
 
     def swap_columns(self, column_1, column_2):
@@ -889,7 +865,7 @@ class XFrameImpl(XObjectImpl):
 
         This operation modifies the current XFrame in place and returns self.
         """
-        self._entry(column_1, column_2)
+        self._entry(column_1=column_1, column_2=column_2)
 
         def swap_list(lst, col1, col2):
             new_list = list(lst)
@@ -911,7 +887,7 @@ class XFrameImpl(XObjectImpl):
         names = swap_list(self.col_names, col1, col2)
         types = swap_list(self.column_types, col1, col2)
         res = self._rdd.map(lambda row: swap_cols(row, col1, col2))
-        self._exit(res, names, types)
+        self._exit(names=names, types=types)
         return self._replace(res, names, types)
 
     def set_column_name(self, old_name, new_name):
@@ -920,7 +896,7 @@ class XFrameImpl(XObjectImpl):
 
         No return value.
         """
-        self._entry(old_name, new_name)
+        self._entry(old_name=old_name, new_name=new_name)
         col = self.col_names.index(old_name)
         self.col_names[col] = new_name
         self._exit()
@@ -931,7 +907,7 @@ class XFrameImpl(XObjectImpl):
 
         No return value.
         """
-        self._entry(new_names)
+        self._entry(new_names=new_names)
         self.col_names = new_names
         self._exit()
 
@@ -952,7 +928,7 @@ class XFrameImpl(XObjectImpl):
         self.iter_pos = 0
 
     def iterator_get_next(self, elems_at_a_time):
-        self._entry(elems_at_a_time)
+        self._entry(elems_at_a_time=elems_at_a_time)
         low = self.iter_pos
         high = self.iter_pos + elems_at_a_time
         buf_rdd = self._rdd.zipWithIndex()
@@ -960,7 +936,7 @@ class XFrameImpl(XObjectImpl):
         trimmed_rdd = filtered_rdd.keys()
         iter_buf = trimmed_rdd.collect()
         self.iter_pos += elems_at_a_time
-        self._exit(iter_buf)
+        self._exit()
         return iter_buf
 
     def add_column_const(self, name, value):
@@ -969,7 +945,7 @@ class XFrameImpl(XObjectImpl):
 
         This operation modifies the current XFrame in place and returns self.
         """
-        self._entry(name, value)
+        self._entry(name=name, value=value)
 
         def add_col(row, value):
             row = list(row)
@@ -980,7 +956,7 @@ class XFrameImpl(XObjectImpl):
         self.col_names.append(name)
         col_type = type(value)
         self.column_types.append(col_type)
-        self._exit(res)
+        self._exit()
         return self._replace(res)
 
     def replace_column_const(self, name, value):
@@ -989,7 +965,7 @@ class XFrameImpl(XObjectImpl):
 
         This operation modifies the current XFrame in place and returns self.
         """
-        self._entry(name, value)
+        self._entry(name=name, value=value)
         col_num = self.col_names.index(name)
 
         def replace_col(row, col_num, value):
@@ -1000,7 +976,7 @@ class XFrameImpl(XObjectImpl):
 
         col_type = type(value)
         self.column_types[col_num] = col_type
-        self._exit(res)
+        self._exit()
         return self._replace(res)
 
     def replace_single_column(self, col):
@@ -1009,11 +985,11 @@ class XFrameImpl(XObjectImpl):
 
         This operation modifies the current XFrame in place and returns self.
         """
-        self._entry(col)
+        self._entry()
         res = col.__impl__.rdd().map(lambda item: (item, ))
         col_type = infer_type_of_rdd(col.__impl__.rdd())
         self.column_types[0] = col_type
-        self._exit(res)
+        self._exit()
         return self._replace(res)
 
     def replace_selected_column(self, column_name, col):
@@ -1022,7 +998,7 @@ class XFrameImpl(XObjectImpl):
 
         This operation modifies the current XFrame in place and returns self.
         """
-        self._entry(col)
+        self._entry(column_name=column_name)
         rdd = self._rdd.zip(col.__impl__.rdd())
         col_num = self.col_names.index(column_name)
 
@@ -1034,7 +1010,7 @@ class XFrameImpl(XObjectImpl):
         res = rdd.map(lambda row_col: replace_col(row_col, col_num))
         col_type = infer_type_of_rdd(col.__impl__.rdd())
         self.column_types[col_num] = col_type
-        self._exit(res)
+        self._exit()
         return self._replace(res)
 
     # Row Manipulation
@@ -1048,7 +1024,7 @@ class XFrameImpl(XObjectImpl):
         will be a single row in the new output, and the collection of these
         rows within the outer list make up the data for the output RDD.
         """
-        self._entry(fn, column_names, column_types, seed)
+        self._entry(column_names=column_names, column_types=column_types, seed=seed)
         if seed:
             distribute_seed(self._rdd, seed)
             random.seed(seed)
@@ -1056,7 +1032,7 @@ class XFrameImpl(XObjectImpl):
         # fn needs the row as a dict
         res = self._rdd.flatMap(lambda row: fn(dict(zip(names, row))))
         res = res.map(tuple)
-        self._exit(res, column_names, column_types)
+        self._exit(column_names=column_names, column_types=column_types)
         return self._rv(res, column_names, column_types)
 
     def logical_filter(self, other):
@@ -1065,13 +1041,13 @@ class XFrameImpl(XObjectImpl):
         this returns a selection of a subset of rows in the current RDD
         where the corresponding row in the selector is non-zero.
         """
-        self._entry(other)
+        self._entry()
         # zip restriction: data must match in length and partition structure
 
         pairs = self._rdd.zip(other.rdd())
 
         res = pairs.filter(lambda p: p[1]).map(lambda p: p[0])
-        self._exit(res)
+        self._exit()
         return self._rv(res)
 
     def stack_list(self, column_name, new_column_names, new_column_types, drop_na):
@@ -1081,7 +1057,8 @@ class XFrameImpl(XObjectImpl):
         
         new_column_names and new_column_types are lists of 1 or 2 items
         """
-        self._entry(column_name, new_column_names, new_column_types, drop_na)
+        self._entry(column_name=column_name, new_column_names=new_column_names,
+                    new_column_types=new_column_types, drop_na=drop_na)
         col_num = self.col_names.index(column_name)
 
         def subs_row(row, col, val):
@@ -1107,7 +1084,7 @@ class XFrameImpl(XObjectImpl):
         column_names[col_num] = new_name
         column_types = list(self.column_types)
         column_types[col_num] = new_column_types[0]
-        self._exit(res, column_names, column_types)
+        self._exit(column_names=column_names, column_types=column_types)
         return self._rv(res, column_names, column_types)
 
     def stack_dict(self, column_name, new_column_names, new_column_types, drop_na):
@@ -1117,7 +1094,8 @@ class XFrameImpl(XObjectImpl):
         
         new_column_names and new_column_types are lists of 2 items
         """
-        self._entry(column_name, new_column_names, new_column_types, drop_na)
+        self._entry(column_name=column_name, new_column_names=new_column_names,
+                    new_column_types=new_column_types, drop_na=drop_na)
         col_num = self.col_names.index(column_name)
 
         def subs_row(row, col, key, val):
@@ -1149,7 +1127,7 @@ class XFrameImpl(XObjectImpl):
         column_types = list(self.column_types)
         column_types[col_num] = new_column_types[0]
         column_types.insert(col_num + 1, new_column_types[1])
-        self._exit(res, column_names, column_types)
+        self._exit(column_names=column_names, column_types=column_types)
         return self._rv(res, column_names, column_types)
 
     def append(self, other):
@@ -1159,16 +1137,16 @@ class XFrameImpl(XObjectImpl):
         Both RDDs must have the same set of columns with the same column
         names and column types.
         """
-        self._entry(other)
+        self._entry()
         res = self._rdd.union(other.rdd())
-        self._exit(res)
+        self._exit()
         return self._rv(res)
 
     def copy_range(self, start, step, stop):
         """
         Returns an RDD consisting of the values between start and stop, counting by step.
         """
-        self._entry(start, step, stop)
+        self._entry(start=start, step=step, stop=stop)
 
         def select_row(x, start, step, stop):
             if x < start or x >= stop:
@@ -1176,7 +1154,7 @@ class XFrameImpl(XObjectImpl):
             return (x - start) % step == 0
         pairs = self._rdd.zipWithIndex()
         res = pairs.filter(lambda x: select_row(x[1], start, step, stop)).map(lambda x: x[0])
-        self._exit(res)
+        self._exit()
         return self._rv(res)
 
     def drop_missing_values(self, columns, all_behavior, split):
@@ -1190,7 +1168,7 @@ class XFrameImpl(XObjectImpl):
         If the ``columns`` parameter is the empty list, 
         consider all columns when searching for missing values.
         """
-        self._entry(columns, all_behavior, split)
+        self._entry(columns=columns, all_behavior=all_behavior, split=split)
 
         def keep_row_all(row, cols):
             for col in cols:
@@ -1209,12 +1187,12 @@ class XFrameImpl(XObjectImpl):
         f = keep_row_all if all_behavior else keep_row_any
         if not split:
             res = self._rdd.filter(lambda row: f(row, cols))
-            self._exit(res)
+            self._exit()
             return self._rv(res)
         else:
             res1 = self._rdd.filter(lambda row: f(row, cols))
             res2 = self._rdd.filter(lambda row: not f(row, cols))
-            self._exit(res1, res2)
+            self._exit()
             return self._rv(res1), self._rv(res2)
 
     def add_row_number(self, column_name, start):
@@ -1225,7 +1203,7 @@ class XFrameImpl(XObjectImpl):
         the given column name.  
         Make sure the row number is the first column.
         """
-        self._entry(column_name, start)
+        self._entry(column_name=column_name, start=start)
 
         def pull_up(pair, start):
             row = list(pair[0])
@@ -1236,7 +1214,7 @@ class XFrameImpl(XObjectImpl):
         types = list(self.column_types)
         types.insert(0, int)
         res = self._rdd.zipWithIndex().map(lambda row: pull_up(row, start))
-        self._exit(res, names, types)
+        self._exit(names=names, types=types)
         return self._rv(res, names, types)
 
     # Data Transformations Within Columns
@@ -1262,7 +1240,7 @@ class XFrameImpl(XObjectImpl):
 
          - *list*: pack all values from the packing columns into a list.
         """
-        self._entry(columns, dict_keys, dtype, fill_na)
+        self._entry(columns=columns, dict_keys=dict_keys, dtype=dtype, fill_na=fill_na)
         cols = [self.col_names.index(col) for col in columns]
         keys = self._rdd.map(lambda row: [row[col] for col in cols])
 
@@ -1293,7 +1271,7 @@ class XFrameImpl(XObjectImpl):
             res = keys.map(lambda row: pack_row_dict(row, dict_keys, fill_na))
         else:
             raise NotImplementedError
-        self._exit(res, dtype)
+        self._exit(dtype=dtype)
         return xframes.xarray_impl.XArrayImpl(res, dtype)
 
     def transform(self, fn, dtype, seed):
@@ -1304,7 +1282,7 @@ class XFrameImpl(XObjectImpl):
         the xframe represented as a dictionary.  The ``fn`` should return
         exactly one value which is or can be cast into type ``dtype``. 
         """
-        self._entry(dtype, seed)
+        self._entry(dtype=dtype, seed=seed)
         if seed:
             distribute_seed(self._rdd, seed)
             random.seed(seed)
@@ -1319,7 +1297,7 @@ class XFrameImpl(XObjectImpl):
                 return cast_result
             return result
         res = self._rdd.map(transformer)
-        self._exit(res, dtype)
+        self._exit(dtype=dtype)
         return xframes.xarray_impl.XArrayImpl(res, dtype)
 
     def transform_col(self, col, fn, dtype, seed):
@@ -1333,7 +1311,7 @@ class XFrameImpl(XObjectImpl):
         not specified, the first 100 rows of the XFrame are used to make a guess
         of the target data type.
         """
-        self._entry(col, dtype, seed)
+        self._entry(col=col, dtype=dtype, seed=seed)
         if col not in self.col_names:
             raise ValueError("Column name does not exist: '{}'.".format(col))
         if seed:
@@ -1354,7 +1332,7 @@ class XFrameImpl(XObjectImpl):
         res = self._rdd.map(transformer)
         new_col_types = list(self.column_types)
         new_col_types[col_index] = dtype
-        self._exit(res, new_col_types)
+        self._exit(new_col_types=new_col_types)
         return self._rv(res, column_types=new_col_types)
 
     def transform_cols(self, cols, fn, dtypes, seed):
@@ -1368,7 +1346,7 @@ class XFrameImpl(XObjectImpl):
         If ``dtype`` is not specified, the first 100 rows of the XFrame are 
         used to make a guess of the target data types.
         """
-        self._entry(cols, dtypes, seed)
+        self._entry(cols=cols, dtypes=dtypes, seed=seed)
         if seed:
             distribute_seed(self._rdd, seed)
             random.seed(seed)
@@ -1392,7 +1370,7 @@ class XFrameImpl(XObjectImpl):
         new_col_types = list(self.column_types)
         for dtype_index, col_index in enumerate(col_indexes):
             new_col_types[col_index] = dtypes[dtype_index]
-        self._exit(res, new_col_types)
+        self._exit(new_col_types=new_col_types)
         return self._rv(res, column_types=new_col_types)
 
     def groupby_aggregate(self, key_columns_array, group_columns, group_output_columns, group_ops):
@@ -1402,7 +1380,8 @@ class XFrameImpl(XObjectImpl):
 
         group_columns, group_output_columns and group_ops are all arrays of equal length
         """
-        self._entry(key_columns_array, group_columns, group_output_columns, group_ops)
+        self._entry(key_columns_array=key_columns_array, group_columns=group_columns,
+                    group_output_columns=group_output_columns, group_ops=group_ops)
 
         # make key column indexes
         key_cols = [self.col_names.index(col) for col in key_columns_array]
@@ -1461,7 +1440,7 @@ class XFrameImpl(XObjectImpl):
         res = aggregates.map(lambda pair: concatenate(pair[0], pair[1]))
         res = res.map(tuple)
         persist(res)
-        self._exit(res, new_col_names, new_col_types)
+        self._exit(new_col_names=new_col_names, new_col_types=new_col_types)
         return self._rv(res, new_col_names, new_col_types)
 
     def join(self, right, how, join_keys):
@@ -1472,7 +1451,7 @@ class XFrameImpl(XObjectImpl):
         join_keys is a dict of left-right column names
         how = [left, right, outer, inner]
         """
-        self._entry(right, how, join_keys)
+        self._entry(how=how, join_keys=join_keys)
         # new columns are made up of:
         # 1) left columns
         # 2) right columns exculding join_keys.values()
@@ -1568,7 +1547,7 @@ class XFrameImpl(XObjectImpl):
                         left_count, right_count))
 
         persist(res)
-        self._exit(res, new_col_names, new_col_types)
+        self._exit(new_col_names=new_col_names, new_col_types=new_col_types)
         return self._rv(res, new_col_names, new_col_types)
 
     def unique(self):
@@ -1581,7 +1560,7 @@ class XFrameImpl(XObjectImpl):
         as_json = self._rdd.map(lambda row: json.dumps(row))
         unique_rows = as_json.distinct()
         res = unique_rows.map(lambda s: json.loads(s))
-        self._exit(res)
+        self._exit()
         return self._rv(res)
 
     def sort(self, sort_column_names, sort_column_orders):
@@ -1591,20 +1570,20 @@ class XFrameImpl(XObjectImpl):
 
         sort_column_orders is an array of boolean; True is ascending
         """
-        self._entry(sort_column_names, sort_column_orders)
+        self._entry(sort_column_names=sort_column_names, sort_column_orders=sort_column_orders)
 
         sort_column_indexes = [self.col_names.index(name) for name in sort_column_names]
         key_fn = lambda row: CmpRows(row, sort_column_indexes, sort_column_orders)
 
         res = self._rdd.sortBy(keyfunc=key_fn)
-        self._exit(res)
+        self._exit()
         return self._rv(res)
 
     def sql(self, sql_statement, table_name):
         """
         Execute a spark-sql command against a XFrame
         """
-        self._entry(sql_statement, table_name)
+        self._entry(sql_statement=sql_statement, table_name=table_name)
         self.to_spark_dataframe(table_name, 8)  # registers table for use in query
         sqlc = self.spark_sql_context()
         s_res = sqlc.sql(sql_statement)
