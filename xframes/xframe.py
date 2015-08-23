@@ -1168,6 +1168,17 @@ class XFrame(XObject):
             row_of_tables[-1].add_row(['...'] * num_column_of_last_table)
         return row_of_tables
 
+    def __create_footer__(self, html_flag):
+        sep = '<br>' if html_flag else '\n'
+        if self.__has_size__():
+            footer = '[{} rows x {} columns]{}'.format(self.num_rows(), self.num_columns, sep)
+            if self.num_rows() > max_rows_to_display:
+                footer += sep.join(FOOTER_STRS)
+        else:
+            footer = '[? rows x {} columns]\n'.format(self.num_columns(), sep)
+            footer += '\n'.join(LAZY_FOOTER_STRS)
+        return footer
+
     def print_rows(self, num_rows=10, num_columns=40, max_column_width=30, max_row_width=MAX_ROW_WIDTH):
         """
         Print the first rows and columns of the XFrame in human readable format.
@@ -1204,7 +1215,7 @@ class XFrame(XObject):
                                                    max_columns=num_columns,
                                                    max_column_width=max_column_width,
                                                    max_row_width=max_row_width)
-        footer = '[%d rows x %d columns]\n' % self.shape
+        footer = self.__create_footer__(False)
         print '\n'.join([str(tb) for tb in row_of_tables]) + '\n' + footer
 
     def __str__(self, num_rows=10, footer=True):
@@ -1220,13 +1231,7 @@ class XFrame(XObject):
         if not footer:
             return '\n'.join([str(tb) for tb in row_of_tables])
 
-        if self.__has_size__():
-            footer = '[%d rows x %d columns]\n' % self.shape
-            if self.num_rows() > max_rows_to_display:
-                footer += '\n'.join(FOOTER_STRS)
-        else:
-            footer = '[? rows x %d columns]\n' % self.num_columns()
-            footer += '\n'.join(LAZY_FOOTER_STRS)
+        footer = self.__create_footer__(False)
         return '\n'.join([str(tb) for tb in row_of_tables]) + '\n' + footer
 
     def _repr_html_(self):
@@ -1237,13 +1242,7 @@ class XFrame(XObject):
                                                    max_columns=40, 
                                                    max_column_width=25, 
                                                    max_rows_to_display=max_rows_to_display)
-        if self.__has_size__():
-            footer = '[%d rows x %d columns]<br/>' % self.shape
-            if self.num_rows() > max_rows_to_display:
-                footer += '<br/>'.join(FOOTER_STRS)
-        else:
-            footer = '[? rows x %d columns]<br/>' % self.num_columns()
-            footer += '<br/>'.join(LAZY_FOOTER_STRS)
+        footer = self.__create_footer__(True)
         begin = '<div style="max-height:1000px;max-width:1500px;overflow:auto;">'
         end = '\n</div>'
         return begin + '\n'.join([tb.get_html_string(format=True) for tb in row_of_tables]) + '\n' + footer + end
@@ -2611,8 +2610,21 @@ class XFrame(XObject):
                 sa_value = value
             elif hasattr(value, '__iter__'):  # wrap list, array... to xarray
                 sa_value = XArray(value)
-            else:  # create an xarray  of constant value
-                sa_value = XArray.from_const(value, self.num_rows())
+            else:
+                # special case of adding a const column
+                # it is very inefficient to create a column and then zip it in
+                # a) num_rows() is inefficient
+                # b) parallelize is inefficient
+                # c) partitions differ, so zip --> zipWithIndex, sortByKey, etc
+                # map it in instead
+                # TODO get rid of XArray.from_const if no one else calls it
+                if type(value) not in {int, float, str, array.array, list, dict}:
+                    raise TypeError("Cannot create xarray of value type '{}'.".format(type(value)))
+                if key not in self.column_names():
+                    self.__impl__.add_column_const(key, value)
+                else:
+                    self.__impl__.replace_column_const(key, value)
+                return
 
             # set new column
             if key not in self.column_names():
