@@ -570,7 +570,8 @@ class XFrame(XObject):
 
         delimiter : string, optional
             This describes the delimiter used for parsing csv files. Must be a
-            single character.
+            single character.  Files with double delimiters such as "||" should specify
+            delimiter='|' and should drop columns with empty heading and data.
 
         header : bool, optional
             If true, uses the first row as the column names. Otherwise use the
@@ -578,7 +579,8 @@ class XFrame(XObject):
 
         comment_char : string, optional
             The character which denotes that the
-            remainder of the line is a comment.
+            remainder of the line is a comment.  The line must contain valid data
+            preceding the commant.
 
         escape_char : string, optional
             Character which begins a C escape sequence
