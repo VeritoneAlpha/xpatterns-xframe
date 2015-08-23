@@ -1610,11 +1610,17 @@ class TestXFrameSetitem(unittest.TestCase):
     Tests XFrame __setitem__
     """
 
-    def test_setitem_str_const(self):
+    def test_setitem_float_const(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t['x'] = 5.0
         self.assertEqual(['id', 'val', 'x'], t.column_names())
         self.assertEqual({'id': 2, 'val': 'b', 'x': 5.0}, t[1])
+
+    def test_setitem_str_const_replace(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        t['val'] = 'x'
+        self.assertEqual(['id', 'val'], t.column_names())
+        self.assertEqual({'id': 2, 'val': 'x'}, t[1])
 
     def test_setitem_list(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
