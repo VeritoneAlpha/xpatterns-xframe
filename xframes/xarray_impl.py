@@ -700,6 +700,7 @@ class XArrayImpl(XObjectImpl):
 
         res = self._rdd.map(lambda x: apply_and_cast(x, fn, dtype, skip_undefined))
         # search for type error and throw exception
+        # TODO this forces evaluatuion -- consider not doing it
         errs = res.filter(lambda x: type(x) is ValueError).collect()
         if len(errs) > 0:
             raise ValueError('Transformation failures: ({}) {}'.format(len(errs), errs[0].args[0]))
