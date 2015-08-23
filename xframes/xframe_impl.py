@@ -237,6 +237,8 @@ class XFrameImpl(XObjectImpl):
         na_values = get_config('na_values')
         if not type(na_values) == list:
             na_values = [na_values]
+        store_errors = get_config('store_errors')
+        errors = {}
 
         sc = self.spark_context()
         raw = XRdd(sc.textFile(path))
@@ -316,6 +318,9 @@ class XFrameImpl(XObjectImpl):
         # Avoid using zipWithIndex.  Instead, find the lowest
         # partition with data and use that to find the
         # header row using zipWithUniqueId.
+
+        # Collect here is forcing the read of the whole table
+        # TODO could we do this with take(1) ??
         def partition_with_data(split_index, iterator):
             try:
                 iterator.next()
@@ -340,14 +345,18 @@ class XFrameImpl(XObjectImpl):
             flag = flag and len(row) == col_count
             return flag, row
         res = res.map(lambda flag_row: audit_col_count(flag_row, col_count))
-        before_count = res.count()
-        res = res.filter(lambda fv: fv[0])
-        after_count = res.count()
-        filter_diff = before_count - after_count
-        if use_header:
-            filter_diff -= 1
-        if filter_diff > 0:
-            print >>stderr, '{} rows dropped because of incorrect column count'.format(filter_diff)
+        if store_errors:
+            before_count = res.count()
+            res = res.filter(lambda fv: fv[0])
+            after_count = res.count()
+            filter_diff = before_count - after_count
+            if use_header:
+                filter_diff -= 1
+            if filter_diff > 0:
+                print >>stderr, '{} rows dropped because of incorrect column count'.format(filter_diff)
+                errors['dropped'] = filter_diff
+        else:
+            res = res.filter(lambda fv: fv[0])
         res = res.values()
 
         # Transform hints: __X{}__ ==> name.
@@ -427,7 +436,7 @@ class XFrameImpl(XObjectImpl):
 
         self._exit()
         # returns a dict of errors
-        return {}
+        return errors
 
     def read_from_text(self, path, delimiter, nrows, verbose):
         """
@@ -953,6 +962,46 @@ class XFrameImpl(XObjectImpl):
         self.iter_pos += elems_at_a_time
         self._exit(iter_buf)
         return iter_buf
+
+    def add_column_const(self, name, value):
+        """
+        Add a new column at the end of the RDD with a const value.
+
+        This operation modifies the current XFrame in place and returns self.
+        """
+        self._entry(name, value)
+
+        def add_col(row, value):
+            row = list(row)
+            row.append(value)
+            return tuple(row)
+        res = self._rdd.map(lambda row: add_col(row, value))
+
+        self.col_names.append(name)
+        col_type = type(value)
+        self.column_types.append(col_type)
+        self._exit(res)
+        return self._replace(res)
+
+    def replace_column_const(self, name, value):
+        """
+        Replace thge given column of the RDD with a const value.
+
+        This operation modifies the current XFrame in place and returns self.
+        """
+        self._entry(name, value)
+        col_num = self.col_names.index(name)
+
+        def replace_col(row, col_num, value):
+            row = list(row)
+            row[col_num] = value
+            return tuple(row)
+        res = self._rdd.map(lambda row: replace_col(row, col_num, value))
+
+        col_type = type(value)
+        self.column_types[col_num] = col_type
+        self._exit(res)
+        return self._replace(res)
 
     def replace_single_column(self, col):
         """
