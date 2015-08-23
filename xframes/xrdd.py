@@ -8,18 +8,15 @@ Wrapped functions allow entry and exit tracing and keeps perf counts.
 # This class includes only functions that are actually called in the impl classes.
 # If new RDD functions are called, they must be added here.
 
-import inspect
-from sys import stderr
 
 import pyspark
 from pyspark import RDD
 
+from xframes.traced_object import TracedObject
+
 
 # noinspection PyPep8Naming,PyProtectedMember
-class XRdd(object):
-    entry_trace = False
-    exit_trace = False
-    perf_count = None
+class XRdd(TracedObject):
 
     def __init__(self, rdd, structure_id=None):
         """
@@ -38,67 +35,8 @@ class XRdd(object):
         self._rdd = rdd
         self.id = rdd.id()
         self.structure_id = structure_id if structure_id else self.id
-        self._entry(structure_id)
+        self._entry(structure_id=structure_id)
         self._exit()
-
-    def print_trace(self):
-        stack = inspect.stack()
-        caller = stack[1]
-        called_by = stack[2]
-        print >>stderr, 'Enter method:', caller[3], \
-                        'called by', called_by[3], '({}: {})'.format(called_by[1], called_by[2]), \
-                        'id:', self.structure_id, self.id
-        # print a few frames beyond the top
-        for i in range(3, 8): 
-                if stack[i][3] == '<module>':
-                    break
-                print >>stderr, '   ', stack[i][3], stack[i][1], stack[i][2]
-
-    def _entry(self, *args, **kwargs):
-        """ Trace function entry. """
-        force = 'force' in kwargs and kwargs['force']
-        if not force and not XRdd.entry_trace and not XRdd.perf_count:
-            return
-        stack = inspect.stack()
-        caller = stack[1]
-        called_by = stack[2]
-        if force or XRdd.entry_trace:
-            print >>stderr, 'Enter RDD', caller[3], args, \
-                'called by', called_by[3], '({}: {})'.format(called_by[1], called_by[2]), \
-                'id:', self.structure_id, self.id
-            # print a few frames beyond the top
-            for i in range(3, 6):
-                if stack[i][3] == '<module>':
-                    break
-                print >>stderr, '   ', stack[i][3], stack[i][1], stack[i][2]
-            stderr.flush()
-        if XRdd.perf_count is not None:
-            my_fun = caller[3]
-            if my_fun not in XRdd.perf_count:
-                XRdd.perf_count[my_fun] = 0
-            XRdd.perf_count[my_fun] += 1
-
-    @staticmethod
-    def _exit(*args):
-        """ Trace function exit. """
-        if XRdd.exit_trace:
-            print >>stderr, 'Exit RDD', inspect.stack()[1][3], args
-
-    @classmethod
-    def set_trace(cls, entry_trace=None, exit_trace=None):
-        cls.entry_trace = cls.entry_trace if entry_trace is None else entry_trace
-        cls.exit_trace = cls.exit_trace if exit_trace is None else exit_trace
-
-    @classmethod
-    def set_perf_count(cls, enable=True):
-        if enable:
-            cls.perf_count = {}
-        else:
-            cls.perf_count = None
-
-    @classmethod
-    def get_perf_count(cls):
-        return cls.perf_count
 
     @staticmethod
     def is_rdd(rdd):
@@ -136,13 +74,13 @@ class XRdd(object):
         return res
 
     def take(self, n):
-        self._entry(n)
+        self._entry(n=n)
         res = self._rdd.take(n)
         self._exit()
         return res
 
     def takeOrdered(self, num, key=None):
-        self._entry(num)
+        self._entry(num=num)
         res = self._rdd.takeOrdered(num, key)
         self._exit()
         return res
@@ -226,7 +164,7 @@ class XRdd(object):
         return res
         
     def persist(self, storage_level):
-        self._entry(storage_level)
+        self._entry(storage_level=storage_level)
         self._rdd.persist(storage_level)
         self._exit()
 
@@ -236,12 +174,12 @@ class XRdd(object):
         self._exit()
 
     def saveAsPickleFile(self, path):
-        self._entry(path)
+        self._entry(path=path)
         self._rdd.saveAsPickleFile(path)
         self._exit()
 
     def saveAsTextFile(self, path):
-        self._entry(path)
+        self._entry(path=path)
         self._rdd.saveAsTextFile(path)
         self._exit()
 
@@ -258,21 +196,21 @@ class XRdd(object):
         self._exit()
         return XRdd(res)
 
-    def map(self, fn, preservesPartitioning=False):
-        self._entry(preservesPartitioning)
-        res = self._rdd.map(fn, preservesPartitioning)
+    def map(self, fn, preserves_partitioning=False):
+        self._entry(preserves_partitioning=preserves_partitioning)
+        res = self._rdd.map(fn, preserves_partitioning)
         self._exit()
         return XRdd(res, structure_id=self.structure_id)
 
-    def mapPartitions(self, fn, preservesPartitioning=False):
-        self._entry(preservesPartitioning)
-        res = self._rdd.mapPartitions(fn, preservesPartitioning)
+    def mapPartitions(self, fn, preserves_partitioning=False):
+        self._entry(preserves_partitioning=preserves_partitioning)
+        res = self._rdd.mapPartitions(fn, preserves_partitioning)
         self._exit()
         return XRdd(res, structure_id=self.structure_id)
 
-    def mapPartitionsWithIndex(self, fn, preservesPartitioning=False):
-        self._entry(preservesPartitioning)
-        res = self._rdd.mapPartitionsWithIndex(fn, preservesPartitioning)
+    def mapPartitionsWithIndex(self, fn, preserves_partitioning=False):
+        self._entry(preserves_partitioning=preserves_partitioning)
+        res = self._rdd.mapPartitionsWithIndex(fn, preserves_partitioning)
         self._exit()
         return XRdd(res, structure_id=self.structure_id)
 
@@ -282,9 +220,9 @@ class XRdd(object):
         self._exit()
         return XRdd(res, structure_id=self.structure_id)
 
-    def flatMap(self, fn, preservesPartitioning=False):
-        self._entry(preservesPartitioning)
-        res = self._rdd.flatMap(fn, preservesPartitioning)
+    def flatMap(self, fn, preserves_partitioning=False):
+        self._entry(preserves_partitioning=preserves_partitioning)
+        res = self._rdd.flatMap(fn, preserves_partitioning)
         self._exit()
         return XRdd(res, structure_id=self.structure_id)
 
@@ -350,13 +288,13 @@ class XRdd(object):
         return XRdd(res, self.structure_id)
         
     def sample(self, with_replacement, fraction, seed=None):
-        self._entry(with_replacement, fraction, seed)
+        self._entry(with_replacement=with_replacement, fraction=fraction, seed=seed)
         res = self._rdd.sample(with_replacement, fraction, seed)
         self._exit()
         return XRdd(res)
 
     def union(self, other):
-        self._entry(other)
+        self._entry()
         res = self._rdd.union(other._rdd)
         self._exit()
         return XRdd(res)
