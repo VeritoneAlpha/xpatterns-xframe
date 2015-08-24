@@ -291,50 +291,22 @@ class XFrameImpl(XObjectImpl, TracedObject):
             col_names = ['X.{}'.format(i) for i in range(len(first))]
         col_count = len(col_names)
 
-        # attach flag to value
-        # Avoid using zipWithIndex.  Instead, find the lowest
-        # partition with data and use that to find the
-        # header row using zipWithUniqueId.
+        # filter out all rows that match header
+        # this could potentialy filter data rows, but we will ignore that for now
+        if use_header:
+            res = res.filter(lambda row: row != first)
 
-        # Collect here is forcing the read of the whole table
-        # TODO could we do this with take(1) ??
-        def partition_with_data(split_index, iterator):
-            try:
-                iterator.next()
-                yield split_index
-            except StopIteration:
-                yield 1000000000
-        partition_with_data = res.mapPartitionsWithIndex(partition_with_data)
-        min_partition_with_data = min(partition_with_data.collect())
-        res = res.zipWithUniqueId()
-
-        def attach_flag(val_index, use_header):
-            val = val_index[0]
-            index = val_index[1]
-            flag = index != min_partition_with_data or not use_header
-            return flag, val
-        # add a flag -- used to filter first row and rows with invalid column count
-        res = res.map(lambda row: attach_flag(row, use_header))
-
-        # filter out rows with invalid col count
-        def audit_col_count(flag_row, col_count):
-            flag, row = flag_row
-            flag = flag and len(row) == col_count
-            return flag, row
-        res = res.map(lambda flag_row: audit_col_count(flag_row, col_count))
         if store_errors:
             before_count = res.count()
-            res = res.filter(lambda fv: fv[0])
+            res = res.filter(lambda row: len(row) == col_count)
             after_count = res.count()
             filter_diff = before_count - after_count
-            if use_header:
-                filter_diff -= 1
             if filter_diff > 0:
                 print >>stderr, '{} rows dropped because of incorrect column count'.format(filter_diff)
                 errors['dropped'] = filter_diff
         else:
-            res = res.filter(lambda fv: fv[0])
-        res = res.values()
+            # filter out rows with invalid col count
+            res = res.filter(lambda row: len(row) == col_count)
 
         # Transform hints: __X{}__ ==> name.
         # If it is not of this form, leave it alone.
