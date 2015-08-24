@@ -9,7 +9,9 @@ import pickle
 import csv
 import StringIO
 import ast
+import shutil
 from sys import stderr
+from tempfile import NamedTemporaryFile
 
 import numpy
 
@@ -487,25 +489,35 @@ class XFrameImpl(XObjectImpl, TracedObject):
             sio = StringIO.StringIO()
             writer = csv.writer(sio, **params)
             try:
-                writer.writerow(row, **params)
+                writer.writerow(row)
                 return sio.getvalue()
             except IOError:
                 return ''
 
+        # create heading with line terminator
+        heading = to_csv(self.column_names(), **params)
+        # create rows without the line terminator
+        params['lineterminator'] = ''
+        csv_data = self._rdd.map(lambda row: to_csv(row, **params))
+
+        # this will ensure that we get everything in one fie
+        res = csv_data.repartition(1)
+
+        # save the data in a part file
+        temp_file = NamedTemporaryFile(delete=True)
+        temp_file.close()
+        res.saveAsTextFile(temp_file.name)
+        data_path = os.path.join(temp_file.name, 'part-00000')
+
+        # copy the part file to the output file
+        delete_file_or_dir(path)
         with open(path, 'w') as f:
-            heading = to_csv(self.column_names(), **params)
             f.write(heading)
-            self.begin_iterator()
-            elems_at_a_time = 100000
-            ret = self.iterator_get_next(elems_at_a_time)
-            while True:
-                for row in ret:
-                    line = to_csv(row, **params)
-                    f.write(line)
-                if len(ret) == elems_at_a_time:
-                    ret = self.iterator_get_next(elems_at_a_time)
-                else:
-                    break
+            with open(data_path, 'r') as rd:
+                shutil.copyfileobj(rd, f)
+
+        # clean up part file
+        delete_file_or_dir(temp_file.name)
         self._exit()
 
     def save_as_parquet(self, url, number_of_partitions):
