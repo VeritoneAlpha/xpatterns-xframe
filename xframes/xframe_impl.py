@@ -266,7 +266,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 lines = raw.take(row_limit)
                 raw = XRdd(sc.parallelize(lines))
 
-        # Use per partition operations to create a reader once per partition
+        # TODO: Use per partition operations to create a reader once per partition
         # See p 106: Learning Spark
         # See mapPartitions
         def csv_to_array(line, params):
@@ -374,6 +374,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
             except ValueError:
                 raise ValueError('Cast failed: ({}) {}  col: {}'.format(typ, val, name))
 
+        # This is where the result is cast as a tuple
         def cast_row(row, types, names):
             return tuple([cast_val(val, typ, name) for val, typ, name in zip(row, types, names)])
 
