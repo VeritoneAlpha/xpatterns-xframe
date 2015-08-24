@@ -1260,7 +1260,7 @@ class TestXFrameSaveBinary(unittest.TestCase):
         # TODO find some way to check the data
 
 
-class TestXFrameSaveCSV(unittest.TestCase):
+class TestXFrameSaveCsv(unittest.TestCase):
     """
     Tests XFrame save csv format
     """
