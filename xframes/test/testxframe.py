@@ -872,16 +872,6 @@ class TestXFrameNumColumns(unittest.TestCase):
         self.assertEqual(2, t.num_columns())
 
 
-class TestXFrameNumColumns(unittest.TestCase):
-    """
-    Tests XFrame num_columns
-    """
-
-    def test_num_columns(self):
-        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        self.assertEqual(2, t.num_columns())
-
-
 class TestXFrameColumnNames(unittest.TestCase):
     """
     Tests XFrame column_names
@@ -1279,7 +1269,13 @@ class TestXFrameSaveCSV(unittest.TestCase):
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
         path = 'tmp/frame-csv'
         t.save(path, file_format='csv')
-        # TODO verify
+
+        with open(path + '.csv') as f:
+            heading = f.readline().rstrip()
+            self.assertEqual('id,val', heading)
+            self.assertEqual('30,a', f.readline().rstrip())
+            self.assertEqual('20,b', f.readline().rstrip())
+            self.assertEqual('10,c', f.readline().rstrip())
 
 
 class TestXFrameSaveParquet(unittest.TestCase):
