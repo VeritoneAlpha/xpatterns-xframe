@@ -1170,7 +1170,7 @@ class XFrame(XObject):
             row_of_tables[-1].add_row(['...'] * num_column_of_last_table)
         return row_of_tables
 
-    def __create_footer__(self, html_flag):
+    def _create_footer(self, html_flag, max_rows_to_display):
         sep = '<br>' if html_flag else '\n'
         if self.__has_size__():
             footer = '[{} rows x {} columns]{}'.format(self.num_rows(), self.num_columns, sep)
@@ -1210,6 +1210,7 @@ class XFrame(XObject):
             Returns the last part of an XFrame.
         """
 
+        max_rows_to_display = num_rows
         max_row_width = max(max_row_width, max_column_width + 1)
 
         row_of_tables = self.__get_pretty_tables__(wrap_text=False,
@@ -1217,7 +1218,7 @@ class XFrame(XObject):
                                                    max_columns=num_columns,
                                                    max_column_width=max_column_width,
                                                    max_row_width=max_row_width)
-        footer = self.__create_footer__(False)
+        footer = self._create_footer(False, max_rows_to_display)
         print '\n'.join([str(tb) for tb in row_of_tables]) + '\n' + footer
 
     def __str__(self, num_rows=10, footer=True):
@@ -1233,7 +1234,7 @@ class XFrame(XObject):
         if not footer:
             return '\n'.join([str(tb) for tb in row_of_tables])
 
-        footer = self.__create_footer__(False)
+        footer = self._create_footer(False, max_rows_to_display)
         return '\n'.join([str(tb) for tb in row_of_tables]) + '\n' + footer
 
     def _repr_html_(self):
@@ -1244,7 +1245,7 @@ class XFrame(XObject):
                                                    max_columns=40, 
                                                    max_column_width=25, 
                                                    max_rows_to_display=max_rows_to_display)
-        footer = self.__create_footer__(True)
+        footer = self._create_footer(True, max_rows_to_display)
         begin = '<div style="max-height:1000px;max-width:1500px;overflow:auto;">'
         end = '\n</div>'
         return begin + '\n'.join([tb.get_html_string(format=True) for tb in row_of_tables]) + '\n' + footer + end
