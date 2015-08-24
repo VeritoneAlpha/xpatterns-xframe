@@ -9,7 +9,6 @@ from sys import stderr
 
 from xframes.dsq import QuantileAccumulator
 from xframes.frequent import FreqSketch
-import xframes.util as util
 
 __all__ = ['Sketch']
 
@@ -26,6 +25,7 @@ class SketchImpl(object):
     exit_trace = False
 
     def __init__(self):
+        import xframes.util as util
         self._entry()
         self._rdd = None
         self.sketch_type = None
