@@ -185,9 +185,14 @@ Running in a IPython Notebook
 -----------------------------
 
 XFrames works especially well in an IPython notebook.
-If you set up spark as outline above, by setting PYTHONPATH, SPARK_HOME
+If you set up Spark as outline above, by setting PYTHONPATH, SPARK_HOME
 and SPARK_CONF_DIR before you launch the notebook server, then
 you can run the same test program and get the expected results.
+
+See the blog http://blog.cloudera.com/blog/2014/08/how-to-use-ipython-notebook-with-apache-spark/
+for more information on how to set up an existing Spark installation to use with
+iIPython notebook.
+
 
 Running in a Virtual Environment
 --------------------------------
