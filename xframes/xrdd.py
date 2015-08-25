@@ -35,8 +35,6 @@ class XRdd(TracedObject):
         self._rdd = rdd
         self.id = rdd.id()
         self.structure_id = structure_id if structure_id else self.id
-        self._entry(structure_id=structure_id)
-        self._exit()
 
     @staticmethod
     def is_rdd(rdd):
