@@ -115,9 +115,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
     def rdd(self):
         return self._rdd
 
-    def dump_debug_info(self):
-        return self._rdd.toDebugString()
-
     @staticmethod
     def is_rdd(rdd):
         return XRdd.is_rdd(rdd)
