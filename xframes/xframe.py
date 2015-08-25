@@ -1066,7 +1066,7 @@ class XFrame(XObject):
             ret += '\tNone\n\n'
         return ret
 
-    def __get_pretty_tables__(self, wrap_text=False, max_row_width=MAX_ROW_WIDTH,
+    def _get_pretty_tables(self, wrap_text=False, max_row_width=MAX_ROW_WIDTH,
                               max_column_width=30, max_columns=20,
                               max_rows_to_display=60):
         """
@@ -1094,9 +1094,28 @@ class XFrame(XObject):
         -------
         out : list[PrettyTable]
         """
-        headxf = self.head(max_rows_to_display)
-        if headxf.shape == (0, 0):
+        # TODO use take to get just be beginning rows
+        # We are going to need a column of values at a time
+        # Take should return a list of tuples
+        head_rows = self.__impl__.rdd().take(max_rows_to_display+1)
+        if len(head_rows) == 0:
             return [PrettyTable()]
+        if len(head_rows) > max_rows_to_display:
+            extra_rows = True
+            head_rows = head_rows[:max_rows_to_display]
+        else:
+            extra_rows = False
+        n_rows = len(head_rows)
+
+        # organize the results as columns
+        cols = {}
+        for index, col_name in enumerate(self.column_names()[:max_columns]):
+            cols[col_name] = [row[index] for row in head_rows]
+
+#        headxf = self.head(max_rows_to_display)
+#        if headxf.shape == (0, 0):
+#            return [PrettyTable()]
+#        n_rows = headxf.num_rows()
 
         def _truncate_str(s, wrap_str=False):
             """
@@ -1144,13 +1163,15 @@ class XFrame(XObject):
                 col = columns.pop()
                 # check the max length of element in the column
                 header = _truncate_str(col, wrap_text)
-                if len(headxf) > 0:
-                    col_width = min(max_column_width, max(max(len(str(x)) for x in headxf[col]), len(header) + 3))
+                if n_rows > 0:
+                    #col_width = min(max_column_width, max(max(len(str(x)) for x in headxf[col]), len(header) + 3))
+                    col_width = min(max_column_width, max(max(len(str(x)) for x in cols[col]), len(header) + 3))
                 else:
                     col_width = max_column_width
                 if table_width + col_width < max_row_width:
                     # truncate the header if necessary
-                    tbl.add_column(header, [_truncate_str(str(x), wrap_text) for x in headxf[col]])
+                    #tbl.add_column(header, [_truncate_str(str(x), wrap_text) for x in headxf[col]])
+                    tbl.add_column(header, [_truncate_str(str(x), wrap_text) for x in cols[col]])
                     table_width = str(tbl).find('\n')
                     num_column_of_last_table += 1
                 else:
@@ -1162,17 +1183,17 @@ class XFrame(XObject):
 
         # add a column of all "..." if there are more columns than displayed
         if self.num_columns() > max_columns:
-            row_of_tables[-1].add_column('...', ['...'] * len(headxf))
+            row_of_tables[-1].add_column('...', ['...'] * n_rows)
             num_column_of_last_table += 1
 
         # add a row of all "..." if there are more rows than displayed
-        if self.__has_size__() and self.num_rows() > headxf.num_rows():
+        if extra_rows:
             row_of_tables[-1].add_row(['...'] * num_column_of_last_table)
         return row_of_tables
 
     def _create_footer(self, html_flag, max_rows_to_display):
         sep = '<br>' if html_flag else '\n'
-        if self.__has_size__():
+        if self._has_size():
             footer = '[{} rows x {} columns]{}'.format(self.num_rows(), self.num_columns, sep)
             if self.num_rows() > max_rows_to_display:
                 footer += sep.join(FOOTER_STRS)
@@ -1213,7 +1234,7 @@ class XFrame(XObject):
         max_rows_to_display = num_rows
         max_row_width = max(max_row_width, max_column_width + 1)
 
-        row_of_tables = self.__get_pretty_tables__(wrap_text=False,
+        row_of_tables = self._get_pretty_tables(wrap_text=False,
                                                    max_rows_to_display=num_rows,
                                                    max_columns=num_columns,
                                                    max_column_width=max_column_width,
@@ -1228,7 +1249,7 @@ class XFrame(XObject):
         """
         max_rows_to_display = num_rows
 
-        row_of_tables = self.__get_pretty_tables__(wrap_text=False, 
+        row_of_tables = self._get_pretty_tables(wrap_text=False,
                                                    max_rows_to_display=max_rows_to_display,
                                                    max_row_width=MAX_ROW_WIDTH)
         if not footer:
@@ -1240,7 +1261,7 @@ class XFrame(XObject):
     def _repr_html_(self):
         max_rows_to_display = 10
 
-        row_of_tables = self.__get_pretty_tables__(wrap_text=True, 
+        row_of_tables = self._get_pretty_tables(wrap_text=True,
                                                    max_row_width=HTML_MAX_ROW_WIDTH,
                                                    max_columns=40, 
                                                    max_column_width=25, 
@@ -2666,7 +2687,7 @@ class XFrame(XObject):
         """
         return self.__impl__.is_materialized()
 
-    def __has_size__(self):
+    def _has_size(self):
         """
         Returns whether or not the size of the XFrame is known.
         """
