@@ -1136,7 +1136,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         """
         Used only in split_datetime.
         """
-        raise NotImplementedError('datetime_to_str')
+        raise NotImplementedError('expand')
 
     def datetime_to_str(self, str_format):
         """

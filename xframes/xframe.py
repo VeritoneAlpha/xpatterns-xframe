@@ -292,7 +292,7 @@ class XFrame(XObject):
                 return 'csv'
             else:
                 return 'xframe'
-        raise ValueError('Cannot infer input type for data {}.'.format(date))
+        raise ValueError('Cannot infer input type for data {}.'.format(data))
 
     @classmethod
     def set_max_row_width(cls, width):
@@ -1164,13 +1164,11 @@ class XFrame(XObject):
                 # check the max length of element in the column
                 header = _truncate_str(col, wrap_text)
                 if n_rows > 0:
-                    #col_width = min(max_column_width, max(max(len(str(x)) for x in headxf[col]), len(header) + 3))
                     col_width = min(max_column_width, max(max(len(str(x)) for x in cols[col]), len(header) + 3))
                 else:
                     col_width = max_column_width
                 if table_width + col_width < max_row_width:
-                    # truncate the header if necessary
-                    #tbl.add_column(header, [_truncate_str(str(x), wrap_text) for x in headxf[col]])
+                    # this is where a value is actually converted into a str
                     tbl.add_column(header, [_truncate_str(str(x), wrap_text) for x in cols[col]])
                     table_width = str(tbl).find('\n')
                     num_column_of_last_table += 1
