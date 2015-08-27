@@ -209,7 +209,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         use_header = get_config('use_header')
         comment_char = get_config('comment_char')
         na_values = get_config('na_values')
-        if not type(na_values) == list:
+        if not isinstance(na_values, list):
             na_values = [na_values]
         store_errors = get_config('store_errors')
         errors = {}
@@ -1244,12 +1244,12 @@ class XFrameImpl(XObjectImpl, TracedObject):
                     d[key] = new_val
             return d
 
-        if dtype == list:
+        if dtype is list:
             res = keys.map(lambda row: pack_row_list(row, fill_na))
-        elif dtype == array.array:
+        elif dtype is array.array:
             typecode = 'd'
             res = keys.map(lambda row: pack_row_array(row, fill_na, typecode))
-        elif dtype == dict:
+        elif dtype is dict:
             res = keys.map(lambda row: pack_row_dict(row, dict_keys, fill_na))
         else:
             raise NotImplementedError
@@ -1274,7 +1274,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         def transformer(row):
             row_as_dict = dict(zip(names, row))
             result = fn(row_as_dict)
-            if type(result) != dtype:
+            if not isinstance(result, dtype):
                 cast_result = dtype(result)
                 return cast_result
             return result
@@ -1305,7 +1305,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         def transformer(row):
             row_as_dict = dict(zip(names, row))
             result = fn(row_as_dict)
-            if type(result) != dtype:
+            if not isinstance(result,  dtype):
                 result = dtype(result)
             lst = list(row)
             lst[col_index] = result
@@ -1345,7 +1345,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
             for dtype_index, col_index in enumerate(col_indexes):
                 dtype = dtypes[dtype_index]
                 result_item = result[dtype_index]
-                lst[col_index] = result_item if type(result_item) == dtype else dtype(result_item)
+                lst[col_index] = result_item if isinstance(result_item, dtype) else dtype(result_item)
             return tuple(lst)
 
         res = self._rdd.map(transformer)
@@ -1388,7 +1388,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         new_col_names = unique_col_names
 
         def get_group_types(cols):
-            return [self.column_types[col] if type(col) is int else None for col in cols]
+            return [self.column_types[col] if isinstance(col, int) else None for col in cols]
 
         # make new column types
         new_col_types = [self.column_types[index] for index in key_cols]
