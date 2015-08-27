@@ -205,11 +205,11 @@ class XArray(XObject):
 
         Parameters
         ----------
-        value : [int | float | str | array.array | list | dict]
+        value : [int | float | str | array.array | datetime | list | dict]
           The value to fill the XArray.
 
         size : int
-          The size of the XArray.
+          The size of the XArray.  Must be positive.
 
         Examples
         --------
@@ -218,9 +218,11 @@ class XArray(XObject):
         >>> xframes.XArray.from_const(0, 10)
 
         """
-        if not isinstance(size, int) and size <= 0:
-            raise ValueError('Size must be a positive int.')
-        if type(value) not in {int, float, str, array.array, list, dict}:
+        if not isinstance(size, int):
+            raise TypeError('Size must be a int.')
+        if size <= 0:
+            raise ValueError('Size must be positive.')
+        if type(value) not in {int, float, str, array.array, datetime, list, dict}:
             raise TypeError("Cannot create xarray of value type '{}'.".format(type(value)))
         return cls(impl=XArrayImpl.load_from_const(value, size))
 
@@ -783,7 +785,7 @@ class XArray(XObject):
         [['a'], ['b']]
 
         """
-        if (self.dtype() != array.array) and (self.dtype() != list):
+        if (self.dtype() is array.array) and (self.dtype() is not list):
             raise RuntimeError("Only 'array.array' and 'list' type can be sliced.")
         if end is None:
             end = start + 1
@@ -821,7 +823,7 @@ class XArray(XObject):
         Rows: 2
         [{'quick': 1, 'brown': 1, 'jumps': 1, 'fox': 1, 'the': 1}, {'word': 5}]
         """
-        if self.dtype() != str:
+        if self.dtype() is not str:
             raise TypeError('Only XArray of string type is supported for counting bag of words.')
 
         # construct options, will extend over time
@@ -899,7 +901,7 @@ class XArray(XObject):
         Rows: 1
         {'fun': 2, 'nis': 1, 'sfu': 1, 'isf': 1, 'uni': 1}]
         """
-        if self.dtype() != str:
+        if self.dtype() is not str:
             raise TypeError('Only XArray of string type is supported for counting n-grams.')
 
         if not isinstance(n, int):
@@ -1593,7 +1595,7 @@ class XArray(XObject):
         ----------
         xframes.XArray.str_to_datetime
         """
-        if self.dtype() != datetime:
+        if self.dtype() is not datetime:
             raise TypeError('Datetime_to_str expects XArray of datetime as input XArray.')
 
         return XArray(impl=self.__impl__.datetime_to_str(str_format))
@@ -1625,7 +1627,7 @@ class XArray(XObject):
         ----------
         xframes.XArray.datetime_to_str
         """
-        if self.dtype() != str:
+        if self.dtype() is not str:
             raise TypeError("'Str_to_datetime' expects XArray of str as input XArray.")
 
         return XArray(impl=self.__impl__.str_to_datetime(str_format))
@@ -1891,7 +1893,7 @@ class XArray(XObject):
         """
         from xframes.sketch import Sketch
         if sub_sketch_keys is not None:
-            if self.dtype() != dict and self.dtype() != array.array:
+            if self.dtype() not in (dict, array.array):
                 raise TypeError("'Sub_sketch'_keys is only supported for " +
                                 'XArray of dictionary or array type')
             if not hasattr(sub_sketch_keys, "__iter__"):
@@ -1900,12 +1902,12 @@ class XArray(XObject):
             if len(value_types) != 1:
                 raise ValueError("'Sub_sketch_keys' member values need to have the same type.")
             value_type = value_types.pop()
-            if self.dtype() == dict and value_type != str:
+            if self.dtype() is dict and value_type is not str:
                 raise TypeError("Only string value(s) can be passed to 'sub_sketch_keys' " +
                                 'for XArray of dictionary type. ' +
                                 'For dictionary types, sketch summary is ' +
                                 'computed by casting keys to string values.')
-            if self.dtype() == array.array and value_type != int:
+            if self.dtype() is array.array and value_type is not int:
                 raise TypeError("Only int value(s) can be passed to 'sub_sketch_keys' " +
                                 'for XArray of array type')
 
@@ -1944,7 +1946,7 @@ class XArray(XObject):
         if not isinstance(other, XArray):
             raise RuntimeError('XArray append can only work with XArray.')
 
-        if self.dtype() != other.dtype():
+        if self.dtype() is not other.dtype():
             raise RuntimeError('Data types in both XArrays have to be the same.')
 
         return XArray(impl=self.__impl__.append(other.__impl__))
@@ -1999,7 +2001,7 @@ class XArray(XObject):
         Rows: 6
         [2, 3, 3, 1, 2, None]
         """
-        if self.dtype() not in [str, list, dict, array.array]:
+        if self.dtype() not in (str, list, dict, array.array):
             raise TypeError("Item_length() is only applicable for XArray of type 'str', 'list', " +
                             "'dict' and 'array'.")
 
@@ -2056,7 +2058,7 @@ class XArray(XObject):
             +-------+--------+
             [2 rows x 2 columns]
         """
-        if self.dtype() != datetime:
+        if self.dtype() is not datetime:
             raise TypeError('Only column of datetime type can be split.')
 
         if column_name_prefix is None:
@@ -2235,7 +2237,7 @@ class XArray(XObject):
                         
             return [col_types[key] for key in keys]
 
-        if self.dtype() not in [dict, array.array, list]:
+        if self.dtype() not in (dict, array.array, list):
             raise TypeError('Only XArray of dict/list/array type supports unpack.')
 
         if column_name_prefix is None:
@@ -2253,7 +2255,7 @@ class XArray(XObject):
                 raise TypeError("'Limit' contains values that are different types.")
 
             # limit value should be numeric if unpacking xarray.array value
-            if self.dtype() != dict and name_types.pop() != int:
+            if self.dtype() is not dict and name_types.pop() is not int:
                 raise TypeError("'Limit' must contain integer values.")
 
             if len(set(limit)) != len(limit):
@@ -2272,7 +2274,7 @@ class XArray(XObject):
             if limit is not None:
                 if len(limit) != len(column_types):
                     raise ValueError("'Limit' and 'column_types' do not have the same length.")
-            elif isinstance(self.dtype(), dict):
+            elif self.dtype() is dict:
                 raise ValueError("If 'column_types' is given, " +
                                  "'limit' has to be provided to unpack dict type.")
             else:
@@ -2288,7 +2290,7 @@ class XArray(XObject):
 
             # infer column types for dict type at server side, 
             # for list and array, infer from client side
-            if self.dtype() != dict:
+            if self.dtype() is not dict:
                 length = max(lengths)
                 if limit is None:
                     limit = range(length)
@@ -2296,7 +2298,7 @@ class XArray(XObject):
                     # adjust the length
                     length = len(limit)
 
-                if self.dtype() == array.array:
+                if self.dtype() is array.array:
                     column_types = [float for _ in range(length)]
                 else:
                     column_types = list()
@@ -2305,7 +2307,7 @@ class XArray(XObject):
                              for x in head_rows]
                         column_types.append(infer_type_of_list(t))
 
-            else:                      # self.dtype() == dict
+            else:                      # self.dtype() is dict
                 if limit is None:  
                     keys = set()
                     for row in head_rows:
