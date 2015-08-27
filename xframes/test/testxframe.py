@@ -2308,11 +2308,38 @@ class TestXFrameSplitDatetime(unittest.TestCase):
 
     def test_split_datetime(self):
         t = XFrame({'id': [1, 2, 3], 'val': [datetime(2011, 1, 1), 
-                                             datetime(2011, 2, 2),
-                                             datetime(2011, 3, 3)]})
-        with self.assertRaises(NotImplementedError):
-            t.split_datetime('val')
-        
+                                             datetime(2012, 2, 2),
+                                             datetime(2013, 3, 3)]})
+        res = t.split_datetime('val')
+        print res
+        self.assertEqual(['id',
+                          'val.year', 'val.month', 'val.day',
+                          'val.hour', 'val.minute', 'val.second'], res.column_names())
+        self.assertEqual([int, int, int, int, int, int, int], res.column_types())
+        self.assertEqual(3, len(res))
+        self.assertTrue(eq_list([1, 2, 3], res['id']))
+        self.assertTrue(eq_list([2011, 2012, 2013], res['val.year']))
+        self.assertTrue(eq_list([1, 2, 3], res['val.month']))
+        self.assertTrue(eq_list([1, 2, 3], res['val.day']))
+        self.assertTrue(eq_list([0, 0, 0], res['val.hour']))
+        self.assertTrue(eq_list([0, 0, 0], res['val.minute']))
+        self.assertTrue(eq_list([0, 0, 0], res['val.second']))
+
+    def test_split_datetime_col_conflict(self):
+        t = XFrame({'id': [1, 2, 3],
+                    'val.year': ['x', 'y', 'z'],
+                    'val': [datetime(2011, 1, 1),
+                            datetime(2012, 2, 2),
+                            datetime(2013, 3, 3)]})
+        res = t.split_datetime('val', limit='year')
+        print res
+        self.assertEqual(['id', 'val.year', 'val.year.1'], res.column_names())
+        self.assertEqual([int, str, int], res.column_types())
+        self.assertEqual(3, len(res))
+        self.assertTrue(eq_list([1, 2, 3], res['id']))
+        self.assertTrue(eq_list(['x', 'y', 'z'], res['val.year']))
+        self.assertTrue(eq_list([2011, 2012, 2013], res['val.year.1']))
+
     def test_split_datetime_bad_col(self):
         t = XFrame({'id': [1, 2, 3], 'val': [datetime(2011, 1, 1), 
                                              datetime(2011, 2, 2),
