@@ -19,7 +19,7 @@ import math
 import time
 import array
 import warnings
-import datetime
+from datetime import datetime
 
 import numpy
 
@@ -33,13 +33,13 @@ __all__ = ['XArray']
 
 
 def _create_sequential_xarray(size, start=0, reverse=False):
-    if type(size) is not int:
+    if not isinstance(size, int):
         raise TypeError('Size must be int.')
 
-    if type(start) is not int:
+    if not isinstance(start, int):
         raise TypeError('Size must be int.')
 
-    if type(reverse) is not bool:
+    if not isinstance(reverse, bool):
         raise TypeError('Reverse must me bool.')
 
     return XArray(impl=XArrayImpl.create_sequential_xarray(size, start, reverse))
@@ -126,13 +126,13 @@ class XArray(XObject):
         Construct a new XArray. The source of data includes: list,
         numpy.ndarray, pandas.Series, and urls.
         """
-        if dtype is not None and type(dtype) != type:
+        if dtype is not None and not isinstance(type, type):
             raise TypeError("Dtype must be a type, e.g. use int rather than 'int'.")
 
         if impl:
             self.__impl__ = impl
             return
-        if type(data) == XArray:
+        if isinstance(data, XArray):
             self.__impl__ = data.__impl__
             return
 
@@ -218,7 +218,7 @@ class XArray(XObject):
         >>> xframes.XArray.from_const(0, 10)
 
         """
-        if type(size) is int and size <= 0:
+        if not isinstance(size, int) and size <= 0:
             raise ValueError('Size must be a positive int.')
         if type(value) not in {int, float, str, array.array, list, dict}:
             raise TypeError("Cannot create xarray of value type '{}'.".format(type(value)))
@@ -336,7 +336,7 @@ class XArray(XObject):
 
         """
 
-        if type(number_of_partitions) is not int:
+        if not isinstance(number_of_partitions, int):
             raise ValueError('Number_of_partitions parameter expects an integer type.')
         if number_of_partitions == 0:
             raise ValueError('Number_of_partitions can not be initialized to zero.')
@@ -432,7 +432,7 @@ class XArray(XObject):
         the new result. If other is an XArray, performs an element-wise
         addition of the two arrays.
         """
-        if type(other) is XArray:
+        if isinstance(other, XArray):
             return XArray(impl=self.__impl__.vector_operator(other.__impl__, '+'))
         else:
             return XArray(impl=self.__impl__.left_scalar_operator(other, '+'))
@@ -443,7 +443,7 @@ class XArray(XObject):
         the new result. If other is an XArray, performs an element-wise
         subtraction of the two arrays.
         """
-        if type(other) is XArray:
+        if isinstance(other, XArray):
             return XArray(impl=self.__impl__.vector_operator(other.__impl__, '-'))
         else:
             return XArray(impl=self.__impl__.left_scalar_operator(other, '-'))
@@ -454,7 +454,7 @@ class XArray(XObject):
         the new result. If other is an XArray, performs an element-wise
         multiplication of the two arrays.
         """
-        if type(other) is XArray:
+        if isinstance(other, XArray):
             return XArray(impl=self.__impl__.vector_operator(other.__impl__, '*'))
         else:
             return XArray(impl=self.__impl__.left_scalar_operator(other, '*'))
@@ -465,7 +465,7 @@ class XArray(XObject):
         by the value, returning the result. If other is an XArray, performs
         an element-wise division of the two arrays.
         """
-        if type(other) is XArray:
+        if isinstance(other, XArray):
             return XArray(impl=self.__impl__.vector_operator(other.__impl__, '/'))
         else:
             return XArray(impl=self.__impl__.left_scalar_operator(other, '/'))
@@ -484,7 +484,7 @@ class XArray(XObject):
         by the value, returning the result. If other is an XArray, performs
         an element-wise comparison of the two arrays.
         """
-        if type(other) is XArray:
+        if isinstance(other, XArray):
             return XArray(impl=self.__impl__.vector_operator(other.__impl__, '<'))
         else:
             return XArray(impl=self.__impl__.left_scalar_operator(other, '<'))
@@ -495,7 +495,7 @@ class XArray(XObject):
         by the value, returning the result. If other is an XArray, performs
         an element-wise comparison of the two arrays.
         """
-        if type(other) is XArray:
+        if isinstance(other, XArray):
             return XArray(impl=self.__impl__.vector_operator(other.__impl__, '>'))
         else:
             return XArray(impl=self.__impl__.left_scalar_operator(other, '>'))
@@ -506,7 +506,7 @@ class XArray(XObject):
         by the value, returning the result. If other is an XArray, performs
         an element-wise comparison of the two arrays.
         """
-        if type(other) is XArray:
+        if isinstance(other, XArray):
             return XArray(impl=self.__impl__.vector_operator(other.__impl__, '<='))
         else:
             return XArray(impl=self.__impl__.left_scalar_operator(other, '<='))
@@ -517,7 +517,7 @@ class XArray(XObject):
         by the value, returning the result. If other is an XArray, performs
         an element-wise comparison of the two arrays.
         """
-        if type(other) is XArray:
+        if isinstance(other, XArray):
             return XArray(impl=self.__impl__.vector_operator(other.__impl__, '>='))
         else:
             return XArray(impl=self.__impl__.left_scalar_operator(other, '>='))
@@ -574,7 +574,7 @@ class XArray(XObject):
         by the value, returning the new result. If other is an XArray, performs
         an element-wise comparison of the two arrays.
         """
-        if type(other) is XArray:
+        if isinstance(other, XArray):
             return XArray(impl=self.__impl__.vector_operator(other.__impl__, '=='))
         else:
             return XArray(impl=self.__impl__.left_scalar_operator(other, '=='))
@@ -585,7 +585,7 @@ class XArray(XObject):
         by the value, returning the new result. If other is an XArray, performs
         an element-wise comparison of the two arrays.
         """
-        if type(other) is XArray:
+        if isinstance(other, XArray):
             return XArray(impl=self.__impl__.vector_operator(other.__impl__, '!='))
         else:
             return XArray(impl=self.__impl__.left_scalar_operator(other, '!='))
@@ -594,7 +594,7 @@ class XArray(XObject):
         """
         Perform a logical element-wise 'and' against another XArray.
         """
-        if type(other) is XArray:
+        if isinstance(other, XArray):
             return XArray(impl=self.__impl__.vector_operator(other.__impl__, '&'))
         else:
             raise TypeError('XArray can only perform logical and against another XArray.')
@@ -603,7 +603,7 @@ class XArray(XObject):
         """
         Perform a logical element-wise 'or' against another XArray.
         """
-        if type(other) is XArray:
+        if isinstance(other, XArray):
             return XArray(impl=self.__impl__.vector_operator(other.__impl__, '|'))
         else:
             raise TypeError('XArray can only perform logical or against another XArray.')
@@ -617,17 +617,17 @@ class XArray(XObject):
         the XArray. If the key is a slice, this returns an XArray with the
         sliced rows. 
         """
-        if type(other) is XArray:
+        if isinstance(other, XArray):
             if len(other) != len(self):
                 raise IndexError('Cannot perform logical indexing on arrays of different length.')
             return XArray(impl=self.__impl__.logical_filter(other.__impl__))
-        elif type(other) is int:
+        elif isinstance(other, int):
             if other < 0:
                 other += len(self)
             if other >= len(self):
                 raise IndexError('XArray index out of range.')
             return list(XArray(impl=self.__impl__.copy_range(other, 1, other + 1)))[0]
-        elif type(other) is slice:
+        elif isinstance(other, slice):
             start = other.start
             stop = other.stop
             step = other.step
@@ -902,7 +902,7 @@ class XArray(XObject):
         if self.dtype() != str:
             raise TypeError('Only XArray of string type is supported for counting n-grams.')
 
-        if type(n) != int:
+        if not isinstance(n, int):
             raise TypeError("Input 'n' must be of type int.")
 
         if n < 1:
@@ -1593,7 +1593,7 @@ class XArray(XObject):
         ----------
         xframes.XArray.str_to_datetime
         """
-        if self.dtype() != datetime.datetime:
+        if self.dtype() != datetime:
             raise TypeError('Datetime_to_str expects XArray of datetime as input XArray.')
 
         return XArray(impl=self.__impl__.datetime_to_str(str_format))
@@ -1861,7 +1861,7 @@ class XArray(XObject):
         This is used internally by XFrame's topk function.
         """
 
-        if type(topk) is not int:
+        if not isinstance(topk, int):
             raise TypeError("'Topk_index': topk must be an integer ({})".format(topk))
         return XArray(impl=self.__impl__.topk_index(topk, reverse))
 
@@ -1941,7 +1941,7 @@ class XArray(XObject):
         Rows: 6
         [1, 2, 3, 4, 5, 6]
         """
-        if type(other) is not XArray:
+        if not isinstance(other, XArray):
             raise RuntimeError('XArray append can only work with XArray.')
 
         if self.dtype() != other.dtype():
@@ -2005,7 +2005,7 @@ class XArray(XObject):
 
         return XArray(impl=self.__impl__.item_length())
 
-    def split_datetime(self, column_name_prefix='X', limit=None, tzone=False):
+    def split_datetime(self, column_name_prefix='X', limit=None):
         """
         Splits an XArray of datetime type to multiple columns, return a
         new XFrame that contains expanded columns. A XArray of datetime will be
@@ -2018,25 +2018,16 @@ class XArray(XObject):
         "column_name_prefix" and defaults to 'X'. If column_name_prefix is
         None or empty, then no prefix is used.
 
-        Timezone column:
-        If tzone parameter is True, then timezone information is represented
-        as one additional column which is a float shows the offset from
-        GMT(0.0) or from UTC.
-
         Parameters
         ----------
         column_name_prefix: str, optional
             If provided, expanded column names would start with the given prefix.
             Defaults to "X".
 
-        limit: list[str], optional
+        limit: str, list[str], optional
             Limits the set of datetime elements to expand.
-            Elements are 'year','month','day','hour','minute',
+            Elements may be 'year','month','day','hour','minute',
             and 'second'.
-
-        tzone: bool, optional
-            A boolean parameter that determines whether to show timezone column or not.
-            Defaults to False.
 
         Returns
         -------
@@ -2048,10 +2039,10 @@ class XArray(XObject):
         To expand only day and year elements of a datetime XArray
 
          >>> xa = XArray(
-            [datetime(2011, 1, 21, 7, 7, 21, tzinfo=GMT(0)),
-             datetime(2010, 2, 5, 7, 8, 21, tzinfo=GMT(4.5)])
+            [datetime(2011, 1, 21, 7, 7, 21),
+             datetime(2010, 2, 5, 7, 8, 21])
 
-         >>> xa.expand(column_name_prefix=None,limit=['day','year'])
+         >>> xa.split_datetime(column_name_prefix=None,limit=['day','year'])
             Columns:
                 day   int
                 year  int
@@ -2064,49 +2055,32 @@ class XArray(XObject):
             |   5   |  2010  |
             +-------+--------+
             [2 rows x 2 columns]
-
-
-        To expand only year and tzone elements of a datetime XArray
-        with tzone column represented as a string. Columns are named with prefix:
-        'Y.column_name'.
-
-        >>> xa.split_datetime(column_name_prefix='Y',limit=['year'],tzone=True)
-            Columns:
-                Y.year  int
-                Y.tzone float
-            Rows: 2
-            Data:
-            +----------+---------+
-            |  Y.year  | Y.tzone |
-            +----------+---------+
-            |    2011  |  0.0    |
-            |    2010  |  4.5    |
-            +----------+---------+
-            [2 rows x 2 columns]
-
         """
-        if self.dtype() != datetime.datetime:
-            raise TypeError('Only column of datetime type is supported.')
+        if self.dtype() != datetime:
+            raise TypeError('Only column of datetime type can be split.')
 
         if column_name_prefix is None:
             column_name_prefix = ''
-        if type(column_name_prefix) != str:
+        if not  isinstance(column_name_prefix, str):
             raise TypeError("'Column_name_prefix' must be a string.")
 
         # convert limit to column_keys
         if limit is not None:
+            if isinstance(limit, str):
+                limit = [limit]
+
             if not hasattr(limit, '__iter__'):
                 raise TypeError("'Limit' must be a list.")
 
-            name_types = set([type(i) for i in limit])
-            if len(name_types) != 1:
-                raise TypeError("'Limit' contains values that are different types.")
+            for lim in limit:
+                if not isinstance(lim, str):
+                    raise TypeError("'Limit' must contain string values.")
 
-            if name_types.pop() != str:
-                raise TypeError("'Limit' must contain string values.")
+            for item in limit:
+                if item not in ['year', 'month', 'day', 'hour', 'minute', 'second']:
+                    raise ValueError("'Limit' values may be 'year', 'month', 'day', 'hour', 'minute', or 'second': {}"
+                                     .format(item))
 
-            if len(set(limit)) != len(limit):
-                raise ValueError("'Limit' contains duplicate values.")
 
         if limit is not None:
             column_types = list()
@@ -2116,11 +2090,7 @@ class XArray(XObject):
             limit = ['year', 'month', 'day', 'hour', 'minute', 'second']
             column_types = [int, int, int, int, int, int]
 
-        if tzone:
-            limit += ['tzone']
-            column_types += [float]
-
-        return xframes.XFrame(impl=self.__impl__.expand(column_name_prefix, limit, column_types))
+        return xframes.XFrame(impl=self.__impl__.split_datetime(column_name_prefix, limit, column_types))
 
     def unpack(self, column_name_prefix='X', column_types=None, na_value=None, limit=None):
         """
@@ -2251,7 +2221,7 @@ class XArray(XObject):
         def is_missing(val):
             if val is None:
                 return True
-            if type(val) == float and math.isnan(val):
+            if isinstance(val, float) and math.isnan(val):
                 return True
             return False
 
@@ -2270,7 +2240,7 @@ class XArray(XObject):
 
         if column_name_prefix is None:
             column_name_prefix = ""
-        if type(column_name_prefix) != str:
+        if not isinstance(column_name_prefix, str):
             raise TypeError("'Column_name_prefix' must be a string.")
 
         # validdate 'limit'
@@ -2302,7 +2272,7 @@ class XArray(XObject):
             if limit is not None:
                 if len(limit) != len(column_types):
                     raise ValueError("'Limit' and 'column_types' do not have the same length.")
-            elif self.dtype() == dict:
+            elif isinstance(self.dtype(), dict):
                 raise ValueError("If 'column_types' is given, " +
                                  "'limit' has to be provided to unpack dict type.")
             else:
@@ -2374,6 +2344,6 @@ class XArray(XObject):
         [1, 2, 3]
 
         """
-        if self.dtype() not in (int, float, str, datetime.datetime):
+        if self.dtype() not in (int, float, str, datetime):
             raise TypeError("Only xarray with type ('int', 'float', 'str', and 'datetime.datetime)' can be sorted.")
         return XArray(impl=self.__impl__.sort(ascending))
