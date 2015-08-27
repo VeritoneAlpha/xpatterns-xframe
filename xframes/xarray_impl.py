@@ -10,6 +10,7 @@ import csv
 import copy
 import StringIO
 import random
+import datetime
 
 import xframes
 from xframes.xobject_impl import XObjectImpl
@@ -1134,9 +1135,23 @@ class XArrayImpl(XObjectImpl, TracedObject):
     # Date/Time Handling
     def expand(self, column_name_prefix, limit, column_types):
         """
-        Used only in split_datetime.
+        Used by split_datetime.
         """
-        raise NotImplementedError('expand')
+        # generate new column names
+        new_names = [column_name_prefix + '.' + name for name in limit]
+        extract_map = {'year': datetime.year,
+                       'month': datetime.month,
+                       'day': datetime.day,
+                       'hour': datetime.hour,
+                       'minute': datetime.minute,
+                       'second': datetime.second
+                       }
+
+        def expander(val, limit):
+            return tuple([val.__getattr__(extract_map[lim] for lim in limit)])
+        res = self._rdd.map(lambda x: expander(x, limit))
+        self._exit()
+        return self._rv_frame(res._rdd, new_names, column_types)
 
     def datetime_to_str(self, str_format):
         """

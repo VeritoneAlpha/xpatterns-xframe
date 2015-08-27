@@ -15,15 +15,16 @@ All rights reserved.
 """
 
 import array
-from prettytable import PrettyTable
 from textwrap import wrap
-import datetime
+from datetime import datetime
 import inspect
 import time
 import itertools
 from sys import stderr
 
+from prettytable import PrettyTable
 import numpy
+import dateutil
 
 from xframes.deps import pandas, HAS_PANDAS
 from xframes.deps import dataframeplus, HAS_DATAFRAME_PLUS
@@ -124,7 +125,6 @@ class XFrame(XObject):
     The following functionality is currently not implemented.
         - pack_columns data types except list, array, and dict
         - groupby quantile
-        - split_datetime
 
     See Also
     --------
@@ -3355,6 +3355,8 @@ class XFrame(XObject):
         if column_name_prefix is None:
             column_name_prefix = expand_column
 
+        # let xarray.split_datetime check limit parameter
+
         new_xf = self[expand_column].split_datetime(column_name_prefix, limit, tzone)
 
         # construct return XFrame, check if there is conflict
@@ -4294,7 +4296,7 @@ class XFrame(XObject):
             if column not in my_column_names:
                 raise ValueError("XFrame has no column named: '{}'.".format(column))
             else:
-                sortable_types = (str, int, float, numpy.int32, datetime.datetime)
+                sortable_types = (str, int, float, numpy.int32, datetime)
             if self[column].dtype() not in sortable_types:
                 raise TypeError("Only columns of type ('str', 'int', 'float', 'numpy.int32') can be sorted: {}."
                                 .format(self[column].dtype()))
