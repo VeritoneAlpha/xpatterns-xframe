@@ -1094,9 +1094,6 @@ class XFrame(XObject):
         -------
         out : list[PrettyTable]
         """
-        # TODO use take to get just be beginning rows
-        # We are going to need a column of values at a time
-        # Take should return a list of tuples
         head_rows = self.__impl__.rdd().take(max_rows_to_display+1)
         if len(head_rows) == 0:
             return [PrettyTable()]
@@ -1112,12 +1109,13 @@ class XFrame(XObject):
         for index, col_name in enumerate(self.column_names()[:max_columns]):
             cols[col_name] = [row[index] for row in head_rows]
 
-#        headxf = self.head(max_rows_to_display)
-#        if headxf.shape == (0, 0):
-#            return [PrettyTable()]
-#        n_rows = headxf.num_rows()
+        def as_string(x):
+            """
+            This is where a value gets converted to a string for printing.
+            """
+            return str(x)
 
-        def _truncate_str(s, wrap_str=False):
+        def truncate_str(s, wrap_str=False):
             """
             Truncate and optionally wrap the input string as unicode, replace
             unconvertible character with a diamond ?.
@@ -1162,14 +1160,14 @@ class XFrame(XObject):
             while len(columns) > 0:
                 col = columns.pop()
                 # check the max length of element in the column
-                header = _truncate_str(col, wrap_text)
+                header = truncate_str(col, wrap_text)
                 if n_rows > 0:
-                    col_width = min(max_column_width, max(max(len(str(x)) for x in cols[col]), len(header) + 3))
+                    col_width = min(max_column_width, max(max(len(as_string(x)) for x in cols[col]), len(header) + 3))
                 else:
                     col_width = max_column_width
                 if table_width + col_width < max_row_width:
                     # this is where a value is actually converted into a str
-                    tbl.add_column(header, [_truncate_str(str(x), wrap_text) for x in cols[col]])
+                    tbl.add_column(header, [truncate_str(as_string(x), wrap_text) for x in cols[col]])
                     table_width = str(tbl).find('\n')
                     num_column_of_last_table += 1
                 else:
@@ -3285,7 +3283,7 @@ class XFrame(XObject):
 
         return XFrame(impl=self.__impl__.join(right.__impl__, how, join_keys))
 
-    def split_datetime(self, expand_column, column_name_prefix=None, limit=None, tzone=False):
+    def split_datetime(self, expand_column, column_name_prefix=None, limit=None):
         """
         Splits a datetime column of XFrame to multiple columns, with each value in a
         separate column. Returns a new XFrame with the expanded column replaced with
@@ -3308,10 +3306,6 @@ class XFrame(XObject):
             Elements are 'year','month','day','hour','minute',
             and 'second'.
 
-        tzone : bool, optional
-            A boolean parameter that determines whether to show the timezone
-            column or not. Defaults to False.
-
         Returns
         -------
         out : XFrame
@@ -3330,8 +3324,8 @@ class XFrame(XObject):
             +----+-------------------------------------------------+
             | id |               submission                        |
             +----+-------------------------------------------------+
-            | 1  | datetime(2011, 1, 21, 7, 17, 21, tzinfo=GMT(+1))|
-            | 2  | datetime(2011, 1, 21, 5, 43, 21, tzinfo=GMT(+1))|
+            | 1  | datetime(2011, 1, 21, 7, 17, 21)                |
+            | 2  | datetime(2011, 1, 21, 5, 43, 21)                |
             +----+-------------------------------------------------+
 
         >>> xf.split_datetime('submission',limit=['hour','minute'])
@@ -3349,6 +3343,7 @@ class XFrame(XObject):
         +----+-----------------+-------------------+
 
         """
+        # TODO: example above output is not correct -- prints differently
         if expand_column not in self.column_names():
             raise KeyError("Column '{}' does not exist in current XFrame.".format(expand_column))
 
@@ -3357,7 +3352,7 @@ class XFrame(XObject):
 
         # let xarray.split_datetime check limit parameter
 
-        new_xf = self[expand_column].split_datetime(column_name_prefix, limit, tzone)
+        new_xf = self[expand_column].split_datetime(column_name_prefix, limit)
 
         # construct return XFrame, check if there is conflict
         rest_columns = [name for name in self.column_names() if name != expand_column]
