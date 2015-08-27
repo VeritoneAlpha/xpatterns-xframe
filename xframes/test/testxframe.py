@@ -1696,17 +1696,17 @@ class TestXFrameDelitem(unittest.TestCase):
 
 class TestXFrameHasSize(unittest.TestCase):
     """
-    Tests XFrame __hassize__
+    Tests XFrame _has_size
     """
 
     def test_hassize_false(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        self.assertFalse(t.__has_size__())
+        self.assertFalse(t._has_size())
 
     def test_hassize_true(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         len(t)
-        self.assertTrue(t.__has_size__())
+        self.assertTrue(t._has_size())
 
 
 class TestXFrameIter(unittest.TestCase):
@@ -2311,7 +2311,6 @@ class TestXFrameSplitDatetime(unittest.TestCase):
                                              datetime(2012, 2, 2),
                                              datetime(2013, 3, 3)]})
         res = t.split_datetime('val')
-        print res
         self.assertEqual(['id',
                           'val.year', 'val.month', 'val.day',
                           'val.hour', 'val.minute', 'val.second'], res.column_names())
@@ -2332,7 +2331,6 @@ class TestXFrameSplitDatetime(unittest.TestCase):
                             datetime(2012, 2, 2),
                             datetime(2013, 3, 3)]})
         res = t.split_datetime('val', limit='year')
-        print res
         self.assertEqual(['id', 'val.year', 'val.year.1'], res.column_names())
         self.assertEqual([int, str, int], res.column_types())
         self.assertEqual(3, len(res))
