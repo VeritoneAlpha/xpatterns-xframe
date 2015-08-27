@@ -1,6 +1,7 @@
 import unittest
 import math
 import os
+from array import array
 from datetime import datetime
 
 # python testxarray.py
@@ -225,6 +226,12 @@ class TestXArrayFromConst(unittest.TestCase):
         self.assertEqual(10, len(t))
         self.assertEqual('a', t[0])
         self.assertEqual(str, t.dtype())
+
+    def test_from_const_datetime(self):
+        t = XArray.from_const(datetime(2015, 10, 11), 10)
+        self.assertEqual(10, len(t))
+        self.assertEqual(datetime(2015, 10, 11), t[0])
+        self.assertEqual(datetime, t.dtype())
 
     def test_from_const_list(self):
         t = XArray.from_const([1, 2], 10)
@@ -1419,6 +1426,7 @@ class TestXArrayAstype(unittest.TestCase):
     """ 
     Tests XArray astype
     """
+    # TODO test datetime, array.array
     def test_astype_empty(self):
         t = XArray([])
         res = t.astype(int)
@@ -1465,6 +1473,20 @@ class TestXArrayAstype(unittest.TestCase):
         res = t.astype(dict)
         self.assertEqual(dict, res.dtype())
         self.assertEqual({'a': 1, 'b': 2}, res[0])
+
+    def test_astype_str_array(self):
+        t = XArray(['[1, 2, 3]', '[4, 5, 6]'])
+        res = t.astype(array)
+        self.assertEqual(array, res.dtype())
+        self.assertTrue([1, 2, 3], res[0])
+
+    def test_astype_str_datetime(self):
+        t = XArray(['Aug 23, 2015', '2015 8 24'])
+        res = t.astype(datetime)
+        self.assertEqual(datetime, res.dtype())
+        self.assertTrue(datetime(2015, 8, 23), res[0])
+        self.assertTrue(datetime(2015, 8, 24), res[1])
+
 
 
 class TestXArrayClip(unittest.TestCase):
