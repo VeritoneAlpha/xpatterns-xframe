@@ -10,7 +10,7 @@ import csv
 import copy
 import StringIO
 import random
-import datetime
+from datetime import datetime
 
 import xframes
 from xframes.xobject_impl import XObjectImpl
@@ -1133,23 +1133,34 @@ class XArrayImpl(XObjectImpl, TracedObject):
         return self._rv(res, int)
 
     # Date/Time Handling
-    def expand(self, column_name_prefix, limit, column_types):
+    def split_datetime(self, column_name_prefix, limit, column_types):
         """
-        Used by split_datetime.
+        Split a datatime value into separate columns.
         """
         # generate new column names
-        new_names = [column_name_prefix + '.' + name for name in limit]
-        extract_map = {'year': datetime.year,
-                       'month': datetime.month,
-                       'day': datetime.day,
-                       'hour': datetime.hour,
-                       'minute': datetime.minute,
-                       'second': datetime.second
-                       }
+        if column_name_prefix != '':
+            new_names = [column_name_prefix + '.' + name for name in limit]
+        else:
+            new_names = [name for name in limit]
 
-        def expander(val, limit):
-            return tuple([val.__getattr__(extract_map[lim] for lim in limit)])
-        res = self._rdd.map(lambda x: expander(x, limit))
+        def expand_datetime_field(val, limit):
+            if limit == 'year':
+                return val.year
+            if limit == 'month':
+                return val.month
+            if limit == 'day':
+                return val.day
+            if limit == 'hour':
+                return val.hour
+            if limit == 'minute':
+                return val.minute
+            if limit == 'second':
+                return val.second
+            return None
+
+        def expand_datetime(val, limit):
+            return tuple([expand_datetime_field(val, lim) for lim in limit])
+        res = self._rdd.map(lambda x: expand_datetime(x, limit))
         self._exit()
         return self._rv_frame(res._rdd, new_names, column_types)
 
