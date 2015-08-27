@@ -1,6 +1,7 @@
 import unittest
 import math
 import os
+from datetime import datetime
 
 # python testxarray.py
 # python -m unittest testxarray
@@ -8,6 +9,7 @@ import os
 # python -m unittest testxarray.TestXArrayVersion.test_version
 
 from xframes import XArray
+from xframes import XFrame
 
 
 def eq_list(expected, result):
@@ -1889,6 +1891,107 @@ class TestXArrayItemLength(unittest.TestCase):
         res = t.item_length()
         self.assertTrue(eq_list([1, 2, 3], res))
         self.assertEqual(int, res.dtype())
+
+
+class TestXArraySplitDatetime(unittest.TestCase):
+    """
+    Tests XArray split_datetime
+    """
+
+    def test_split_datetime_year(self):
+        t = XArray([datetime(2011, 1, 1),
+                    datetime(2012, 2, 2),
+                    datetime(2013, 3, 3)])
+        res = t.split_datetime('date', limit='year')
+        self.assertTrue(isinstance(res, XFrame))
+        self.assertEqual(['date.year'], res.column_names())
+        self.assertEqual([int], res.column_types())
+        self.assertEqual(3, len(res))
+        self.assertTrue(eq_list([2011, 2012, 2013], res['date.year']))
+
+    def test_split_datetime_year_mo(self):
+        t = XArray([datetime(2011, 1, 1),
+                    datetime(2012, 2, 2),
+                    datetime(2013, 3, 3)])
+        res = t.split_datetime('date', limit=['year', 'month'])
+        self.assertTrue(isinstance(res, XFrame))
+        self.assertEqual(['date.year', 'date.month'], res.column_names())
+        self.assertEqual([int, int], res.column_types())
+        self.assertEqual(3, len(res))
+        self.assertTrue(eq_list([2011, 2012, 2013], res['date.year']))
+        self.assertTrue(eq_list([1, 2, 3], res['date.month']))
+
+    def test_split_datetime_all(self):
+        t = XArray([datetime(2011, 1, 1, 1, 1,1),
+                    datetime(2012, 2, 2, 2, 2, 2),
+                    datetime(2013, 3, 3, 3, 3, 3)])
+        res = t.split_datetime('date')
+        self.assertTrue(isinstance(res, XFrame))
+        self.assertEqual(['date.year', 'date.month', 'date.day',
+                          'date.hour', 'date.minute', 'date.second'], res.column_names())
+        self.assertEqual([int, int, int, int, int, int], res.column_types())
+        self.assertEqual(3, len(res))
+        self.assertTrue(eq_list([2011, 2012, 2013], res['date.year']))
+        self.assertTrue(eq_list([1, 2, 3], res['date.month']))
+        self.assertTrue(eq_list([1, 2, 3], res['date.day']))
+        self.assertTrue(eq_list([1, 2, 3], res['date.hour']))
+        self.assertTrue(eq_list([1, 2, 3], res['date.minute']))
+        self.assertTrue(eq_list([1, 2, 3], res['date.second']))
+
+    def test_split_datetime_year_no_prefix(self):
+        t = XArray([datetime(2011, 1, 1),
+                    datetime(2012, 2, 2),
+                    datetime(2013, 3, 3)])
+        res = t.split_datetime(limit='year')
+        self.assertTrue(isinstance(res, XFrame))
+        self.assertEqual(['X.year'], res.column_names())
+        self.assertEqual([int], res.column_types())
+        self.assertEqual(3, len(res))
+        self.assertTrue(eq_list([2011, 2012, 2013], res['X.year']))
+
+    def test_split_datetime_year_null_prefix(self):
+        t = XArray([datetime(2011, 1, 1),
+                    datetime(2012, 2, 2),
+                    datetime(2013, 3, 3)])
+        res = t.split_datetime(column_name_prefix=None, limit='year')
+        self.assertTrue(isinstance(res, XFrame))
+        self.assertEqual(['year'], res.column_names())
+        self.assertEqual([int], res.column_types())
+        self.assertEqual(3, len(res))
+        self.assertTrue(eq_list([2011, 2012, 2013], res['year']))
+
+    def test_split_datetime_bad_col_type(self):
+        t = XArray([1, 2, 3])
+        with self.assertRaises(TypeError):
+            t.split_datetime('date')
+
+    def test_split_datetime_bad_prefix_type(self):
+        t = XArray([datetime(2011, 1, 1),
+                    datetime(2011, 2, 2),
+                    datetime(2011, 3, 3)])
+        with self.assertRaises(TypeError):
+            t.split_datetime(1)
+
+    def test_split_datetime_bad_limit_val(self):
+        t = XArray([datetime(2011, 1, 1),
+                    datetime(2011, 2, 2),
+                    datetime(2011, 3, 3)])
+        with self.assertRaises(ValueError):
+            t.split_datetime('date', limit='xx')
+
+    def test_split_datetime_bad_limit_type(self):
+        t = XArray([datetime(2011, 1, 1),
+                    datetime(2011, 2, 2),
+                    datetime(2011, 3, 3)])
+        with self.assertRaises(TypeError):
+            t.split_datetime('date', limit=1)
+
+    def test_split_datetime_bad_limit_not_list(self):
+        t = XArray([datetime(2011, 1, 1),
+                    datetime(2011, 2, 2),
+                    datetime(2011, 3, 3)])
+        with self.assertRaises(TypeError):
+            t.split_datetime('date', limit=datetime(2011, 1, 1))
 
 
 class TestXArrayUnpackErrors(unittest.TestCase):
