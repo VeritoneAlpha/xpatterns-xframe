@@ -218,7 +218,7 @@ class XFrame(XObject):
         elif _format == 'dict':
             xf = XFrameImpl()
             for key, val in iter(sorted(data.iteritems())):
-                if type(val) == XArray:
+                if isinstance(val, XArray):
                     xf.add_column(val.__impl__, key)
                 else:
                     xf.add_column(XArray(val).__impl__, key)
@@ -1850,9 +1850,9 @@ class XFrame(XObject):
             except ValueError:
                 raise ValueError('Cast failed: (float) {}'.format(val))
 
-        if new_type in [int]:
+        if new_type is int:
             return XFrame(impl=self.__impl__.transform_cols([column_name], cast_int, [int], 0))
-        if new_type in [float]:
+        if new_type is float:
             return XFrame(impl=self.__impl__.transform_cols([column_name], cast_float, [float], 0))
 
         return self
@@ -3063,7 +3063,7 @@ class XFrame(XObject):
             if column not in my_column_names:
                 raise KeyError("Column '{}' does not exist in XFrame".format(column))
             col_type = my_column_types[my_column_names.index(column)]
-            if col_type == dict:
+            if col_type is dict:
                 raise TypeError('Cannot group on a dictionary column.')
             key_columns_array.append(column)
 
@@ -3440,7 +3440,7 @@ class XFrame(XObject):
 
         existing_type = self.column_types()[existing_columns.index(column_name)]
         given_type = value_xf.column_types()[0]
-        if given_type != existing_type:
+        if given_type is not existing_type:
             raise TypeError("Type of given values ('{}') does not match type of column '{}' ('{}') in XFrame."
                             .format(given_type, column_name, existing_type))
 
@@ -3664,7 +3664,7 @@ class XFrame(XObject):
             raise ValueError("Resulting dtype has to be one of 'dict', 'array.array', or 'list type.")
 
         # fill_na value for array needs to be numeric
-        if dtype == array.array:
+        if dtype is array.array:
             if fill_na is not None and type(fill_na) not in (int, float):
                 raise ValueError('Fill_na value for array needs to be numeric type.')
             # all columns have to be numeric type
@@ -3676,7 +3676,7 @@ class XFrame(XObject):
         # we try to be smart here
         # if all column names are like: a.b, a.c, a.d,...
         # we then use "b", "c", "d", etc as the dictionary key during packing
-        if dtype == dict and column_prefix is not None and remove_prefix:
+        if dtype is dict and column_prefix is not None and remove_prefix:
             size_prefix = len(column_prefix)
             first_char = set([c[size_prefix:size_prefix + 1] for c in columns])
             if len(first_char) == 1 and first_char.pop() in ['.', '-', '_']:
@@ -3967,7 +3967,7 @@ class XFrame(XObject):
             raise ValueError("Cannot find column '{}' in the XFrame.".format(column_name))
 
         stack_column_type = self[column_name].dtype()
-        if stack_column_type not in [dict, array.array, list]:
+        if stack_column_type not in (dict, array.array, list):
             raise TypeError("Stack is only supported for column of 'dict', 'list', or 'array' type.")
 
         if new_column_name is not None:
@@ -3986,7 +3986,7 @@ class XFrame(XObject):
                 if name in self.column_names() and name != column_name:
                     raise ValueError("Column with name '{}' already exists, pick a new column name.".format(name))
         else:
-            if stack_column_type == dict:
+            if stack_column_type is dict:
                 new_column_name = ['', '']
             else:
                 new_column_name = ['']
@@ -3996,7 +3996,7 @@ class XFrame(XObject):
         head_row = XArray(self[column_name].head(100)).dropna()
         if len(head_row) == 0:
             raise ValueError('Cannot infer column type because there are not enough rows to infer value.')
-        if stack_column_type == dict:
+        if stack_column_type is dict:
             # infer key/value type
             keys = []
             values = []
@@ -4014,7 +4014,7 @@ class XFrame(XObject):
             values = [v for v in itertools.chain.from_iterable(head_row)]
             new_column_type = [infer_type_of_list(values)]
 
-        if stack_column_type == dict:
+        if stack_column_type is dict:
             return XFrame(impl=self.__impl__.stack_dict(column_name, new_column_name, new_column_type, drop_na))
         else:
             return XFrame(impl=self.__impl__.stack_list(column_name, new_column_name, new_column_type, drop_na))
@@ -4268,10 +4268,10 @@ class XFrame(XObject):
                 raise ValueError('Sort_columns element are not of the same type.')
 
             first_param_type = first_param_types.pop()
-            if first_param_type == tuple:
+            if first_param_type is tuple:
                 sort_column_names = [i[0] for i in sort_columns]
                 sort_column_orders = [i[1] for i in sort_columns]
-            elif first_param_type == str:
+            elif first_param_type is str:
                 sort_column_names = sort_columns
             else:
                 raise TypeError('Sort_columns type is not supported.')
