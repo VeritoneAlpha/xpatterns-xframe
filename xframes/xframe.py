@@ -16,7 +16,7 @@ All rights reserved.
 
 import array
 from textwrap import wrap
-from datetime import datetime
+import datetime
 import inspect
 import time
 import itertools
@@ -24,7 +24,6 @@ from sys import stderr
 
 from prettytable import PrettyTable
 import numpy
-import dateutil
 
 from xframes.deps import pandas, HAS_PANDAS
 from xframes.deps import dataframeplus, HAS_DATAFRAME_PLUS
@@ -1066,9 +1065,11 @@ class XFrame(XObject):
             ret += '\tNone\n\n'
         return ret
 
-    def _get_pretty_tables(self, wrap_text=False, max_row_width=MAX_ROW_WIDTH,
-                              max_column_width=30, max_columns=20,
-                              max_rows_to_display=60):
+    def _get_pretty_tables(self,
+                           wrap_text=False,
+                           max_row_width=MAX_ROW_WIDTH,
+                           max_column_width=30, max_columns=20,
+                           max_rows_to_display=60):
         """
         Returns a list of pretty print tables representing the current XFrame.
         If the number of columns is larger than max_columns, the last pretty
@@ -1094,7 +1095,7 @@ class XFrame(XObject):
         -------
         out : list[PrettyTable]
         """
-        head_rows = self.__impl__.rdd().take(max_rows_to_display+1)
+        head_rows = self.__impl__.rdd().take(max_rows_to_display + 1)
         if len(head_rows) == 0:
             return [PrettyTable()]
         if len(head_rows) > max_rows_to_display:
@@ -1113,6 +1114,9 @@ class XFrame(XObject):
             """
             This is where a value gets converted to a string for printing.
             """
+            if isinstance(x, datetime.datetime):
+                if x.hour == 0 and x.minute == 0 and x.second == 0:
+                    return x.strftime('%Y-%m-%d')
             return str(x)
 
         def truncate_str(s, wrap_str=False):
@@ -1231,10 +1235,10 @@ class XFrame(XObject):
         max_row_width = max(max_row_width, max_column_width + 1)
 
         row_of_tables = self._get_pretty_tables(wrap_text=False,
-                                                   max_rows_to_display=num_rows,
-                                                   max_columns=num_columns,
-                                                   max_column_width=max_column_width,
-                                                   max_row_width=max_row_width)
+                                                max_rows_to_display=num_rows,
+                                                max_columns=num_columns,
+                                                max_column_width=max_column_width,
+                                                max_row_width=max_row_width)
         footer = self._create_footer(False, max_rows_to_display)
         print '\n'.join([str(tb) for tb in row_of_tables]) + '\n' + footer
 
@@ -1246,8 +1250,8 @@ class XFrame(XObject):
         max_rows_to_display = num_rows
 
         row_of_tables = self._get_pretty_tables(wrap_text=False,
-                                                   max_rows_to_display=max_rows_to_display,
-                                                   max_row_width=MAX_ROW_WIDTH)
+                                                max_rows_to_display=max_rows_to_display,
+                                                max_row_width=MAX_ROW_WIDTH)
         if not footer:
             return '\n'.join([str(tb) for tb in row_of_tables])
 
@@ -1258,10 +1262,10 @@ class XFrame(XObject):
         max_rows_to_display = 10
 
         row_of_tables = self._get_pretty_tables(wrap_text=True,
-                                                   max_row_width=HTML_MAX_ROW_WIDTH,
-                                                   max_columns=40, 
-                                                   max_column_width=25, 
-                                                   max_rows_to_display=max_rows_to_display)
+                                                max_row_width=HTML_MAX_ROW_WIDTH,
+                                                max_columns=40,
+                                                max_column_width=25,
+                                                max_rows_to_display=max_rows_to_display)
         footer = self._create_footer(True, max_rows_to_display)
         begin = '<div style="max-height:1000px;max-width:1500px;overflow:auto;">'
         end = '\n</div>'
@@ -3287,7 +3291,7 @@ class XFrame(XObject):
         """
         Splits a datetime column of XFrame to multiple columns, with each value in a
         separate column. Returns a new XFrame with the expanded column replaced with
-        a list of new columns. The expanded column must be of datetime type.
+        a list of new columns. The expanded column must be of datetime.datetime type.
 
         For more details regarding name generation and
         other, refer to :py:func:`xframes.XArray.expand()`
@@ -3318,15 +3322,15 @@ class XFrame(XObject):
         >>> xf
         Columns:
             id   int
-            submission  datetime
+            submission  datetime.datetime
         Rows: 2
         Data:
-            +----+-------------------------------------------------+
-            | id |               submission                        |
-            +----+-------------------------------------------------+
-            | 1  | datetime(2011, 1, 21, 7, 17, 21)                |
-            | 2  | datetime(2011, 1, 21, 5, 43, 21)                |
-            +----+-------------------------------------------------+
+            +----+----------------------------------------------------------+
+            | id |               submission                                 |
+            +----+----------------------------------------------------------+
+            | 1  | datetime.datetime(2011, 1, 21, 7, 17, 21)                |
+            | 2  | datetime.datetime(2011, 1, 21, 5, 43, 21)                |
+            +----+----------------------------------------------------------+
 
         >>> xf.split_datetime('submission',limit=['hour','minute'])
         Columns:
@@ -4291,7 +4295,7 @@ class XFrame(XObject):
             if column not in my_column_names:
                 raise ValueError("XFrame has no column named: '{}'.".format(column))
             else:
-                sortable_types = (str, int, float, numpy.int32, datetime)
+                sortable_types = (str, int, float, numpy.int32, datetime.datetime)
             if self[column].dtype() not in sortable_types:
                 raise TypeError("Only columns of type ('str', 'int', 'float', 'numpy.int32') can be sorted: {}."
                                 .format(self[column].dtype()))
