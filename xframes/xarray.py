@@ -19,7 +19,7 @@ import math
 import time
 import array
 import warnings
-from datetime import datetime
+import datetime
 
 import numpy
 
@@ -205,7 +205,7 @@ class XArray(XObject):
 
         Parameters
         ----------
-        value : [int | float | str | array.array | datetime | list | dict]
+        value : [int | float | str | array.array | datetime.datetime | list | dict]
           The value to fill the XArray.
 
         size : int
@@ -222,7 +222,7 @@ class XArray(XObject):
             raise TypeError('Size must be a int.')
         if size <= 0:
             raise ValueError('Size must be positive.')
-        if type(value) not in {int, float, str, array.array, datetime, list, dict}:
+        if type(value) not in {int, float, str, array.array, datetime.datetime, list, dict}:
             raise TypeError("Cannot create xarray of value type '{}'.".format(type(value)))
         return cls(impl=XArrayImpl.load_from_const(value, size))
 
@@ -1595,7 +1595,7 @@ class XArray(XObject):
         ----------
         xframes.XArray.str_to_datetime
         """
-        if self.dtype() is not datetime:
+        if self.dtype() is not datetime.datetime:
             raise TypeError('Datetime_to_str expects XArray of datetime as input XArray.')
 
         return XArray(impl=self.__impl__.datetime_to_str(str_format))
@@ -1620,13 +1620,13 @@ class XArray(XObject):
         --------
         >>> xa = xframes.XArray(['20-Oct-2011 09:30:10 GMT-05:30'])
         >>> xa.str_to_datetime('%d-%b-%Y %H:%M:%S %ZP')
-        dtype: datetime
+        dtype: datetime.datetime
         Rows: 1
         datetime.datetime(2011, 10, 20, 9, 30, 10)
 
         >>> xa = xframes.XArray(['Aug 23, 2015'])
         >>> xa.str_to_datetime()
-        dtype: datetime
+        dtype: datetime.datetime
         Rows: 1
         datetime.datetime(2015, 8, 23, 0, 0, 0)
 
@@ -2048,8 +2048,8 @@ class XArray(XObject):
         To expand only day and year elements of a datetime XArray
 
          >>> xa = XArray(
-            [datetime(2011, 1, 21, 7, 7, 21),
-             datetime(2010, 2, 5, 7, 8, 21])
+            [datetime.datetime(2011, 1, 21, 7, 7, 21),
+             datetime.datetime(2010, 2, 5, 7, 8, 21])
 
          >>> xa.split_datetime(column_name_prefix=None,limit=['day','year'])
             Columns:
@@ -2065,7 +2065,7 @@ class XArray(XObject):
             +-------+--------+
             [2 rows x 2 columns]
         """
-        if self.dtype() is not datetime:
+        if self.dtype() is not datetime.datetime:
             raise TypeError('Only column of datetime type can be split.')
 
         if column_name_prefix is None:
@@ -2353,6 +2353,6 @@ class XArray(XObject):
         [1, 2, 3]
 
         """
-        if self.dtype() not in (int, float, str, datetime):
+        if self.dtype() not in (int, float, str, datetime.datetime):
             raise TypeError("Only xarray with type ('int', 'float', 'str', and 'datetime.datetime)' can be sorted.")
         return XArray(impl=self.__impl__.sort(ascending))
