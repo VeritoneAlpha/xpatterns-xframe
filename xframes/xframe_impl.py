@@ -11,9 +11,11 @@ import StringIO
 import ast
 import shutil
 from sys import stderr
+import datetime
 from tempfile import NamedTemporaryFile
 
 import numpy
+from dateutil import parser
 
 from xframes.deps import HAS_PANDAS
 from pyspark.sql import DataFrame
@@ -367,6 +369,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
             try:
                 if typ == dict or typ == list:
                     return ast.literal_eval(val)
+                if isinstance(val, str) and typ is datetime.datetime:
+                    return parser.parse(val)
                 return typ(val)
             except ValueError:
                 raise ValueError('Cast failed: ({}) {}  col: {}'.format(typ, val, name))
