@@ -25,8 +25,8 @@ import numpy
 
 from xframes.deps import pandas, HAS_PANDAS
 from xframes.xobject import XObject
-from xframes.xarray_impl import XArrayImpl, infer_type_of_list
-from xframes.util import make_internal_url, pytype_from_dtype
+from xframes.xarray_impl import XArrayImpl
+from xframes.util import make_internal_url, infer_type_of_list, pytype_from_dtype
 import xframes
 
 __all__ = ['XArray']
@@ -157,7 +157,7 @@ class XArray(XObject):
     @staticmethod
     def _classify_auto(data):
         if isinstance(data, list):
-            # if it is a list, Get the first type and make sure
+            # if it is a list, get the first type and make sure
             # the remaining items are all of the same type
             return infer_type_of_list(data)
         elif isinstance(data, array.array):

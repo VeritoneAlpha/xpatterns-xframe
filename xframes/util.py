@@ -475,6 +475,7 @@ def infer_type_of_list(data):
     Use the first type, and check to make sure the rest are of that type.
     Missing values are skipped.
     """
+    # TODO attempt to parse string as datetime
     candidate = None
     for d in data:
         if d is None:
