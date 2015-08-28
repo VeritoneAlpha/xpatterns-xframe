@@ -1411,7 +1411,19 @@ class TestXArrayDatetimeToStr(unittest.TestCase):
     Tests XArray datetime_to_str
     """
     def test_datetime_to_str(self):
-        pass
+        t = XArray([datetime(2015, 8, 21),
+                    datetime(2016, 9, 22),
+                    datetime(2017, 10, 23)])
+        res = t.datetime_to_str('%Y %m %d')
+        self.assertEqual(str, res.dtype())
+        self.assertEqual('2015 08 21', res[0])
+        self.assertEqual('2016 09 22', res[1])
+        self.assertEqual('2017 10 23', res[2])
+
+    def test_datetime_to_str_bad_type(self):
+        t = XArray([1, 2, 3])
+        with self.assertRaises(TypeError):
+            res = t.datetime_to_str('%Y %M %d')
 
 
 class TestXArrayStrToDatetime(unittest.TestCase):
@@ -1419,14 +1431,32 @@ class TestXArrayStrToDatetime(unittest.TestCase):
     Tests XArray str_to_datetime
     """
     def test_str_to_datetime(self):
-        pass
+        t = XArray(['2015 08 21', '2015 08 22', '2015 08 23'])
+        res = t.str_to_datetime('%Y %m %d')
+        self.assertEqual(datetime, res.dtype())
+        self.assertEqual(datetime(2015, 8, 21), res[0])
+        self.assertEqual(datetime(2015, 8, 22), res[1])
+        self.assertEqual(datetime(2015, 8, 23), res[2])
+
+    def test_str_to_datetime_parse(self):
+        t = XArray(['2015 8 21', '2015 Aug 22', '23 Aug 2015', 'Aug 24 2015'])
+        res = t.str_to_datetime()
+        self.assertEqual(datetime, res.dtype())
+        self.assertEqual(datetime(2015, 8, 21), res[0])
+        self.assertEqual(datetime(2015, 8, 22), res[1])
+        self.assertEqual(datetime(2015, 8, 23), res[2])
+        self.assertEqual(datetime(2015, 8, 24), res[3])
+
+    def test_str_to_datetime_bad_type(self):
+        t = XArray([1, 2, 3])
+        with self.assertRaises(TypeError):
+            t.str_to_datetime()
 
 
 class TestXArrayAstype(unittest.TestCase):
     """ 
     Tests XArray astype
     """
-    # TODO test datetime, array.array
     def test_astype_empty(self):
         t = XArray([])
         res = t.astype(int)

@@ -1182,19 +1182,25 @@ class XArrayImpl(XObjectImpl, TracedObject):
 
     def datetime_to_str(self, str_format):
         """
-        Create a new RDD with all the values cast to str. The string format is
-        specified by the 'str_format' parameter.
+        Create a new RDD with all the values converted to str according to str_format.
         """
         self._entry(str_format=str_format)
-        raise NotImplementedError('datetime_to_str')
+        res = self._rdd.map(lambda x: x.strftime(str_format))
+        self._exit()
+        return self._rv(res, str)
 
     def str_to_datetime(self, str_format):
         """
-        Create a new RDD with all the values cast to datetime. The string format is
-        specified by the 'str_format' parameter.
+        Create a new RDD with all the values converted to datetime by datetime.strptime.
+        If not str_format is given, use dateutil.parser.
         """
         self._entry(str_format=str_format)
-        raise NotImplementedError('str_to_datetime')
+        if str_format is None:
+            res = self._rdd.map(lambda x: parser.parse(x))
+        else:
+            res = self._rdd.map(lambda x: datetime.strptime(x, str_format))
+        self._exit()
+        return self._rv(res, datetime)
 
     # Text Processing
     def count_bag_of_words(self, options):

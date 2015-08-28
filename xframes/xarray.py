@@ -1600,15 +1600,16 @@ class XArray(XObject):
 
         return XArray(impl=self.__impl__.datetime_to_str(str_format))
 
-    def str_to_datetime(self, str_format='%Y-%m-%dT%H:%M:%S%ZP'):
+    def str_to_datetime(self, str_format=None):
         """
-        Create a new XArray with all the values cast to datetime. The string format is
+        Create a new XArray whose column type is datetime. The string format is
         specified by the 'str_format' parameter.
 
         Parameters
         ----------
-        str_format : str
-            The string format of the input XArray. Default format is "%Y-%m-%dT%H:%M:%S%ZP".
+        str_format : str, optional
+            The string format of the input XArray.
+            If not given, dateutil parser is used.
 
         Returns
         -------
@@ -1621,7 +1622,13 @@ class XArray(XObject):
         >>> xa.str_to_datetime('%d-%b-%Y %H:%M:%S %ZP')
         dtype: datetime
         Rows: 1
-        datetime.datetime(2011, 10, 20, 9, 30, 10, tzinfo=GMT(-5.5))
+        datetime.datetime(2011, 10, 20, 9, 30, 10)
+
+        >>> xa = xframes.XArray(['Aug 23, 2015'])
+        >>> xa.str_to_datetime()
+        dtype: datetime
+        Rows: 1
+        datetime.datetime(2015, 8, 23, 0, 0, 0)
 
         See Also
         ----------
