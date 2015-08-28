@@ -10,7 +10,7 @@ import csv
 import copy
 import StringIO
 import random
-from datetime import datetime, timedelta
+import datetime
 from dateutil import parser
 
 import xframes
@@ -151,7 +151,9 @@ class XArrayImpl(XObjectImpl, TracedObject):
         def do_cast(x, dtype, ignore_cast_failure):
             if is_missing(x):
                 return x
-            if type(x) == dtype:
+            if isinstance(x,str) and dtype is datetime.datetime:
+                return parser.parse(x)
+            if isinstance(x, dtype):
                 return x
             try:
                 return dtype(x)
@@ -189,7 +191,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         It can also be a directory, and spark will read and concatenate them all.
         """
         # Read the file as string
-        # Examine the first 100 lines, and cast if necessary to int or float
+        # Examine the first 100 lines, and cast if necessary to int, float, or datetime
         cls._entry(path=path, dtype=dtype)
         # If the path is a directory, then look for sarray-data file in the directory.
         # If the path is a file, look for that file
@@ -208,6 +210,8 @@ class XArrayImpl(XObjectImpl, TracedObject):
         if dtype != str:
             if dtype in (list, dict):
                 res = res.map(lambda x: ast.literal_eval(x))
+            elif dtype is datetime.datetime:
+                res = res.map(lambda x: parser.parse(x))
             else:
                 res = res.map(lambda x: dtype(x))
         cls._exit()
@@ -749,9 +753,9 @@ class XArrayImpl(XObjectImpl, TracedObject):
                     return dtype(x)
                 if dtype is str:
                     return dtype(x)
-                if dtype is datetime:
+                if dtype is datetime.datetime:
                     dt = parser.parse(x)
-                    if isinstance(dt, datetime):
+                    if isinstance(dt, datetime.datetime):
                         return dt
                     raise ValueError
                 if dtype in (list, dict):
@@ -1198,9 +1202,9 @@ class XArrayImpl(XObjectImpl, TracedObject):
         if str_format is None:
             res = self._rdd.map(lambda x: parser.parse(x))
         else:
-            res = self._rdd.map(lambda x: datetime.strptime(x, str_format))
+            res = self._rdd.map(lambda x: datetime.datetime.strptime(x, str_format))
         self._exit()
-        return self._rv(res, datetime)
+        return self._rv(res, datetime.datetime)
 
     # Text Processing
     def count_bag_of_words(self, options):
