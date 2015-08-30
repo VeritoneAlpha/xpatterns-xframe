@@ -110,15 +110,16 @@ def make_internal_url(url):
                                  'HADOOP_HOME and try again.')
             else:
                 return url
-        elif protocol == 's3':
+        elif protocol == 's3' or protocol == 's3n':
             if len(path.split(":")) == 3:
                 # s3 url already contains secret key/id pairs, just return
-                return url
+                pass
             else:
                 # s3 url does not contain secret key/id pair, query the environment variables
 #                k, v = get_credentials()
 #                return 's3n://' + k + ':' + v + '@' + path
-                return 's3n://' + path
+                url = 's3n://' + path
+                return url
         elif protocol == 'remote':
             # url for files on the server
             path_on_server = path
@@ -133,7 +134,7 @@ def make_internal_url(url):
                 raise ValueError('Cannot use local URL when connecting to a remote server.')
         else:
             raise ValueError('Invalid url protocol {}. Supported url protocols are: '
-                             'remote://, local://, s3://, https:// and hdfs://'.format(protocol))
+                             's3:// and hdfs://'.format(protocol))
     elif len(urlsplit) == 1:
         # expand ~ to $HOME
         url = os.path.expanduser(url)
