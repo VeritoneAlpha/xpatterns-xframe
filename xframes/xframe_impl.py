@@ -262,7 +262,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 uncache(pairs)
                 raw = filtered_pairs.keys()
             else:
-                lines = raw.take(row_limit)
+                take_limit = row_limit + 1 if use_header else row_limit
+                lines = raw.take(take_limit)
                 raw = XRdd(sc.parallelize(lines))
 
         # TODO: Use per partition operations to create a reader once per partition
@@ -390,11 +391,10 @@ class XFrameImpl(XObjectImpl, TracedObject):
         return errors
 
     # noinspection PyUnusedLocal
-    def read_from_text(self, path, delimiter, nrows, verbose):
+    def read_from_text(self, path, delimiter, nrows):
         """
         Load RDD from a text file
         """
-        # TODO handle nrows, verbose
         self._entry(path=path)
         sc = self.spark_context()
         if delimiter is None:
@@ -411,6 +411,16 @@ class XFrameImpl(XObjectImpl, TracedObject):
             def fixup_line(line):
                 return str(line).replace('\n', ' ').strip()
             res = rdd.values().map(lambda line: (fixup_line(line), ))
+        if nrows:
+            if nrows > 100:
+                pairs = res.zipWithIndex()
+                cache(pairs)
+                filtered_pairs = pairs.filter(lambda x: x[1] < nrows)
+                uncache(pairs)
+                res = filtered_pairs.keys()
+            else:
+                lines = res.take(nrows)
+                res = XRdd(sc.parallelize(lines))
         col_names = ['text']
         col_types = [str]
         self._exit()
