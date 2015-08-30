@@ -78,7 +78,6 @@ class XFrame(XObject):
     * the XFrames Server's file system
     * HDFS
     * Amazon S3
-    * HTTP(S).
 
     Only basic examples of construction are covered here. For more information
     and examples, please see the `User Guide`
@@ -92,8 +91,10 @@ class XFrame(XObject):
         stored in the XFrame. If `data` is an object supporting iteritems, then is is handled
         like a dictionary.  If `data` is an object supporting iteration, then the values
         are iterated to form the XFrame.  If `data` is a string, it is interpreted as a
-        file. Files can be read from local file system or urls (local://,
-        hdfs://, s3://, http://, or remote://).
+        file. Files can be read from local file system or urls (hdfs://, s3://, or other
+        Hadoop-supported file systems).  To read files from s3, you must set the
+        AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables, even if the
+        file is publicly accessible.
 
     format : string, optional
         Format of the data. The default, "auto" will automatically infer the
@@ -115,9 +116,6 @@ class XFrame(XObject):
         - "rdd"
         - "spark.dataframe"
         - "xframe"
-
-    verbose : bool, optional
-        If True, print the progress while reading a file.
 
     Notes
     -----
@@ -174,14 +172,14 @@ class XFrame(XObject):
 
     Create an XFrame from a remote CSV file.
 
-    >>> url = 'http://testdatasets.s3-website-us-west-2.amazonaws.com/users.csv.gz'
+    >>> url = 's3://atg-testdata/user.csv.gz'
     >>> xf = XFrame.read_csv(url,
     ...     delimiter=',', header=True, comment_char="#",
     ...     column_type_hints={'user_id': int})
     """
 
     # noinspection PyShadowingBuiltins
-    def __init__(self, data=None, format='auto', impl=None, verbose=False):
+    def __init__(self, data=None, format='auto', impl=None):
         """__init__(data=list(), format='auto')
         Construct a new XFrame from a url, a pandas.DataFrame or a Spark RDD or DataFrame.
         """
@@ -231,15 +229,15 @@ class XFrame(XObject):
             self.__impl__ = xf
         elif _format == 'csv':
             url = make_internal_url(data)
-            tmpxf = XFrame.read_csv(url, delimiter=',', header=True, verbose=verbose)
+            tmpxf = XFrame.read_csv(url, delimiter=',', header=True)
             self.__impl__ = tmpxf.__impl__
         elif _format == 'tsv':
             url = make_internal_url(data)
-            tmpxf = XFrame.read_csv(url, delimiter='\t', header=True, verbose=verbose)
+            tmpxf = XFrame.read_csv(url, delimiter='\t', header=True)
             self.__impl__ = tmpxf.__impl__
         elif _format == 'psv':
             url = make_internal_url(data)
-            tmpxf = XFrame.read_csv(url, delimiter='|', header=True, verbose=verbose)
+            tmpxf = XFrame.read_csv(url, delimiter='|', header=True)
             self.__impl__ = tmpxf.__impl__
         elif _format == 'parquet':
             url = make_internal_url(data)
@@ -441,7 +439,6 @@ class XFrame(XObject):
                        column_type_hints=None,
                        na_values=None,
                        nrows=None,
-                       verbose=False,
                        store_errors=True):
         """
         Constructs an XFrame from a CSV file or a path to multiple CSVs, and
@@ -499,20 +496,20 @@ class XFrame(XObject):
                     skip_initial_space=skip_initial_space)
                 column_type_hints = XFrame._infer_column_types_from_lines(first_rows, na_values)
                 typelist = '[' + ','.join(t.__name__ for t in column_type_hints) + ']'
-                if verbose:
-                    print >>stderr, '------------------------------------------------------'
-                    print >>stderr, 'Inferred types from first line of file as '
-                    print >>stderr, 'column_type_hints=' + typelist
-                    print >>stderr, 'If parsing fails due to incorrect types, you can correct'
-                    print >>stderr, 'the inferred type list above and pass it to read_csv in'
-                    print >>stderr, 'the column_type_hints argument'
-                    print >>stderr, '------------------------------------------------------'
+# TODO move to where cast fails
+#                if verbose:
+#                    print >>stderr, '------------------------------------------------------'
+#                    print >>stderr, 'Inferred types from first line of file as '
+#                    print >>stderr, 'column_type_hints=' + typelist
+#                    print >>stderr, 'If parsing fails due to incorrect types, you can correct'
+#                    print >>stderr, 'the inferred type list above and pass it to read_csv in'
+#                    print >>stderr, 'the column_type_hints argument'
+#                    print >>stderr, '------------------------------------------------------'
                 column_type_inference_was_used = True
             except Exception as e:
                 # If the above fails, default back to str for all columns.
-                if verbose:
-                    print >>stderr, 'Error', type(e), e
-                    print >>stderr, 'Could not detect types. Using str for each column.'
+                print >>stderr, 'Error', type(e), e
+                print >>stderr, 'Could not detect types. Using str for each column.'
                 column_type_hints = str
 
         if type(column_type_hints) is type:
@@ -553,8 +550,7 @@ class XFrame(XObject):
                              skip_initial_space=True,
                              column_type_hints=None,
                              na_values=None,
-                             nrows=None,
-                             verbose=False):
+                             nrows=None):
         """
         Constructs an XFrame from a CSV file or a path to multiple CSVs, and
         returns a pair containing the XFrame and a dict of filenames to XArrays
@@ -574,7 +570,7 @@ class XFrame(XObject):
 
         header : bool, optional
             If true, uses the first row as the column names. Otherwise use the
-            default column names: 'X.1, X.2, ...'.
+            default column names: 'X.0, X.1, ...'.
 
         comment_char : string, optional
             The character which denotes that the
@@ -620,9 +616,6 @@ class XFrame(XObject):
         nrows : int, optional
             If set, only this many rows will be read from the file.
 
-        verbose : bool, optional
-            If True, print the progress while reading files.
-
         Returns
         -------
         out : tuple
@@ -639,7 +632,7 @@ class XFrame(XObject):
 
         Examples
         --------
-        >>> bad_url = 'https://s3.amazonaws.com/gl-testdata/bad_csv_example.csv'
+        >>> bad_url = 's3://atg-testdata/rating_bad_csv.csv'
         >>> (xf, bad_lines) = xframes.XFrame.read_csv_with_errors(bad_url)
         >>> xf
         +---------+----------+--------+
@@ -655,10 +648,11 @@ class XFrame(XObject):
         [98 rows x 3 columns]
 
         >>> bad_lines
-        {'https://s3.amazonaws.com/gl-testdata/bad_csv_example.csv': dtype: str
+        {'s3://atg-testdata/rating_bad_csv.csv': dtype: str
          Rows: 1
          ['x,y,z,a,b,c']}
         """
+        # TODO work on bad lines example
         na_values = na_values or '[NA]'
         return cls._read_csv_impl(url,
                                   delimiter=delimiter,
@@ -674,7 +668,6 @@ class XFrame(XObject):
                                   column_type_hints=column_type_hints,
                                   na_values=na_values,
                                   nrows=nrows,
-                                  verbose=verbose,
                                   store_errors=True)
 
     @classmethod
@@ -690,8 +683,7 @@ class XFrame(XObject):
                  skip_initial_space=True,
                  column_type_hints=None,
                  na_values=None,
-                 nrows=None,
-                 verbose=False):
+                 nrows=None):
         """
         Constructs an XFrame from a CSV file or a path to multiple CSVs.
 
@@ -707,7 +699,7 @@ class XFrame(XObject):
 
         header : bool, optional
             If true, uses the first row as the column names. Otherwise use the
-            default column names : 'X1, X2, ...'.
+            default column names : 'X.0, X.1, ...'.
 
         error_bad_lines : bool
             If true, will fail upon encountering a bad line. If false, will
@@ -757,9 +749,6 @@ class XFrame(XObject):
         nrows : int, optional
             If set, only this many rows will be read from the file.
 
-        verbose : bool, optional
-            If True, print the progress while reading files.
-
         Returns
         -------
         out : XFrame
@@ -778,67 +767,80 @@ class XFrame(XObject):
         Read a regular csv file, with all default options, automatically
         determine types:
 
-        >>> url = 'http://s3.amazonaws.com/gl-testdata/rating_data_example.csv'
+        >>> url = 's3://atg-testdata/rating.csv'
         >>> xf = xframes.XFrame.read_csv(url)
-        >>> xf
-        Columns:
-          user_id int
-          movie_id  int
-          rating  int
-        Rows: 10000
-        +---------+----------+--------+
-        | user_id | movie_id | rating |
-        +---------+----------+--------+
-        |  25904  |   1663   |   3    |
-        |  25907  |   1663   |   3    |
-        |  25923  |   1663   |   3    |
-        |  25924  |   1663   |   3    |
-        |  25928  |   1663   |   2    |
-        |   ...   |   ...    |  ...   |
-        +---------+----------+--------+
-        [10000 rows x 3 columns]
+        >>> print xf
+        >>> print xf.column_types()
+        >>> print len(xf)
+        +---------+---------+--------+-----------+
+        | user_id | item_id | rating | timestamp |
+        +---------+---------+--------+-----------+
+        |   196   |   242   |   3    | 881250949 |
+        |   186   |   302   |   3    | 891717742 |
+        |    22   |   377   |   1    | 878887116 |
+        |   244   |    51   |   2    | 880606923 |
+        |   166   |   346   |   1    | 886397596 |
+        |   298   |   474   |   4    | 884182806 |
+        |   115   |   265   |   2    | 881171488 |
+        |   253   |   465   |   5    | 891628467 |
+        |   305   |   451   |   3    | 886324817 |
+        |    6    |    86   |   3    | 883603013 |
+        |   ...   |   ...   |  ...   |    ...    |
+        +---------+---------+--------+-----------+
 
-        Read only the first 100 lines of the csv file:
+        <type 'int'>, <type 'int'>, <type 'int'>, <type 'int'>]
+        50
 
-        >>> xf = xframes.XFrame.read_csv(url, nrows=100)
-        >>> xf
-        Columns:
-          user_id int
-          movie_id  int
-          rating  int
-        Rows: 100
-        +---------+----------+--------+
-        | user_id | movie_id | rating |
-        +---------+----------+--------+
-        |  25904  |   1663   |   3    |
-        |  25907  |   1663   |   3    |
-        |  25923  |   1663   |   3    |
-        |  25924  |   1663   |   3    |
-        |  25928  |   1663   |   2    |
-        |   ...   |   ...    |  ...   |
-        +---------+----------+--------+
-        [100 rows x 3 columns]
+        Read only the first 20 lines of the csv file:
+
+        >>> xf = xframes.XFrame.read_csv(url, nrows=20)
+        >>> print xf
+        >>> print xf.column_types()
+        >>> print len(xf)
+
+        +---------+---------+--------+-----------+
+        | user_id | item_id | rating | timestamp |
+        +---------+---------+--------+-----------+
+        |   196   |   242   |   3    | 881250949 |
+        |   186   |   302   |   3    | 891717742 |
+        |    22   |   377   |   1    | 878887116 |
+        |   244   |    51   |   2    | 880606923 |
+        |   166   |   346   |   1    | 886397596 |
+        |   298   |   474   |   4    | 884182806 |
+        |   115   |   265   |   2    | 881171488 |
+        |   253   |   465   |   5    | 891628467 |
+        |   305   |   451   |   3    | 886324817 |
+        |    6    |    86   |   3    | 883603013 |
+        |   ...   |   ...   |  ...   |    ...    |
+        +---------+---------+--------+-----------+
+
+        <type 'int'>, <type 'int'>, <type 'int'>, <type 'int'>]
+        20
 
         Read all columns as str type
 
         >>> xf = xframes.XFrame.read_csv(url, column_type_hints=str)
-        >>> xf
-        Columns:
-          user_id  str
-          movie_id  str
-          rating  str
-        Rows: 10000
-        +---------+----------+--------+
-        | user_id | movie_id | rating |
-        +---------+----------+--------+
-        |  25904  |   1663   |   3    |
-        |  25907  |   1663   |   3    |
-        |  25923  |   1663   |   3    |
-        |  25924  |   1663   |   3    |
-        |  25928  |   1663   |   2    |
-        |   ...   |   ...    |  ...   |
-        +---------+----------+--------+
-        [10000 rows x 3 columns]
+        >>> print xf
+        >>> print xf.column_types()
+        >>> print len(xf)
+        +---------+---------+--------+-----------+
+        | user_id | item_id | rating | timestamp |
+        +---------+---------+--------+-----------+
+        |   196   |   242   |   3    | 881250949 |
+        |   186   |   302   |   3    | 891717742 |
+        |    22   |   377   |   1    | 878887116 |
+        |   244   |    51   |   2    | 880606923 |
+        |   166   |   346   |   1    | 886397596 |
+        |   298   |   474   |   4    | 884182806 |
+        |   115   |   265   |   2    | 881171488 |
+        |   253   |   465   |   5    | 891628467 |
+        |   305   |   451   |   3    | 886324817 |
+        |    6    |    86   |   3    | 883603013 |
+        |   ...   |   ...   |  ...   |    ...    |
+        +---------+---------+--------+-----------+
+
+        <type 'str'>, <type 'str'>, <type 'str'>, <type 'str'>]
+        50
 
         Specify types for a subset of columns and leave the rest to be str.
 
@@ -847,74 +849,83 @@ class XFrame(XObject):
         ...                               'user_id':int, 'rating':float
         ...                               })
         >>> xf
-        Columns:
-          user_id str
-          movie_id  str
-          rating  float
-        Rows: 10000
-        +---------+----------+--------+
-        | user_id | movie_id | rating |
-        +---------+----------+--------+
-        |  25904  |   1663   |  3.0   |
-        |  25907  |   1663   |  3.0   |
-        |  25923  |   1663   |  3.0   |
-        |  25924  |   1663   |  3.0   |
-        |  25928  |   1663   |  2.0   |
-        |   ...   |   ...    |  ...   |
-        +---------+----------+--------+
-        [10000 rows x 3 columns]
+        >>> print xf.column_types()
+        >>> print len(xf)
+        +---------+---------+--------+-----------+
+        | user_id | item_id | rating | timestamp |
+        +---------+---------+--------+-----------+
+        |   196   |   242   |   3    | 881250949 |
+        |   186   |   302   |   3    | 891717742 |
+        |    22   |   377   |   1    | 878887116 |
+        |   244   |    51   |   2    | 880606923 |
+        |   166   |   346   |   1    | 886397596 |
+        |   298   |   474   |   4    | 884182806 |
+        |   115   |   265   |   2    | 881171488 |
+        |   253   |   465   |   5    | 891628467 |
+        |   305   |   451   |   3    | 886324817 |
+        |    6    |    86   |   3    | 883603013 |
+        |   ...   |   ...   |  ...   |    ...    |
+        +---------+---------+--------+-----------+
+
+        <type 'int'>, <type 'str'>, <type 'float'>, <type 'str'>]
+        50
 
         Not treat first line as header:
 
         >>> xf = xframes.XFrame.read_csv(url, header=False)
         >>> xf
-        Columns:
-          X1  str
-          X2  str
-          X3  str
-        Rows: 10001
-        +---------+----------+--------+
-        |    X1   |    X2    |   X3   |
-        +---------+----------+--------+
-        | user_id | movie_id | rating |
-        |  25904  |   1663   |   3    |
-        |  25907  |   1663   |   3    |
-        |  25923  |   1663   |   3    |
-        |  25924  |   1663   |   3    |
-        |  25928  |   1663   |   2    |
-        |   ...   |   ...    |  ...   |
-        +---------+----------+--------+
-        [10001 rows x 3 columns]
+        >>> print xf.column_types()
+        >>> print len(xf)
+        +---------+---------+--------+-----------+
+        |   X.0   |   X.1   |  X.2   |    X.3    |
+        +---------+---------+--------+-----------+
+        | user_id | item_id | rating | timestamp |
+        |   196   |   242   |   3    | 881250949 |
+        |   186   |   302   |   3    | 891717742 |
+        |    22   |   377   |   1    | 878887116 |
+        |   244   |    51   |   2    | 880606923 |
+        |   166   |   346   |   1    | 886397596 |
+        |   298   |   474   |   4    | 884182806 |
+        |   115   |   265   |   2    | 881171488 |
+        |   253   |   465   |   5    | 891628467 |
+        |   305   |   451   |   3    | 886324817 |
+        |   ...   |   ...   |  ...   |    ...    |
+        +---------+---------+--------+-----------+
+
+        <type 'str'>, <type 'str'>, <type 'str'>, <type 'str'>]
+        51
 
         Treat '3' as missing value:
 
         >>> xf = xframes.XFrame.read_csv(url, na_values=['3'], column_type_hints=str)
         >>> xf
-        Columns:
-          user_id str
-          movie_id  str
-          rating  str
-        Rows: 10000
-        +---------+----------+--------+
-        | user_id | movie_id | rating |
-        +---------+----------+--------+
-        |  25904  |   1663   |  None  |
-        |  25907  |   1663   |  None  |
-        |  25923  |   1663   |  None  |
-        |  25924  |   1663   |  None  |
-        |  25928  |   1663   |   2    |
-        |   ...   |   ...    |  ...   |
-        +---------+----------+--------+
-        [10000 rows x 3 columns]
+        +---------+---------+--------+-----------+
+        | user_id | item_id | rating | timestamp |
+        +---------+---------+--------+-----------+
+        |   196   |   242   |  None  | 881250949 |
+        |   186   |   302   |  None  | 891717742 |
+        |    22   |   377   |   1    | 878887116 |
+        |   244   |    51   |   2    | 880606923 |
+        |   166   |   346   |   1    | 886397596 |
+        |   298   |   474   |   4    | 884182806 |
+        |   115   |   265   |   2    | 881171488 |
+        |   253   |   465   |   5    | 891628467 |
+        |   305   |   451   |  None  | 886324817 |
+        |    6    |    86   |  None  | 883603013 |
+        |   ...   |   ...   |  ...   |    ...    |
+        +---------+---------+--------+-----------+
+
+#######################################
+#######################################
 
         Throw error on parse failure:
 
-        >>> bad_url = 'https://s3.amazonaws.com/gl-testdata/bad_csv_example.csv'
+        >>> bad_url = 's3://atg-testdata/rating_bad_csv.csv'
         >>> xf = xframes.XFrame.read_csv(bad_url, error_bad_lines=True)
         RuntimeError: Runtime Exception. Unable to parse line "x,y,z,a,b,c"
         Set error_bad_lines=False to skip bad lines
         """
-
+        # TODO: s3 example does not work (it should)
         na_values = na_values or ['NA']
         ret = cls._read_csv_impl(url,
                                  delimiter=delimiter,
@@ -928,7 +939,6 @@ class XFrame(XObject):
                                  column_type_hints=column_type_hints,
                                  na_values=na_values,
                                  nrows=nrows,
-                                 verbose=verbose,
                                  store_errors=False)
         return ret[0]
 
@@ -936,8 +946,7 @@ class XFrame(XObject):
     def read_text(cls,
                   url,
                   delimiter=None,
-                  nrows=None,
-                  verbose=False):
+                  nrows=None):
         """
         Constructs an XFrame from a text file or a path to multiple text files.
 
@@ -954,9 +963,6 @@ class XFrame(XObject):
         nrows : int, optional
             If set, only this many rows will be read from the file.
 
-        verbose : bool, optional
-            If True, print the progress while reading files.
-
         Returns
         -------
         out : XFrame
@@ -966,58 +972,64 @@ class XFrame(XObject):
 
         Read a regular text file, with default options.
 
-        >>> url = 'http://s3.amazonaws.com/gl-testdata/rating_data_example.csv'
+        >>> url = 's3://atg-testdata/rating.csv'
         >>> xf = xframes.XFrame.read_text(url)
-        >>> xf
-        +-------
-        | text |
-        +---------+
-        |  25904  |
-        |  25907  |
-        |  25923  |
-        |  25924  |
-        |  25928  |
-        |   ...   |
-        +---------+
-        [10000 rows x 1 column]
+        >>> print xf
+        +--------------------------------+
+        |              text              |
+        +--------------------------------+
+        | user_id,item_id,rating,tim ... |
+        |      196,242,3,881250949       |
+        |      186,302,3,891717742       |
+        |       22,377,1,878887116       |
+        |       244,51,2,880606923       |
+        |      166,346,1,886397596       |
+        |      298,474,4,884182806       |
+        |      115,265,2,881171488       |
+        |      253,465,5,891628467       |
+        |      305,451,3,886324817       |
+        |              ...               |
+        +--------------------------------+
 
-        Read only the first 100 lines of the text file:
+        Read only the first 5 lines of the text file:
 
-        >>> xf = xframes.XFrame.read_text(url, nrows=100)
-        >>> xf
-        Rows: 100
-        +---------+
-        |  25904  |
-        |  25907  |
-        |  25923  |
-        |  25924  |
-        |  25928  |
-        |   ...   |
-        +---------+
-        [100 rows x 1 columns]
+        >>> xf = xframes.XFrame.read_text(url, nrows=5)
+        >>> print xf
+        +--------------------------------+
+        |              text              |
+        +--------------------------------+
+        | user_id,item_id,rating,tim ... |
+        |      196,242,3,881250949       |
+        |      186,302,3,891717742       |
+        |       22,377,1,878887116       |
+        |       244,51,2,880606923       |
+        +--------------------------------+
 
         Read using a given delimiter.
 
-        >>> xf = xframes.XFrame.read_text(url, delimiter='.')
-        >>> xf
-        Rows: 250
-        +---------+
-        |  25904  |
-        |  25907  |
-        |  25923  |
-        |  25924  |
-        |  25928  |
-        |   ...   |
-        +---------+
-        [250 rows x 1 columns]
-
-
+        >>> xf = xframes.XFrame.read_text(url, delimiter=',')
+        >>> print xf
+        +---------------+
+        |      text     |
+        +---------------+
+        |    user_id    |
+        |    item_id    |
+        |     rating    |
+        | timestamp 196 |
+        |      242      |
+        |       3       |
+        | 881250949 186 |
+        |      302      |
+        |       3       |
+        |  891717742 22 |
+        |      ...      |
+        +---------------+
         """
         impl = XFrameImpl()
-        impl.read_from_text(url,
+        internal_url = make_internal_url(url)
+        impl.read_from_text(internal_url,
                             delimiter=delimiter,
-                            nrows=nrows,
-                            verbose=verbose)
+                            nrows=nrows)
         return cls(impl=impl)
 
     @classmethod
@@ -1029,9 +1041,6 @@ class XFrame(XObject):
         ----------
         url : string
             Location of the parquet file to load. 
-
-        verbose : bool, optional
-            If True, print the progress while reading the file.
 
         Returns
         -------
@@ -1194,7 +1203,7 @@ class XFrame(XObject):
     def _create_footer(self, html_flag, max_rows_to_display):
         sep = '<br>' if html_flag else '\n'
         if self._has_size():
-            footer = '[{} rows x {} columns]{}'.format(self.num_rows(), self.num_columns, sep)
+            footer = '[{} rows x {} columns]{}'.format(self.num_rows(), self.num_columns(), sep)
             if self.num_rows() > max_rows_to_display:
                 footer += sep.join(FOOTER_STRS)
         else:
@@ -2825,7 +2834,7 @@ class XFrame(XObject):
         Suppose we have an XFrame with movie ratings by many users.
 
         >>> import xframes.aggregate as agg
-        >>> url = 'http://s3.amazonaws.com/gl-testdata/rating_data_example.csv'
+        >>> url = 'http://atg-testdata/rating.csv'
         >>> xf = xframes.XFrame.read_csv(url)
         >>> xf
         +---------+----------+--------+
