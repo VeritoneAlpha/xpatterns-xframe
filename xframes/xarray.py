@@ -84,8 +84,6 @@ class XArray(XObject):
     The following functionality is currently not implemented:
         - numpy.ndarray as row data
         - pandas.Series data
-        - array.array as row data
-        - datetime.datetime data type
         - count_words, count_ngrams
         - sketch sub_sketch_keys
 
@@ -112,11 +110,10 @@ class XArray(XObject):
     Examples
     --------
     >>> xa = XArray(data=[1,2,3,4,5], dtype=int)
-    >>> xa = XArray('http://s3-us-west-2.amazonaws.com/testdatasets/a_to_z.txt.gz')
+    >>> xa = XArray('s3://testdatasets/a_to_z.txt.gz')
     >>> xa = XArray([[1,2,3], [3,4,5]])
     >>> xa = XArray(data=[{'a':1, 'b': 2}, {'b':2, 'c': 1}])
     >>> xa = XArray(data=[datetime.datetime(2011, 10, 20, 9, 30, 10)])
-
     """
 
     def __init__(self, data=None, dtype=None, ignore_cast_failure=False, impl=None):
