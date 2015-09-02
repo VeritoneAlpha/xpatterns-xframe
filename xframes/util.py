@@ -440,6 +440,7 @@ def possible_date(dt_str):
     except ValueError:
         return False
 
+
 def classify_type(s):
     if s.startswith('-'):
         rest = s[1:]
@@ -480,21 +481,6 @@ def infer_type(rdd):
     return dtype
 
 
-def infer_types(rdd):
-    """
-    From an RDD of tuples of strings, find what data type each one represents.
-    """
-    head = rdd.take(100)
-    n_cols = len(head[0])
-
-    def get_col(head, i):
-        return [row[i] for row in head]
-    try:
-        return [infer_type_of_list(get_col(head, i)) for i in range(n_cols)]
-    except IndexError:
-        raise ValueError('Rows are not the same length')
-
-
 def infer_type_of_list(data):
     """
     Look through an iterable and get its data type.
@@ -513,11 +499,27 @@ def infer_type_of_list(data):
             numeric = (float, int, long)
             if d_type in numeric and candidate in numeric:
                 continue
-            raise TypeError('infer_type_of_list: mixed types in list: {} {}'.format(d_type, candidate))
+            raise TypeError('Infer_type_of_list: mixed types in list: {} {}'.format(d_type, candidate))
     return candidate
+
 
 def infer_type_of_rdd(rdd):
     return infer_type_of_list(rdd.take(100))
+
+
+def infer_types(rdd):
+    """
+    From an RDD of tuples of strings, find what data type each one represents.
+    """
+    head = rdd.take(100)
+    n_cols = len(head[0])
+
+    def get_col(head, i):
+        return [row[i] for row in head]
+    try:
+        return [infer_type_of_list(get_col(head, i)) for i in range(n_cols)]
+    except IndexError:
+        raise ValueError('Rows are not the same length')
 
 
 # Random seed
