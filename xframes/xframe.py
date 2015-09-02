@@ -439,6 +439,7 @@ class XFrame(XObject):
                        column_type_hints=None,
                        na_values=None,
                        nrows=None,
+                       drop_empty_header_cols=True,
                        store_errors=True):
         """
         Constructs an XFrame from a CSV file or a path to multiple CSVs, and
@@ -493,9 +494,11 @@ class XFrame(XObject):
                     escape_char=escape_char,
                     double_quote=double_quote,
                     quote_char=quote_char,
-                    skip_initial_space=skip_initial_space)
+                    skip_initial_space=skip_initial_space,
+                    drop_empty_header_cols=False)
                 column_type_hints = XFrame._infer_column_types_from_lines(first_rows, na_values)
                 typelist = '[' + ','.join(t.__name__ for t in column_type_hints) + ']'
+
 # TODO move to where cast fails
 #                if verbose:
 #                    print >>stderr, '------------------------------------------------------'
@@ -522,7 +525,7 @@ class XFrame(XObject):
             raise TypeError("Invalid type for column_type_hints. Must be a 'dict, 'list' or a single type.")
 
         try:
-            errors = impl.load_from_csv(internal_url, parsing_config, type_hints)
+            errors = impl.load_from_csv(internal_url, parsing_config, type_hints, drop_empty_header_cols)
         except IOError:
             if column_type_inference_was_used:
                 # try again
@@ -530,7 +533,7 @@ class XFrame(XObject):
                 print >>stderr, 'Defaulting to column_type_hints=str'
                 type_hints = {'__all_columns__': str}
                 try:
-                    errors = impl.load_from_csv(internal_url, parsing_config, type_hints)
+                    errors = impl.load_from_csv(internal_url, parsing_config, type_hints, drop_empty_header_cols)
                 except:
                     raise
             else:
@@ -550,7 +553,8 @@ class XFrame(XObject):
                              skip_initial_space=True,
                              column_type_hints=None,
                              na_values=None,
-                             nrows=None):
+                             nrows=None,
+                             drop_empty_header_cols=True):
         """
         Constructs an XFrame from a CSV file or a path to multiple CSVs, and
         returns a pair containing the XFrame and a dict of filenames to XArrays
@@ -668,6 +672,7 @@ class XFrame(XObject):
                                   column_type_hints=column_type_hints,
                                   na_values=na_values,
                                   nrows=nrows,
+                                  drop_empty_header_cols=drop_empty_header_cols,
                                   store_errors=True)
 
     @classmethod
@@ -683,7 +688,8 @@ class XFrame(XObject):
                  skip_initial_space=True,
                  column_type_hints=None,
                  na_values=None,
-                 nrows=None):
+                 nrows=None,
+                 drop_empty_header_cols=True):
         """
         Constructs an XFrame from a CSV file or a path to multiple CSVs.
 
@@ -926,7 +932,6 @@ class XFrame(XObject):
         Set error_bad_lines=False to skip bad lines
         """
         # TODO: s3 example does not work (it should)
-        na_values = na_values or ['NA']
         ret = cls._read_csv_impl(url,
                                  delimiter=delimiter,
                                  header=header,
@@ -939,6 +944,7 @@ class XFrame(XObject):
                                  column_type_hints=column_type_hints,
                                  na_values=na_values,
                                  nrows=nrows,
+                                 drop_empty_header_cols=drop_empty_header_cols,
                                  store_errors=False)
         return ret[0]
 

@@ -199,7 +199,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         cls._exit()
         return cls(rdd, names, types)
 
-    def load_from_csv(self, path, parsing_config, type_hints):
+    def load_from_csv(self, path, parsing_config, type_hints, drop_empty_header_cols):
         """
         Load RDD from a csv file
         """
@@ -315,7 +315,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 index = s[3:-2]
                 return int(index)
             return None
-
         def map_col(col, col_names):
             # Change key on hints from generated names __X<n>__
             #   into the actual column name
@@ -347,10 +346,12 @@ class XFrameImpl(XObjectImpl, TracedObject):
         # drop columns with empty header
         remove_cols = [col_index for col_index, col_name in enumerate(col_names) if len(col_name) == 0]
 
-        def remove_columns(row):
-            return [val for index, val in enumerate(row) if index not in remove_cols]
-        res = res.map(remove_columns)
-        col_names = remove_columns(col_names)
+        if drop_empty_header_cols:
+            def remove_columns(row):
+                return [val for index, val in enumerate(row) if index not in remove_cols]
+            res = res.map(remove_columns)
+            col_names = remove_columns(col_names)
+            types = remove_columns(types)
 
         # cast to desired type
         def cast_val(val, typ, name):
