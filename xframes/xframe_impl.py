@@ -1360,7 +1360,12 @@ class XFrameImpl(XObjectImpl, TracedObject):
             for dtype_index, col_index in enumerate(col_indexes):
                 dtype = dtypes[dtype_index]
                 result_item = result[dtype_index]
-                lst[col_index] = result_item if isinstance(result_item, dtype) else dtype(result_item)
+                if isinstance(result_item, dtype):
+                    lst[col_index] = result_item
+                elif dtype is datetime.datetime:
+                    lst[col_index] = parser.parse(result_item)
+                else:
+                    lst[col_index] = dtype(result_item)
             return tuple(lst)
 
         res = self._rdd.map(transformer)

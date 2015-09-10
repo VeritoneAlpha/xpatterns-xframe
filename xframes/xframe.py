@@ -20,6 +20,7 @@ import datetime
 import inspect
 import time
 import itertools
+from dateutil import parser
 from sys import stderr
 
 from prettytable import PrettyTable
@@ -1801,27 +1802,48 @@ class XFrame(XObject):
                 return ''
             if s.startswith('-'):
                 s = s[1:]
+            try:
+                dt = parser.parse(s, default=datetime.datetime(1, 1, 1, 0, 0, 0))
+                if not s.isdigit() and dt.year != 1:
+                    return 'datetime'
+            except ValueError:
+                pass
+            except OverflowError:
+                pass
             if s.isdigit():
                 return 'int'
             if s.replace('.', '', 1).isdigit():
                 return 'float'
+            if s.startswith('[') or s.startswith('{'):
+                val = ast.literal_eval(val)
+                if isinstance(val, list) or isinstance(val, dict):
+                    return type(val).__name__
             return 'str'
 
         types = list(column.apply(classify_type).unique())
-        if len(types) == 2 and '' in types and 'int' in types:
-            types = ['float']
-        if '' in types:
-            types.remove('')
-        if len(types) != 1:
-            return str
-        if len(types) == 1 and types[0] == 'str':
+        if 'str' in types:
             return str
 
-        if len(types) == 1 and 'int' in types:
-            return int
-        if len(types) == 1 and 'float' in types:
-            return float
+        if '' in types:
+            types.remove('')
+
+        if len(types) == 1 and types[0] == 'datetime':
+            return datetime.datetime
+
+        if len(types) == 1 and types[0] == 'list':
+            return list
+
+        if len(types) == 1 and types[0] == 'dict':
+            return dict
+
+        if 'datetime' in types:
+            types.remove('datetime')
+
         if len(types) == 2 and 'float' in types and 'int' in types:
+            return float
+        if len(types) == 1 and types[0] == 'int':
+            return int
+        if len(types) == 1 and types[0] == 'float':
             return float
 
         return str
@@ -1869,10 +1891,52 @@ class XFrame(XObject):
             except ValueError:
                 raise ValueError('Cast failed: (float) {}'.format(val))
 
+        def cast_datetime(row):
+            val = row[column_name]
+            if val is None:
+                return [None]
+            if len(val) == 0:
+                return [util.nan]
+            try:
+                dt = parser.parse(val)
+                return [dt]
+            except ValueError:
+                raise ValueError('Cast failed: (datetime) {}'.format(val))
+
+        def cast_list(row):
+            val = row[column_name]
+            if val is None:
+                return [None]
+            if len(val) == 0:
+                return [None]
+            try:
+                lst = ast.literal_eval(val)
+                return [lst]
+            except ValueError:
+                raise ValueError('Cast failed: (list) {}'.format(val))
+
+        def cast_dict(row):
+            val = row[column_name]
+            if val is None:
+                return [None]
+            if len(val) == 0:
+                return [None]
+            try:
+                dct = ast.literal_eval(val)
+                return [dct]
+            except ValueError:
+                raise ValueError('Cast failed: (dict) {}'.format(val))
+
         if new_type is int:
             return XFrame(impl=self.__impl__.transform_cols([column_name], cast_int, [int], 0))
         if new_type is float:
             return XFrame(impl=self.__impl__.transform_cols([column_name], cast_float, [float], 0))
+        if new_type is list:
+            return XFrame(impl=self.__impl__.transform_cols([column_name], cast_list, [list], 0))
+        if new_type is dict:
+            return XFrame(impl=self.__impl__.transform_cols([column_name], cast_dict, [dict], 0))
+        if new_type is datetime.datetime:
+            return XFrame(impl=self.__impl__.transform_cols([column_name], cast_datetime, [datetime.datetime], 0))
 
         return self
 
