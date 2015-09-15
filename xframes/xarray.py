@@ -1478,10 +1478,13 @@ class XArray(XObject):
         """
         Sum of all values in this XArray.
 
-        Raises an exception if called on an XArray of strings, lists, or
-        dictionaries. If the XArray contains numeric arrays (array.array) and
-        all the arrays are the same length, the sum over all the arrays will be
-        returned. Returns None on an empty XArray. For large values, this may
+        Raises an exception if called on an XArray of strings.
+        If the XArray contains numeric arrays (list or array.array) and
+        all the lists or arrays are the same length, the sum over all the arrays will be
+        returned.
+        If the XArray contains dictionaries whose values are numeric, then the sum of values whose
+        keys appear in every row.
+        Returns None on an empty XArray. For large values, this may
         overflow without warning.
 
         Returns

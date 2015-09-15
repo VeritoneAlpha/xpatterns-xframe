@@ -1009,9 +1009,9 @@ class XArrayImpl(XObjectImpl, TracedObject):
         Sum of all values in the RDD.
 
         Raises an exception if called on an RDD of strings, lists, or
-        dictionaries. If the RDD contains numeric arrays (array.array) and
+        dictionaries. If the RDD contains numeric lists or arrays (array.array) and
         all the arrays are the same length, the sum over all the arrays will be
-        returned (NOT IMPLEMENTED). Returns None on an empty RDD. For large values, this may
+        returned. Returns None on an empty RDD. For large values, this may
         overflow without warning.
         """
         self._entry()
@@ -1019,10 +1019,29 @@ class XArrayImpl(XObjectImpl, TracedObject):
         if count == 0:     # action
             return None
 
-        if self.elem_type not in (int, long, float, bool):
+        if self.elem_type in (int, long, float, bool):
+            total = self._rdd.sum()    # action
+        elif self.elem_type is array.array:
+            def array_sum(x, y):
+                if x.typecode != y.typecode:
+                    print 'arrays are not compatible'
+                total = array.array(x.typecode)
+                total.fromlist([a + b for a, b in zip(x, y)])
+                return total
+            total = self._rdd.reduce(array_sum)
+        elif self.elem_type is list:
+            def list_sum(x, y):
+                return [a + b for a, b in zip(x, y)]
+            total = self._rdd.reduce(list_sum)
+        elif self.elem_type is dict:
+            def dict_sum(x, y):
+                return { k: x.get(k, 0) + y.get(k, 0) for k in set(x) & set(y) }
+            total = self._rdd.reduce(dict_sum)
+
+        else:
             raise TypeError('sum: non numeric type')
         self._exit()
-        return self._rdd.sum()    # action
+        return total
 
     def mean(self):
         """
