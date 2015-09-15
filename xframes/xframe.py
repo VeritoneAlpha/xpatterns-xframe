@@ -2516,9 +2516,9 @@ class XFrame(XObject):
 
         Examples
         --------
-        >>> xf = XFrame({'X1': ['Alice','Bob'],
-        ...              'X2': ['123 Fake Street','456 Fake Street']})
-        >>> xf.rename({'X1': 'name', 'X2':'address'})
+        >>> xf = XFrame({'X.1': ['Alice','Bob'],
+        ...              'X.2': ['123 Fake Street','456 Fake Street']})
+        >>> xf.rename({'X.1': 'name', 'X.2':'address'})
         >>> xf
         +-------+-----------------+
         |  name |     address     |
