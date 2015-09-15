@@ -1696,17 +1696,17 @@ class TestXFrameDelitem(unittest.TestCase):
 
 class TestXFrameHasSize(unittest.TestCase):
     """
-    Tests XFrame __hassize__
+    Tests XFrame _hassize
     """
 
     def test_hassize_false(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        self.assertFalse(t.__has_size__())
+        self.assertFalse(t._has_size())
 
     def test_hassize_true(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         len(t)
-        self.assertTrue(t.__has_size__())
+        self.assertTrue(t._has_size())
 
 
 class TestXFrameIter(unittest.TestCase):
