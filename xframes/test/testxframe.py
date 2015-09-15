@@ -1694,19 +1694,19 @@ class TestXFrameDelitem(unittest.TestCase):
             del t['xx']
 
 
-class TestXFrameHasSize(unittest.TestCase):
+class TestXFrameIsMaterialized(unittest.TestCase):
     """
-    Tests XFrame _hassize
+    Tests XFrame _is_materialized
     """
 
-    def test_hassize_false(self):
+    def test_is_materialized_false(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        self.assertFalse(t._has_size())
+        self.assertFalse(t._is_materialized())
 
-    def test_hassize_true(self):
+    def test_is_materialized(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         len(t)
-        self.assertTrue(t._has_size())
+        self.assertTrue(t._is_materialized())
 
 
 class TestXFrameIter(unittest.TestCase):

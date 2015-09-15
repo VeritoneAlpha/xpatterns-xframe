@@ -1193,7 +1193,7 @@ class XFrame(XObject):
 
     def _create_footer(self, html_flag, max_rows_to_display):
         sep = '<br>' if html_flag else '\n'
-        if self._has_size():
+        if self._is_materialized():
             footer = '[{} rows x {} columns]{}'.format(self.num_rows(), self.num_columns, sep)
             if self.num_rows() > max_rows_to_display:
                 footer += sep.join(FOOTER_STRS)
@@ -2674,22 +2674,16 @@ class XFrame(XObject):
         """
         self.remove_column(key)
 
-    def __materialize__(self):
+    def _materialize(self):
         """
         For an XFrame that is lazily evaluated, force the persistence of the
         XFrame to disk, committing all lazy evaluated operations.
         """
         self.__impl__.materialize()
 
-    def __is_materialized__(self):
+    def _is_materialized(self):
         """
         Returns whether or not the XFrame has been materialized.
-        """
-        return self.__impl__.is_materialized()
-
-    def _has_size(self):
-        """
-        Returns whether or not the size of the XFrame is known.
         """
         return self.__impl__.is_materialized()
 
@@ -2699,14 +2693,20 @@ class XFrame(XObject):
         """
 
         def generator():
-            elems_at_a_time = 262144
+            # The more we get at a time, the more buffer space it takes.
+            # But getting a lot of items takes a lot of time, if we only need a few.
+            # Getting more is expensive, because we have to number everything and then
+            #  filter out the ones we don't want.  This is a compromise.
+            # TODO: start with getting fwer, and if that is not enough, get
+            # TODO: a bigger chunk.
+            elems_at_a_time = 200000
             self.__impl__.begin_iterator()
             ret = self.__impl__.iterator_get_next(elems_at_a_time)
             column_names = self.column_names()
             while True:
                 for j in ret:
+                    # Iterator returns dictionaries
                     yield dict(zip(column_names, j))
-#                    yield j
 
                 if len(ret) == elems_at_a_time:
                     ret = self.__impl__.iterator_get_next(elems_at_a_time)

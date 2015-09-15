@@ -646,14 +646,14 @@ class XArray(XObject):
         else:
             raise IndexError('Invalid type to use for indexing.')
 
-    def __materialize__(self):
+    def _materialize(self):
         """
         For a XArray that is lazily evaluated, force persist this xarray
         to disk, committing all lazy evaluated operations.
         """
         self.__impl__.materialize()
 
-    def __is_materialized__(self):
+    def _is_materialized(self):
         """
         Returns whether or not the xarray has been materialized.
         """
