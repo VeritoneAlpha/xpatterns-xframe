@@ -1,6 +1,7 @@
 import unittest
 import math
 import os
+import array
 
 # python testxarray.py
 # python -m unittest testxarray
@@ -1263,6 +1264,18 @@ class TestXArraySum(unittest.TestCase):
     def test_sum_float(self):
         t = XArray([1.0, 2.0, 3.0])
         self.assertEqual(6.0, t.sum())
+
+    def test_sum_array(self):
+        t = XArray([array.array('l', [10, 20, 30]), array.array('l', [40, 50, 60])])
+        self.assertEqual(array.array('l', [50, 70, 90]), t.sum())
+
+    def test_sum_list(self):
+        t = XArray([[10, 20, 30], [40, 50, 60]])
+        self.assertEqual([50, 70, 90], t.sum())
+
+    def test_sum_dict(self):
+        t = XArray([{'x': 1, 'y': 2}, {'x': 3, 'y': 4}])
+        self.assertEqual({'x': 4, 'y': 6}, t.sum())
 
 
 class TestXArrayMean(unittest.TestCase):
