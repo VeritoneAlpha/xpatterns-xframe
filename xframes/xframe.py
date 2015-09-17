@@ -21,6 +21,7 @@ import inspect
 import time
 import itertools
 from dateutil import parser
+import ast
 from sys import stderr
 
 from prettytable import PrettyTable
@@ -1747,7 +1748,7 @@ class XFrame(XObject):
         if fn is None:
             fn = lambda row: [row[col] for col in cols]
         elif not inspect.isfunction(fn):
-            raise TypeError('Input must be a function.')
+            raise TypeError('Input must be a function: {}: {}.'.format(fn, type(fn)))
         rows = self.__impl__.head_as_list(10)
         names = self.__impl__.column_names()
         # do the dryrun so we can see some diagnostic output
@@ -1815,7 +1816,7 @@ class XFrame(XObject):
             if s.replace('.', '', 1).isdigit():
                 return 'float'
             if s.startswith('[') or s.startswith('{'):
-                val = ast.literal_eval(val)
+                val = ast.literal_eval(s)
                 if isinstance(val, list) or isinstance(val, dict):
                     return type(val).__name__
             return 'str'
@@ -1896,7 +1897,7 @@ class XFrame(XObject):
             if val is None:
                 return [None]
             if len(val) == 0:
-                return [util.nan]
+                return [None]
             try:
                 dt = parser.parse(val)
                 return [dt]
