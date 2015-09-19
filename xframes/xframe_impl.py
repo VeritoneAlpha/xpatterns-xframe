@@ -1345,7 +1345,12 @@ class XFrameImpl(XObjectImpl, TracedObject):
             for dtype_index, col_index in enumerate(col_indexes):
                 dtype = dtypes[dtype_index]
                 result_item = result[dtype_index]
-                lst[col_index] = result_item if type(result_item) == dtype else dtype(result_item)
+                if result_item is None:
+                    lst[col_index] = None
+                elif type(result_item) == dtype:
+                    lst[col_index] = result_item
+                else:
+                    lst[col_index] = dtype(result_item)
             return tuple(lst)
 
         res = self._rdd.map(transformer)
