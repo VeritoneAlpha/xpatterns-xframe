@@ -872,6 +872,28 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._exit(names=names, types=types)
         return self._replace(res, names, types)
 
+    def reorder_columns(self, column_names):
+        """
+        Reorder columns of the RDD.
+
+        This operation modifies the current XFrame in place and returns self.
+        """
+        self._entry(column_names=column_names)
+
+        def reorder_list(lst, column_indexes):
+            return [lst[i] for i in column_indexes]
+
+        def reorder_cols(row, column_indexes):
+            return tuple([row[i] for i in column_indexes])
+
+        column_indexes = [self.col_names.index(col) for col in column_names]
+
+        names = reorder_list(self.col_names, column_indexes)
+        types = reorder_list(self.column_types, column_indexes)
+        res = self._rdd.map(lambda row: reorder_cols(row, column_indexes))
+        self._exit(names=names, types=types)
+        return self._replace(res, names, types)
+
     def set_column_name(self, old_name, new_name):
         """
         Rename the given column.

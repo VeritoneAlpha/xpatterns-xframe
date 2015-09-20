@@ -1507,6 +1507,28 @@ class TestXFrameSwapColumns(unittest.TestCase):
             t.swap_columns('val', 'xx')
 
 
+class TestXFrameReorderColumns(unittest.TestCase):
+    """
+    Tests XFrame reorder_columns
+    """
+
+    def test_reorder_columns(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'x': [3.0, 2.0, 1.0]})
+        t.reorder_columns(['val', 'x', 'id'])
+        self.assertEqual(['val', 'x', 'id'], t.column_names())
+        self.assertEqual({'id': 1, 'x': 3.0, 'val': 'a'}, t[0])
+
+    def test_reorder_columns_bad_col(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'x': [3.0, 2.0, 1.0]})
+        with self.assertRaises(KeyError):
+            t.reorder_columns(['val', 'y', 'id'])
+
+    def test_reorder_columns_incomplete(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'x': [3.0, 2.0, 1.0]})
+        with self.assertRaises(KeyError):
+            t.reorder_columns(['val', 'id'])
+
+
 class TestXFrameRename(unittest.TestCase):
     """
     Tests XFrame rename

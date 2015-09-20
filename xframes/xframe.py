@@ -2491,6 +2491,46 @@ class XFrame(XObject):
         self.__impl__.swap_columns(column_1, column_2)
         return self
 
+    def reorder_columns(self, column_names):
+        """
+        Reorder the columns in the table. This operation modifies the
+        current XFrame in place and returns self.
+
+        Parameters
+        ----------
+        column_names : list of string
+            Names of the columns in desired order.
+
+
+        Returns
+        -------
+        out : XFrame
+            The XFrame with reordered columns.
+
+        Examples
+        --------
+        >>> xf = xframes.XFrame({'id': [1, 2, 3], 'val': ['A', 'B', 'C']})
+        >>> xf.reorder_columns(['id', 'val'])
+        >>> xf
+        +-----+-----+
+        | val | id  |
+        +-----+-----+
+        |  A  |  1  |
+        |  B  |  2  |
+        |  C  |  3  |
+        +----+-----+
+        [3 rows x 2 columns]
+        """
+        for col in column_names:
+            if col not in self.column_names():
+                raise KeyError("Cannot find column '{}'.".format(col))
+        for col in self.column_names():
+            if col not in column_names:
+                raise KeyError("Column '{}' not assigned'.".format(col))
+
+        self.__impl__.reorder_columns(column_names)
+        return self
+
     def rename(self, names):
         """
         Rename the given columns. `Names` can be a dict specifying
