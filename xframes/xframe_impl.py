@@ -766,10 +766,10 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         self._entry(namelist=namelist)
         names = self.col_names + namelist
-        types = self.column_types + [col.__impl__.elem_type for col in cols]
+        types = self.column_types + [col._impl.elem_type for col in cols]
         rdd = self._rdd
         for col in cols:
-            rdd = rdd.zip(col.__impl__.rdd())
+            rdd = rdd.zip(col._impl.rdd())
 
             def move_inside(old_val, new_elem):
                 return tuple(old_val + (new_elem, ))
@@ -788,13 +788,13 @@ class XFrameImpl(XObjectImpl, TracedObject):
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry()
-        names = self.col_names + other.__impl__.col_names
-        types = self.column_types + other.__impl__.column_types
+        names = self.col_names + other._impl.col_names
+        types = self.column_types + other._impl.column_types
 
         def merge(old_cols, new_cols):
             return old_cols + new_cols
 
-        rdd = self._rdd.zip(other.__impl__.rdd())
+        rdd = self._rdd.zip(other._impl.rdd())
         res = rdd.map(lambda pair: merge(pair[0], pair[1]))
         self._exit(names=names, types=types)
         return self._replace(res, names, types)
@@ -988,8 +988,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry()
-        res = col.__impl__.rdd().map(lambda item: (item, ))
-        col_type = infer_type_of_rdd(col.__impl__.rdd())
+        res = col._impl.rdd().map(lambda item: (item, ))
+        col_type = infer_type_of_rdd(col._impl.rdd())
         self.column_types[0] = col_type
         self._exit()
         return self._replace(res)
@@ -1001,7 +1001,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry(column_name=column_name)
-        rdd = self._rdd.zip(col.__impl__.rdd())
+        rdd = self._rdd.zip(col._impl.rdd())
         col_num = self.col_names.index(column_name)
 
         def replace_col(row_col, col_num):
@@ -1010,7 +1010,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
             row[col_num] = col
             return tuple(row)
         res = rdd.map(lambda row_col: replace_col(row_col, col_num))
-        col_type = infer_type_of_rdd(col.__impl__.rdd())
+        col_type = infer_type_of_rdd(col._impl.rdd())
         self.column_types[col_num] = col_type
         self._exit()
         return self._replace(res)

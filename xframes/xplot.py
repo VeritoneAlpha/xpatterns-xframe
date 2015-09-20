@@ -200,7 +200,7 @@ class XPlot(object):
         def merge_accumulators(acc1, acc2):
             return [a1 + a2 for a1, a2 in zip(acc1, acc2)]
 
-        accumulators = vals.__impl__._rdd.mapPartitions(iterate_values)
+        accumulators = vals._impl._rdd.mapPartitions(iterate_values)
         bucket_counts = accumulators.reduce(merge_accumulators)
         return bucket_vals, bucket_counts
 
