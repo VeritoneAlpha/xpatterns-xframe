@@ -2522,8 +2522,8 @@ class XFrame(XObject):
         +-----+-----+
         |  A  |  1  |
         |  B  |  2  |
-        |  C  |  3 |
-        +----+-----+
+        |  C  |  3  |
+        +----+------+
         [3 rows x 2 columns]
         """
         if not hasattr(column_names, '__iter__'):
