@@ -875,8 +875,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
     def reorder_columns(self, column_names):
         """
         Reorder columns of the RDD.
-
-        This operation modifies the current XFrame in place and returns self.
         """
         self._entry(column_names=column_names)
 
@@ -892,7 +890,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         types = reorder_list(self.column_types, column_indexes)
         res = self._rdd.map(lambda row: reorder_cols(row, column_indexes))
         self._exit(names=names, types=types)
-        return self._replace(res, names, types)
+        return self._rv(res, names, types)
 
     def set_column_name(self, old_name, new_name):
         """
