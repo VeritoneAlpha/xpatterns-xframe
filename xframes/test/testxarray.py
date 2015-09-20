@@ -287,6 +287,7 @@ class TestXArraySaveText(unittest.TestCase):
         success_path = os.path.join(path, '_SUCCESS')
         self.assertTrue(os.path.isfile(success_path))
 
+
 class TestXArraySaveCsv(unittest.TestCase):
     """
     Tests XArray save csv format
