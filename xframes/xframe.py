@@ -2223,7 +2223,8 @@ class XFrame(XObject):
         -------
         out : XFrame
             A new XFrame that is made up of the columns referred to in
-            `keylist` from the current XFrame.
+            `keylist` from the current XFrame.  The order of the columns
+            is preserved.
 
         See Also
         --------
@@ -2493,8 +2494,7 @@ class XFrame(XObject):
 
     def reorder_columns(self, column_names):
         """
-        Reorder the columns in the table. This operation modifies the
-        current XFrame in place and returns self.
+        Reorder the columns in the table.
 
         Parameters
         ----------
@@ -2505,22 +2505,29 @@ class XFrame(XObject):
         Returns
         -------
         out : XFrame
-            The XFrame with reordered columns.
+            A new XFrame with reordered columns.
+
+        See Also
+        --------
+        xframes.XFrame.select_columns
+            Returns a subset of the columns but does not change the column order.
 
         Examples
         --------
         >>> xf = xframes.XFrame({'id': [1, 2, 3], 'val': ['A', 'B', 'C']})
-        >>> xf.reorder_columns(['id', 'val'])
-        >>> xf
+        >>> xf2 = xf.reorder_columns(['val', 'id'])
+        >>> xf2
         +-----+-----+
         | val | id  |
         +-----+-----+
         |  A  |  1  |
         |  B  |  2  |
-        |  C  |  3  |
+        |  C  |  3 |
         +----+-----+
         [3 rows x 2 columns]
         """
+        if not hasattr(column_names, '__iter__'):
+            raise TypeError('Keylist must be an iterable.')
         for col in column_names:
             if col not in self.column_names():
                 raise KeyError("Cannot find column '{}'.".format(col))
@@ -2528,8 +2535,8 @@ class XFrame(XObject):
             if col not in column_names:
                 raise KeyError("Column '{}' not assigned'.".format(col))
 
-        self.__impl__.reorder_columns(column_names)
-        return self
+        return XFrame(impl=self.__impl__.reorder_columns(column_names))
+
 
     def rename(self, names):
         """
