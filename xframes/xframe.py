@@ -1067,8 +1067,8 @@ class XFrame(XObject):
         return ret
 
     def _get_pretty_tables(self, wrap_text=False, max_row_width=MAX_ROW_WIDTH,
-                              max_column_width=30, max_columns=20,
-                              max_rows_to_display=60):
+                                 max_column_width=30, max_columns=20,
+                                 max_rows_to_display=60):
         """
         Returns a list of pretty print tables representing the current XFrame.
         If the number of columns is larger than max_columns, the last pretty
@@ -1170,7 +1170,7 @@ class XFrame(XObject):
                     col_width = max_column_width
                 if table_width + col_width < max_row_width:
                     # truncate the header if necessary
-                    #tbl.add_column(header, [_truncate_str(str(x), wrap_text) for x in headxf[col]])
+                    # tbl.add_column(header, [_truncate_str(str(x), wrap_text) for x in headxf[col]])
                     tbl.add_column(header, [_truncate_str(str(x), wrap_text) for x in cols[col]])
                     table_width = str(tbl).find('\n')
                     num_column_of_last_table += 1
@@ -2536,7 +2536,6 @@ class XFrame(XObject):
                 raise KeyError("Column '{}' not assigned'.".format(col))
 
         return XFrame(impl=self.__impl__.reorder_columns(column_names))
-
 
     def rename(self, names):
         """
