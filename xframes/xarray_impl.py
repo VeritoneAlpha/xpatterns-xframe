@@ -630,6 +630,18 @@ class XArrayImpl(XObjectImpl, TracedObject):
         self._exit()
         return self._rv(res)
 
+    def count_missing_values(self):
+        """
+        Count missing values.
+
+        A missing value shows up in an RDD as 'NaN' or 'None'.
+        """
+        self._entry()
+        res = self._rdd.map(lambda x: 1 if is_missing(x) else 0)
+        total = res.sum()
+        self._exit()
+        return total
+
     def drop_missing_values(self):
         """
         Create new RDD containing only the non-missing values of the

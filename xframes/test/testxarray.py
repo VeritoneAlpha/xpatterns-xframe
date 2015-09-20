@@ -1612,6 +1612,26 @@ class TestXArrayTail(unittest.TestCase):
         self.assertEqual(range(1, 100), res)
 
 
+class TestXArrayCountna(unittest.TestCase):
+    """
+    Tests XArray countna
+    """
+    def test_countna_not(self):
+        t = XArray([1, 2, 3])
+        res = t.countna()
+        self.assertEqual(0, res)
+
+    def test_countna_none(self):
+        t = XArray([1, 2, None])
+        res = t.countna()
+        self.assertEqual(1, res)
+
+    def test_countna_nan(self):
+        t = XArray([1.0, 2.0, float('nan')])
+        res = t.countna()
+        self.assertEqual(1, res)
+
+
 class TestXArrayDropna(unittest.TestCase):
     """ 
     Tests XArray dropna

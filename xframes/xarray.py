@@ -1801,13 +1801,28 @@ class XArray(XObject):
 
         return XArray(impl=self._impl.tail(n))
 
+    def countna(self):
+        """
+        Count the number of missing values in the XArray.
+
+        A missing value is represented in a float XArray as 'NaN'.  A missing value in other types of
+        XArrays is None.
+
+        Returns
+        -------
+        out : int
+            The count of missing values.
+        """
+
+        return self._impl.count_missing_values()
+
     def dropna(self):
         """
         Create new XArray containing only the non-missing values of the
         XArray.
 
-        A missing value shows up in a numeric XArray as 'NaN'.  A missing value in a string
-        XArray is empty.
+        A missing value is represented in a float XArray as 'NaN'.  A missing value in other types of
+        XArrays is None.
 
         Returns
         -------
