@@ -28,6 +28,7 @@ class SketchImpl(object):
         import xframes.util as util
         self._entry()
         self._rdd = None
+        self.dtype = None
         self.sketch_type = None
         self.count = 0
         self.min_val = util.nan
@@ -66,6 +67,7 @@ class SketchImpl(object):
 
         # calculate some basic statistics in one pass
         defined = xa.to_rdd().filter(lambda x: not is_missing(x))
+        self.dtype = xa.dtype
         self.sketch_type = 'numeric' if xa.dtype() in (int, float) else 'non-numeric'
         if self.sketch_type == 'numeric':
             stats = defined.stats()
@@ -78,6 +80,7 @@ class SketchImpl(object):
             self.stdev_val = stats.stdev()
         else:
             self.count = defined.count()
+            # TODO compute avg length for string, list, and dict columns
 
         # compute these later if needed
         self._rdd = xa.to_rdd()
@@ -137,7 +140,12 @@ class SketchImpl(object):
 
     def num_unique(self):
         if self.num_unique_val is None:
-            self.num_unique_val = self._rdd.distinct().count()
+            # distinct fails if the values are not hashable
+            if self.dtype() in [list, dict]:
+                rdd = self._rdd.map(lambda x: str(x))
+            else:
+                rdd = self._rdd
+            self.num_unique_val = rdd.distinct().count()
         return self.num_unique_val
 
     def frequent_items(self):
