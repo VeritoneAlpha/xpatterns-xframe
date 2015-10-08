@@ -24,7 +24,7 @@ environment, like Spark.
 
 import sys
 import random
-from math import ceil, log, e as euler
+from math import isnan, ceil, log, e as euler
 
 
 def exp2(x):
@@ -207,8 +207,10 @@ class QuantileAccumulator(object):
 
     def increment(self, value):
         """Increment counter for value in the domain."""
-        self.total += 1
+        if value is None or isnan(value):
+            return
         normed_value = float(value - self.lower_bound) / self.norm
+        self.total += 1
         for (level, sketch) in enumerate(self._sketches):
             key = QuantileAccumulator._index_at_level(normed_value, level)
             sketch.increment(key)
