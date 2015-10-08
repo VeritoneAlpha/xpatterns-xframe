@@ -693,6 +693,8 @@ class XArrayImpl(XObjectImpl, TracedObject):
                 return ValueError('Error evaluating function on "{}"'.format(x))
             if is_missing(fnx) and skip_undefined:
                 return None
+            if dtype is None:
+                return fnx
             try:
                 return dtype(fnx)
             except TypeError:
