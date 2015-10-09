@@ -28,6 +28,7 @@ class SketchImpl(object):
         import xframes.util as util
         self._entry()
         self._rdd = None
+        self.defined = None
         self.dtype = None
         self.sketch_type = None
         self.count = 0
@@ -37,6 +38,7 @@ class SketchImpl(object):
         self.sum_val = 0
         self.variance_val = 0.0
         self.stdev_val = 0.0
+        self.avg_len = None
         self.num_undefined_val = None
         self.num_unique_val = None
         self.quantile_accumulator = None
@@ -67,7 +69,7 @@ class SketchImpl(object):
 
         # calculate some basic statistics in one pass
         defined = xa.to_rdd().filter(lambda x: not is_missing(x))
-        self.dtype = xa.dtype
+        self.dtype = xa.dtype()
         self.sketch_type = 'numeric' if xa.dtype() in (int, float) else 'non-numeric'
         if self.sketch_type == 'numeric':
             stats = defined.stats()
@@ -82,8 +84,9 @@ class SketchImpl(object):
             self.count = defined.count()
             # TODO compute avg length for string, list, and dict columns
 
-        # compute these later if needed
+        # compute others later if needed
         self._rdd = xa.to_rdd()
+        self.defined = defined
 
         self._exit()
 
@@ -116,22 +119,36 @@ class SketchImpl(object):
     def min(self):
         if self.sketch_type == 'numeric':
             return self.min_val
-        raise ValueError('max only available for numeric types')
+        raise ValueError('min only available for numeric types')
 
     def sum(self):
         if self.sketch_type == 'numeric':
             return self.sum_val
-        raise ValueError('max only available for numeric types')
+        raise ValueError('sum only available for numeric types')
 
     def mean(self):
         if self.sketch_type == 'numeric':
             return self.mean_val
-        raise ValueError('max only available for numeric types')
+        raise ValueError('mean only available for numeric types')
 
     def var(self):
         if self.sketch_type == 'numeric':
             return self.variance_val
-        raise ValueError('max only available for numeric types')
+        raise ValueError('var only available for numeric types')
+
+    def avg_length(self):
+        if self.avg_len is None:
+            if self.count == 0:
+                self.avg_len = 0
+            elif self.dtype in [int, float]:
+                self.avg_len = 1
+            elif self.dtype in [list, dict, str]:
+                lens = self.defined.map(lambda x: len(x))
+                self.avg_len = lens.sum() / float(self.count)
+            else:
+                self.avg_len = 0
+
+        return self.avg_len
 
     def num_undefined(self):
         if self.num_undefined_val is None:

@@ -355,6 +355,26 @@ class Sketch(object):
         """
         return self._impl.var()
 
+    def avg_length(self):
+        """
+        Returns the average length of the values in the xarray. Returns 0 on an empty
+        array.
+
+        The length of a value in a numeric array is 1.  The length of a list or dictionary
+        value is the length of the list or dict.  The length of a string value is the string lenth.
+
+        Raises
+        ------
+        RuntimeError
+            If the xarray is a non-numeric type.
+
+        Returns
+        -------
+        out : float
+            The average length of the values. Returns 0 if the XArray is empty.
+        """
+        return self.__impl__.avg_length()
+
     def num_undefined(self):
         """
         Returns the the number of undefined elements in the XArray. Return 0
