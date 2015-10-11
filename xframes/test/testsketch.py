@@ -73,6 +73,32 @@ class TestSketchConstructor(unittest.TestCase):
         ss = t.sketch_summary()
         self.assertEqual({1: 1, 2: 2, 3: 1}, ss.frequent_items())
 
+    def test_tf_idf_list(self):
+        t = XArray([['this', 'is', 'a', 'test'], ['another', 'test']])
+        ss = t.sketch_summary()
+        tf_idf = ss.tf_idf()
+        self.assertEqual({'this': 0.6931471805599453,
+                          'a': 0.6931471805599453,
+                          'is': 0.6931471805599453,
+                          'test': 0.6931471805599453},
+                         tf_idf[0])
+        self.assertEqual({'test': 0.6931471805599453,
+                          'another': 0.6931471805599453},
+                         tf_idf[1])
+
+    def test_tf_idf_str(self):
+        t = XArray(['this is a test', 'another test'])
+        ss = t.sketch_summary()
+        tf_idf = ss.tf_idf()
+        self.assertEqual({'this': 0.6931471805599453,
+                          'a': 0.6931471805599453,
+                          'is': 0.6931471805599453,
+                          'test': 0.6931471805599453},
+                         tf_idf[0])
+        self.assertEqual({'test': 0.6931471805599453,
+                          'another': 0.6931471805599453},
+                         tf_idf[1])
+
     def test_quantile(self):
         t = XArray([1, 2, 3, 4, 5])
         ss = t.sketch_summary()
