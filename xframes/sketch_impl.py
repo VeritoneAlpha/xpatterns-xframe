@@ -4,7 +4,10 @@ This module provides an implementation of Sketch using pySpark RDDs.
 
 import inspect
 import math
+import datetime
 from sys import stderr
+from collections import Counter
+import copy
 
 
 from xframes.dsq import QuantileAccumulator
@@ -43,6 +46,7 @@ class SketchImpl(object):
         self.num_unique_val = None
         self.quantile_accumulator = None
         self.frequency_sketch = None
+        self.tfidf = None
         self.quantile_accum = None
         self._exit()
             
@@ -82,7 +86,6 @@ class SketchImpl(object):
             self.stdev_val = stats.stdev()
         else:
             self.count = defined.count()
-            # TODO compute avg length for string, list, and dict columns
 
         # compute others later if needed
         self._rdd = xa.to_rdd()
@@ -140,7 +143,7 @@ class SketchImpl(object):
         if self.avg_len is None:
             if self.count == 0:
                 self.avg_len = 0
-            elif self.dtype in [int, float]:
+            elif self.dtype in [int, float, datetime.datetime]:
                 self.avg_len = 1
             elif self.dtype in [list, dict, str]:
                 lens = self.defined.map(lambda x: len(x))
@@ -158,7 +161,7 @@ class SketchImpl(object):
     def num_unique(self):
         if self.num_unique_val is None:
             # distinct fails if the values are not hashable
-            if self.dtype() in [list, dict]:
+            if self.dtype in [list, dict]:
                 rdd = self._rdd.map(lambda x: str(x))
             else:
                 rdd = self._rdd
@@ -169,6 +172,68 @@ class SketchImpl(object):
         if self.frequency_sketch is None:
             self.frequency_sketch = self._create_frequency_sketch()
         return self.frequency_sketch
+
+    def tf_idf(self):
+        import xframes
+        if self.tfidf is None:
+            def normalize_doc(doc):
+                if doc is None:
+                    return []
+                if type(doc) != str:
+                    print >>stderr, 'document should be str -- is {}: {}'.format(type(doc), doc)
+                    return []
+                return doc.strip().lower().split()
+            if self.dtype is str:
+                docs = self._rdd.map(normalize_doc)
+            else:
+                docs = self._rdd.map(lambda doc: doc or [])
+            docs.cache()
+
+            def build_tf(doc):
+                """ Build term Frequency for a document (cell)"""
+                if len(doc) == 0:
+                    return {}
+                counts = Counter()
+                counts.update(doc)
+                # use augmented frequency (see en.wikipedia.org/wiki/Tf-idf)
+                k = 0.5   # regularization factor
+                max_count = float(counts.most_common(1)[0][1])
+                return {word: k + (((1.0 - k) * count) / max_count)
+                        for word, count in counts.iteritems()}
+            tf = docs.map(build_tf)
+
+            # get all terms
+            # we can afford to do this because there aren't that many words
+            all_terms = docs.flatMap(lambda x: x if x else '').distinct().collect()
+            term_count = {term: 0 for term in all_terms}
+
+            def seq_op(count, doc):
+                # Spark documentaton says you can modify first arg, but
+                #  it is not true!
+                counts = copy.copy(count)
+                for word in doc:
+                    counts[word] += 1
+                return counts
+
+            def comb_op(count1, count2):
+                counts = copy.copy(count1)
+                for term, count in count2.iteritems():
+                    counts[term] += count
+                return count1
+
+            # create idf counts per document
+            counts = docs.aggregate(term_count, seq_op, comb_op)
+
+            doc_count = float(docs.count())
+            # add 1.0 to denominator, as suggested by wiki article cited above
+            idf = {term: math.log(doc_count / (count + 1.0))
+                   for term, count in counts.iteritems()}
+
+            def build_tfidf(tf):
+                return {term: tf_count * idf[term] for term, tf_count in tf.iteritems()}
+            tfidf = tf.map(build_tfidf)
+            self.tfidf = tfidf
+        return xframes.xarray_impl.XArrayImpl(self.tfidf, dict)
 
     def get_quantile(self, quantile_val):
         if self.sketch_type == 'numeric':
