@@ -422,17 +422,40 @@ class Sketch(object):
 
     def tf_idf(self):
         """
-        Returns a tf-idf analysis of a text value.
+        Returns a tf-idf analysis of each document in a collection.
+
+        If the elements in the column are documents in string form, then a simple splitter is
+        used to create a list of words.
+
+        If the elemenst are already in list form, then the list elements are used as the terms.  These
+        are usually strings, but could be numeric instead.
 
         Returns
         -------
-        out : dict
-            A dictionary mapping items and their tf_idf score.
+        out : XArray of dict
+            For each document, a dictionary mapping terms to their tf_idf score.
         """
         if self._impl.dtype not in [list, str]:
             raise TypeError('Column must be of type "list" or "str".')
 
         return XArray(data=[], impl=self._impl.tf_idf())
+
+    def tf_idf_col(self):
+        """
+        Returns a tf-idf score for all the words in the corpus.
+
+        The tf-idf score is first computed for all the terms in each document.
+        Then for each term in the corpus, the maximum score is taken.
+
+        Returns
+        -------
+        out : dict
+            A dictionary mapping terms and their tf_idf score.
+        """
+        if self._impl.dtype not in [list, str]:
+            raise TypeError('Column must be of type "list" or "str".')
+
+        return self._impl.tf_idf_col()
 
     def quantile(self, quantile_val):
         """
