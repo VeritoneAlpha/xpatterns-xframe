@@ -373,7 +373,7 @@ class Sketch(object):
         out : float
             The average length of the values. Returns 0 if the XArray is empty.
         """
-        return self.__impl__.avg_length()
+        return self._impl.avg_length()
 
     def num_undefined(self):
         """
@@ -419,6 +419,20 @@ class Sketch(object):
             A dictionary mapping items and their estimated occurrence frequencies.
         """
         return self._impl.frequent_items()
+
+    def tf_idf(self):
+        """
+        Returns a tf-idf analysis of a text value.
+
+        Returns
+        -------
+        out : dict
+            A dictionary mapping items and their tf_idf score.
+        """
+        if self._impl.dtype not in [list, str]:
+            raise TypeError('Column must be of type "list" or "str".')
+
+        return XArray(data=[], impl=self._impl.tf_idf())
 
     def quantile(self, quantile_val):
         """
