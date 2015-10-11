@@ -471,6 +471,19 @@ def infer_types(rdd):
         raise ValueError('rows are not the same length')
 
 
+_numeric_types = (float, int, long, numpy.float64, numpy.int64)
+
+_sortable_types = (str, float, int, long, numpy.float64, numpy.int64, datetime.datetime)
+
+
+def is_numeric_type(typ):
+    return typ in _numeric_types
+
+
+def is_sortable_type(typ):
+    return type in _sortable_types
+
+
 def infer_type_of_list(data):
     """
     Look through an iterable and get its data type.
@@ -485,8 +498,7 @@ def infer_type_of_list(data):
         if candidate is None:
             candidate = d_type
         if d_type != candidate: 
-            numeric = (float, int, long, numpy.float64, numpy.int64)
-            if d_type in numeric and candidate in numeric:
+            if is_numeric_type(d_type) and is_numeric_type(candidate):
                 continue
             raise TypeError('infer_type_of_list: mixed types in list: {} {}'.format(d_type, candidate))
     return candidate

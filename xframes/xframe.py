@@ -4341,10 +4341,9 @@ class XFrame(XObject):
                 raise TypeError('Only string parameter can be passed in as column names.')
             if column not in my_column_names:
                 raise ValueError("XFrame has no column named: '{}'.".format(column))
-            else:
-                sortable_types = (str, int, float, numpy.int32, datetime.datetime)
-            if self[column].dtype() not in sortable_types:
-                raise TypeError("Only columns of type ('str', 'int', 'float', 'numpy.int32') can be sorted: {}."
+            if not util.is_sortable_type(self[column].dtype()):
+                raise TypeError("Only columns of type ('str', 'int', 'float', " +
+                                "'numpy.int32, 'numpy.float64'') can be sorted: {}."
                                 .format(self[column].dtype()))
 
         return XFrame(impl=self._impl.sort(sort_column_names, sort_column_orders))
