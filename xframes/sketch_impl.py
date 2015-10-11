@@ -80,7 +80,7 @@ class SketchImpl(object):
         defined.cache()
         self.dtype = xa.dtype()
         self.count = defined.count()
-        self.sketch_type = 'numeric' if self.dtype in util.numeric_types else 'non-numeric'
+        self.sketch_type = 'numeric' if util.is_numeric_type(self.dtype) else 'non-numeric'
 
         # compute others later if needed
         self._rdd = xa.to_rdd()
