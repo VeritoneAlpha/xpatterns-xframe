@@ -186,12 +186,11 @@ class SketchImpl(object):
 
     def tf_idf_rdd(self):
         """ Returns an RDD of td-idf dicts, one for each document. """
-        import xframes
         def normalize_doc(doc):
             if doc is None:
                 return []
             if type(doc) != str:
-                print >>stderr, 'document should be str -- is {}: {}'.format(type(doc), doc)
+                print >>stderr, 'document should be str -- is {}: {}'.format(type(doc).__name__, doc)
                 return []
             return doc.strip().lower().split()
         if self.dtype is str:
@@ -229,14 +228,14 @@ class SketchImpl(object):
             counts = copy.copy(count1)
             for term, count in count2.iteritems():
                 counts[term] += count
-            return count1
+            return counts
 
         # create idf counts per document
         counts = docs.aggregate(term_count, seq_op, comb_op)
 
         doc_count = float(docs.count())
         # add 1.0 to denominator, as suggested by wiki article cited above
-        idf = {term: math.log(doc_count / (count + 1.0))
+        idf = {term: math.log((doc_count + 1.0) / (count + 1.0))
                for term, count in counts.iteritems()}
 
         def build_tfidf(tf):
