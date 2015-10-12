@@ -17,13 +17,10 @@ All rights reserved.
 import array
 from prettytable import PrettyTable
 from textwrap import wrap
-import datetime
 import inspect
 import time
 import itertools
 from sys import stderr
-
-import numpy
 
 from xframes.deps import pandas, HAS_PANDAS
 from xframes.deps import dataframeplus, HAS_DATAFRAME_PLUS
@@ -34,6 +31,7 @@ from xframes.xarray_impl import infer_type_of_list
 from xframes.util import make_internal_url, classify_type
 from xframes.xarray import XArray
 import xframes
+import util
 
 __all__ = ['XFrame']
 
