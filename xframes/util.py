@@ -481,7 +481,7 @@ def is_numeric_type(typ):
 
 
 def is_sortable_type(typ):
-    return type in _sortable_types
+    return typ in _sortable_types
 
 
 def infer_type_of_list(data):
