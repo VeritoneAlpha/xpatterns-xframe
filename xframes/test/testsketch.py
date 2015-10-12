@@ -77,27 +77,39 @@ class TestSketchConstructor(unittest.TestCase):
         t = XArray([['this', 'is', 'a', 'test'], ['another', 'test']])
         ss = t.sketch_summary()
         tf_idf = ss.tf_idf()
-        self.assertEqual({'this': 0.6931471805599453,
-                          'a': 0.6931471805599453,
-                          'is': 0.6931471805599453,
-                          'test': 0.6931471805599453},
+        self.assertEqual({'this': 0.4054651081081644,
+                          'a': 0.4054651081081644,
+                          'is': 0.4054651081081644,
+                          'test': 0.0},
                          tf_idf[0])
-        self.assertEqual({'test': 0.6931471805599453,
-                          'another': 0.6931471805599453},
+        self.assertEqual({'test': 0.0,
+                          'another': 0.4054651081081644},
                          tf_idf[1])
 
     def test_tf_idf_str(self):
         t = XArray(['this is a test', 'another test'])
         ss = t.sketch_summary()
         tf_idf = ss.tf_idf()
-        self.assertEqual({'this': 0.6931471805599453,
-                          'a': 0.6931471805599453,
-                          'is': 0.6931471805599453,
-                          'test': 0.6931471805599453},
+        print tf_idf
+        self.assertEqual({'this': 0.4054651081081644,
+                          'a': 0.4054651081081644,
+                          'is': 0.4054651081081644,
+                          'test': 0.0},
                          tf_idf[0])
-        self.assertEqual({'test': 0.6931471805599453,
-                          'another': 0.6931471805599453},
+        self.assertEqual({'test': 0.0,
+                          'another': 0.4054651081081644},
                          tf_idf[1])
+
+    def test_tf_idf_col(self):
+        t = XArray(['this is a test', 'another test'])
+        ss = t.sketch_summary()
+        tf_idf = ss.tf_idf_col()
+        self.assertEqual({'this': 0.4054651081081644,
+                          'a': 0.4054651081081644,
+                          'is': 0.4054651081081644,
+                          'test': 0.0,
+                          'another': 0.4054651081081644},
+                         tf_idf)
 
     def test_quantile(self):
         t = XArray([1, 2, 3, 4, 5])
