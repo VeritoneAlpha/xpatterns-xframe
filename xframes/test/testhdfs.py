@@ -88,17 +88,19 @@ class TestXArraySaveText(unittest.TestCase):
     """
     def test_save(self):
         t = XArray([1, 2, 3])
-        path = '{}/user/xpatterns/tmp/array-csv'.format(hdfs_prefix)
+        path = '{}/tmp/array-csv'.format(hdfs_prefix)
         t.save(path)
         success_path = os.path.join(path, '_SUCCESS')
         self.assertTrue(fileio.is_file(success_path))
+        fileio.delete_path(path)
 
     def test_save_format(self):
         t = XArray([1, 2, 3])
-        path = '{}/user/xpatterns/tmp/array-csv'.format(hdfs_prefix)
+        path = '{}/tmp/array-csv'.format(hdfs_prefix)
         t.save(path, format='text')
         success_path = os.path.join(path, '_SUCCESS')
         self.assertTrue(fileio.is_file(success_path))
+        fileio.delete_path(path)
 
 
 class TestXFrameConstructor(unittest.TestCase):
