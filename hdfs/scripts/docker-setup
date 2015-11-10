@@ -2,7 +2,7 @@
 
 # This docker is contains an HDFS file system, accessed through hdfs server interface
 
-if [ -z ${IAD_HOME+x} ]
+if [ -z ${XFRAMES_HOME+x} ]
 then
   echo "XFRAMES_HOME is not set"
   exit 1
