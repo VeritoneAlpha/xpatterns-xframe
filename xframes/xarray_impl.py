@@ -230,7 +230,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         """
         self._entry(path=path)
         # this only works for local files
-        delete_file_or_dir(path)
+        fileio.delete_path(path)
         try:
             self._rdd.saveAsPickleFile(path)          # action ?
         except:
@@ -238,9 +238,8 @@ class XArrayImpl(XObjectImpl, TracedObject):
             raise TypeError('The XArray save failed.')
         metadata = self.elem_type
         metadata_path = os.path.join(path, '_metadata')
-        with open(metadata_path, 'w') as md:
-            # TODO detect filesystem errors
-            pickle.dump(metadata, md)
+        # TODO detect filesystem errors
+        fileio.dump_pickle_file(metadata_path, metadata)
         self._exit()
 
     def save_as_text(self, path):
@@ -249,14 +248,14 @@ class XArrayImpl(XObjectImpl, TracedObject):
         """
         self._entry(path=path)
         # this only works for local files
-        delete_file_or_dir(path)
+        fileio.delete_path(path)
         try:
             self._rdd.saveAsTextFile(path)           # action ?
         except:
             # TODO distinguish between filesystem errors and pickle errors
             raise TypeError('The XArray save failed.')
         metadata = self.elem_type
-        metadata_path = os.path.join(path, 'metadata')
+        metadata_path = os.path.join(path, '_metadata')
         fileio.dump_pickle_file(metadata_path, metadata)
         self._exit()
 
