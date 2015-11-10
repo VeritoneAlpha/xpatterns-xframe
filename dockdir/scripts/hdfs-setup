@@ -1,0 +1,9 @@
+#!/bin/bash
+
+hdfs dfs -mkdir /user/xpatterns
+hdfs dfs -mkdir /user/xpatterns/files
+
+
+# for xpatterns/xframe
+hdfs dfs -mkdir /user/xpatterns/files
+hdfs dfs -copyFromLocal -f xframes/files/* /user/xpatterns/files/
