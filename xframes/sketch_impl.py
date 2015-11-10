@@ -6,8 +6,9 @@ import inspect
 import math
 import datetime
 from sys import stderr
-from collections import Counter
+from collections import Counter, defaultdict
 import copy
+import operator
 
 
 from xframes.dsq import QuantileAccumulator
@@ -51,7 +52,6 @@ class SketchImpl(object):
         self.num_unique_val = None
         self.quantile_accumulator = None
         self.frequency_sketch = None
-        self.tfidf = None
         self.quantile_accum = None
         self._exit()
             
@@ -184,13 +184,13 @@ class SketchImpl(object):
             self.frequency_sketch = self._create_frequency_sketch()
         return self.frequency_sketch
 
-    def tf_idf_rdd(self):
+    def tf_idf(self):
         """ Returns an RDD of td-idf dicts, one for each document. """
         def normalize_doc(doc):
             if doc is None:
                 return []
             if type(doc) != str:
-                print >>stderr, 'document should be str -- is {}: {}'.format(type(doc).__name__, doc)
+                print >>stderr, 'Document should be str -- is {}: {}'.format(type(doc).__name__, doc)
                 return []
             return doc.strip().lower().split()
         if self.dtype is str:
@@ -199,6 +199,7 @@ class SketchImpl(object):
             docs = self._rdd.map(lambda doc: doc or [])
         docs.cache()
 
+        # build TF
         def build_tf(doc):
             """ Build term Frequency for a document (cell)"""
             if len(doc) == 0:
@@ -240,26 +241,8 @@ class SketchImpl(object):
 
         def build_tfidf(tf):
             return {term: tf_count * idf[term] for term, tf_count in tf.iteritems()}
-        return tf.map(build_tfidf)
-
-    def tf_idf(self):
-        if self.tfidf is None:
-            self.tfidf = self.tf_idf_rdd()
-        return xframes.xarray_impl.XArrayImpl(self.tfidf, dict)
-
-    def tf_idf_col(self):
-        if self.tfidf is None:
-            self.tfidf = self.tf_idf_rdd()
-
-        def combine_tfrdf(map1, map2):
-            map = copy.copy(map1)
-            for k, v in map2.iteritems():
-                if k not in map:
-                    map[k] = v
-                elif map[k] < v:
-                    map[k] = v
-            return map
-        return self.tfidf.reduce(combine_tfrdf)
+        tfidf = tf.map(build_tfidf)
+        return xframes.xarray_impl.XArrayImpl(tfidf, dict)
 
     def get_quantile(self, quantile_val):
         if self.sketch_type == 'numeric':

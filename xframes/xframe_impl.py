@@ -19,6 +19,7 @@ from xframes.deps import HAS_PANDAS
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField
 
+import xframes.fileio as fileio
 from xframes.xobject_impl import XObjectImpl
 from xframes.traced_object import TracedObject
 from xframes.util import infer_type_of_rdd
@@ -160,8 +161,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         res = sc.pickleFile(path)
         # read metadata from the same directory
         metadata_path = os.path.join(path, '_metadata')
-        with open(metadata_path) as f:
-            names, types = pickle.load(f)
+        names, types = fileio.load_pickle_file(metadata_path)
         cls._exit()
         return cls(res, names, types)
 
@@ -437,14 +437,15 @@ class XFrameImpl(XObjectImpl, TracedObject):
         Saved in an efficient internal format, intended for reading back into an RDD.
         """
         self._entry(path=path)
-        delete_file_or_dir(path)
+        fileio.delete_path(path)
         # save rdd
         self._rdd.saveAsPickleFile(path)        # action ?
         # save metadata in the same directory
+        # TODO have to write this with HDFS lib if on hdfs
         metadata_path = os.path.join(path, '_metadata')
         metadata = [self.col_names, self.column_types]
-        with open(metadata_path, 'w') as f:
-            pickle.dump(metadata, f)
+
+        fileio.dump_pickle_file(metadata_path, metadata)
         self._exit()
 
     # noinspection PyArgumentList
@@ -470,24 +471,18 @@ class XFrameImpl(XObjectImpl, TracedObject):
         params['lineterminator'] = ''
         csv_data = self._rdd.map(lambda row: to_csv(row, **params))
 
+        # Make a CSV file from an RDD
+
         # this will ensure that we get everything in one fie
-        res = csv_data.repartition(1)
+        data = csv_data.repartition(1)
 
         # save the data in a part file
         temp_file = NamedTemporaryFile(delete=True)
         temp_file.close()
-        res.saveAsTextFile(temp_file.name)
-        data_path = os.path.join(temp_file.name, 'part-00000')
+        data.saveAsTextFile(temp_file.name)
+        in_path = os.path.join(temp_file.name, 'part-00000')
+        fileio.write_file(in_path, path, temp_file.name, heading)
 
-        # copy the part file to the output file
-        delete_file_or_dir(path)
-        with open(path, 'w') as f:
-            f.write(heading)
-            with open(data_path, 'r') as rd:
-                shutil.copyfileobj(rd, f)
-
-        # clean up part file
-        delete_file_or_dir(temp_file.name)
         self._exit()
 
     def save_as_parquet(self, url, number_of_partitions):

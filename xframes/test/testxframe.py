@@ -20,7 +20,6 @@ from xframes import XFrame
 from xframes.aggregate import SUM, ARGMAX, ARGMIN, MAX, MIN, COUNT, MEAN, \
     VARIANCE, STDV, SELECT_ONE, CONCAT
 
-
 def eq_list(expected, result):
     return expected == list(result)
 

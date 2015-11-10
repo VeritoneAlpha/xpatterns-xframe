@@ -31,6 +31,7 @@ from pyspark.sql.types import StringType, BooleanType, \
 
 from xframes.spark_context import spark_context
 from xframes.xobject import XObject
+from xframes import fileio
 
 __LOGGER__ = _logging.getLogger(__name__)
 
@@ -105,7 +106,7 @@ def make_internal_url(url):
             # protocol is a remote url not on server, just return
             return url
         elif protocol == 'hdfs':
-            if not has_hdfs():
+            if not fileio.has_hdfs():
                 raise ValueError('HDFS URL is not supported because Hadoop not found. '
                                  'Please make hadoop available from PATH or set the environment variable '
                                  'HADOOP_HOME and try again.')
@@ -150,11 +151,6 @@ def make_internal_url(url):
         return os.path.abspath(os.path.expanduser(path_on_server))
     else:
         raise ValueError('Invalid url: {}.'.format(url))
-
-
-def has_hdfs():
-    # TODO -- detect if we have hdfs
-    return True
 
 
 def download_dataset(url_str, extract=True, force=False, output_dir="."):

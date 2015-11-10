@@ -90,7 +90,6 @@ class TestSketchConstructor(unittest.TestCase):
         t = XArray(['this is a test', 'another test'])
         ss = t.sketch_summary()
         tf_idf = ss.tf_idf()
-        print tf_idf
         self.assertEqual({'this': 0.4054651081081644,
                           'a': 0.4054651081081644,
                           'is': 0.4054651081081644,
@@ -99,17 +98,6 @@ class TestSketchConstructor(unittest.TestCase):
         self.assertEqual({'test': 0.0,
                           'another': 0.4054651081081644},
                          tf_idf[1])
-
-    def test_tf_idf_col(self):
-        t = XArray(['this is a test', 'another test'])
-        ss = t.sketch_summary()
-        tf_idf = ss.tf_idf_col()
-        self.assertEqual({'this': 0.4054651081081644,
-                          'a': 0.4054651081081644,
-                          'is': 0.4054651081081644,
-                          'test': 0.0,
-                          'another': 0.4054651081081644},
-                         tf_idf)
 
     def test_quantile(self):
         t = XArray([1, 2, 3, 4, 5])

@@ -440,23 +440,6 @@ class Sketch(object):
 
         return XArray(data=[], impl=self._impl.tf_idf())
 
-    def tf_idf_col(self):
-        """
-        Returns a tf-idf score for all the words in the corpus.
-
-        The tf-idf score is first computed for all the terms in each document.
-        Then for each term in the corpus, the maximum score is taken.
-
-        Returns
-        -------
-        out : dict
-            A dictionary mapping terms and their tf_idf score.
-        """
-        if self._impl.dtype not in [list, str]:
-            raise TypeError('Column must be of type "list" or "str".')
-
-        return self._impl.tf_idf_col()
-
     def quantile(self, quantile_val):
         """
         Returns a sketched estimate of the value at a particular quantile

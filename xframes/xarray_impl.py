@@ -16,6 +16,7 @@ from xframes.xobject_impl import XObjectImpl
 from xframes.traced_object import TracedObject
 from xframes.spark_context import spark_context
 import xframes.util as util
+import xframes.fileio as fileio
 from xframes.util import infer_type_of_list, cache, uncache
 from xframes.util import delete_file_or_dir, infer_type, infer_types
 from xframes.util import is_missing
@@ -49,6 +50,9 @@ class ReverseCmp(object):
     def __ne__(self, other):
         return self.obj != other.obj
 
+class ApplyError(object):
+    def __init__(self, msg):
+        self.msg = msg
 
 class XArrayImpl(XObjectImpl, TracedObject):
     # What is missing:
@@ -197,8 +201,8 @@ class XArrayImpl(XObjectImpl, TracedObject):
         if os.path.isdir(path):
             res = XRdd(sc.pickleFile(path))
             metadata_path = os.path.join(path, '_metadata')
-            with open(metadata_path) as f:
-                dtype = pickle.load(f)
+            # TODO file
+            dtype = fileio.load_pickle_file(metadata_path)
         else:
             res = XRdd(sc.textFile(path, use_unicode=False))
             dtype = infer_type(res)
@@ -253,9 +257,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             raise TypeError('The XArray save failed.')
         metadata = self.elem_type
         metadata_path = os.path.join(path, 'metadata')
-        with open(metadata_path, 'w') as md:
-            # TODO detect filesystem errors
-            pickle.dump(metadata, md)
+        fileio.dump_pickle_file(metadata_path, metadata)
         self._exit()
 
     def save_as_csv(self, path, **params):
@@ -275,8 +277,8 @@ class XArrayImpl(XObjectImpl, TracedObject):
             except IOError:
                 return ''
 
-        delete_file_or_dir(path)
-        with open(path, 'w') as f:
+        fileio.delete_path(path)
+        with fileio.open_file(path, 'w') as f:
             self.begin_iterator()
             elems_at_a_time = 10000
             ret = self.iterator_get_next(elems_at_a_time)
@@ -690,7 +692,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             try:
                 fnx = fn(x)
             except Exception:
-                return ValueError('Error evaluating function on "{}"'.format(x))
+                return ApplyError('Error evaluating function on "{}"'.format(x))
             if is_missing(fnx) and skip_undefined:
                 return None
             if dtype is None:
@@ -698,14 +700,14 @@ class XArrayImpl(XObjectImpl, TracedObject):
             try:
                 return dtype(fnx)
             except TypeError:
-                return ValueError('Error converting "{}" to {}'.format(fnx, dtype))
+                return ApplyError('Error converting "{}" to {}'.format(fnx, dtype))
 
         res = self._rdd.map(lambda x: apply_and_cast(x, fn, dtype, skip_undefined))
         # search for type error and throw exception
         # TODO this forces evaluatuion -- consider not doing it
-        errs = res.filter(lambda x: type(x) is ValueError).collect()
+        errs = res.filter(lambda x: type(x) is ApplyError).take(100)
         if len(errs) > 0:
-            raise ValueError('Transformation failures: ({}) {}'.format(len(errs), errs[0].args[0]))
+            raise ValueError('Transformation failures: errs {}'.format(len(errs)))
         self._exit()
         return self._rv(res, dtype)
 
@@ -728,21 +730,27 @@ class XArrayImpl(XObjectImpl, TracedObject):
             if is_missing(x) and skip_undefined:
                 return []
             try:
+                # It is tempting to define the lambda function on the fly, but that
+                #  leads to serilization difficulties.
                 if skip_undefined:
+                    if dtype is None:
+                        return [item for item in fn(x) if not is_missing(item)]
                     return [dtype(item) for item in fn(x) if not is_missing(item)]
+                if dtype is None:
+                    return [item for item in fn(x)]
                 return [dtype(item) for item in fn(x)]
-            except TypeError:
-                return TypeError
+            except TypeError as e:
+                return [ApplyError('TypeError')]
 
         res = self._rdd.flatMap(lambda x: apply_and_cast(x, fn, dtype, skip_undefined))
 
         # search for type error and throw exception
         try:
-            errs = res.filter(lambda x: x is TypeError).take(1)
+            errs = res.filter(lambda x: type(x) is ApplyError).take(100)
         except Exception:
-            raise ValueError('type conversion failure')
+            raise ValueError('Type conversion failure: {}'.format(dtype))
         if len(errs) > 0:
-            raise ValueError('type conversion failure')
+            raise ValueError('Type conversion failures  errs: {}'.format(len(errs)))
         self._exit()
         return self._rv(res, dtype)
 

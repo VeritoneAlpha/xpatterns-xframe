@@ -14,6 +14,7 @@ from xframes import XArray
 def eq_list(expected, result):
     return expected == list(result)
 
+
 class TestXArrayVersion(unittest.TestCase):
     """
     Tests XArray version
