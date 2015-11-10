@@ -26,32 +26,32 @@ class TestXArrayConstructorLoad(unittest.TestCase):
     """
 
     def test_construct_file_int(self):
-        path = '{}/files/test-array-int'.format(hdfs_prefix)
+        path = '{}/user/xpatterns/files/test-array-int'.format(hdfs_prefix)
         t = XArray(path)
         self.assertEqual(4, len(t))
         self.assertEqual(int, t.dtype())
         self.assertEqual(1, t[0])
 
     def test_construct_local_file_float(self):
-        t = XArray('{}/files/test-array-float'.format(hdfs_prefix))
+        t = XArray('{}/user/xpatterns/files/test-array-float'.format(hdfs_prefix))
         self.assertEqual(4, len(t))
         self.assertEqual(float, t.dtype())
         self.assertEqual(1.0, t[0])
 
     def test_construct_local_file_str(self):
-        t = XArray('{}/files/test-array-str'.format(hdfs_prefix))
+        t = XArray('{}/user/xpatterns/files/test-array-str'.format(hdfs_prefix))
         self.assertEqual(4, len(t))
         self.assertEqual(str, t.dtype())
         self.assertEqual('a', t[0])
 
     def test_construct_local_file_list(self):
-        t = XArray('{}/files/test-array-list'.format(hdfs_prefix))
+        t = XArray('{}/user/xpatterns/files/test-array-list'.format(hdfs_prefix))
         self.assertEqual(4, len(t))
         self.assertEqual(list, t.dtype())
         self.assertEqual([1, 2], t[0])
 
     def test_construct_local_file_dict(self):
-        t = XArray('{}/files/test-array-dict'.format(hdfs_prefix))
+        t = XArray('{}/user/xpatterns/files/test-array-dict'.format(hdfs_prefix))
         self.assertEqual(4, len(t))
         self.assertEqual(dict, t.dtype())
         self.assertEqual({1: 'a', 2: 'b'}, t[0])
@@ -69,6 +69,7 @@ class TestXArraySaveCsv(unittest.TestCase):
             self.assertEqual('1', f.readline().strip())
             self.assertEqual('2', f.readline().strip())
             self.assertEqual('3', f.readline().strip())
+        fileio.delete_path(path)
 
     def test_save_format(self):
         t = XArray([1, 2, 3])
@@ -78,6 +79,7 @@ class TestXArraySaveCsv(unittest.TestCase):
             self.assertEqual('1', f.readline().strip())
             self.assertEqual('2', f.readline().strip())
             self.assertEqual('3', f.readline().strip())
+        fileio.delete_path(path)
 
 
 class TestXArraySaveText(unittest.TestCase):
@@ -86,14 +88,14 @@ class TestXArraySaveText(unittest.TestCase):
     """
     def test_save(self):
         t = XArray([1, 2, 3])
-        path = '{}/tmp/array-csv'.format(hdfs_prefix)
+        path = '{}/user/xpatterns/tmp/array-csv'.format(hdfs_prefix)
         t.save(path)
         success_path = os.path.join(path, '_SUCCESS')
         self.assertTrue(fileio.is_file(success_path))
 
     def test_save_format(self):
         t = XArray([1, 2, 3])
-        path = '{}/tmp/array-csv'.format(hdfs_prefix)
+        path = '{}/user/xpatterns/tmp/array-csv'.format(hdfs_prefix)
         t.save(path, format='text')
         success_path = os.path.join(path, '_SUCCESS')
         self.assertTrue(fileio.is_file(success_path))
@@ -105,7 +107,7 @@ class TestXFrameConstructor(unittest.TestCase):
     """
 
     def test_construct_auto_dataframe(self):
-        path = '{}/files/test-frame-auto.csv'.format(hdfs_prefix)
+        path = '{}/user/xpatterns/files/test-frame-auto.csv'.format(hdfs_prefix)
         res = XFrame(path)
         self.assertEqual(3, len(res))
         self.assertEqual(['val_int', 'val_int_signed', 'val_float', 'val_float_signed',
@@ -119,7 +121,7 @@ class TestXFrameConstructor(unittest.TestCase):
                           'val_str': 'c', 'val_list': ['c'], 'val_dict': {3: 'c'}}, res[2])
 
     def test_construct_auto_str_csv(self):
-        path = '{}/files/test-frame.csv'.format(hdfs_prefix)
+        path = '{}/user/xpatterns/files/test-frame.csv'.format(hdfs_prefix)
         res = XFrame(path)
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
@@ -129,7 +131,7 @@ class TestXFrameConstructor(unittest.TestCase):
         self.assertEqual({'id': 3, 'val': 'c'}, res[2])
 
     def test_construct_auto_str_tsv(self):
-        path = '{}/files/test-frame.tsv'.format(hdfs_prefix)
+        path = '{}/user/xpatterns/files/test-frame.tsv'.format(hdfs_prefix)
         res = XFrame(path)
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
@@ -139,7 +141,7 @@ class TestXFrameConstructor(unittest.TestCase):
         self.assertEqual({'id': 3, 'val': 'c'}, res[2])
 
     def test_construct_auto_str_psv(self):
-        path = '{}/files/test-frame.psv'.format(hdfs_prefix)
+        path = '{}/user/xpatterns/files/test-frame.psv'.format(hdfs_prefix)
         res = XFrame(path)
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
@@ -151,7 +153,7 @@ class TestXFrameConstructor(unittest.TestCase):
     def test_construct_auto_str_txt(self):
         # construct and XFrame given a text file
         # interpret as csv
-        path = '{}/files/test-frame.txt'.format(hdfs_prefix)
+        path = '{}/user/xpatterns/files/test-frame.txt'.format(hdfs_prefix)
         res = XFrame(path)
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
@@ -163,7 +165,7 @@ class TestXFrameConstructor(unittest.TestCase):
     def test_construct_auto_str_noext(self):
         # construct and XFrame given a text file
         # interpret as csv
-        path = '{}/files/test-frame'.format(hdfs_prefix)
+        path = '{}/user/xpatterns/files/test-frame'.format(hdfs_prefix)
         res = XFrame(path)
         res = res.sort('id')
         self.assertEqual(3, len(res))
@@ -175,7 +177,7 @@ class TestXFrameConstructor(unittest.TestCase):
 
     def test_construct_auto_str_xframe(self):
         # construct an XFrame given a file with unrecognized file extension
-        path = '{}/files/test-frame'.format(hdfs_prefix)
+        path = '{}/user/xpatterns/files/test-frame'.format(hdfs_prefix)
         res = XFrame(path)
         res = res.sort('id')
         self.assertEqual(3, len(res))
@@ -188,7 +190,7 @@ class TestXFrameConstructor(unittest.TestCase):
     def test_construct_str_csv(self):
         # construct and XFrame given a text file
         # interpret as csv
-        path = 'files/test-frame.txt'.format(hdfs_prefix)
+        path = '{}/user/xpatterns/files/test-frame.txt'.format(hdfs_prefix)
         res = XFrame(path, format='csv')
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
@@ -199,7 +201,7 @@ class TestXFrameConstructor(unittest.TestCase):
 
     def test_construct_str_xframe(self):
         # construct and XFrame given a saved xframe
-        path = '{}/files/test-frame'.format(hdfs_prefix)
+        path = '{}/user/xpatterns/files/test-frame'.format(hdfs_prefix)
         res = XFrame(path, format='xframe')
         res = res.sort('id')
         self.assertEqual(3, len(res))
@@ -216,7 +218,7 @@ class TestXFrameReadCsv(unittest.TestCase):
     """
 
     def test_read_csv(self):
-        path = '{}/files/test-frame.csv'.format(hdfs_prefix)
+        path = '{}/user/xpatterns/files/test-frame.csv'.format(hdfs_prefix)
         res = XFrame.read_csv(path)
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
@@ -232,7 +234,7 @@ class TestXFrameReadText(unittest.TestCase):
     """
 
     def test_read_text(self):
-        path = '{}/files/test-frame-text.txt'.format(hdfs_prefix)
+        path = '{}/user/xpatterns/files/test-frame-text.txt'.format(hdfs_prefix)
         res = XFrame.read_text(path)
         self.assertEqual(3, len(res))
         self.assertEqual(['text', ], res.column_names())
@@ -252,7 +254,7 @@ class TestXFrameReadParquet(unittest.TestCase):
         path = '{}/tmp/frame-parquet'.format(hdfs_prefix)
         t.save(path, file_format='parquet')
 
-        res = XFrame('{}/tmp/frame-parquet.parquet').format(hdfs_prefix)
+        res = XFrame('{}/tmp/frame-parquet.parquet'.format(hdfs_prefix))
         # results may not come back in the same order
         res = res.sort('id')
         self.assertEqual(3, len(res))
@@ -261,6 +263,7 @@ class TestXFrameReadParquet(unittest.TestCase):
         self.assertEqual({'id': 1, 'val': 'a'}, res[0])
         self.assertEqual({'id': 2, 'val': 'b'}, res[1])
         self.assertEqual({'id': 3, 'val': 'c'}, res[2])
+        fileio.delete_path(path)
 
 
 class TestXFrameSaveBinary(unittest.TestCase):
@@ -275,6 +278,7 @@ class TestXFrameSaveBinary(unittest.TestCase):
         metadata = fileio.load_pickle_file(os.path.join(path, '_metadata'))
         self.assertEqual([['id', 'val'], [int, str]], metadata)
         # TODO find some way to check the data
+        fileio.delete_path(path)
 
 
 class TestXFrameSaveCsv(unittest.TestCase):
@@ -287,12 +291,13 @@ class TestXFrameSaveCsv(unittest.TestCase):
         path = '{}/tmp/frame-csv'.format(hdfs_prefix)
         t.save(path, file_format='csv')
 
-        with open(path + '.csv') as f:
+        with fileio.open_file(path + '.csv') as f:
             heading = f.readline().rstrip()
             self.assertEqual('id,val', heading)
             self.assertEqual('30,a', f.readline().rstrip())
             self.assertEqual('20,b', f.readline().rstrip())
             self.assertEqual('10,c', f.readline().rstrip())
+        fileio.delete_path(path + '.csv')
 
 
 class TestXFrameSaveParquet(unittest.TestCase):
@@ -304,6 +309,7 @@ class TestXFrameSaveParquet(unittest.TestCase):
         path = '{}/tmp/frame-parquet'.format(hdfs_prefix)
         t.save(path, file_format='parquet')
         # TODO verify
+        fileio.delete_path(path + '.parquet')
 
 
 if __name__ == '__main__':
