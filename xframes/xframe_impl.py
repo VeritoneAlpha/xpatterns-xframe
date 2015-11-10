@@ -477,11 +477,13 @@ class XFrameImpl(XObjectImpl, TracedObject):
         data = csv_data.repartition(1)
 
         # save the data in a part file
-        temp_file = NamedTemporaryFile(delete=True)
-        temp_file.close()
-        data.saveAsTextFile(temp_file.name)
-        in_path = os.path.join(temp_file.name, 'part-00000')
-        fileio.write_file(in_path, path, temp_file.name, heading)
+#        temp_file = NamedTemporaryFile(delete=True)
+#        temp_file.close()
+        temp_file_name = fileio.temp_file_name(path)
+        data.saveAsTextFile(temp_file_name)
+        in_path = os.path.join(temp_file_name, 'part-00000')
+        fileio.write_file(in_path, path, heading)
+        fileio.delete_path(temp_file_name)
 
         self._exit()
 
@@ -490,7 +492,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         Save to a parquet file.
         """
         self._entry(url=url, number_of_partitions=number_of_partitions)
-        delete_file_or_dir(url)
+        fileio.delete_path(url)
         dataframe = self.to_spark_dataframe(table_name=None,
                                             number_of_partitions=number_of_partitions)
         dataframe.saveAsParquetFile(url)
