@@ -249,3 +249,15 @@ License
 
 This SDK is provided under the 3-clause BSD `license <LICENSE>`__.
 
+
+Notes
+-----
+Error message:
+Exception: MLlib requires NumPy 1.4+
+
+Modify spark/python/pyspark/mllib/__init__.py in the version check to:
+ver = [int(x) for x in numpy.version.version.split('.')[:2]]
+if ver < [1, 4]:
+    raise Exception("MLlib requires NumPy 1.4+")
+This is fixed in spark 1.5.1, which we have not tested with.
+
