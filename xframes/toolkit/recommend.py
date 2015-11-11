@@ -178,7 +178,9 @@ class MatrixFactorizationModel(RecommenderModel):
         self.ratings.save(ratings_path)
         # save metadata
         metadata = [self.user_col, self.item_col, self.rating_col]
-        fileio.dump_pickle_file(metadata_path, metadata)
+        with fileio.open_file(metadata_path, 'w') as f:
+            # TODO detect filesystem errors
+            pickle.dump(metadata, f)
 
     @classmethod
     def load(cls, path):

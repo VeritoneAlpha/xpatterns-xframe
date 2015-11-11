@@ -1,5 +1,6 @@
 import os
 from abc import ABCMeta, abstractmethod
+import pickle
 
 from pyspark.mllib.regression import LabeledPoint
 from pyspark.mllib.linalg import Vectors, DenseVector
@@ -216,7 +217,9 @@ class ClassificationModel(Model):
         # save metadata
         model_type = self.__class__.__name__
         metadata = [model_type, self.feature_cols]
-        fileio.dump_pickle_file(metadata_path, metadata)
+        with fileio.open_file(metadata_path, 'w') as f:
+            # TODO detect filesystem errors
+            pickle.dump(metadata, f)
 
     @classmethod
     def load(cls, path):
