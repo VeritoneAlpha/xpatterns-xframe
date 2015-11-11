@@ -1,5 +1,6 @@
 import unittest
 import os
+import pickle
 
 # python testxarray.py
 # python -m unittest testxarray
@@ -69,7 +70,7 @@ class TestXArraySaveCsv(unittest.TestCase):
             self.assertEqual('1', f.readline().strip())
             self.assertEqual('2', f.readline().strip())
             self.assertEqual('3', f.readline().strip())
-        fileio.delete_path(path)
+        fileio.delete(path)
 
     def test_save_format(self):
         t = XArray([1, 2, 3])
@@ -79,7 +80,7 @@ class TestXArraySaveCsv(unittest.TestCase):
             self.assertEqual('1', f.readline().strip())
             self.assertEqual('2', f.readline().strip())
             self.assertEqual('3', f.readline().strip())
-        fileio.delete_path(path)
+        fileio.delete(path)
 
 
 class TestXArraySaveText(unittest.TestCase):
@@ -92,7 +93,7 @@ class TestXArraySaveText(unittest.TestCase):
         t.save(path)
         success_path = os.path.join(path, '_SUCCESS')
         self.assertTrue(fileio.is_file(success_path))
-        fileio.delete_path(path)
+        fileio.delete(path)
 
     def test_save_format(self):
         t = XArray([1, 2, 3])
@@ -100,7 +101,7 @@ class TestXArraySaveText(unittest.TestCase):
         t.save(path, format='text')
         success_path = os.path.join(path, '_SUCCESS')
         self.assertTrue(fileio.is_file(success_path))
-        fileio.delete_path(path)
+        fileio.delete(path)
 
 
 class TestXFrameConstructor(unittest.TestCase):
@@ -265,7 +266,7 @@ class TestXFrameReadParquet(unittest.TestCase):
         self.assertEqual({'id': 1, 'val': 'a'}, res[0])
         self.assertEqual({'id': 2, 'val': 'b'}, res[1])
         self.assertEqual({'id': 3, 'val': 'c'}, res[2])
-        fileio.delete_path(path)
+        fileio.delete(path)
 
 
 class TestXFrameSaveBinary(unittest.TestCase):
@@ -277,10 +278,11 @@ class TestXFrameSaveBinary(unittest.TestCase):
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
         path = '{}/tmp/frame'.format(hdfs_prefix)
         t.save(path, file_format='binary')
-        metadata = fileio.load_pickle_file(os.path.join(path, '_metadata'))
+        with fileio.open_file(os.path.join(path, '_metadata')) as f:
+            metadata = pickle.load(f)
         self.assertEqual([['id', 'val'], [int, str]], metadata)
         # TODO find some way to check the data
-        fileio.delete_path(path)
+        fileio.delete(path)
 
 
 class TestXFrameSaveCsv(unittest.TestCase):
@@ -299,7 +301,7 @@ class TestXFrameSaveCsv(unittest.TestCase):
             self.assertEqual('30,a', f.readline().rstrip())
             self.assertEqual('20,b', f.readline().rstrip())
             self.assertEqual('10,c', f.readline().rstrip())
-        fileio.delete_path(path + '.csv')
+        fileio.delete(path + '.csv')
 
 
 class TestXFrameSaveParquet(unittest.TestCase):
@@ -311,7 +313,7 @@ class TestXFrameSaveParquet(unittest.TestCase):
         path = '{}/tmp/frame-parquet'.format(hdfs_prefix)
         t.save(path, file_format='parquet')
         # TODO verify
-        fileio.delete_path(path + '.parquet')
+        fileio.delete(path + '.parquet')
 
 
 if __name__ == '__main__':
