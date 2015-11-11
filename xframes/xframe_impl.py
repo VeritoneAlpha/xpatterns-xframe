@@ -161,7 +161,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
         res = sc.pickleFile(path)
         # read metadata from the same directory
         metadata_path = os.path.join(path, '_metadata')
-        names, types = fileio.load_pickle_file(metadata_path)
+        with fileio.open_file(metadata_path) as f:
+            names, types = pickle.load(f)
         cls._exit()
         return cls(res, names, types)
 
@@ -437,7 +438,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         Saved in an efficient internal format, intended for reading back into an RDD.
         """
         self._entry(path=path)
-        fileio.delete_path(path)
+        fileio.delete(path)
         # save rdd
         self._rdd.saveAsPickleFile(path)        # action ?
         # save metadata in the same directory
@@ -445,7 +446,9 @@ class XFrameImpl(XObjectImpl, TracedObject):
         metadata_path = os.path.join(path, '_metadata')
         metadata = [self.col_names, self.column_types]
 
-        fileio.dump_pickle_file(metadata_path, metadata)
+        with fileio.open_file(metadata_path, 'w') as f:
+            # TODO detect filesystem errors
+            pickle.dump(metadata, f)
         self._exit()
 
     # noinspection PyArgumentList
@@ -476,14 +479,17 @@ class XFrameImpl(XObjectImpl, TracedObject):
         # this will ensure that we get everything in one fie
         data = csv_data.repartition(1)
 
-        # save the data in a part file
-#        temp_file = NamedTemporaryFile(delete=True)
-#        temp_file.close()
+        # save the data in the part file
         temp_file_name = fileio.temp_file_name(path)
         data.saveAsTextFile(temp_file_name)
         in_path = os.path.join(temp_file_name, 'part-00000')
-        fileio.write_file(in_path, path, heading)
-        fileio.delete_path(temp_file_name)
+        fileio.delete(path)
+        # copy the part file to the output file
+        with fileio.open_file(path, 'w') as f:
+            f.write(heading)
+            with fileio.open_file(in_path) as rd:
+                shutil.copyfileobj(rd, f)
+        fileio.delete(temp_file_name)
 
         self._exit()
 
@@ -492,7 +498,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         Save to a parquet file.
         """
         self._entry(url=url, number_of_partitions=number_of_partitions)
-        fileio.delete_path(url)
+        fileio.delete(url)
         dataframe = self.to_spark_dataframe(table_name=None,
                                             number_of_partitions=number_of_partitions)
         dataframe.saveAsParquetFile(url)

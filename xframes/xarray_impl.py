@@ -201,8 +201,8 @@ class XArrayImpl(XObjectImpl, TracedObject):
         if os.path.isdir(path):
             res = XRdd(sc.pickleFile(path))
             metadata_path = os.path.join(path, '_metadata')
-            # TODO file
-            dtype = fileio.load_pickle_file(metadata_path)
+            with fileio.open_file(metadata_path) as f:
+                dtype = pickle.load(f)
         else:
             res = XRdd(sc.textFile(path, use_unicode=False))
             dtype = infer_type(res)
@@ -230,7 +230,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         """
         self._entry(path=path)
         # this only works for local files
-        fileio.delete_path(path)
+        fileio.delete(path)
         try:
             self._rdd.saveAsPickleFile(path)          # action ?
         except:
@@ -239,7 +239,9 @@ class XArrayImpl(XObjectImpl, TracedObject):
         metadata = self.elem_type
         metadata_path = os.path.join(path, '_metadata')
         # TODO detect filesystem errors
-        fileio.dump_pickle_file(metadata_path, metadata)
+        with fileio.open_file(metadata_path, 'w') as f:
+            # TODO detect filesystem errors
+            pickle.dump(metadata, f)
         self._exit()
 
     def save_as_text(self, path):
@@ -248,7 +250,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         """
         self._entry(path=path)
         # this only works for local files
-        fileio.delete_path(path)
+        fileio.delete(path)
         try:
             self._rdd.saveAsTextFile(path)           # action ?
         except:
@@ -256,7 +258,9 @@ class XArrayImpl(XObjectImpl, TracedObject):
             raise TypeError('The XArray save failed.')
         metadata = self.elem_type
         metadata_path = os.path.join(path, '_metadata')
-        fileio.dump_pickle_file(metadata_path, metadata)
+        with fileio.open_file(metadata_path, 'w') as f:
+            # TODO detect filesystem errors
+            pickle.dump(metadata, f)
         self._exit()
 
     def save_as_csv(self, path, **params):
@@ -276,7 +280,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             except IOError:
                 return ''
 
-        fileio.delete_path(path)
+        fileio.delete(path)
         with fileio.open_file(path, 'w') as f:
             self.begin_iterator()
             elems_at_a_time = 10000
