@@ -2,9 +2,9 @@
 
 # This docker is contains an HDFS file system, accessed through hdfs server interface
 
-if [ -z ${XPATTERNS_HOME+x} ]
+if [ -z ${XFRAMES_HOME+x} ]
 then
-  echo "XPATTERNS_HOME is not set"
+  echo "XFRAMES_HOME is not set"
   exit 1
 fi
 
@@ -14,5 +14,5 @@ fi
 
 docker run -dt -p 8020:8020 -p 50070:50070 -p 50075:50075 \
     -v "${XFRAMES_HOME}/cache":/var/lib/hadoop-hdfs/cache \
-    -v "${XPATTERNS_HOME}/dockdir":/opt/iad \
+    -v "${XFRAMES_HOME}/dockdir":/opt/xframes \
     --hostname xpatterns-hadoop xpatterns/hadoop:1.3.3
