@@ -11,8 +11,9 @@ fi
 # runs hdfs docker on localhost:8020
 # Returned urls have the hostname xpatterns-hadoop, so map them to 127.0.0.1 in /etc/hosts
 
+CACHE=${XFRAMES_HOME}/../cache
 
 docker run -dt -p 8020:8020 -p 50070:50070 -p 50075:50075 \
-    -v "${XFRAMES_HOME}/cache":/var/lib/hadoop-hdfs/cache \
+    -v "$CACHE":/var/lib/hadoop-hdfs/cache \
     -v "${XFRAMES_HOME}/dockdir":/opt/xframes \
     --hostname xpatterns-hadoop xpatterns/hadoop:1.3.3
