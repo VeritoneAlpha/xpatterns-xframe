@@ -216,7 +216,7 @@ def is_file(path):
 
 def is_dir(path):
     if not _is_hdfs_uri(path):
-        return os.path.isfile(path)
+        return os.path.isdir(path)
     else:
         hdfs_connection = _make_hdfs_connection(path)
         hdfs_path = _get_hdfs_path(path)
