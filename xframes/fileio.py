@@ -20,15 +20,17 @@ class _HdfsConnection(object):
         config_context = env.get_config_items('hdfs')
         if config_context is not None and 'port' in config_context:
             self.port = config_context['port']
+            self.user = config_context['user'] if 'user' in config_context else 'root'
         else:
             self.port = None
+            self.user = None
 
     def hdfs_connection(self, path):
         host, port = _get_hdfs_host_port(path)
         # uses the host in the path, replaces port by configured port
         client_path = 'http://{}:{}'.format(host, self.port)
         from hdfs import client as hdfs_client
-        return hdfs_client.InsecureClient(client_path, user='root')
+        return hdfs_client.InsecureClient(client_path, user=self.user)
 
     def has_hdfs(self):
         return self.port is not None
@@ -41,7 +43,7 @@ def _is_hdfs_uri(path):
 def _make_hdfs_connection(path):
     return _HdfsConnection.Instance().hdfs_connection(path)
 
-_hdfs_re = 'hdfs://([A-Za-z0-9_-]+):([0-9]+)(.+)'
+_hdfs_re = 'hdfs://([A-Za-z0-9_.-]+):([0-9]+)(.+)'
 
 
 def _get_hdfs_path(path):
@@ -176,6 +178,7 @@ def open_file(path, mode='r'):
         if mode.startswith('r'):
             return hdfs_connection.read(hdfs_path)
         elif mode.startswith('w'):
+            delete(path)
             return hdfs_connection.write(hdfs_path)
         else:
             raise IOError('Invalid open mode for HDFS.')
@@ -208,5 +211,32 @@ def is_file(path):
         hdfs_connection = _make_hdfs_connection(path)
         hdfs_path = _get_hdfs_path(path)
         status = hdfs_connection.status(hdfs_path, strict=False)
-        # returns True even if the path is a directory
+        return status is not None and status['type'] == 'FILE'
+
+
+def is_dir(path):
+    if not _is_hdfs_uri(path):
+        return os.path.isfile(path)
+    else:
+        hdfs_connection = _make_hdfs_connection(path)
+        hdfs_path = _get_hdfs_path(path)
+        status = hdfs_connection.status(hdfs_path, strict=False)
+        return status is not None and status['type'] == 'DIRECTORY'
+
+def exists(path):
+    if not _is_hdfs_uri(path):
+        return os.path.exists(path)
+    else:
+        hdfs_connection = _make_hdfs_connection(path)
+        hdfs_path = _get_hdfs_path(path)
+        status = hdfs_connection.status(hdfs_path, strict=False)
         return status is not None
+
+def list_dir(path):
+    if not _is_hdfs_uri(path):
+        return os.listdir(path)
+    else:
+        hdfs_connection = _make_hdfs_connection(path)
+        hdfs_path = _get_hdfs_path(path)
+        files = hdfs_connection.list(hdfs_path)
+        return files
