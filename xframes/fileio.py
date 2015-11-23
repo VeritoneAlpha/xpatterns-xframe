@@ -1,5 +1,5 @@
 import os
-import re
+import urlparse
 from tempfile import NamedTemporaryFile
 import thread
 from random import Random
@@ -9,8 +9,19 @@ from xframes.environment import Environment
 from xframes.singleton import Singleton
 
 
-class HdfsError(Exception):
+class UriError(Exception):
     pass
+
+
+def _parse_uri(uri):
+    parsed = urlparse.urlparse(uri)
+    if parsed.scheme == 'hdfs':
+        if parsed.hostname == '' or parsed.port == '':
+            raise UriError('HDFS URI must have hostname and port: ' + uri)
+        return parsed
+    if parsed.scheme == '':
+        return urlparse.ParseResult('file', parsed.netloc, parsed.path, '', '', '')
+    return parsed
 
 
 @Singleton
@@ -25,52 +36,19 @@ class _HdfsConnection(object):
             self.port = None
             self.user = None
 
-    def hdfs_connection(self, path):
-        host, port = _get_hdfs_host_port(path)
-        # uses the host in the path, replaces port by configured port
-        client_path = 'http://{}:{}'.format(host, self.port)
+    def hdfs_connection(self, parsed_uri):
+        # uses the hostname in the uri, replaces port by configured port
+        client_uri = 'http://{}:{}'.format(parsed_uri.hostname, self.port)
         from hdfs import client as hdfs_client
-        return hdfs_client.InsecureClient(client_path, user=self.user)
+        return hdfs_client.InsecureClient(client_uri, user=self.user)
 
     def has_hdfs(self):
         return self.port is not None
 
 
-def _is_hdfs_uri(path):
-    return path.startswith('hdfs://')
+def _make_hdfs_connection(parsed_uri):
+    return _HdfsConnection.Instance().hdfs_connection(parsed_uri)
 
-
-def _make_hdfs_connection(path):
-    return _HdfsConnection.Instance().hdfs_connection(path)
-
-_hdfs_re = 'hdfs://([A-Za-z0-9_.-]+):([0-9]+)(.+)'
-
-
-def _get_hdfs_path(path):
-    match = re.match(_hdfs_re, path)
-    if match is None:
-        raise HdfsError('Invalid hdfs path: {}'.format(path))
-    if not has_hdfs():
-        raise HdfsError('HDFS is not configured.  See xxx.')
-    return match.group(3)
-
-
-def _get_hdfs_host_port(path):
-    match = re.match(_hdfs_re, path)
-    if match is None:
-        raise HdfsError('Invalid hdfs path: {}'.format(path))
-    if not has_hdfs():
-        raise HdfsError('HDFS is not configured.  See xxx.')
-    return match.group(1, 2)
-
-
-def get_hdfs_prefix(path):
-    match = re.match('(hdfs://[A-Za-z0-9_-]+:[0-9]+)', path)
-    if match is None:
-        raise HdfsError('Invalid hdfs path: {}'.format(path))
-    if not has_hdfs():
-        raise HdfsError('HDFS is not configured.  See xxx.')
-    return match.group(1)
 
 # This code was adapted from the NamedTemporaryFile code in package tempfile
 _allocate_lock = thread.allocate_lock
@@ -136,12 +114,12 @@ def _get_candidate_names():
     return _name_sequence
 
 
-def _named_temp_file(path, directory=None, prefix=None, suffix=None):
+def _named_temp_file(parsed_uri, directory=None, prefix=None, suffix=None):
     """ Return a temp filename in hdfs.  """
     directory = directory or 'tmp'
     prefix = prefix or 'tmp'
     suffix = suffix or ''
-    hdfs_prefix = get_hdfs_prefix(path)
+    hdfs_prefix = '{}://{}:{}'.format(parsed_uri.scheme, parsed_uri.hostname, parsed_uri.port)
 
     tmp_max = 10000
     names = _get_candidate_names()
@@ -167,76 +145,96 @@ def has_hdfs():
     return _HdfsConnection.Instance().has_hdfs()
 
 
-def open_file(path, mode='r'):
+def open_file(uri, mode='r'):
     # Opens a file for read
     # This should be wrapped in with statement to make sure it is closed after use
-    if not _is_hdfs_uri(path):
-        return open(path, mode)
-    else:
-        hdfs_connection = _make_hdfs_connection(path)
-        hdfs_path = _get_hdfs_path(path)
+
+    parsed_uri = _parse_uri(uri)
+    if parsed_uri.scheme == 'file':
+        return open(uri, mode)
+    elif parsed_uri.scheme == 'hdfs':
+        hdfs_connection = _make_hdfs_connection(parsed_uri)
         if mode.startswith('r'):
-            return hdfs_connection.read(hdfs_path)
+            return hdfs_connection.read(parsed_uri.path)
         elif mode.startswith('w'):
-            delete(path)
-            return hdfs_connection.write(hdfs_path)
+            hdfs_connection.delete(parsed_uri.path, recursive=True)
+            return hdfs_connection.write(parsed_uri.path)
         else:
-            raise IOError('Invalid open mode for HDFS.')
-
-
-def delete(path):
-    if not _is_hdfs_uri(path):
-        from xframes.util import delete_file_or_dir
-        delete_file_or_dir(path)
+            raise IOError('Invalid open mode for HDFS: '.format(mode))
+    elif parsed_uri.scheme == 's3':
+        raise UriError('S3 not supported')
     else:
-        hdfs_connection = _make_hdfs_connection(path)
-        hdfs_path = _get_hdfs_path(path)
-        hdfs_connection.delete(hdfs_path, recursive=True)
+        raise UriError('Unknown URI scheme: {}'.format(parsed_uri.scheme))
 
 
-def temp_file_name(path):
+def delete(uri):
+    parsed_uri = _parse_uri(uri)
+    if parsed_uri.scheme == 'file':
+        from xframes.util import delete_file_or_dir
+        delete_file_or_dir(uri)
+    elif parsed_uri.scheme == 'hdfs':
+        hdfs_connection = _make_hdfs_connection(parsed_uri)
+        hdfs_connection.delete(parsed_uri.path, recursive=True)
+    else:
+        raise UriError('Unknown URI scheme: {}'.format(parsed_uri.scheme))
+
+
+def temp_file_name(uri):
     # make it on the same filesystem as path
-    if not _is_hdfs_uri(path):
+    parsed_uri = _parse_uri(uri)
+    if parsed_uri.scheme == 'file':
         temp_file = NamedTemporaryFile(delete=True)
         temp_file.close()
         return temp_file.name
+    elif parsed_uri.scheme == 'hdfs':
+        return _named_temp_file(parsed_uri)
     else:
-        return _named_temp_file(path)
+        raise UriError('Unknown URI scheme: {}'.format(parsed_uri.scheme))
 
 
-def is_file(path):
-    if not _is_hdfs_uri(path):
-        return os.path.isfile(path)
-    else:
-        hdfs_connection = _make_hdfs_connection(path)
-        hdfs_path = _get_hdfs_path(path)
-        status = hdfs_connection.status(hdfs_path, strict=False)
+def is_file(uri):
+    parsed_uri = _parse_uri(uri)
+    if parsed_uri.scheme == 'file':
+        return os.path.isfile(parsed_uri.path)
+    elif parsed_uri.scheme == 'hdfs':
+        hdfs_connection = _make_hdfs_connection(parsed_uri)
+        status = hdfs_connection.status(parsed_uri.path, strict=False)
         return status is not None and status['type'] == 'FILE'
-
-
-def is_dir(path):
-    if not _is_hdfs_uri(path):
-        return os.path.isdir(path)
     else:
-        hdfs_connection = _make_hdfs_connection(path)
-        hdfs_path = _get_hdfs_path(path)
-        status = hdfs_connection.status(hdfs_path, strict=False)
+        raise UriError('Unknown URI scheme: {}'.format(parsed_uri.scheme))
+
+
+def is_dir(uri):
+    parsed_uri = _parse_uri(uri)
+    if parsed_uri.scheme == 'file':
+        return os.path.isdir(parsed_uri.path)
+    elif parsed_uri.scheme == 'hdfs':
+        hdfs_connection = _make_hdfs_connection(parsed_uri)
+        status = hdfs_connection.status(parsed_uri.path, strict=False)
         return status is not None and status['type'] == 'DIRECTORY'
-
-def exists(path):
-    if not _is_hdfs_uri(path):
-        return os.path.exists(path)
     else:
-        hdfs_connection = _make_hdfs_connection(path)
-        hdfs_path = _get_hdfs_path(path)
-        status = hdfs_connection.status(hdfs_path, strict=False)
+        raise UriError('Unknown URI scheme: {}'.format(parsed_uri.scheme))
+
+
+def exists(uri):
+    parsed_uri = _parse_uri(uri)
+    if parsed_uri.scheme == 'file':
+        return os.path.exists(parsed_uri.path)
+    elif parsed_uri.scheme == 'hdfs':
+        hdfs_connection = _make_hdfs_connection(parsed_uri)
+        status = hdfs_connection.status(parsed_uri.path, strict=False)
         return status is not None
-
-def list_dir(path):
-    if not _is_hdfs_uri(path):
-        return os.listdir(path)
     else:
-        hdfs_connection = _make_hdfs_connection(path)
-        hdfs_path = _get_hdfs_path(path)
-        files = hdfs_connection.list(hdfs_path)
+        raise UriError('Unknown scheme: {}'.format(parsed_uri.scheme))
+
+
+def list_dir(uri):
+    parsed_uri = _parse_uri(uri)
+    if parsed_uri.scheme == 'file':
+        return os.listdir(parsed_uri.path)
+    elif parsed_uri.scheme == 'hdfs':
+        hdfs_connection = _make_hdfs_connection(parsed_uri)
+        files = hdfs_connection.list(parsed_uri.path)
         return files
+    else:
+        raise UriError('Unknown scheme: {}'.format(parsed_uri.scheme))
