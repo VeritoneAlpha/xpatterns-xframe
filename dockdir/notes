@@ -2,8 +2,8 @@ This file gets mapped into /opt/xframes on the docker.
 
 HDFS Docker
 -----
-$ dockdir=$XFRAMES_ROOT/dockdir
-$ docker run -dt -p 8020:8020 -p 50070:50070 -p 50075:50075 -v "$dockdir":/opt/xframes --hostname xpatterns-hadoop xpatterns/hadoop
+$ dockdir=$XFRAMES_HOME/dockdir
+$ docker run -dt -p 8020:8020 -p 50070:50070 -p 50075:50075 -v "$XFRAMES_HOME/dockdir":/opt/xframes --hostname xpatterns-hadoop xpatterns/hadoop
 Runs a docker where hdfs server is on 8020.
 
 Returned urls to the datanodes will have the internal hostname xpatterns-hadoop.
