@@ -118,13 +118,13 @@ def make_internal_url(url):
                 return url
             else:
                 # s3 url does not contain secret key/id pair, query the environment variables
-#                k, v = get_credentials()
-#                return 's3n://' + k + ':' + v + '@' + path
+                # k, v = get_credentials()
+                # return 's3n://' + k + ':' + v + '@' + path
                 return 's3n://' + path
         elif protocol == 'remote':
             # url for files on the server
             path_on_server = path
-        elif protocol == 'local':
+        elif protocol == 'local' or protocol == 'file':
             # url for files on local client, check if we are connecting to local server
             #
             # get spark context, get master, see if it starts with local
@@ -135,7 +135,7 @@ def make_internal_url(url):
                 raise ValueError('Cannot use local URL when connecting to a remote server.')
         else:
             raise ValueError('Invalid url protocol {}. Supported url protocols are: '
-                             'remote://, local://, s3://, https:// and hdfs://'.format(protocol))
+                             'remote://, local://, file:// s3://, https:// and hdfs://'.format(protocol))
     elif len(urlsplit) == 1:
         # expand ~ to $HOME
         url = os.path.expanduser(url)
