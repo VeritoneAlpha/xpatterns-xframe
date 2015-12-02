@@ -76,6 +76,7 @@ class SketchImpl(object):
         if sub_sketch_keys is not None:
             raise NotImplementedError('sub_sketch_keys mode not implemented')
 
+        # these are not going through the xrdd layer -- should they?
         defined = xa.to_rdd().filter(lambda x: not is_missing(x))
         defined.cache()
         self.dtype = xa.dtype()
