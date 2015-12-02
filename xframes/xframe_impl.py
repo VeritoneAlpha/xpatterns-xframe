@@ -25,8 +25,7 @@ from xframes.traced_object import TracedObject
 from xframes.util import infer_type_of_rdd
 from xframes.util import cache, uncache, persist
 from xframes.util import is_missing, is_missing_or_empty
-from xframes.util import delete_file_or_dir
-from xframes.util import to_ptype, to_schema_type
+from xframes.util import to_ptype, to_schema_type, pytype_from_dtype, safe_cast_val
 from xframes.util import distribute_seed
 import xframes
 from xframes.xrdd import XRdd
@@ -181,6 +180,26 @@ class XFrameImpl(XObjectImpl, TracedObject):
         xf_rdd = rdd.map(row_to_tuple)
         cls._exit()
         return cls(xf_rdd, xf_names, xf_types)
+
+    @classmethod
+    def load_from_hive(cls, dataset):
+        """
+        Load data from a hive dataset.  This is normally given as database.table.
+        """
+        cls._entry()
+        hc = self.hive_context()
+        # guard agains SQL injection attack
+        if not re.match('[A-Za-z0-9.]+', dataset):
+            raise ValueError('Hive dataset name must contain only alphnum and period.')
+        hive_dataframe = hc.sql('SELECT * from {}'.format(dataset))
+        xf_names = [str(col) for col in hive_dataframe.columns]
+        type_names = [name_type[1] for name_type in hive_dataframe.dtypes]
+        xf_types = [pytype_from_dtype(type_name) for type_name in type_names]
+
+        def row_to_tuple(row):
+            return tuple([row[i] for i in range(len(row))])
+        rdd = hive_dataframe.map(row_to_tuple)
+        return cls(rdd, xf_names, xf_types)
 
     @classmethod
     def load_from_rdd(cls, rdd, names=None, types=None):
@@ -1298,7 +1317,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
             row_as_dict = dict(zip(names, row))
             result = fn(row_as_dict)
             if type(result) != dtype:
-                cast_result = dtype(result)
+                cast_result = safe_cast_val(result, dtype)
                 return cast_result
             return result
         res = self._rdd.map(transformer)
@@ -1373,7 +1392,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 elif type(result_item) == dtype:
                     lst[col_index] = result_item
                 else:
-                    lst[col_index] = dtype(result_item)
+                    lst[col_index] = safe_cast_cal(result_item, dtype)
             return tuple(lst)
 
         res = self._rdd.map(transformer)
