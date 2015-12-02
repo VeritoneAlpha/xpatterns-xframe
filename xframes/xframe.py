@@ -75,6 +75,7 @@ class XFrame(XObject):
     * your local file system
     * the XFrames Server's file system
     * HDFS
+    * Hive
     * Amazon S3
     * HTTP(S).
 
@@ -112,6 +113,7 @@ class XFrame(XObject):
         - "parquet"
         - "rdd"
         - "spark.dataframe"
+        - "hive"
         - "xframe"
 
     verbose : bool, optional
@@ -249,6 +251,8 @@ class XFrame(XObject):
             self._impl = XFrameImpl.load_from_xframe_index(url)
         elif _format == 'spark.dataframe':
             self._impl = XFrameImpl.load_from_spark_dataframe(data)
+        elif _format == 'hive':
+            self._impl = XFrameImpl.load_from_hive(data)
         elif _format == 'rdd':
             self._impl = XFrameImpl.load_from_rdd(data)
         elif _format == 'empty':
@@ -1052,18 +1056,6 @@ class XFrame(XObject):
         """
         return self._impl.dump_debug_info()
 
-    def __get_column_description__(self):
-        colnames = self.column_names()
-        coltypes = self.column_types()
-        ret = 'Columns:\n'
-        if len(colnames) > 0:
-            for i in range(len(colnames)):
-                ret = ret + '\t' + colnames[i] + '\t' + coltypes[i].__name__ + '\n'
-            ret += '\n'
-        else:
-            ret += '\tNone\n\n'
-        return ret
-
     def _get_pretty_tables(self, wrap_text=False, max_row_width=MAX_ROW_WIDTH,
                                  max_column_width=30, max_columns=20,
                                  max_rows_to_display=60):
@@ -1109,11 +1101,6 @@ class XFrame(XObject):
         cols = {}
         for index, col_name in enumerate(self.column_names()[:max_columns]):
             cols[col_name] = [row[index] for row in head_rows]
-
-#        headxf = self.head(max_rows_to_display)
-#        if headxf.shape == (0, 0):
-#            return [PrettyTable()]
-#        n_rows = headxf.num_rows()
 
         def _truncate_str(s, wrap_str=False):
             """
@@ -1289,12 +1276,29 @@ class XFrame(XObject):
 
     def _row_selector(self, other):
         """
-        Where other is an XArray of identical length as the current Frame,
-        this returns a selection of a subset of rows in the current XFrame
-        where the corresponding row in the selector is non-zero.
+        Selects rows of the XFrame where the XArray evaluates to True.
         """
-        if type(other) is XArray:
-            return XFrame(impl=self._impl.logical_filter(other._impl))
+        if type(other) is not XArray:
+            raise ValueError('Argument must be an XArray')
+        return XFrame(impl=self._impl.logical_filter(other._impl))
+
+    def select_rows(self, xa):
+        """
+        Selects rows of the XFrame where the XArray evaluates to True.
+
+        Parameters
+        ----------
+        xa : XArray
+            Must be the same length as the XFRame. The filter values.
+
+        Returns
+        -------
+        out : XFrame
+            A new XFrame which contains the rows of the XFrame where the XArray is True.  The truth
+            test is the same as in python, so non-zero values are considered true.
+
+        """
+        return self._row_selector(xa)
 
     def width(self):
         """
@@ -1869,7 +1873,7 @@ class XFrame(XObject):
         rows within the outer list make up the data for the output XFrame.
         All rows must have the same length and the same order of types to
         make sure the result columns are homogeneously typed.  For example, if
-        the first element emitted into in the outer list by `fn` is
+        the first element emitted into the outer list by `fn` is
         ``[43, 2.3, 'string']``, then all other elements emitted into the outer
         list must be a list with three elements, where the first is an `int`,
         second is a `float`, and third is a `string`.  If `column_types` is not
@@ -2289,9 +2293,9 @@ class XFrame(XObject):
         Examples
         --------
         >>> xf = xframes.XFrame({'id': [1, 2, 3], 'val': ['A', 'B', 'C']})
-        >>> sa = xframes.XArray(['cat', 'dog', 'fossa'])
-        >>> # This line is equivalant to `xf['species'] = sa`
-        >>> xf.add_column(sa, name='species')
+        >>> xa = xframes.XArray(['cat', 'dog', 'fossa'])
+        >>> # This line is equivalant to `xf['species'] = xa`
+        >>> xf.add_column(xa, name='species')
         >>> xf
         +----+-----+---------+
         | id | val | species |
@@ -2377,6 +2381,52 @@ class XFrame(XObject):
 
             self._impl.add_columns_array(datalist, namelist)
             return self
+
+    def replace_column(self, name, data):
+        """
+        Replace a column in this XFrame. The length of the new column
+        must match the length of the existing XFrame. This
+        operation modifies the current XFrame in place and returns self.
+
+        Parameters
+        ----------
+        name : string
+            The name of the column.
+
+        data : XArray
+            The 'column' of data to add.
+
+        Returns
+        -------
+        out : XFrame
+            The current XFrame.
+
+
+        Examples
+        --------
+        >>> xf = xframes.XFrame({'id': [1, 2, 3], 'val': ['A', 'B', 'C']})
+        >>> xa = xframes.XArray(['cat', 'dog', 'fossa'])
+        >>> # This line is equivalant to `xf['val'] = sa`
+        >>> xf.add_column('val', xa)
+        >>> xf
+        +----+---------+
+        | id | species |
+        +----+---------+
+        | 1  |   cat   |
+        | 2  |   dog   |
+        | 3  |  fossa  |
+        +----+---------+
+        [3 rows x 2 columns]
+        """
+        # Check type for pandas dataframe or XArray?
+        if not isinstance(data, XArray):
+            raise TypeError('Must give column as XArray.')
+        if not isinstance(name, str):
+            raise TypeError('Invalid column name: must be str.')
+        if name not in self.column_names():
+            raise ValueError('Column name must be in XFrame')
+        self._impl.replace_selected_column(name, data)
+        return self
 
     def remove_column(self, name):
         """
@@ -2588,18 +2638,6 @@ class XFrame(XObject):
             self._impl.replace_column_names(names)
         return self
 
-    def __getattr__(self, key):
-        """
-        This method allows the dot notation to refer to columns.
-
-        It is a little simpler than the subscript notation, but it less general because the
-        column name has to be a python constant rather than a variable, and because it has to be
-        an acceptable python constant (cannot contain minus sign, cannot start with a number, etc.)
-        It is also only an alternative to the "select_column" form of subscript notation.
-        """
-        # This should never see a key that corresponds to an existing attribute.
-        return self.__getitem__(key)
-        
     def __getitem__(self, key):
         """
         This method does things based on the type of `key`.
@@ -2623,6 +2661,8 @@ class XFrame(XObject):
             return self.select_columns(key)
         elif type(key) is str:
             return self.select_column(key)
+        elif type(key) is unicode:
+            return self.select_column(str(key))
         elif type(key) is int:
             if key < 0:
                 key += len(self)
@@ -2648,19 +2688,6 @@ class XFrame(XObject):
         else:
             raise TypeError('Invalid index type: must be XArray, ' +
                             "'int', 'list', slice, or 'str': ({})".format(type(key)))
-
-    def __setattr__(self, key, value):
-        """
-        This method allows the dot notation to refer to columns on the left side.
-
-        It is a little simpler than the subscript notation, but it less general because the
-        column name has to be a python constant rather than a variable, and because it has to be
-        an acceptable python constant (cannot contain minus sign, cannot start with a number, etc.)
-        """
-        if key.startswith('_'):
-            self.__dict__[key] = value
-        else:
-            self.__setitem__(key, value)
 
     def __setitem__(self, key, value):
         """
@@ -2758,6 +2785,52 @@ class XFrame(XObject):
                     break
 
         return generator()
+
+    def range(self, key):
+        """
+        Extracts and returns rowsf the XFrame.
+
+        Parameters
+        ----------
+
+        key: int or slice
+
+        If `key` is:
+            * int
+                Returns a single row of the XFrame (the `key`th one) as a dictionary.
+            * slice
+                Returns an XFrame including only the sliced rows.
+
+        Returns
+        -------
+        out : dict or XFrame
+            The specified row of the XFrame or an XFrame containing the specified rows.
+
+        """
+        if type(key) is int:
+            if key < 0:
+                key += len(self)
+            if key >= len(self):
+                raise IndexError('XFrame index out of range.')
+            return list(XFrame(impl=self._impl.copy_range(key, 1, key + 1)))[0]
+        elif type(key) is slice:
+            start = key.start
+            stop = key.stop
+            step = key.step
+            if start is None:
+                start = 0
+            if stop is None:
+                stop = len(self)
+            if step is None:
+                step = 1
+            # handle negative indices
+            if start < 0:
+                start += len(self)
+            if stop < 0:
+                stop += len(self)
+            return XFrame(impl=self._impl.copy_range(start, step, stop))
+        else:
+            raise TypeError("Invalid argument type: must be int or slice ({})".format(type(key)))
 
     def append(self, other):
         """
@@ -4418,7 +4491,7 @@ class XFrame(XObject):
         if type(columns) is list and len(columns) == 0:
             return XFrame(impl=self._impl)
 
-        (columns, all_behavior) = self.__dropna_errchk(columns, how)
+        (columns, all_behavior) = self._dropna_errchk(columns, how)
 
         return XFrame(impl=self._impl.drop_missing_values(columns, all_behavior, False))
 
@@ -4479,7 +4552,7 @@ class XFrame(XObject):
         if type(columns) is list and len(columns) == 0:
             return XFrame(impl=self._impl), XFrame()
 
-        (columns, all_behavior) = self.__dropna_errchk(columns, how)
+        (columns, all_behavior) = self._dropna_errchk(columns, how)
 
         xframe_tuple = self._impl.drop_missing_values(columns, all_behavior, True)
 
@@ -4489,7 +4562,7 @@ class XFrame(XObject):
         return XFrame(impl=xframe_tuple[0]), XFrame(impl=xframe_tuple[1])
 
     @staticmethod
-    def __dropna_errchk(columns, how):
+    def _dropna_errchk(columns, how):
         if columns is None:
             # Default behavior is to consider every column, specified to
             # the server by an empty list (to avoid sending all the column
