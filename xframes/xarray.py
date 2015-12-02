@@ -275,7 +275,7 @@ class XArray(XObject):
                 size = 0
             return _create_sequential_xarray(size, start)
 
-    def __get_content_identifier__(self):
+    def _get_content_identifier(self):
         """
         Returns the unique identifier of the content that backs the XArray
 
