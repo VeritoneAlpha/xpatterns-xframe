@@ -10,6 +10,7 @@ import os
 import re
 from zipfile import ZipFile
 import bz2 as _bz2
+import ast
 import tarfile
 import ConfigParser
 import itertools
@@ -569,6 +570,10 @@ def pytype_from_dtype(dtype):
         return datetime.datetime
     if dtype == 'object':
         return object
+    if dtype == 'str':
+        return str
+    if dtype == 'string':
+        return str
     return None
 
 
@@ -618,4 +623,33 @@ def to_schema_type(typ, elem):
         # todo set valueContainsNull correctly
         return MapType(key_type, val_type)
     return StringType()
+
+def safe_cast_val(val, typ):
+    if val is None:
+        return None
+    if type(val) is str and len(val) == 0:
+        if typ is int:
+            return 0
+        if typ is float:
+            return 0.0
+        if typ is str:
+            return ''
+        if typ is dict:
+            return {}
+        if typ is list:
+            return []
+    try:
+        if typ == dict:
+            return ast.literal_eval(val)
+    except ValueError:
+        return {}
+    try:
+        if typ == list:
+            return ast.literal_eval(val)
+    except ValueError:
+        return []
+    try:
+        return typ(val)
+    except UnicodeEncodeError:
+        return ''
 
