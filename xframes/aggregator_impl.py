@@ -20,7 +20,10 @@ def collect_non_missing(rows, src_col, out_col=None):
 
 
 def collect_non_missing_kv(rows, key_col, val_col):
-    return {row[key_col]: row[val_col] for row in rows if not is_missing(row[key_col])}
+    non_missing_rows = [row for row in rows if not is_missing(row[key_col])]
+    if len(non_missing_rows) == 0:
+        return None
+    return {row[key_col]: row[val_col] for row in non_missing_rows}
 
 # Each of these functions operates on a pyspark resultIterable
 #  produced by groupByKey and directly produces the aggregated result.
@@ -31,34 +34,48 @@ def collect_non_missing_kv(rows, key_col, val_col):
 def agg_sum(rows, cols): 
     # cols: [src_col]
     vals = collect_non_missing(rows, cols[0])
+    if len(vals) == 0:
+        return None
     return sum(vals)
 
 
 def agg_argmax(rows, cols): 
     # cols: [agg_col, out_col]
     vals = collect_non_missing(rows, cols[0])
+    if len(vals) == 0:
+        return None
     row_index = vals.index(max(vals))
     vals = collect_non_missing(rows, cols[0], cols[1])
+    if len(vals) == 0:
+        return None
     return vals[row_index]
 
 
 def agg_argmin(rows, cols): 
     # cols: [agg_col, out_col]
     vals = collect_non_missing(rows, cols[0])
+    if len(vals) == 0:
+        return None
     row_index = vals.index(min(vals))
     vals = collect_non_missing(rows, cols[0], cols[1])
+    if len(vals) == 0:
+        return None
     return vals[row_index]
 
 
 def agg_max(rows, cols): 
     # cols: [src_col]
     vals = collect_non_missing(rows, cols[0])
+    if len(vals) == 0:
+        return None
     return max(vals)
 
 
 def agg_min(rows, cols): 
     # cols: [src_col]
     vals = collect_non_missing(rows, cols[0])
+    if len(vals) == 0:
+        return None
     return min(vals)
 
 
@@ -71,18 +88,25 @@ def agg_count(rows, cols):
 def agg_avg(rows, cols): 
     # cols: [src_col]
     vals = collect_non_missing(rows, cols[0])
+    if len(vals) == 0:
+        return None
     return sum(vals) / float(len(vals))
 
 
 def agg_var(rows, cols): 
     # cols: [src_col]
     vals = collect_non_missing(rows, cols[0])
+    if len(vals) == 0:
+        return None
     avg = sum(vals) / float(len(vals))
     return sum([(avg - val) ** 2 for val in vals]) / float(len(vals))
 
 
 def agg_std(rows, cols): 
     # cols: [src_col]
+    variance = agg_var(rows, cols)
+    if variance is None:
+        return None
     return math.sqrt(agg_var(rows, cols))
 
 
@@ -90,6 +114,8 @@ def agg_select_one(rows, cols):
     # cols: [src_col, seed]
     vals = collect_non_missing(rows, cols[0])
     num_vals = len(vals)
+    if num_vals == 0:
+        return None
     seed = cols[1]
     random.seed(seed)
     row_index = random.randint(0, num_vals - 1)
@@ -100,6 +126,8 @@ def agg_select_one(rows, cols):
 def agg_concat_list(rows, cols): 
     # cols: [src_col]
     vals = collect_non_missing(rows, cols[0])
+    if len(vals) == 0:
+        return []
     return vals
 
 
