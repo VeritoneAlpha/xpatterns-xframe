@@ -1392,7 +1392,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 elif type(result_item) == dtype:
                     lst[col_index] = result_item
                 else:
-                    lst[col_index] = safe_cast_cal(result_item, dtype)
+                    lst[col_index] = safe_cast_val(result_item, dtype)
             return tuple(lst)
 
         res = self._rdd.map(transformer)
