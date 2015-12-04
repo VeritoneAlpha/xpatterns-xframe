@@ -20,6 +20,7 @@ from textwrap import wrap
 import inspect
 import time
 import itertools
+import copy
 from sys import stderr
 
 from xframes.deps import pandas, HAS_PANDAS
@@ -1352,7 +1353,7 @@ class XFrame(XObject):
         xframes.XFrame.rename
             Renames the columns.
         """
-        return self._impl.column_names()
+        return copy.copy(self._impl.column_names())
 
     def column_types(self):
         """
@@ -1368,7 +1369,7 @@ class XFrame(XObject):
         xframes.XFrame.dtype
             This is a synonym for column_types.
         """
-        return self._impl.dtype()
+        return copy.copy(self._impl.dtype())
 
     def dtype(self):
         """
