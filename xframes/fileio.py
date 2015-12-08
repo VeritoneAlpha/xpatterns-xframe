@@ -146,8 +146,8 @@ def has_hdfs():
 
 
 def open_file(uri, mode='r'):
-    # Opens a file for read
-    # This should be wrapped in with statement to make sure it is closed after use
+    # Opens a file for read or write
+    # The caller should wrapped this in with statement to make sure it is closed after use
 
     parsed_uri = _parse_uri(uri)
     if parsed_uri.scheme == 'file':
@@ -157,6 +157,7 @@ def open_file(uri, mode='r'):
         if mode.startswith('r'):
             return hdfs_connection.read(parsed_uri.path)
         elif mode.startswith('w'):
+            hdfs_connection.makedirs(os.path.dirname(parsed_uri.path))
             hdfs_connection.delete(parsed_uri.path, recursive=True)
             return hdfs_connection.write(parsed_uri.path)
         else:
