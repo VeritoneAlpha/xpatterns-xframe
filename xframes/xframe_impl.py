@@ -10,8 +10,8 @@ import csv
 import StringIO
 import ast
 import shutil
+import re
 from sys import stderr
-from tempfile import NamedTemporaryFile
 
 import numpy
 
@@ -187,7 +187,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         Load data from a hive dataset.  This is normally given as database.table.
         """
         cls._entry()
-        hc = self.hive_context()
+        hc = cls.hive_context()
         # guard agains SQL injection attack
         if not re.match('[A-Za-z0-9.]+', dataset):
             raise ValueError('Hive dataset name must contain only alphnum and period.')
