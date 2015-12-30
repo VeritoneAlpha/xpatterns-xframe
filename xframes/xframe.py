@@ -195,10 +195,16 @@ class XFrame(XObject):
         # print >>stderr, 'format', _format
 
         if _format == 'pandas.dataframe':
+            if type(data) is not pandas.dataframe:
+                raise ValueError('Data is not pandas.dataframe')
             self._impl = XFrameImpl.load_from_pandas_dataframe(data)
         elif _format == 'xframe_obj':
+            if type(data) is not XFrame:
+                raise ValueError('Data is not XFrame')
             self._impl = XFrameImpl(data.to_rdd(), data.column_names(), data.column_types())
         elif _format == 'xarray':
+            if type(data) is not XArray:
+                raise ValueError('Data is not XArray')
             self._impl = XFrameImpl().add_column(data._impl, '')
         elif _format == 'array':
             if len(data) > 0:
@@ -217,6 +223,8 @@ class XFrame(XObject):
         elif _format == 'iter':
             self._impl = XFrameImpl().add_column(XArray(data)._impl, '')
         elif _format == 'dict':
+            if type(data) is not dict:
+                raise ValueError('Data is not dictionary')
             xf = XFrameImpl()
             for key, val in iter(sorted(data.iteritems())):
                 if type(val) == XArray:
@@ -225,6 +233,8 @@ class XFrame(XObject):
                     xf.add_column(XArray(val)._impl, key)
             self._impl = xf
         elif _format == 'iteritems':
+            if data is None:
+                raise ValueError('Empty iterable')
             xf = XFrameImpl()
             for key, val in iter(sorted(data.iteritems())):
                 if not hasattr(val, '__iter__'):
@@ -232,29 +242,45 @@ class XFrame(XObject):
                 xf.add_column(XArray(val)._impl, key)
             self._impl = xf
         elif _format == 'csv':
+            if data is None:
+                raise ValueError('Empty tsv path')
             url = make_internal_url(data)
             tmpxf = XFrame.read_csv(url, delimiter=',', header=True, verbose=verbose)
             self._impl = tmpxf._impl
         elif _format == 'tsv':
+            if data is None:
+                raise ValueError('Empty tsv path')
             url = make_internal_url(data)
             tmpxf = XFrame.read_csv(url, delimiter='\t', header=True, verbose=verbose)
             self._impl = tmpxf._impl
         elif _format == 'psv':
+            if data is None:
+                raise ValueError('Empty psv path')
             url = make_internal_url(data)
             tmpxf = XFrame.read_csv(url, delimiter='|', header=True, verbose=verbose)
             self._impl = tmpxf._impl
         elif _format == 'parquet':
+            if data is None:
+                raise ValueError('Empty parquet path')
             url = make_internal_url(data)
             tmpxf = XFrame.read_parquet(url)
             self._impl = tmpxf._impl
         elif _format == 'xframe':
+            if data is None:
+                raise ValueError('Empty XFrame')
             url = make_internal_url(data)
             self._impl = XFrameImpl.load_from_xframe_index(url)
         elif _format == 'spark.dataframe':
+            if data is None:
+                raise ValueError('Empty Spark Dataframe')
             self._impl = XFrameImpl.load_from_spark_dataframe(data)
         elif _format == 'hive':
+            if data is None:
+                raise ValueError('Empty Hive path')
             self._impl = XFrameImpl.load_from_hive(data)
         elif _format == 'rdd':
+            if data is None:
+                raise ValueError('Empty RDD')
             self._impl = XFrameImpl.load_from_rdd(data)
         elif _format == 'empty':
             self._impl = XFrameImpl()
