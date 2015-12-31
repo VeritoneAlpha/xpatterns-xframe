@@ -195,8 +195,8 @@ class XFrame(XObject):
         # print >>stderr, 'format', _format
 
         if _format == 'pandas.dataframe':
-            if type(data) is not pandas.dataframe:
-                raise ValueError('Data is not pandas.dataframe')
+            if type(data) is not pandas.DataFrame:
+                raise ValueError('Data is not pandas.DataFrame')
             self._impl = XFrameImpl.load_from_pandas_dataframe(data)
         elif _format == 'xframe_obj':
             if type(data) is not XFrame:
