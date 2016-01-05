@@ -242,26 +242,26 @@ class XFrame(XObject):
                 xf.add_column(XArray(val)._impl, key)
             self._impl = xf
         elif _format == 'csv':
-            if data is None:
-                raise ValueError('Empty tsv path')
+            if not isinstance(data, basestring):
+                raise ValueError('Csv path is not a string')
             url = make_internal_url(data)
             tmpxf = XFrame.read_csv(url, delimiter=',', header=True, verbose=verbose)
             self._impl = tmpxf._impl
         elif _format == 'tsv':
-            if data is None:
-                raise ValueError('Empty tsv path')
+            if not isinstance(data, basestring):
+                raise ValueError('Tsv path is not a string')
             url = make_internal_url(data)
             tmpxf = XFrame.read_csv(url, delimiter='\t', header=True, verbose=verbose)
             self._impl = tmpxf._impl
         elif _format == 'psv':
-            if data is None:
-                raise ValueError('Empty psv path')
+            if not isinstance(data, basestring):
+                raise ValueError('Psv path is not a string')
             url = make_internal_url(data)
             tmpxf = XFrame.read_csv(url, delimiter='|', header=True, verbose=verbose)
             self._impl = tmpxf._impl
         elif _format == 'parquet':
-            if data is None:
-                raise ValueError('Empty parquet path')
+            if not isinstance(data, basestring):
+                raise ValueError('Parquet path is not a string')
             url = make_internal_url(data)
             tmpxf = XFrame.read_parquet(url)
             self._impl = tmpxf._impl
@@ -275,8 +275,8 @@ class XFrame(XObject):
                 raise ValueError('Empty Spark Dataframe')
             self._impl = XFrameImpl.load_from_spark_dataframe(data)
         elif _format == 'hive':
-            if data is None:
-                raise ValueError('Empty Hive path')
+            if not isinstance(data, basestring):
+                raise ValueError('Hive path is not a string')
             self._impl = XFrameImpl.load_from_hive(data)
         elif _format == 'rdd':
             if data is None:
@@ -3328,7 +3328,7 @@ class XFrame(XObject):
               right XFrame that will be joined together. e.g.
               {'left_col_name':'right_col_name'}.
 
-        how : {'left', 'right', 'outer', 'inner'}, optional
+        how : {'inner', 'left', 'right', 'outer', 'full'}, optional
             The type of join to perform.  'inner' is default.
 
             * inner: Equivalent to a SQL inner join.  Result consists of the
@@ -3343,9 +3343,13 @@ class XFrame(XObject):
               between the result of an inner join and the rest of the rows from
               the right XFrame, merged with missing values.
 
-            * outer: Equivalent to a SQL full outer join. Result is
+            * full: Equivalent to a SQL full outer join. Result is
               the union between the result of a left outer join and a right
               outer join.
+
+            * cartesian: Cartesian product of left and right tables, with columns from each.
+              There is no common column matching: the resulting number of rows is the product
+              of the row counts of the left and right XFrames.
 
         Returns
         -------
@@ -3390,7 +3394,7 @@ class XFrame(XObject):
         +----+-------+-------+
         [4 rows x 3 columns]
 
-        >>> animals.join(sounds, on={'id':'id'}, how='outer')
+        >>> animals.join(sounds, on={'id':'id'}, how='full')
         +----+-------+-------+
         | id |  name | sound |
         +----+-------+-------+
@@ -3402,7 +3406,7 @@ class XFrame(XObject):
         +----+-------+-------+
         [5 rows x 3 columns]
         """
-        available_join_types = ['left', 'right', 'outer', 'inner']
+        available_join_types = ['inner', 'left', 'right', 'full', 'cartesian']
 
         if not isinstance(right, XFrame):
             raise TypeError('Can only join two XFrames.')
