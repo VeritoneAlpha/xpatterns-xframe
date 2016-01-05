@@ -327,6 +327,12 @@ class XRdd(TracedObject):
         self._exit()
         return XRdd(res)
         
+    def fullOuterJoin(self, right):
+        self._entry()
+        res = self._rdd.fullOuterJoin(right._rdd)
+        self._exit()
+        return XRdd(res)
+
     def sortBy(self, keyfunc, ascending=True, numPartitions=None):
         self._entry()
         res = self._rdd.sortBy(keyfunc, ascending, numPartitions)
