@@ -1490,7 +1490,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         # these are the positions of the key columns in left and right
         # put the pieces together
         # one of the pairs may be None in all cases except inner
-        if how == 'outer':
+        if how == 'cartesian':
             # outer join is substantially different
             # so do it separately
             new_col_names = list(self.col_names)
@@ -1502,8 +1502,18 @@ class XFrameImpl(XObjectImpl, TracedObject):
             left_count = len(self.col_names)
             right_count = len(right.col_names)
             pairs = self._rdd.cartesian(right.rdd())
+
+            def combine_results(left_row, right_row, left_count, right_count):
+                if left_row is None:
+                    left_row = tuple([None] * left_count)
+                if right_row is None:
+                    right_row = tuple([None] * right_count)
+                return tuple(left_row + right_row)
+
+            res = pairs.map(lambda row: combine_results(row[0], row[1],
+                            left_count, right_count))
         else:
-            # inner, left, and right
+            # inner, left, right, full
             left_key_indexes = []
             right_key_indexes = []
             for left_key, right_key in join_keys.iteritems():
@@ -1529,10 +1539,10 @@ class XFrameImpl(XObjectImpl, TracedObject):
             for t in right_col_types:
                 new_col_types.append(t)
             left_count = len(self.col_names)
-            right_count = len(right_col_names)
+            right_count = len(right.col_names)
 
             # build a key from the column values
-            # spark cannot handle tuples as keys, so make it a string
+            # spark cannot handle tuples as keys, so make it a string using json
             def build_key(row, indexes):
                 key = [row[i] for i in indexes]
                 return json.dumps(key)
@@ -1545,37 +1555,54 @@ class XFrameImpl(XObjectImpl, TracedObject):
             keyed_left = self._rdd.map(lambda row: (build_key(row, left_key_indexes), row))
             keyed_right = right.rdd().map(lambda row: (build_key(row, right_key_indexes), row))
 
-            # remove redundant key fields from the right
-            def fixup_right(row, indexes):
-                val = list(row[1])
-                for i in indexes:
-                    val.pop(i)
-                return row[0], tuple(val)
-            keyed_right = keyed_right.map(lambda row: fixup_right(row, right_key_indexes))
-
             if how == 'inner':
                 joined = keyed_left.join(keyed_right)
             elif how == 'left':
                 joined = keyed_left.leftOuterJoin(keyed_right)
             elif how == 'right':
                 joined = keyed_left.rightOuterJoin(keyed_right)
+            elif how == 'full':
+                joined = keyed_left.fullOuterJoin(keyed_right)
             else:
-                raise ValueError("'How' argument is not 'left', 'right', 'inner', or 'outer'.")
+                raise ValueError("'How' argument is not 'inner', 'left', 'right', 'full' or 'cartesian'.")
 
-            # throw away key now
+            # throw away key in the joined table
             pairs = joined.values()
 
-        def combine_results(left_row, right_row, left_count, right_count):
-            if left_row is None:
-                left_row = tuple([None] * left_count)
-            if right_row is None:
-                right_row = tuple([None] * right_count)
-            return tuple(left_row + right_row)
+#            print 'left', keyed_left.collect()
+#            print 'right', keyed_right.collect()
+#            print 'pairs', pairs.collect()
 
-        res = pairs.map(lambda row: combine_results(row[0], row[1],
-                        left_count, right_count))
+            def combine_results(left_row, right_row, left_count, right_count):
+                if left_row is None:
+                    left_row = tuple([None] * left_count)
+                if right_row is None:
+                    right_row = tuple([None] * right_count)
+                return (left_row, right_row)
+
+            #res = pairs.map(lambda row: combine_results(row[0], row[1],
+            #                left_count, right_count))
+
+#            print 'res', res.collect()
+
+            # remove redundant key fields from the right
+            # take into account any missing any missing rows
+            def fixup(left_row, right_row, left_count, right_count, left_key_indexes, right_key_indexes):
+                left_list = list([None] * left_count) if left_row is None else list(left_row)
+                right_list = list([None] * right_count) if right_row is None else list(right_row)
+                for left_index, right_index in zip(left_key_indexes, right_key_indexes):
+                    if left_list[left_index] is None:
+                        left_list[left_index] = right_list[right_index]
+                for i in right_key_indexes:
+                    right_list.pop(i)
+                return tuple(tuple(left_list) + tuple(right_list))
+
+            res = pairs.map(lambda row: fixup(row[0], row[1],
+                                              left_count, right_count,
+                                              left_key_indexes, right_key_indexes))
 
         persist(res)
+
         self._exit(new_col_names=new_col_names, new_col_types=new_col_types)
         return self._rv(res, new_col_names, new_col_types)
 
