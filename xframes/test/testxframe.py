@@ -20,6 +20,7 @@ from xframes import XFrame
 from xframes.aggregate import SUM, ARGMAX, ARGMIN, MAX, MIN, COUNT, MEAN, \
     VARIANCE, STDV, SELECT_ONE, CONCAT
 
+
 def eq_list(expected, result):
     return expected == list(result)
 
@@ -599,6 +600,7 @@ class TestXFrameReadParquet(unittest.TestCase):
         self.assertEqual({'id': 3, 'val': {3: 3}}, res[2])
 
 
+# noinspection SqlDialectInspection,SqlNoDataSourceInspection
 class TestXFrameToSparkDataFrame(unittest.TestCase):
     """
     Tests XFrame to_spark_dataframe
@@ -906,6 +908,7 @@ class TestXFrameSelectRows(unittest.TestCase):
         self.assertTrue(eq_list([1, 3], res['id']))
         self.assertTrue(eq_list(['a', 'c'], res['val']))
 
+
 class TestXFrameHead(unittest.TestCase):
     """
     Tests XFrame head
@@ -1212,6 +1215,7 @@ class TestXFrameTopk(unittest.TestCase):
         t = XFrame({'id': [10, 20, 30], 'val': ['a', 'b', 'c']})
         res = t.topk('id', 2)
         self.assertEqual(2, len(res))
+        # noinspection PyUnresolvedReferences
         self.assertTrue((XArray([30, 20]) == res['id']).all())
         self.assertTrue(eq_list(['c', 'b'], res['val']))
         self.assertEqual([int, str], res.column_types())
@@ -1224,6 +1228,7 @@ class TestXFrameTopk(unittest.TestCase):
         self.assertTrue(eq_list([10, 20], res['id']))
         self.assertTrue(eq_list(['a', 'b'], res['val']))
 
+    # noinspection PyUnresolvedReferences
     def test_topk_float(self):
         t = XFrame({'id': [10.0, 20.0, 30.0], 'val': ['a', 'b', 'c']})
         res = t.topk('id', 2)
@@ -2666,52 +2671,61 @@ class TestXFrameJoin(unittest.TestCase):
     def test_join(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id': [1, 2, 3], 'doubled': ['aa', 'bb', 'cc']})
-        res = t1.join(t2)
+        res = t1.join(t2).sort('id').head()
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val', 'doubled'], res.column_names())
         self.assertEqual([int, str, str], res.column_types())
-        self.assertEqual({'id': 3, 'val': 'c', 'doubled': 'cc'}, res.topk('id', 1)[0])
+        self.assertEqual({'id': 1, 'val': 'a', 'doubled': 'aa'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'bb'}, res[1])
+        self.assertEqual({'id': 3, 'val': 'c', 'doubled': 'cc'}, res[2])
 
     def test_join_rename(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id': [1, 2, 3], 'val': ['aa', 'bb', 'cc']})
-        res = t1.join(t2, on='id')
+        res = t1.join(t2, on='id').sort('id').head()
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val', 'val.1'], res.column_names())
         self.assertEqual([int, str, str], res.column_types())
-        self.assertEqual({'id': 3, 'val': 'c', 'val.1': 'cc'}, res.topk('id', 1)[0])
+        self.assertEqual({'id': 1, 'val': 'a', 'val.1': 'aa'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b', 'val.1': 'bb'}, res[1])
+        self.assertEqual({'id': 3, 'val': 'c', 'val.1': 'cc'}, res[2])
 
     def test_join_compound_key(self):
         t1 = XFrame({'id1': [1, 2, 3], 'id2': [10, 20, 30], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id1': [1, 2, 3], 'id2': [10, 20, 30], 'doubled': ['aa', 'bb', 'cc']})
-        res = t1.join(t2)
+        res = t1.join(t2).sort('id1').head()
         self.assertEqual(3, len(res))
         self.assertEqual(['id1', 'id2', 'val', 'doubled'], res.column_names())
         self.assertEqual([int, int, str, str], res.column_types())
-        self.assertEqual({'id1': 3, 'id2': 30, 'val': 'c', 'doubled': 'cc'}, res.topk('id1', 1)[0])
+        self.assertEqual({'id1': 1, 'id2': 10, 'val': 'a', 'doubled': 'aa'}, res[0])
+        self.assertEqual({'id1': 2, 'id2': 20, 'val': 'b', 'doubled': 'bb'}, res[1])
+        self.assertEqual({'id1': 3, 'id2': 30, 'val': 'c', 'doubled': 'cc'}, res[2])
 
     def test_join_dict_key(self):
         t1 = XFrame({'id1': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id2': [1, 2, 3], 'doubled': ['aa', 'bb', 'cc']})
-        res = t1.join(t2, on={'id1': 'id2'})
+        res = t1.join(t2, on={'id1': 'id2'}).sort('id1').head()
         self.assertEqual(3, len(res))
         self.assertEqual(['id1', 'val', 'doubled'], res.column_names())
         self.assertEqual([int, str, str], res.column_types())
-        self.assertEqual({'id1': 3, 'val': 'c', 'doubled': 'cc'}, res.topk('id1', 1)[0])
+        self.assertEqual({'id1': 1, 'val': 'a', 'doubled': 'aa'}, res[0])
+        self.assertEqual({'id1': 2, 'val': 'b', 'doubled': 'bb'}, res[1])
+        self.assertEqual({'id1': 3, 'val': 'c', 'doubled': 'cc'}, res[2])
 
     def test_join_partial(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id': [1, 2, 4], 'doubled': ['aa', 'bb', 'cc']})
-        res = t1.join(t2)
+        res = t1.join(t2).sort('id').head()
         self.assertEqual(2, len(res))
         self.assertEqual(['id', 'val', 'doubled'], res.column_names())
         self.assertEqual([int, str, str], res.column_types())
-        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'bb'}, res.topk('id', 1)[0])
+        self.assertEqual({'id': 1, 'val': 'a', 'doubled': 'aa'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'bb'}, res[1])
 
     def test_join_empty(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id': [4, 5, 6], 'doubled': ['aa', 'bb', 'cc']})
-        res = t1.join(t2)
+        res = t1.join(t2).head()
         self.assertEqual(0, len(res))
         self.assertEqual(['id', 'val', 'doubled'], res.column_names())
         self.assertEqual([int, str, str], res.column_types())
@@ -2719,53 +2733,69 @@ class TestXFrameJoin(unittest.TestCase):
     def test_join_on_val(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id': [10, 20, 30], 'val': ['a', 'b', 'c']})
-        res = t1.join(t2, on='val')
+        res = t1.join(t2, on='val').sort('id').head()
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val', 'id.1'], res.column_names())
         self.assertEqual([int, str, int], res.column_types())
-        self.assertEqual({'id': 3, 'val': 'c', 'id.1': 30}, res.topk('id', 1)[0])
+        self.assertEqual({'id': 1, 'val': 'a', 'id.1': 10}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b', 'id.1': 20}, res[1])
+        self.assertEqual({'id': 3, 'val': 'c', 'id.1': 30}, res[2])
 
     def test_join_inner(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id': [1, 2, 4], 'doubled': ['aa', 'bb', 'cc']})
-        res = t1.join(t2, how='inner')
+        res = t1.join(t2, how='inner').sort('id').head()
         self.assertEqual(2, len(res))
         self.assertEqual(['id', 'val', 'doubled'], res.column_names())
         self.assertEqual([int, str, str], res.column_types())
-        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'bb'}, res.topk('id', 1)[0])
+        self.assertEqual({'id': 1, 'val': 'a', 'doubled': 'aa'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'bb'}, res[1])
 
     def test_join_left(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id': [1, 2, 4], 'doubled': ['aa', 'bb', 'cc']})
-        res = t1.join(t2, how='left')
+        res = t1.join(t2, how='left').sort('id').head()
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val', 'doubled'], res.column_names())
         self.assertEqual([int, str, str], res.column_types())
-        self.assertEqual({'id': 3, 'val': 'c', 'doubled': None}, res.topk('id', 1)[0])
+        self.assertEqual({'id': 1, 'val': 'a', 'doubled': 'aa'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'bb'}, res[1])
+        self.assertEqual({'id': 3, 'val': 'c', 'doubled': None}, res[2])
 
     def test_join_right(self):
-        # TODO is this the right expected result?
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        t2 = XFrame({'id': [1, 2, 4], 'doubled': ['aa', 'bb', 'cc']})
-        res = t1.join(t2, how='right')
+        t2 = XFrame({'id': [1, 2, 4], 'doubled': ['aa', 'bb', 'dd']})
+        res = t1.join(t2, how='right').sort('id').head()
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val', 'doubled'], res.column_names())
         self.assertEqual([int, str, str], res.column_types())
-        top = res.topk('doubled', 2)
-        self.assertEqual({'id': None, 'val': None, 'doubled': 'cc'}, top[0])
-        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'bb'}, top[1])
+        self.assertEqual({'id': 1, 'val': 'a', 'doubled': 'aa'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'bb'}, res[1])
+        self.assertEqual({'id': 4, 'val': None, 'doubled': 'dd'}, res[2])
 
-    def test_join_outer(self):
+    def test_join_full(self):
+        t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        t2 = XFrame({'id': [1, 2, 4], 'doubled': ['aa', 'bb', 'dd']})
+        res = t1.join(t2, how='full').sort('id').head()
+        self.assertEqual(4, len(res))
+        self.assertEqual(['id', 'val', 'doubled'], res.column_names())
+        self.assertEqual([int, str, str], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a', 'doubled': 'aa'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'bb'}, res[1])
+        self.assertEqual({'id': 3, 'val': 'c', 'doubled': None}, res[2])
+        self.assertEqual({'id': 4, 'val': None, 'doubled': 'dd'}, res[3])
+
+    def test_join_cartesian(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id': [10, 20, 30], 'doubled': ['aa', 'bb', 'cc']})
-        res = t1.join(t2, how='outer')
+        res = t1.join(t2, how='cartesian').sort(['id', 'id.1']).head()
         self.assertEqual(9, len(res))
         self.assertEqual(['id', 'val', 'doubled', 'id.1'], res.column_names())
         self.assertEqual([int, str, str, int], res.column_types())
-        top = res.topk('id', 3)
-        top = top.topk('doubled', 2)
-        self.assertEqual({'id': 3, 'val': 'c', 'doubled': 'cc', 'id.1': 30}, top[0])
-        self.assertEqual({'id': 3, 'val': 'c', 'doubled': 'bb', 'id.1': 20}, top[1])
+        self.assertEqual({'id': 1, 'val': 'a', 'doubled': 'aa', 'id.1': 10}, res[0])
+        self.assertEqual({'id': 1, 'val': 'a', 'doubled': 'bb', 'id.1': 20}, res[1])
+        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'aa', 'id.1': 10}, res[3])
+        self.assertEqual({'id': 3, 'val': 'c', 'doubled': 'cc', 'id.1': 30}, res[8])
 
     def test_join_bad_how(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
@@ -3645,6 +3675,7 @@ class TestXFrameShape(unittest.TestCase):
         self.assertEqual((0, 0), t.shape)
 
 
+# noinspection SqlNoDataSourceInspection,SqlDialectInspection
 class TestXFrameSql(unittest.TestCase):
     """
     Tests XFrame sql
@@ -3669,4 +3700,3 @@ class TestXFrameSql(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

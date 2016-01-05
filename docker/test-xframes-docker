@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Run tests
 sudo docker run -t --name xframes xframes /bin/bash -c /notebooks/xframes/test/runtests
