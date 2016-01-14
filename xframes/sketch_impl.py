@@ -81,7 +81,12 @@ class SketchImpl(object):
         defined.cache()
         self.dtype = xa.dtype()
         self.count = defined.count()
-        self.sketch_type = 'numeric' if util.is_numeric_type(self.dtype) else 'non-numeric'
+        if util.is_numeric_type(self.dtype):
+            self.sketch_type = 'numeric'
+        elif util.is_date_type(self.dtype):
+            self.sketch_type = 'date'
+        else:
+            self.sketch_type = 'non-numeric'
 
         # compute others later if needed
         self._rdd = xa.to_rdd()
@@ -92,14 +97,18 @@ class SketchImpl(object):
     def _create_stats(self):
         # calculate some basic statistics
         if self.stats is None:
-            stats = self.defined.stats()
-            self.min_val = stats.min()
-            self.max_val = stats.max()
-            self.mean_val = stats.mean()
-            self.sum_val = stats.sum()
-            self.variance_val = stats.variance()
-            self.stdev_val = stats.stdev()
-            self.stats = stats
+            if util.is_date_type(self.dtype):
+                self.min_val = self.defined.min()
+                self.max_val = self.defined.max()
+            else:
+                stats = self.defined.stats()
+                self.min_val = stats.min()
+                self.max_val = stats.max()
+                self.mean_val = stats.mean()
+                self.sum_val = stats.sum()
+                self.variance_val = stats.variance()
+                self.stdev_val = stats.stdev()
+                self.stats = stats
 
     def _create_quantile_accumulator(self):
         num_levels = 12
@@ -123,16 +132,16 @@ class SketchImpl(object):
         return self.count
 
     def max(self):
-        if self.sketch_type == 'numeric':
+        if self.sketch_type in ['numeric', 'date']:
             self._create_stats()
             return self.max_val
-        raise ValueError('max only available for numeric types')
+        raise ValueError('max only available for numeric or date types')
 
     def min(self):
-        if self.sketch_type == 'numeric':
+        if self.sketch_type in ['numeric', 'date']:
             self._create_stats()
             return self.min_val
-        raise ValueError('min only available for numeric types')
+        raise ValueError('min only available for numeric or date types')
 
     def sum(self):
         if self.sketch_type == 'numeric':
@@ -246,12 +255,12 @@ class SketchImpl(object):
         return xframes.xarray_impl.XArrayImpl(tfidf, dict)
 
     def get_quantile(self, quantile_val):
-        if self.sketch_type == 'numeric':
+        if self.sketch_type == 'numeric' or self.sketch_type == 'date':
             if self.quantile_accumulator is None:
                 self._create_stats()
                 self.quantile_accumulator = self._create_quantile_accumulator()
             return self.quantile_accumulator.ppf(quantile_val)
-        raise ValueError('get_quantile only available for numeric types')
+        raise ValueError('get_quantile only available for numeric or date types')
 
     def frequency_count(self, element):
         if self.frequency_sketch is None:
