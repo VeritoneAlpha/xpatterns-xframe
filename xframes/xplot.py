@@ -2,6 +2,7 @@
 import traceback
 import operator
 import math
+import datetime
 
 from xframes.deps import HAS_MATPLOTLIB
 
@@ -175,21 +176,32 @@ class XPlot(object):
 
     @staticmethod
     def create_histogram_buckets(vals, bins, min_val, max_val):
-        delta = float(max_val - min_val)
-        if delta == 0:
+        if max_val == min_val:
             return None, None
+        interval = max_val - min_val
         n_buckets = bins or 50
-        delta = float(delta) / n_buckets
         bucket_vals = [0] * n_buckets
-        for i in range(0, n_buckets):
-            bucket_vals[i] = min_val + (i * delta)
+        usetd = type(interval) is datetime.timedelta
+        if usetd:
+            delta = interval.total_seconds() / n_buckets
+            for i in range(0, n_buckets):
+                bucket_vals[i] = min_val + datetime.timedelta(seconds=(i * delta))
+        else:
+            delta = float(interval) / n_buckets
+            for i in range(0, n_buckets):
+                bucket_vals[i] = min_val + (i * delta)
+
 
         def iterate_values(value_iterator):
             bucket_counts = [0] * n_buckets
             for val in value_iterator:
-                if val is None or math.isnan(val):
+                #if val is None or math.isnan(val):
+                if val is None:
                     continue
-                b = int((val - min_val) / delta)
+                if usetd:
+                    b = int((val - min_val).total_seconds() / delta)
+                else:
+                    b = int((val - min_val) / delta)
                 if b >= n_buckets:
                     b = n_buckets - 1
                 elif b < 0:
