@@ -195,8 +195,9 @@ class XPlot(object):
         def iterate_values(value_iterator):
             bucket_counts = [0] * n_buckets
             for val in value_iterator:
-                #if val is None or math.isnan(val):
                 if val is None:
+                    continue
+                if type(val) is float and math.isnan(val):
                     continue
                 if usetd:
                     b = int((val - min_val).total_seconds() / delta)
@@ -297,8 +298,7 @@ class XPlot(object):
         Print column summary information.
 
         The number of the most frequent values is shown.
-        If the column to summarize is numerical, then a histogram is also shown.
-        the most frequent values is shown.
+        If the column to summarize is numerical or datetime, then a histogram is also shown.
 
         Parameters
         ----------
@@ -356,6 +356,16 @@ class XPlot(object):
             print 'Mean:         ', sk.mean()
             if unique_items > 1:
                 print 'StDev:        ', sk.std()
+                print 'Distribution Plot'
+                upper_cutoff = cutoff or 1.0
+                self.histogram(column, title=title, bins=bins, sketch=sk, upper_cutoff=upper_cutoff)
+
+        if col_type is datetime.datetime:
+            # datetime: show a histogram
+            print 'Num Undefined:', sk.num_undefined()
+            print 'Min:          ', sk.min()
+            print 'Max:          ', sk.max()
+            if unique_items > 1:
                 print 'Distribution Plot'
                 upper_cutoff = cutoff or 1.0
                 self.histogram(column, title=title, bins=bins, sketch=sk, upper_cutoff=upper_cutoff)
