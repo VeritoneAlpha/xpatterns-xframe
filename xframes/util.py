@@ -469,11 +469,16 @@ def infer_types(rdd):
 
 _numeric_types = (float, int, long, numpy.float64, numpy.int64)
 
+_date_types = [datetime.datetime]
+
 _sortable_types = (str, float, int, long, numpy.float64, numpy.int64, datetime.datetime)
 
 
 def is_numeric_type(typ):
     return typ in _numeric_types
+
+def is_date_type(typ):
+    return typ in _date_types
 
 
 def is_sortable_type(typ):
