@@ -239,3 +239,15 @@ def list_dir(uri):
         return files
     else:
         raise UriError('Unknown scheme: {}'.format(parsed_uri.scheme))
+
+
+def m_time(uri):
+    parsed_uri = _parse_uri(uri)
+    if parsed_uri.scheme == 'file':
+        return os.stat(parsed_uri.path).st_mtime
+    elif parsed_uri.scheme == 'hdfs':
+        hdfs_connection = _make_hdfs_connection(parsed_uri)
+        files = hdfs_connection.status(parsed_uri.path)['modificationTime']
+        return files
+    else:
+        raise UriError('Unknown scheme: {}'.format(parsed_uri.scheme))
