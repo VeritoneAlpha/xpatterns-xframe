@@ -2148,7 +2148,7 @@ class XArray(XObject):
         `unpack` expands an XArray using the values of each list/array/dict as
         elements in a new XFrame of multiple columns. For example, an XArray of
         lists each of length 4 will be expanded into an XFrame of 4 columns,
-        one for each list element. An XArray of lists/arrays of varying size
+        one for each list element. An XArray of lists/tuples/arrays of varying size
         will be expand to a number of columns equal to the longest list/array.
         An XArray of dictionaries will be expanded into as many columns as
         there are keys.
@@ -2273,6 +2273,13 @@ class XArray(XObject):
                 return True
             return False
 
+        def type_from_typecode(typecode):
+            if typecode in 'cbBuhHiIlL':
+                return int
+            if typecode in 'fd':
+                return float
+            return None
+
         def make_column_types(head_rows, keys):
             col_types = {}
             for row in head_rows:
@@ -2283,8 +2290,8 @@ class XArray(XObject):
                         
             return [col_types[key] for key in keys]
 
-        if self.dtype() not in [dict, array.array, list]:
-            raise TypeError('Only XArray of dict/list/array type supports unpack.')
+        if self.dtype() not in [dict, array.array, list, tuple]:
+            raise TypeError('Only XArray of dict/list/tuple/array type supports unpack: {}.'.format(self.dtype()))
 
         if column_name_prefix is None:
             column_name_prefix = ""
@@ -2345,7 +2352,8 @@ class XArray(XObject):
                     length = len(limit)
 
                 if self.dtype() == array.array:
-                    column_types = [float for _ in range(length)]
+                    typ = type_from_typecode(head_rows[0].typecode)
+                    column_types = [typ for _ in range(length)]
                 else:
                     column_types = list()
                     for i in limit:
