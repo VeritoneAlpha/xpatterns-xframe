@@ -687,6 +687,14 @@ class XArrayImpl(XObjectImpl, TracedObject):
             distribute_seed(self._rdd, seed)
             random.seed(seed)
 
+        def array_typecode(val):
+            typ = type(val)
+            if typ is int:
+                return 'l'
+            if typ is float:
+                return 'd'
+            return None
+
         # noinspection PyShadowingNames
         def apply_and_cast(x, fn, dtype, skip_undefined):
             if is_missing(x) and skip_undefined:
@@ -701,7 +709,10 @@ class XArrayImpl(XObjectImpl, TracedObject):
             if dtype is None:
                 return fnx
             try:
-                return dtype(fnx)
+                if dtype in [array.array]:
+                    return array.array(array_typecode(fnx[0]), fnx)
+                else:
+                    return dtype(fnx)
             except TypeError:
                 return ApplyError('Error converting "{}" to {}'.format(fnx, dtype))
 
@@ -833,23 +844,23 @@ class XArrayImpl(XObjectImpl, TracedObject):
 
     def unpack(self, column_name_prefix, limit, column_types, na_value):
         """
-        Convert an XArray of list, array, or dict type to an XFrame with
+        Convert an XArray of list, tuple, array, or dict type to an XFrame with
         multiple columns.
 
-        `unpack` expands an XArray using the values of each list/array/dict as
+        `unpack` expands an XArray using the values of each list/tuple/array/dict as
         elements in a new XFrame of multiple columns. For example, an XArray of
         lists each of length 4 will be expanded into an XFrame of 4 columns,
         one for each list element. An XArray of lists/arrays of varying size
-        will be expand to a number of columns equal to the longest list/array.
+        will be expand to a number of columns equal to the longest list/tuple/array.
         An XArray of dictionaries will be expanded into as many columns as
         there are keys.
 
-        When unpacking an XArray of list or array type, new columns are named:
+        When unpacking an XArray of list, tuple, or array type, new columns are named:
         `column_name_prefix`.0, `column_name_prefix`.1, etc. If unpacking a
         column of dict type, unpacked columns are named
         `column_name_prefix`.key1, `column_name_prefix`.key2, etc.
 
-        When unpacking an XArray of list or dictionary types, missing values in
+        When unpacking an XArray of list, tuple or dictionary types, missing values in
         the original element remain as missing values in the resultant columns.
         If the `na_value` parameter is specified, all values equal to this
         given value are also replaced with missing values. In an XArray of
@@ -866,7 +877,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
 
         # noinspection PyShadowingNames
         def select_elems(row, limit):
-            if type(row) == list:
+            if type(row) in [list, tuple, array.array]:
                 return [row[elem] if 0 <= elem < len(row) else None for elem in limit]
             else:
                 return [row[elem] if elem in row else None for elem in limit]
