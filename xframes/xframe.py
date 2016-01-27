@@ -3861,7 +3861,7 @@ class XFrame(XObject):
         Expand one column of this XFrame to multiple columns with each value in
         a separate column. Returns a new XFrame with the unpacked column
         replaced with a list of new columns.  The column must be of
-        list, array, or dict type.
+        list, tuple, array, or dict type.
 
         For more details regarding name generation, missing value handling and
         other, refer to the XArray version of
