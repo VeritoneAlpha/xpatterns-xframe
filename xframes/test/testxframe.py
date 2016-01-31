@@ -1377,16 +1377,16 @@ class TestXFrameAddColumn(unittest.TestCase):
     def test_add_column_named(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         ta = XArray([3.0, 2.0, 1.0])
-        tf.add_column(ta, name='another')
-        self.assertEqual(['id', 'val', 'another'], tf.column_names())
-        self.assertEqual({'id': 1, 'val': 'a', 'another': 3.0}, tf[0])
+        res = tf.add_column(ta, name='another')
+        self.assertEqual(['id', 'val', 'another'], res.column_names())
+        self.assertEqual({'id': 1, 'val': 'a', 'another': 3.0}, res[0])
 
     def test_add_column_name_default(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         ta = XArray([3.0, 2.0, 1.0])
-        tf.add_column(ta)
-        self.assertEqual(['id', 'val', 'X2'], tf.column_names())
-        self.assertEqual({'id': 1, 'val': 'a', 'X2': 3.0}, tf[0])
+        res = tf.add_column(ta)
+        self.assertEqual(['id', 'val', 'X2'], res.column_names())
+        self.assertEqual({'id': 1, 'val': 'a', 'X2': 3.0}, res[0])
 
     def test_add_column_name_dup(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
@@ -1403,20 +1403,36 @@ class TestXFrameAddColumnsArray(unittest.TestCase):
     def test_add_columns_one(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         ta = XArray([3.0, 2.0, 1.0])
+<<<<<<< Updated upstream
         tf.add_columns([ta], namelist=['new1'])
         self.assertEqual(['id', 'val', 'new1'], tf.column_names())
         self.assertEqual([int, str, float], tf.column_types())
         self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0}, tf[0])
 
+=======
+        res = tf.add_columns([ta], namelist=['new1'])
+        self.assertEqual(['id', 'val', 'new1'], res.column_names())
+        self.assertEqual([int, str, float], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0}, res[0])
+        
+>>>>>>> Stashed changes
     def test_add_columns_two(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         ta1 = XArray([3.0, 2.0, 1.0])
         ta2 = XArray([30.0, 20.0, 10.0])
+<<<<<<< Updated upstream
         tf.add_columns([ta1, ta2], namelist=['new1', 'new2'])
         self.assertEqual(['id', 'val', 'new1', 'new2'], tf.column_names())
         self.assertEqual([int, str, float, float], tf.column_types())
         self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0, 'new2': 30.0}, tf[0])
 
+=======
+        res = tf.add_columns([ta1, ta2], namelist=['new1', 'new2'])
+        self.assertEqual(['id', 'val', 'new1', 'new2'], res.column_names())
+        self.assertEqual([int, str, float, float], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0, 'new2': 30.0}, res[0])
+        
+>>>>>>> Stashed changes
     def test_add_columns_namelist_missing(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         ta1 = XArray([3.0, 2.0, 1.0])
@@ -1459,10 +1475,10 @@ class TestXFrameAddColumnsFrame(unittest.TestCase):
     def test_add_columns(self):
         tf1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         tf2 = XFrame({'new1': [3.0, 2.0, 1.0], 'new2': [30.0, 20.0, 10.0]})
-        tf1.add_columns(tf2)
-        self.assertEqual(['id', 'val', 'new1', 'new2'], tf1.column_names())
-        self.assertEqual([int, str, float, float], tf1.column_types())
-        self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0, 'new2': 30.0}, tf1[0])
+        res = tf1.add_columns(tf2)
+        self.assertEqual(['id', 'val', 'new1', 'new2'], res.column_names())
+        self.assertEqual([int, str, float, float], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0, 'new2': 30.0}, res[0])
 
     def test_add_columns_dup_names(self):
         tf1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
@@ -1473,22 +1489,32 @@ class TestXFrameAddColumnsFrame(unittest.TestCase):
 
 class TestXFrameReplaceColumn(unittest.TestCase):
     """
-    Tests XFrame replace_column
+    Tests XFrame replace_selected_column
     """
 
-    def test_replace_column_named(self):
-        tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        ta = XArray([3.0, 2.0, 1.0])
-        tf.replace_column('val', ta)
-        self.assertEqual(['id', 'val'], tf.column_names())
-        self.assertEqual({'id': 1, 'val': 3.0}, tf[0])
+    def test_replace_column(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        a = XArray(['x', 'y', 'z'])
+        res = t.replace_column('val', a)
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual({'id': 1, 'val': 'x'}, res[0])
 
-    def test_replace_column_name_not_found(self):
-        tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        ta = XArray([3.0, 2.0, 1.0])
+    def test_replace_column_bad_col_type(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        with self.assertRaises(TypeError):
+            _ = t.replace_column('val', ['x', 'y', 'z'])
+
+    def test_replace_column_bad_name(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        a = XArray(['x', 'y', 'z'])
         with self.assertRaises(ValueError):
-            tf.replace_column('xx', ta)
+            _ = t.replace_column('xx', a)
 
+    def test_replace_column_bad_name_type(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        a = XArray(['x', 'y', 'z'])
+        with self.assertRaises(TypeError):
+            _ = t.replace_column(2, a)
 
 class TestXFrameRemoveColumn(unittest.TestCase):
     """
@@ -1497,8 +1523,9 @@ class TestXFrameRemoveColumn(unittest.TestCase):
 
     def test_remove_column(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'another': [3.0, 2.0, 1.0]})
-        t.remove_column('another')
-        self.assertEqual({'id': 1, 'val': 'a'}, t[0])
+        res = t.remove_column('another')
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual(3, len(t.column_names()))
 
     def test_remove_column_not_found(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'another': [3.0, 2.0, 1.0]})
@@ -1513,8 +1540,9 @@ class TestXFrameRemoveColumns(unittest.TestCase):
 
     def test_remove_columns(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'new1': [3.0, 2.0, 1.0], 'new2': [30.0, 20.0, 10.0]})
-        t.remove_columns(['new1', 'new2'])
-        self.assertEqual({'id': 1, 'val': 'a'}, t[0])
+        res = t.remove_columns(['new1', 'new2'])
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual(4, len(t.column_names()))
 
     def test_remove_column_not_iterable(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'another': [3.0, 2.0, 1.0]})
@@ -1534,9 +1562,9 @@ class TestXFrameSwapColumns(unittest.TestCase):
 
     def test_swap_columns(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'x': [3.0, 2.0, 1.0]})
-        t.swap_columns('val', 'x')
-        self.assertEqual(['id', 'x', 'val'], t.column_names())
-        self.assertEqual({'id': 1, 'x': 3.0, 'val': 'a'}, t[0])
+        res = t.swap_columns('val', 'x')
+        self.assertEqual(['id', 'x', 'val'], res.column_names())
+        self.assertEqual({'id': 1, 'x': 3.0, 'val': 'a'}, res[0])
 
     def test_swap_columns_bad_col_1(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'another': [3.0, 2.0, 1.0]})
@@ -1583,9 +1611,9 @@ class TestXFrameRename(unittest.TestCase):
 
     def test_rename(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        t.rename({'id': 'new_id'})
-        self.assertEqual(['new_id', 'val'], t.column_names())
-        self.assertEqual({'new_id': 1, 'val': 'a'}, t[0])
+        res = t.rename({'id': 'new_id'})
+        self.assertEqual(['new_id', 'val'], res.column_names())
+        self.assertEqual({'new_id': 1, 'val': 'a'}, res[0])
 
     def test_rename_arg_not_dict(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
@@ -1597,11 +1625,16 @@ class TestXFrameRename(unittest.TestCase):
         with self.assertRaises(ValueError):
             t.rename({'xx': 'new_id'})
 
+    def test_rename_bad_length(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        with self.assertRaises(ValueError):
+            t.rename(['id'])
+
     def test_rename_list(self):
         t = XFrame({'X0': [1, 2, 3], 'X1': ['a', 'b', 'c']})
-        t.rename(['id', 'val'])
-        self.assertEqual(['id', 'val'], t.column_names())
-        self.assertEqual({'id': 1, 'val': 'a'}, t[0])
+        res = t.rename(['id', 'val'])
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
 
         # TODO test column rename with list wrong length
 

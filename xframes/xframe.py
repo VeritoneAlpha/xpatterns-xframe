@@ -205,32 +205,32 @@ class XFrame(XObject):
         elif _format == 'xarray':
             if type(data) is not XArray:
                 raise ValueError('Data is not XArray')
-            self._impl = XFrameImpl().add_column(data._impl, '')
+            self._impl = XFrameImpl().add_column_in_place(data._impl, '')
         elif _format == 'array':
             if len(data) > 0:
                 unique_types = set([type(x) for x in data if x is not None])
                 if len(unique_types) == 1 and XArray in unique_types:
                     xf = XFrameImpl()
                     for arr in data:
-                        xf.add_column(arr._impl, '')
+                        xf.add_column_in_place(arr._impl, '')
                     self._impl = xf
                 elif XArray in unique_types:
                     raise ValueError('Cannot create XFrame from mix of regular values and XArrays.')
                 else:
-                    self._impl = XFrameImpl().add_column(XArray(data)._impl, '')
+                    self._impl = XFrameImpl().add_column_in_place(XArray(data)._impl, '')
             else:
                 self._impl = XFrameImpl()
         elif _format == 'iter':
-            self._impl = XFrameImpl().add_column(XArray(data)._impl, '')
+            self._impl = XFrameImpl().add_column_in_place(XArray(data)._impl, '')
         elif _format == 'dict':
             if type(data) is not dict:
                 raise ValueError('Data is not dictionary')
             xf = XFrameImpl()
             for key, val in iter(sorted(data.iteritems())):
                 if type(val) == XArray:
-                    xf.add_column(val._impl, key)
+                    xf = xf.add_column(val._impl, key)
                 else:
-                    xf.add_column(XArray(val)._impl, key)
+                    xf = xf.add_column(XArray(val)._impl, key)
             self._impl = xf
         elif _format == 'iteritems':
             if data is None:
@@ -239,7 +239,7 @@ class XFrame(XObject):
             for key, val in iter(sorted(data.iteritems())):
                 if not hasattr(val, '__iter__'):
                     raise TypeError('Iterator values must be iterable.')
-                xf.add_column(XArray(val)._impl, key)
+                xf = xf.add_column(XArray(val)._impl, key)
             self._impl = xf
         elif _format == 'csv':
             if not isinstance(data, basestring):
@@ -1113,10 +1113,14 @@ class XFrame(XObject):
         -------
         out : list[PrettyTable]
         """
+<<<<<<< Updated upstream
         # TODO use take to get just be beginning rows
         # We are going to need a column of values at a time
         # Take should return a list of tuples
         head_rows = self._impl.rdd().take(max_rows_to_display + 1)
+=======
+        head_rows = self._impl.rdd().take(max_rows_to_display+1)
+>>>>>>> Stashed changes
         if len(head_rows) == 0:
             return [PrettyTable()]
         if len(head_rows) > max_rows_to_display:
@@ -1178,7 +1182,10 @@ class XFrame(XObject):
                 # check the max length of element in the column
                 header = _truncate_str(col, wrap_text)
                 if n_rows > 0:
+<<<<<<< Updated upstream
                     # col_width = min(max_column_width, max(max(len(str(x)) for x in headxf[col]), len(header) + 3))
+=======
+>>>>>>> Stashed changes
                     col_width = min(max_column_width, max(max(len(str(x)) for x in cols[col]), len(header) + 3))
                 else:
                     col_width = max_column_width
@@ -1301,7 +1308,8 @@ class XFrame(XObject):
         """
         Returns a shallow copy of the xframe.
         """
-        return self.select_columns(self.column_names())
+        return XFrame(impl=self._impl.copy())
+#        return self.select_columns(self.column_names())
 
     def _row_selector(self, other):
         """
@@ -1846,6 +1854,7 @@ class XFrame(XObject):
         """
         If the column is of string type, and the values can all be interpreted as
         integer or float values, then cast the column to the numerical type.
+        Otherwise, returns a copy of the XFrame.
 
         Parameters
         ----------
@@ -1890,7 +1899,7 @@ class XFrame(XObject):
         if new_type in [float]:
             return XFrame(impl=self._impl.transform_cols([column_name], cast_float, [float], 0))
 
-        return self
+        return XFrame(impl=self._impl.copy())
 
     def flat_map(self, column_names, fn, column_types='auto', seed=None):
         """
@@ -2023,7 +2032,7 @@ class XFrame(XObject):
             raise ValueError('Invalid sampling rate: {}.'.format(fraction))
 
         if self.num_rows() == 0 or self.num_columns() == 0:
-            return self
+            return XFrame(impl=self._impl.copy())
         else:
             return XFrame(impl=self._impl.sample(fraction, seed))
 
@@ -2293,16 +2302,16 @@ class XFrame(XObject):
 
         return XFrame(data=[], impl=self._impl.select_columns(keylist))
 
-    def add_column(self, data, name=''):
+    def add_column(self, col, name=''):
         """
         Add a column to this XFrame. The length of the new column
         must match the length of the existing XFrame. This
-        operation modifies the current XFrame in place and returns self. If no
-        `name` is given, a default name is chosen.
+        operation returns a new XFrame with the additional columns.
+        If no `name` is given, a default name is chosen.
 
         Parameters
         ----------
-        data : XArray
+        col : XArray
             The 'column' of data to add.
 
         name : string, optional
@@ -2312,7 +2321,7 @@ class XFrame(XObject):
         Returns
         -------
         out : XFrame
-            The current XFrame.
+            A new XFrame with the new column.
 
         See Also
         --------
@@ -2324,8 +2333,8 @@ class XFrame(XObject):
         >>> xf = xframes.XFrame({'id': [1, 2, 3], 'val': ['A', 'B', 'C']})
         >>> xa = xframes.XArray(['cat', 'dog', 'fossa'])
         >>> # This line is equivalant to `xf['species'] = xa`
-        >>> xf.add_column(xa, name='species')
-        >>> xf
+        >>> xf2 = xf.add_column(xa, name='species')
+        >>> xf2
         +----+-----+---------+
         | id | val | species |
         +----+-----+---------+
@@ -2336,32 +2345,43 @@ class XFrame(XObject):
         [3 rows x 3 columns]
         """
         # Check type for pandas dataframe or XArray?
-        if not isinstance(data, XArray):
+        if not isinstance(col, XArray):
             raise TypeError('Must give column as XArray.')
         if not isinstance(name, str):
             raise TypeError('Invalid column name: must be str.')
-        self._impl.add_column(data._impl, name)
+        return XFrame(impl=self._impl.add_column(col._impl, name))
+
+    def _add_column_in_place(self, col, name=''):
+        """
+        Add a column to this XFrame.  Used internally for mutating operations.
+        """
+        # TODO Check type for pandas dataframe or XArray?
+        if not isinstance(col, XArray):
+            raise TypeError('Must give column as XArray.')
+        if not isinstance(name, str):
+            raise TypeError('Invalid column name: must be str.')
+        self._impl.add_column_in_place(col._impl, name)
         return self
 
-    def add_columns(self, data, namelist=None):
+    def add_columns(self, cols, namelist=None):
         """
         Adds multiple columns to this XFrame. The length of the new columns
         must match the length of the existing XFrame. This
-        operation modifies the current XFrame in place and returns self.
+        operation returns a new XFrame with the additional columns.
 
         Parameters
         ----------
-        data : list of XArray or XFrame
-            The columns to add.  If `data` is an XFrame, all columns in it are added.
+        cols : list of XArray or XFrame
+            The columns to add.  If `cols` is an XFrame, all columns in it are added.
 
         namelist : list of string, optional
             A list of column names. All names must be specified. `Namelist` is
-            ignored if `data` is an XFrame.
+            ignored if `cols` is an XFrame.
 
         Returns
         -------
         out : XFrame
-            The current XFrame.
+            The XFrame with additional columns.
 
         See Also
         --------
@@ -2371,96 +2391,123 @@ class XFrame(XObject):
         Examples
         --------
         >>> xf = xframes.XFrame({'id': [1, 2, 3], 'val': ['A', 'B', 'C']})
-        >>> xf2 = xframes.XFrame({'species': ['cat', 'dog', 'fossa'],
+        >>> xf2 = xframes.XFrame({'species': ['cat', 'dog', 'horse'],
         ...                        'age': [3, 5, 9]})
-        >>> xf.add_columns(xf2)
-        >>> xf
+        >>> xf3 = xf.add_columns(xf2)
+        >>> xf3
         +----+-----+-----+---------+
         | id | val | age | species |
         +----+-----+-----+---------+
         | 1  |  A  |  3  |   cat   |
         | 2  |  B  |  5  |   dog   |
-        | 3  |  C  |  9  |  fossa  |
+        | 3  |  C  |  9  |  horse  |
         +----+-----+-----+---------+
         [3 rows x 4 columns]
         """
-        datalist = data
-        if isinstance(data, XFrame):
-            other = data
+        col_list = cols
+        if isinstance(cols, XFrame):
+            other = cols
             namelist = other.column_names()
 
             my_columns = set(self.column_names())
             for name in namelist:
                 if name in my_columns:
                     raise ValueError("Column '{}' already exists in current XFrame.".format(name))
-            self._impl.add_columns_frame(data)
-            return self
+            return XFrame(impl=self._impl.add_columns_frame(cols))
         else:
-            if not hasattr(datalist, '__iter__'):
-                raise TypeError('Datalist must be an iterable.')
+            if not hasattr(col_list, '__iter__'):
+                raise TypeError('Column list must be an iterable.')
             if not hasattr(namelist, '__iter__'):
                 raise TypeError('Namelist must be an iterable.')
 
-            if not all([isinstance(x, XArray) for x in datalist]):
+            if not all([isinstance(x, XArray) for x in col_list]):
                 raise TypeError('Must give column as XArray.')
             if not all([isinstance(x, str) for x in namelist]):
                 raise TypeError("Invalid column name in list : must all be 'str'.")
-            if len(namelist) != len(datalist):
+            if len(namelist) != len(col_list):
                 raise ValueError('Namelist length mismatch.')
 
-            self._impl.add_columns_array(datalist, namelist)
+            return XFrame(impl=self._impl.add_columns_array(col_list, namelist))
+
+    def _add_columns_in_place(self, col, namelist=None):
+        """
+        Adds columns.  Modifies the existing XFrame.
+        """
+        col_list = col
+        if isinstance(col, XFrame):
+            other = col
+            namelist = other.column_names()
+
+            my_columns = set(self.column_names())
+            for name in namelist:
+                if name in my_columns:
+                    raise ValueError("Column '{}' already exists in current XFrame.".format(name))
+            self._impl.add_columns_frame_in_place(col)
+            return self
+        else:
+            if not hasattr(col_list, '__iter__'):
+                raise TypeError('Column list must be an iterable.')
+            if not hasattr(namelist, '__iter__'):
+                raise TypeError('Namelist must be an iterable.')
+
+            if not all([isinstance(x, XArray) for x in col_list]):
+                raise TypeError('Must give column as XArray.')
+            if not all([isinstance(x, str) for x in namelist]):
+                raise TypeError("Invalid column name in list : must all be 'str'.")
+            if len(namelist) != len(col_list):
+                raise ValueError('Namelist length mismatch.')
+
+            self._impl.add_columns_array_in_place(col_list, namelist)
             return self
 
-    def replace_column(self, name, data):
+    def replace_column(self, name, col):
         """
         Replace a column in this XFrame. The length of the new column
         must match the length of the existing XFrame. This
-        operation modifies the current XFrame in place and returns self.
+        operation returns a new XFrame with the replacement column.
 
         Parameters
         ----------
         name : string
             The name of the column.
 
-        data : XArray
-            The 'column' of data to add.
+        col : XArray
+            The 'column' to add.
 
         Returns
         -------
         out : XFrame
-            The current XFrame.
+            A new XFrame with specified column replaced.
 
 
         Examples
         --------
         >>> xf = xframes.XFrame({'id': [1, 2, 3], 'val': ['A', 'B', 'C']})
-        >>> xa = xframes.XArray(['cat', 'dog', 'fossa'])
-        >>> # This line is equivalant to `xf['val'] = sa`
-        >>> xf.add_column('val', xa)
-        >>> xf
+        >>> xa = xframes.XArray(['cat', 'dog', 'horse'])
+        >>> xf2 = xf.replace_column('val', xa)
+        >>> xf2
         +----+---------+
         | id | species |
         +----+---------+
         | 1  |   cat   |
         | 2  |   dog   |
-        | 3  |  fossa  |
+        | 3  |  horse  |
         +----+---------+
         [3 rows x 2 columns]
         """
         # Check type for pandas dataframe or XArray?
-        if not isinstance(data, XArray):
+        if not isinstance(col, XArray):
             raise TypeError('Must give column as XArray.')
         if not isinstance(name, str):
             raise TypeError('Invalid column name: must be str.')
         if name not in self.column_names():
             raise ValueError('Column name must be in XFrame')
-        self._impl.replace_selected_column(name, data)
-        return self
+        return XFrame(impl=self._impl.replace_selected_column(name, col))
 
     def remove_column(self, name):
         """
-        Remove a column from this XFrame. This operation modifies the current
-        XFrame in place and returns self.
+        Remove a column from this XFrame. This
+        operation returns a new XFrame with the given column removed.
 
         Parameters
         ----------
@@ -2470,14 +2517,14 @@ class XFrame(XObject):
         Returns
         -------
         out : XFrame
-            The XFrame with given column removed.
+            A new XFrame with given column removed.
 
         Examples
         --------
         >>> xf = xframes.XFrame({'id': [1, 2, 3], 'val': ['A', 'B', 'C']})
         >>> # This is equivalent to `del xf['val']`
-        >>> xf.remove_column('val')
-        >>> xf
+        >>> xf2 = xf.remove_column('val')
+        >>> xf2
         +----+
         | id |
         +----+
@@ -2489,13 +2536,12 @@ class XFrame(XObject):
         """
         if name not in self.column_names():
             raise KeyError('Cannot find column {}.'.format(name))
-        self._impl.remove_column(name)
-        return self
+        return XFrame(impl=self._impl.remove_column(name))
 
     def remove_columns(self, column_names):
         """
-        Removes one or more columns from this XFrame. This operation modifies the current
-        XFrame in place and returns self.
+        Removes one or more columns from this XFrame. This
+        operation returns a new XFrame with the given columns removed.
 
         Parameters
         ----------
@@ -2505,13 +2551,13 @@ class XFrame(XObject):
         Returns
         -------
         out : XFrame
-            The XFrame with given columns removed.
+            A new XFrame with given columns removed.
 
         Examples
         --------
         >>> xf = xframes.XFrame({'id': [1, 2, 3], 'val1': ['A', 'B', 'C'], 'val2': [10, 11, 12]})
-        >>> xf.remove_columns(['val1', 'val2'])
-        >>> xf
+        >>> xf2 = xf.remove_columns(['val1', 'val2'])
+        >>> xf2
         +----+
         | id |
         +----+
@@ -2526,13 +2572,12 @@ class XFrame(XObject):
         for name in column_names:
             if name not in self.column_names():
                 raise KeyError('Cannot find column {}.'.format(name))
-        self._impl.remove_columns(column_names)
-        return self
+        return XFrame(impl=self._impl.remove_columns(column_names))
 
     def swap_columns(self, column_1, column_2):
         """
-        Swap the columns with the given names. This operation modifies the
-        current XFrame in place and returns self.
+        Swap the columns with the given names. This
+        operation returns a new XFrame with the given columns swapped.
 
         Parameters
         ----------
@@ -2545,13 +2590,13 @@ class XFrame(XObject):
         Returns
         -------
         out : XFrame
-            The XFrame with swapped columns.
+            A new XFrame with specified columns swapped.
 
         Examples
         --------
         >>> xf = xframes.XFrame({'id': [1, 2, 3], 'val': ['A', 'B', 'C']})
-        >>> xf.swap_columns('id', 'val')
-        >>> xf
+        >>> xf2 = xf.swap_columns('id', 'val')
+        >>> xf2
         +-----+-----+
         | val | id  |
         +-----+-----+
@@ -2566,18 +2611,17 @@ class XFrame(XObject):
         if column_2 not in self.column_names():
             raise KeyError("Cannot find column '{}'.".format(column_2))
 
-        self._impl.swap_columns(column_1, column_2)
-        return self
+        return XFrame(impl=self._impl.swap_columns(column_1, column_2))
 
     def reorder_columns(self, column_names):
         """
-        Reorder the columns in the table.
+        Reorder the columns in the table.  This
+        operation returns a new XFrame with the given columns reordered.
 
         Parameters
         ----------
         column_names : list of string
             Names of the columns in desired order.
-
 
         Returns
         -------
@@ -2621,7 +2665,7 @@ class XFrame(XObject):
         the keys and replaces them with the names given as the values.  Alternatively,
         `names` can be a list of the new column names.  In this case it must be
         the same length as the number of columns.  This
-        operation modifies the current XFrame in place and returns self.
+        operation returns a new XFrame with the given columns renamed.
 
         Parameters
         ----------
@@ -2631,7 +2675,7 @@ class XFrame(XObject):
         Returns
         -------
         out : XFrame
-            The current XFrame.
+            A new XFrame with columns renamed.
 
         See Also
         --------
@@ -2641,8 +2685,8 @@ class XFrame(XObject):
         --------
         >>> xf = XFrame({'X.1': ['Alice','Bob'],
         ...              'X.2': ['123 Fake Street','456 Fake Street']})
-        >>> xf.rename({'X.1': 'name', 'X.2':'address'})
-        >>> xf
+        >>> xf2 = xf.rename({'X.1': 'name', 'X.2':'address'})
+        >>> xf2
         +-------+-----------------+
         |  name |     address     |
         +-------+-----------------+
@@ -2654,18 +2698,19 @@ class XFrame(XObject):
         if type(names) not in [list, dict]:
             raise TypeError('Names must be a dictionary: oldname -> newname or a list of newname.')
         all_columns = set(self.column_names())
+        res = XFrame(impl=self._impl.copy())
         if type(names) == dict:
             for k in names:
                 if k not in all_columns:
                     raise ValueError("Cannot find column '{}' in the XFrame.".format(k))
             for k in names:
-                self._impl.set_column_name(k, names[k])
+                res._impl.set_column_name(k, names[k])
         else:
             if len(names) != len(self.column_names()):
                 raise ValueError('Names must be the same length as the number of columns ({})'
                                  .format(len(self.column_names())))
-            self._impl.replace_column_names(names)
-        return self
+            res._impl.replace_column_names(names)
+        return res
 
     def __getitem__(self, key):
         """
@@ -2720,7 +2765,8 @@ class XFrame(XObject):
 
     def __setitem__(self, key, value):
         """
-        A wrapper around add_column(s).  Key can be either a list or a str.  If
+        Adds columns and returns the modified XFrame.
+        Key can be either a list or a str.  If
         value is an XArray, it is added to the XFrame as a column.  If it is a
         constant value (int, str, or float), then a column is created where
         every entry is equal to the constant value.  Existing columns can also
@@ -2728,7 +2774,7 @@ class XFrame(XObject):
 
         """
         if type(key) is list:
-            self.add_columns(value, key)
+            self._add_columns_in_place(value, key)
         elif type(key) is str:
             if type(value) is XArray:
                 sa_value = value
@@ -2741,18 +2787,17 @@ class XFrame(XObject):
                 # b) parallelize is inefficient
                 # c) partitions differ, so zip --> zipWithIndex, sortByKey, etc
                 # map it in instead
-                # TODO get rid of XArray.from_const if no one else calls it
                 if type(value) not in {int, float, str, array.array, list, dict}:
                     raise TypeError("Cannot create xarray of value type '{}'.".format(type(value)))
                 if key not in self.column_names():
-                    self._impl.add_column_const(key, value)
+                    self._impl.add_column_const_in_place(key, value)
                 else:
-                    self._impl.replace_column_const(key, value)
+                    self._impl.replace_column_const_in_place(key, value)
                 return
 
             # set new column
             if key not in self.column_names():
-                self.add_column(sa_value, key)
+                self._add_column_in_place(sa_value, key)
             else:
                 # special case if replacing the only column.
                 # server would fail the replacement if the new column has different
@@ -2761,18 +2806,21 @@ class XFrame(XObject):
                 # implementation.
                 single_column = (self.num_columns() == 1)
                 if single_column:
-                    self._impl.replace_single_column(sa_value)
+                    self._impl.replace_single_column_in_place(sa_value)
                 else:
-                    self._impl.replace_selected_column(key, sa_value)
+                    self._impl.replace_selected_column_in_place(key, sa_value)
 
         else:
             raise TypeError('Cannot set column with key type {}.'.format(type(key)))
 
-    def __delitem__(self, key):
+    def __delitem__(self, name):
         """
-        Wrapper around remove_column.
+        Removes a column and returns the modified XFrame.
         """
-        self.remove_column(key)
+        if name not in self.column_names():
+            raise KeyError('Cannot find column {}.'.format(name))
+        self._impl.remove_column_in_place(name)
+        return self
 
     def _materialize(self):
         """
@@ -3517,8 +3565,8 @@ class XFrame(XObject):
         new_xf.rename(dict(zip(new_xf.column_names(), new_names)))
 
         ret_xf = self.select_columns(rest_columns)
-        ret_xf.add_columns(new_xf)
-        return ret_xf
+        ret = ret_xf.add_columns(new_xf)
+        return ret
 
     # noinspection PyComparisonWithNone
     def filterby(self, values, column_name, exclude=False):
@@ -3603,7 +3651,7 @@ class XFrame(XObject):
 
         # If we have xArray, then use a different strategy based on join.
         value_xf = XFrame()
-        value_xf.add_column(values, column_name)
+        value_xf._add_column_in_place(values, column_name)
 
         # Make sure the values list has unique values, or else join will not filter.
         value_xf = value_xf.groupby(column_name, {})
@@ -3868,8 +3916,8 @@ class XFrame(XObject):
         ret_sa = XArray(impl=self._impl.pack_columns(columns, dict_keys, dtype, fill_na))
 
         new_xf = self.select_columns(rest_columns)
-        new_xf.add_column(ret_sa, new_column_name)
-        return new_xf
+        ret = new_xf.add_column(ret_sa, new_column_name)
+        return ret
 
     def unpack(self, unpack_column, column_name_prefix=None, column_types=None,
                na_value=None, limit=None):
@@ -4009,8 +4057,8 @@ class XFrame(XObject):
         new_xf.rename(dict(zip(new_xf.column_names(), new_names)))
 
         ret_xf = self.select_columns(rest_columns)
-        ret_xf.add_columns(new_xf)
-        return ret_xf
+        ret = ret_xf.add_columns(new_xf)
+        return ret
 
     def stack(self, column_name, new_column_name=None, drop_na=False):
         """

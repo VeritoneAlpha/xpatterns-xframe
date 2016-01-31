@@ -11,6 +11,7 @@ import StringIO
 import ast
 import shutil
 import re
+import copy
 from sys import stderr
 
 import numpy
@@ -746,20 +747,60 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._exit(names=names, types=types)
         return self._rv(res, names, types)
 
-    def add_column(self, data, name):
+    def copy(self):
         """
-        Add a column to this XFrame. 
+        Creates a copy of the XFrameImpl.
+
+        The underlying RDD is immutale, so we just need to copy the metadata.
+        """
+        self._entry()
+        self._exit()
+        return self._rv(self._rdd)
+
+    def add_column(self, col, name):
+        """
+        Create a new xFrame with one additional column.
+
+        The number of elements in the data given
+        must match the length of every other column of the XFrame. If no
+        name is given, a default name is chosen.
+        """
+        self._entry(name=name)
+        col_index = len(self.col_names)
+        if name == '':
+            name = 'X{}'.format(col_index)
+        if name in self.col_names:
+            raise ValueError("Column name already exists: '{}'.".format(name))
+        col_names = copy.copy(self.col_names)
+        col_names.append(name)
+        col_types = copy.copy(self.column_types)
+        col_types.append(col.elem_type)
+        # zip the data into the rdd, then shift into the tuple
+        if self._rdd is None:
+            res = col.rdd().map(lambda x: (x,))
+        else:
+            res = self._rdd.zip(col.rdd())
+
+            def move_inside(old_val, new_elem):
+                return tuple(old_val + (new_elem, ))
+            res = res.map(lambda pair: move_inside(pair[0], pair[1]))
+        self._exit()
+        return self._rv(res, col_names, col_types)
+
+    def add_column_in_place(self, data, name):
+        """
+        Add a column to this XFrame.
 
         The number of elements in the data given
         must match the length of every other column of the XFrame. If no
         name is given, a default name is chosen.
 
-        This operation modifies the current XFrame in place and returns self.         
+        This operation modifies the current XFrame in place and returns self.
         """
         self._entry(name=name)
-        col = len(self.col_names)
+        col_index = len(self.col_names)
         if name == '':
-            name = 'X{}'.format(col)
+            name = 'X{}'.format(col_index)
         if name in self.col_names:
             raise ValueError("Column name already exists: '{}'.".format(name))
         self.col_names.append(name)
@@ -777,6 +818,29 @@ class XFrameImpl(XObjectImpl, TracedObject):
         return self._replace(res)
 
     def add_columns_array(self, cols, namelist):
+        """
+        Adds multiple columns to this XFrame.
+
+        The number of elements in all
+        columns must match the length of every other column of the RDDs.
+        Each column added is an XArray.
+
+        This operation returns a new XFrame.
+        """
+        self._entry(namelist=namelist)
+        names = self.col_names + namelist
+        types = self.column_types + [col._impl.elem_type for col in cols]
+        rdd = self._rdd
+        for col in cols:
+            rdd = rdd.zip(col._impl.rdd())
+
+            def move_inside(old_val, new_elem):
+                return tuple(old_val + (new_elem, ))
+            rdd = rdd.map(lambda pair: move_inside(pair[0], pair[1]))
+        self._exit(names=names, types=types)
+        return self._rv(rdd, names, types)
+
+    def add_columns_array_in_place(self, cols, namelist):
         """
         Adds multiple columns to this XFrame. 
 
@@ -800,6 +864,28 @@ class XFrameImpl(XObjectImpl, TracedObject):
         return self._replace(rdd, names, types)
 
     def add_columns_frame(self, other):
+        """
+        Adds multiple columns to this XFrame.
+
+        The number of elements in all
+        columns must match the length of every other column of the RDD.
+        The columns to be added are in an XFrame.
+
+        This operation returns a new XFrame.
+        """
+        self._entry()
+        names = self.col_names + other._impl.col_names
+        types = self.column_types + other._impl.column_types
+
+        def merge(old_cols, new_cols):
+            return old_cols + new_cols
+
+        rdd = self._rdd.zip(other._impl.rdd())
+        res = rdd.map(lambda pair: merge(pair[0], pair[1]))
+        self._exit(names=names, types=types)
+        return self._rv(res, names, types)
+
+    def add_columns_frame_in_place(self, other):
         """
         Adds multiple columns to this XFrame. 
 
@@ -825,6 +911,27 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         Remove a column from the RDD. 
 
+        This operation creates a new xframe_impl and returns it.
+        """
+        self._entry(name=name)
+        col = self.col_names.index(name)
+        col_names = copy.copy(self.col_names)
+        col_types = copy.copy(self.column_types)
+        col_names.pop(col)
+        col_types.pop(col)
+
+        def pop_col(row, col):
+            lst = list(row)
+            lst.pop(col)
+            return tuple(lst)
+        res = self._rdd.map(lambda row: pop_col(row, col))
+        self._exit()
+        return self._rv(res, col_names, col_types)
+
+    def remove_column_in_place(self, name):
+        """
+        Remove a column from the RDD.
+
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry(name=name)
@@ -844,15 +951,17 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         Remove columns from the RDD. 
 
-        This operation modifies the current XFrame in place and returns self.
+        This operation creates a new xframe_impl and returns it.
         """
         self._entry(col_names=col_names)
         cols = [self.col_names.index(name) for name in col_names]
         # pop from highets to lowest does not foul up indexes
         cols.sort(reverse=True)
+        col_names = copy.copy(self.col_names)
+        col_types = copy.copy(self.column_types)
         for col in cols:
-            self.col_names.pop(col)
-            self.column_types.pop(col)
+            col_names.pop(col)
+            col_types.pop(col)
 
         def pop_cols(row, cols):
             lst = list(row)
@@ -861,13 +970,13 @@ class XFrameImpl(XObjectImpl, TracedObject):
             return tuple(lst)
         res = self._rdd.map(lambda row: pop_cols(row, cols))
         self._exit()
-        return self._replace(res)
+        return self._rv(res, col_names, col_types)
 
     def swap_columns(self, column_1, column_2):
         """
-        Swap columns of the RDD.
+        Creates an RDD with the given columns swapped.
 
-        This operation modifies the current XFrame in place and returns self.
+        This operation
         """
         self._entry(column_1=column_1, column_2=column_2)
 
@@ -892,7 +1001,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         types = swap_list(self.column_types, col1, col2)
         res = self._rdd.map(lambda row: swap_cols(row, col1, col2))
         self._exit(names=names, types=types)
-        return self._replace(res, names, types)
+        return self._rv(res, names, types)
 
     def reorder_columns(self, column_names):
         """
@@ -963,7 +1072,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._exit()
         return iter_buf
 
-    def add_column_const(self, name, value):
+    def add_column_const_in_place(self, name, value):
         """
         Add a new column at the end of the RDD with a const value.
 
@@ -983,7 +1092,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._exit()
         return self._replace(res)
 
-    def replace_column_const(self, name, value):
+    def replace_column_const_in_place(self, name, value):
         """
         Replace thge given column of the RDD with a const value.
 
@@ -1003,7 +1112,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._exit()
         return self._replace(res)
 
-    def replace_single_column(self, col):
+    def replace_single_column_in_place(self, col):
         """
         Replace the column in a single-column table with the given one.
 
@@ -1017,6 +1126,30 @@ class XFrameImpl(XObjectImpl, TracedObject):
         return self._replace(res)
 
     def replace_selected_column(self, column_name, col):
+        """
+        Replace the given column  with the given one.
+
+        This operation returns a new XFrame.
+        """
+        self._entry(column_name=column_name)
+        rdd = self._rdd.zip(col._impl.rdd())
+        col_num = self.col_names.index(column_name)
+
+        def replace_col(row_col, col_num):
+            row = list(row_col[0])
+            col = row_col[1]
+            row[col_num] = col
+            return tuple(row)
+        res = rdd.map(lambda row_col: replace_col(row_col, col_num))
+        col_names = copy.copy(self.column_names())
+        col_names[col_num] = column_name
+        col_type = infer_type_of_rdd(col._impl.rdd())
+        col_types = copy.copy(self.column_types)
+        col_types[col_num] = col_type
+        self._exit()
+        return self._rv(res, col_names, col_types)
+
+    def replace_selected_column_in_place(self, column_name, col):
         """
         Replace the given column  with the given one.
 
