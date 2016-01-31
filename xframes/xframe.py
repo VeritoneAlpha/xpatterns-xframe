@@ -3582,33 +3582,32 @@ class XFrame(XObject):
 
         # If we are given the values directly, use filter.
         if type(values) is not XArray:
-            # If we were given a single element, put into a set.
-            # If iterable, then convert to a set.
-
-            if isinstance(values, basestring):
-                # Strings are iterable, but we don't want a set of characters.
+            # If we were given a single element, put into list.
+            # If iterable, then convert to a list.
+            if type(values) in (str, int, float):
                 values = {values}
             elif not hasattr(values, '__iter__'):
-                values = {values}
-            else:
-                # Make a new set from the iterable.
                 values = set(values)
+            elif type(values) == set:
+                pass
+            elif type(values) not in (list, tuple):
+                values = set([val for val in values])
 
             if len(values) == 0:
                 raise ValueError('Value list is empty.')
 
             value_type = type(next(iter(values)))
             if value_type != existing_type:
-                raise TypeError("Value type ({}) does not match column type ({}).".format(value_type, existing_type))
+                raise TypeError("Value type ({})does not match column typee ({}).".format(value_type, existing_type))
             return XFrame(impl=self._impl.filter(values, column_name, exclude))
 
+        # If we have xArray, then use a different strategy based on join.
         value_xf = XFrame()
         value_xf.add_column(values, column_name)
 
         # Make sure the values list has unique values, or else join will not filter.
         value_xf = value_xf.groupby(column_name, {})
 
-        existing_type = self.column_types()[existing_columns.index(column_name)]
         given_type = value_xf.column_types()[0]
         if given_type != existing_type:
             raise TypeError("Type of given values ('{}') does not match type of column '{}' ('{}') in XFrame."
