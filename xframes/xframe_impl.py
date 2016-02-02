@@ -791,10 +791,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         Add a column to this XFrame.
 
-        The number of elements in the data given
-        must match the length of every other column of the XFrame. If no
-        name is given, a default name is chosen.
-
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry(name=name)
@@ -844,10 +840,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         Adds multiple columns to this XFrame. 
 
-        The number of elements in all
-        columns must match the length of every other column of the RDDs. 
-        Each column added is an XArray.
-
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry(namelist=namelist)
@@ -888,10 +880,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
     def add_columns_frame_in_place(self, other):
         """
         Adds multiple columns to this XFrame. 
-
-        The number of elements in all
-        columns must match the length of every other column of the RDD. 
-        The columns to be added are in an XFrame.
 
         This operation modifies the current XFrame in place and returns self.
         """
@@ -1005,7 +993,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
     def reorder_columns(self, column_names):
         """
-        Reorder columns of the RDD.
+        Return new XFrameImpl, with columns reordered.
         """
         self._entry(column_names=column_names)
 
@@ -1023,26 +1011,13 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._exit(names=names, types=types)
         return self._rv(res, names, types)
 
-    def set_column_name(self, old_name, new_name):
-        """
-        Rename the given column.
-
-        No return value.
-        """
-        self._entry(old_name=old_name, new_name=new_name)
-        col = self.col_names.index(old_name)
-        self.col_names[col] = new_name
-        self._exit()
-
     def replace_column_names(self, new_names):
         """
-        Rename all the column names.
-
-        No return value.
+        Return new XFrameImpl, with coluumn names replaced.
         """
         self._entry(new_names=new_names)
-        self.col_names = new_names
         self._exit()
+        return self._rv(self._rdd, new_names)
 
     # Iteration
 
