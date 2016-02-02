@@ -838,7 +838,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
     def add_columns_array_in_place(self, cols, namelist):
         """
-        Adds multiple columns to this XFrame. 
+        Adds multiple columns to this XFrame.
 
         This operation modifies the current XFrame in place and returns self.
         """
@@ -879,7 +879,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
     def add_columns_frame_in_place(self, other):
         """
-        Adds multiple columns to this XFrame. 
+        Adds multiple columns to this XFrame.
 
         This operation modifies the current XFrame in place and returns self.
         """
@@ -897,7 +897,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
     def remove_column(self, name):
         """
-        Remove a column from the RDD. 
+        Remove a column from the RDD.
 
         This operation creates a new xframe_impl and returns it.
         """
