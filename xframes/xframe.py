@@ -1301,7 +1301,6 @@ class XFrame(XObject):
         Returns a shallow copy of the xframe.
         """
         return XFrame(impl=self._impl.copy())
-#        return self.select_columns(self.column_names())
 
     def _row_selector(self, other):
         """
