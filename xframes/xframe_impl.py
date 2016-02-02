@@ -1402,12 +1402,27 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._exit(new_col_types=new_col_types)
         return self._rv(res, column_types=new_col_types)
 
+    def filter(self, values, column_name, exclude):
+        """
+        Perform simple filtering on a single column by values in a collection.
+        For now, values is always a set.
+        """
+        col_index = self.col_names.index(column_name)
+
+        def filter_fun(row):
+            val = row[col_index]
+            return val not in values if exclude else val in values
+
+        res = self._rdd.filter(filter_fun)
+        return self._rv(res)
+
+
     def groupby_aggregate(self, key_columns_array, group_columns, group_output_columns, group_ops):
         """
         Perform a group on the key_columns followed by aggregations on the
         columns listed in operations.
 
-        group_columns, group_output_columns and group_ops are all arrays of equal length
+        Group_columns, group_output_columns and group_ops are all arrays of equal length
         """
         self._entry(key_columns_array=key_columns_array, group_columns=group_columns,
                     group_output_columns=group_output_columns, group_ops=group_ops)

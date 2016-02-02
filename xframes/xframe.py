@@ -387,10 +387,10 @@ class XFrame(XObject):
     @staticmethod
     def _infer_column_types_from_lines(first_rows, na_values):
         if len(first_rows.column_names()) < 1:
-            print >>stderr, 'Insufficient number of columns to perform type inference.'
+            print >> stderr, 'Insufficient number of columns to perform type inference.'
             raise RuntimeError('Insufficient columns.')
         if len(first_rows) < 1:
-            print >>stderr, 'Insufficient number of rows to perform type inference.'
+            print >> stderr, 'Insufficient number of rows to perform type inference.'
             raise RuntimeError('Insufficient rows.')
 
         col_names = first_rows.column_names()
@@ -398,6 +398,7 @@ class XFrame(XObject):
         # TODO get this in a way that does not require an iterator
         def row_as_array(row, col_names):
             return [row[col] for col in col_names]
+
         head = [row_as_array(row, col_names) for row in first_rows]
 
         def infer_type(col, na_values):
@@ -408,16 +409,17 @@ class XFrame(XObject):
                 dtype = types[0]
             elif unique_types == {int, float}:
                 dtype = float
-            else: 
+            else:
                 dtype = str
             return dtype
+
         n_cols = len(head[0])
         cols = [[row[i] for row in head] for i in range(n_cols)]
         types = [infer_type(col, na_values) for col in cols]
 
         # special handling for '\n'
-#        if delimiter == '\n' and len(column_type_hints) != 1:
-#          column_type_hints = [str]
+        #        if delimiter == '\n' and len(column_type_hints) != 1:
+        #          column_type_hints = [str]
 
         column_type_hints = types
         return column_type_hints
@@ -517,32 +519,32 @@ class XFrame(XObject):
                 # Get the first 100 rows (using all the desired arguments).
                 # first row may be excluded (based on heder setting)
                 first_rows = xframes.XFrame.read_csv(
-                    url,
-                    nrows=100,
-                    column_type_hints=str,
-                    header=header,
-                    delimiter=delimiter,
-                    comment_char=comment_char,
-                    escape_char=escape_char,
-                    double_quote=double_quote,
-                    quote_char=quote_char,
-                    skip_initial_space=skip_initial_space)
+                        url,
+                        nrows=100,
+                        column_type_hints=str,
+                        header=header,
+                        delimiter=delimiter,
+                        comment_char=comment_char,
+                        escape_char=escape_char,
+                        double_quote=double_quote,
+                        quote_char=quote_char,
+                        skip_initial_space=skip_initial_space)
                 column_type_hints = XFrame._infer_column_types_from_lines(first_rows, na_values)
                 typelist = '[' + ','.join(t.__name__ for t in column_type_hints) + ']'
                 if verbose:
-                    print >>stderr, '------------------------------------------------------'
-                    print >>stderr, 'Inferred types from first line of file as '
-                    print >>stderr, 'column_type_hints=' + typelist
-                    print >>stderr, 'If parsing fails due to incorrect types, you can correct'
-                    print >>stderr, 'the inferred type list above and pass it to read_csv in'
-                    print >>stderr, 'the column_type_hints argument'
-                    print >>stderr, '------------------------------------------------------'
+                    print >> stderr, '------------------------------------------------------'
+                    print >> stderr, 'Inferred types from first line of file as '
+                    print >> stderr, 'column_type_hints=' + typelist
+                    print >> stderr, 'If parsing fails due to incorrect types, you can correct'
+                    print >> stderr, 'the inferred type list above and pass it to read_csv in'
+                    print >> stderr, 'the column_type_hints argument'
+                    print >> stderr, '------------------------------------------------------'
                 column_type_inference_was_used = True
             except Exception as e:
                 # If the above fails, default back to str for all columns.
                 if verbose:
-                    print >>stderr, 'Error', type(e), e
-                    print >>stderr, 'Could not detect types. Using str for each column.'
+                    print >> stderr, 'Error', type(e), e
+                    print >> stderr, 'Could not detect types. Using str for each column.'
                 column_type_hints = str
 
         if type(column_type_hints) is type:
@@ -559,8 +561,8 @@ class XFrame(XObject):
         except IOError:
             if column_type_inference_was_used:
                 # try again
-                print >>stderr, 'Unable to parse the file with automatic type inference.'
-                print >>stderr, 'Defaulting to column_type_hints=str'
+                print >> stderr, 'Unable to parse the file with automatic type inference.'
+                print >> stderr, 'Defaulting to column_type_hints=str'
                 type_hints = {'__all_columns__': str}
                 try:
                     errors = impl.load_from_csv(internal_url, parsing_config, type_hints)
@@ -694,8 +696,8 @@ class XFrame(XObject):
                                   delimiter=delimiter,
                                   header=header,
                                   error_bad_lines=False,  # we are storing errors,
-                                                          # thus we must not fail
-                                                          # on bad lines
+                                  # thus we must not fail
+                                  # on bad lines
                                   comment_char=comment_char,
                                   escape_char=escape_char,
                                   double_quote=double_quote,
@@ -1084,8 +1086,8 @@ class XFrame(XObject):
         return self._impl.dump_debug_info()
 
     def _get_pretty_tables(self, wrap_text=False, max_row_width=MAX_ROW_WIDTH,
-                                 max_column_width=30, max_columns=20,
-                                 max_rows_to_display=60):
+                           max_column_width=30, max_columns=20,
+                           max_rows_to_display=60):
         """
         Returns a list of pretty print tables representing the current XFrame.
         If the number of columns is larger than max_columns, the last pretty
@@ -1114,7 +1116,7 @@ class XFrame(XObject):
         # TODO use take to get just be beginning rows
         # We are going to need a column of values at a time
         # Take should return a list of tuples
-        head_rows = self._impl.rdd().take(max_rows_to_display+1)
+        head_rows = self._impl.rdd().take(max_rows_to_display + 1)
         if len(head_rows) == 0:
             return [PrettyTable()]
         if len(head_rows) > max_rows_to_display:
@@ -1158,7 +1160,7 @@ class XFrame(XObject):
                     ret = s[:max_column_width]
                     ret = ret[:-4] + ' ...'
                 return unicode(ret, errors='replace')
-            # end of truncate_str
+                # end of truncate_str
 
         columns = self.column_names()[:max_columns]
         columns.reverse()  # reverse the order of columns and we will pop from the end
@@ -1176,7 +1178,7 @@ class XFrame(XObject):
                 # check the max length of element in the column
                 header = _truncate_str(col, wrap_text)
                 if n_rows > 0:
-                    #col_width = min(max_column_width, max(max(len(str(x)) for x in headxf[col]), len(header) + 3))
+                    # col_width = min(max_column_width, max(max(len(str(x)) for x in headxf[col]), len(header) + 3))
                     col_width = min(max_column_width, max(max(len(str(x)) for x in cols[col]), len(header) + 3))
                 else:
                     col_width = max_column_width
@@ -1247,10 +1249,10 @@ class XFrame(XObject):
         max_row_width = max(max_row_width, max_column_width + 1)
 
         row_of_tables = self._get_pretty_tables(wrap_text=False,
-                                                   max_rows_to_display=num_rows,
-                                                   max_columns=num_columns,
-                                                   max_column_width=max_column_width,
-                                                   max_row_width=max_row_width)
+                                                max_rows_to_display=num_rows,
+                                                max_columns=num_columns,
+                                                max_column_width=max_column_width,
+                                                max_row_width=max_row_width)
         footer = self._create_footer(False, max_rows_to_display)
         print '\n'.join([str(tb) for tb in row_of_tables]) + '\n' + footer
 
@@ -1262,8 +1264,8 @@ class XFrame(XObject):
         max_rows_to_display = num_rows
 
         row_of_tables = self._get_pretty_tables(wrap_text=False,
-                                                   max_rows_to_display=max_rows_to_display,
-                                                   max_row_width=MAX_ROW_WIDTH)
+                                                max_rows_to_display=max_rows_to_display,
+                                                max_row_width=MAX_ROW_WIDTH)
         if not footer:
             return '\n'.join([str(tb) for tb in row_of_tables])
 
@@ -1274,10 +1276,10 @@ class XFrame(XObject):
         max_rows_to_display = 10
 
         row_of_tables = self._get_pretty_tables(wrap_text=True,
-                                                   max_row_width=HTML_MAX_ROW_WIDTH,
-                                                   max_columns=40, 
-                                                   max_column_width=25, 
-                                                   max_rows_to_display=max_rows_to_display)
+                                                max_row_width=HTML_MAX_ROW_WIDTH,
+                                                max_columns=40,
+                                                max_column_width=25,
+                                                max_rows_to_display=max_rows_to_display)
         footer = self._create_footer(True, max_rows_to_display)
         begin = '<div style="max-height:1000px;max-width:1500px;overflow:auto;">'
         end = '\n</div>'
@@ -1539,8 +1541,8 @@ class XFrame(XObject):
         -------
         out: spark.DataFrame
         """
-        return self._impl.to_spark_dataframe(table_name, 
-                                                number_of_partitions=number_of_partitions)
+        return self._impl.to_spark_dataframe(table_name,
+                                             number_of_partitions=number_of_partitions)
 
     @classmethod
     def from_rdd(cls, rdd, column_names=None, column_types=None):
@@ -2919,11 +2921,11 @@ class XFrame(XObject):
         for i in range(len(my_column_names)):
             if other_column_names[i] != my_column_names[i]:
                 raise RuntimeError('Column {} name is not the same in two XFrames, one is {} the other is {}.'.format(
-                    my_column_names[i], my_column_names[i], other_column_names[i]))
+                        my_column_names[i], my_column_names[i], other_column_names[i]))
             # check column type
             if my_column_types[i] != other_column_types[i]:
                 raise RuntimeError('Column {} type is not the same in two XFrames, one is {} the other is {}.'.format(
-                    my_column_names[i], my_column_types[i], other_column_types))
+                        my_column_names[i], my_column_types[i], other_column_types))
 
         return XFrame(impl=self._impl.append(other._impl))
 
@@ -3225,7 +3227,7 @@ class XFrame(XObject):
             # element (probably COUNT). wrap it in a list so we can reuse the
             # list processing code
             operation = op_entry
-            if not(isinstance(operation, list) or isinstance(operation, dict)):
+            if not (isinstance(operation, list) or isinstance(operation, dict)):
                 operation = [operation]
             if isinstance(operation, dict):
                 # now sweep the dict and add to group_columns and group_ops
@@ -3295,9 +3297,9 @@ class XFrame(XObject):
                         raise KeyError("Column '{}' does not exist in XFrame.".format(col))
 
         return XFrame(impl=self._impl.groupby_aggregate(key_columns_array,
-                                                           group_columns,
-                                                           group_output_columns,
-                                                           group_ops))
+                                                        group_columns,
+                                                        group_output_columns,
+                                                        group_ops))
 
     def join(self, right, on=None, how='inner'):
         """
@@ -3529,7 +3531,7 @@ class XFrame(XObject):
 
         Parameters
         ----------
-        values : XArray | list | numpy.ndarray | pandas.Series | str
+        values : value, XArray | list |tuple | set | iterable | numpy.ndarray | pandas.Series | str
             The values to use to filter the XFrame.  The resulting XFrame will
             only include rows that have one of these values in the given
             column.
@@ -3576,19 +3578,34 @@ class XFrame(XObject):
         if column_name not in existing_columns:
             raise KeyError("Column '{}' not in XFrame.".format(column_name))
 
+        existing_type = self.column_types()[existing_columns.index(column_name)]
+
+        # If we are given the values directly, use filter.
         if type(values) is not XArray:
-            # If we were given a single element, try to put in list and convert
-            # to XArray
-            # TODO filter directly, not through join
-            if not hasattr(values, '__iter__'):
-                values = [values]
-            values = XArray(values)
+            # If we were given a single element, put into a set.
+            # If iterable, then convert to a set.
+
+            if isinstance(values, basestring):
+                # Strings are iterable, but we don't want a set of characters.
+                values = {values}
+            elif not hasattr(values, '__iter__'):
+                values = {values}
+            else:
+                # Make a new set from the iterable.
+                values = set(values)
+
+            if len(values) == 0:
+                raise ValueError('Value list is empty.')
+
+            value_type = type(next(iter(values)))
+            if value_type != existing_type:
+                raise TypeError("Value type ({}) does not match column type ({}).".format(value_type, existing_type))
+            return XFrame(impl=self._impl.filter(values, column_name, exclude))
 
         value_xf = XFrame()
         value_xf.add_column(values, column_name)
 
-        # Make sure the values list has unique values, or else join will not
-        # filter.
+        # Make sure the values list has unique values, or else join will not filter.
         value_xf = value_xf.groupby(column_name, {})
 
         existing_type = self.column_types()[existing_columns.index(column_name)]
@@ -3606,16 +3623,16 @@ class XFrame(XObject):
             value_xf = value_xf.add_row_number(id_name)
 
             tmp = XFrame(impl=self._impl.join(value_xf._impl,
-                                                 'left',
-                                                 {column_name: column_name}))
+                                              'left',
+                                              {column_name: column_name}))
             # DO NOT CHANGE the next line -- it in xArray operator
             ret_xf = tmp[tmp[id_name] == None]
             del ret_xf[id_name]
             return ret_xf
         else:
             return XFrame(impl=self._impl.join(value_xf._impl,
-                                                  'inner',
-                                                  {column_name: column_name}))
+                                               'inner',
+                                               {column_name: column_name}))
 
     # noinspection PyTypeChecker
     def pack_columns(self, columns=None, column_prefix=None, dtype=list,
@@ -3839,7 +3856,7 @@ class XFrame(XObject):
 
         else:
             dict_keys = columns
-            
+
         rest_columns = [name for name in self.column_names() if name not in columns]
         if new_column_name is not None:
             if type(new_column_name) != str:
