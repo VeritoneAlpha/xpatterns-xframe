@@ -1113,14 +1113,10 @@ class XFrame(XObject):
         -------
         out : list[PrettyTable]
         """
-<<<<<<< Updated upstream
-        # TODO use take to get just be beginning rows
+        # TODO use take to get just the beginning rows
         # We are going to need a column of values at a time
         # Take should return a list of tuples
         head_rows = self._impl.rdd().take(max_rows_to_display + 1)
-=======
-        head_rows = self._impl.rdd().take(max_rows_to_display+1)
->>>>>>> Stashed changes
         if len(head_rows) == 0:
             return [PrettyTable()]
         if len(head_rows) > max_rows_to_display:
@@ -1182,10 +1178,6 @@ class XFrame(XObject):
                 # check the max length of element in the column
                 header = _truncate_str(col, wrap_text)
                 if n_rows > 0:
-<<<<<<< Updated upstream
-                    # col_width = min(max_column_width, max(max(len(str(x)) for x in headxf[col]), len(header) + 3))
-=======
->>>>>>> Stashed changes
                     col_width = min(max_column_width, max(max(len(str(x)) for x in cols[col]), len(header) + 3))
                 else:
                     col_width = max_column_width

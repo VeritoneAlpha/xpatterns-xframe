@@ -1403,36 +1403,20 @@ class TestXFrameAddColumnsArray(unittest.TestCase):
     def test_add_columns_one(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         ta = XArray([3.0, 2.0, 1.0])
-<<<<<<< Updated upstream
-        tf.add_columns([ta], namelist=['new1'])
-        self.assertEqual(['id', 'val', 'new1'], tf.column_names())
-        self.assertEqual([int, str, float], tf.column_types())
-        self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0}, tf[0])
-
-=======
         res = tf.add_columns([ta], namelist=['new1'])
         self.assertEqual(['id', 'val', 'new1'], res.column_names())
         self.assertEqual([int, str, float], res.column_types())
         self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0}, res[0])
         
->>>>>>> Stashed changes
     def test_add_columns_two(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         ta1 = XArray([3.0, 2.0, 1.0])
         ta2 = XArray([30.0, 20.0, 10.0])
-<<<<<<< Updated upstream
-        tf.add_columns([ta1, ta2], namelist=['new1', 'new2'])
-        self.assertEqual(['id', 'val', 'new1', 'new2'], tf.column_names())
-        self.assertEqual([int, str, float, float], tf.column_types())
-        self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0, 'new2': 30.0}, tf[0])
-
-=======
         res = tf.add_columns([ta1, ta2], namelist=['new1', 'new2'])
         self.assertEqual(['id', 'val', 'new1', 'new2'], res.column_names())
         self.assertEqual([int, str, float, float], res.column_types())
         self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0, 'new2': 30.0}, res[0])
         
->>>>>>> Stashed changes
     def test_add_columns_namelist_missing(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         ta1 = XArray([3.0, 2.0, 1.0])
