@@ -1407,7 +1407,7 @@ class TestXFrameAddColumnsArray(unittest.TestCase):
         self.assertEqual(['id', 'val', 'new1'], res.column_names())
         self.assertEqual([int, str, float], res.column_types())
         self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0}, res[0])
-        
+
     def test_add_columns_two(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         ta1 = XArray([3.0, 2.0, 1.0])
@@ -1416,7 +1416,7 @@ class TestXFrameAddColumnsArray(unittest.TestCase):
         self.assertEqual(['id', 'val', 'new1', 'new2'], res.column_names())
         self.assertEqual([int, str, float, float], res.column_types())
         self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0, 'new2': 30.0}, res[0])
-        
+
     def test_add_columns_namelist_missing(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         ta1 = XArray([3.0, 2.0, 1.0])
@@ -1473,7 +1473,7 @@ class TestXFrameAddColumnsFrame(unittest.TestCase):
 
 class TestXFrameReplaceColumn(unittest.TestCase):
     """
-    Tests XFrame replace_selected_column
+    Tests XFrame replace_column
     """
 
     def test_replace_column(self):
