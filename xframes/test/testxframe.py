@@ -1620,8 +1620,6 @@ class TestXFrameRename(unittest.TestCase):
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual({'id': 1, 'val': 'a'}, res[0])
 
-        # TODO test column rename with list wrong length
-
 
 class TestXFrameGetitem(unittest.TestCase):
     """
