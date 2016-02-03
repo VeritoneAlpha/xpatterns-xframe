@@ -35,6 +35,9 @@ class XObjectImpl(object):
     def hive_context():
         return hive_context()
 
+    def get_rdd(self):
+        return self._rdd
+
     def _replace_rdd(self, rdd):
         self._rdd = self._wrap_rdd(rdd)
 
