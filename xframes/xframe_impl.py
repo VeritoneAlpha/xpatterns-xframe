@@ -14,7 +14,6 @@ import re
 import copy
 from sys import stderr
 import datetime
-from tempfile import NamedTemporaryFile
 
 import numpy
 from dateutil import parser
@@ -37,6 +36,7 @@ from xframes.cmp_rows import CmpRows
 from xframes.aggregator_impl import aggregator_properties
 
 
+# noinspection PyIncorrectDocstring
 def name_col(existing_col_names, proposed_name):
     """ Give a column a unique name.
 
@@ -52,7 +52,7 @@ def name_col(existing_col_names, proposed_name):
     return candidate
 
 
-# noinspection PyUnresolvedReferences,PyShadowingNames
+# noinspection PyUnresolvedReferences,PyShadowingNames,PyIncorrectDocstring
 class XFrameImpl(XObjectImpl, TracedObject):
     """ Implementation for XFrame. """
 
@@ -337,6 +337,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 index = s[3:-2]
                 return int(index)
             return None
+
         def map_col(col, col_names):
             # Change key on hints from generated names __X<n>__
             #   into the actual column name
@@ -829,6 +830,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._exit()
         return self._replace(res)
 
+    # noinspection PyProtectedMember
     def add_columns_array(self, cols, namelist):
         """
         Adds multiple columns to this XFrame.
@@ -852,6 +854,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._exit(names=names, types=types)
         return self._rv(rdd, names, types)
 
+    # noinspection PyProtectedMember
     def add_columns_array_in_place(self, cols, namelist):
         """
         Adds multiple columns to this XFrame.
@@ -871,6 +874,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._exit(names=names, types=types)
         return self._replace(rdd, names, types)
 
+    # noinspection PyProtectedMember
     def add_columns_frame(self, other):
         """
         Adds multiple columns to this XFrame.
@@ -893,6 +897,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._exit(names=names, types=types)
         return self._rv(res, names, types)
 
+    # noinspection PyProtectedMember
     def add_columns_frame_in_place(self, other):
         """
         Adds multiple columns to this XFrame.
@@ -1110,8 +1115,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry()
-        res = col._impl.rdd().map(lambda item: (item, ))
-        col_type = infer_type_of_rdd(col._impl.rdd())
+        res = col.get_rdd().map(lambda item: (item, ))
+        col_type = infer_type_of_rdd(col.get_rdd())
         self.column_types[0] = col_type
         self._exit()
         return self._replace(res)
@@ -1123,7 +1128,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         This operation returns a new XFrame.
         """
         self._entry(column_name=column_name)
-        rdd = self._rdd.zip(col._impl.rdd())
+        rdd = self._rdd.zip(col.get_rdd())
         col_num = self.col_names.index(column_name)
 
         def replace_col(row_col, col_num):
@@ -1134,7 +1139,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         res = rdd.map(lambda row_col: replace_col(row_col, col_num))
         col_names = copy.copy(self.column_names())
         col_names[col_num] = column_name
-        col_type = infer_type_of_rdd(col._impl.rdd())
+        col_type = infer_type_of_rdd(col.get_rdd())
         col_types = copy.copy(self.column_types)
         col_types[col_num] = col_type
         self._exit()
@@ -1147,7 +1152,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry(column_name=column_name)
-        rdd = self._rdd.zip(col._impl.rdd())
+        rdd = self._rdd.zip(col.get_rdd())
         col_num = self.col_names.index(column_name)
 
         def replace_col(row_col, col_num):
@@ -1156,7 +1161,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
             row[col_num] = col
             return tuple(row)
         res = rdd.map(lambda row_col: replace_col(row_col, col_num))
-        col_type = infer_type_of_rdd(col._impl.rdd())
+        col_type = infer_type_of_rdd(col.get_rdd())
         self.column_types[col_num] = col_type
         self._exit()
         return self._replace(res)
@@ -1441,10 +1446,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
             row_as_dict = dict(zip(names, row))
             result = fn(row_as_dict)
             if not isinstance(result, dtype):
-                cast_result = dtype(result)
-            if type(result) != dtype:
-                cast_result = safe_cast_val(result, dtype)
-                return cast_result
+                return safe_cast_val(result, dtype)
             return result
         res = self._rdd.map(transformer)
         self._exit(dtype=dtype)
@@ -1473,7 +1475,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         def transformer(row):
             row_as_dict = dict(zip(names, row))
             result = fn(row_as_dict)
-            if not isinstance(result,  dtype):
+            if not isinstance(result, dtype):
                 result = dtype(result)
             lst = list(row)
             lst[col_index] = result
@@ -1541,7 +1543,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
         res = self._rdd.filter(filter_fun)
         return self._rv(res)
-
 
     def groupby_aggregate(self, key_columns_array, group_columns, group_output_columns, group_ops):
         """
@@ -1710,21 +1711,12 @@ class XFrameImpl(XObjectImpl, TracedObject):
             # throw away key in the joined table
             pairs = joined.values()
 
-#            print 'left', keyed_left.collect()
-#            print 'right', keyed_right.collect()
-#            print 'pairs', pairs.collect()
-
             def combine_results(left_row, right_row, left_count, right_count):
                 if left_row is None:
                     left_row = tuple([None] * left_count)
                 if right_row is None:
                     right_row = tuple([None] * right_count)
-                return (left_row, right_row)
-
-            #res = pairs.map(lambda row: combine_results(row[0], row[1],
-            #                left_count, right_count))
-
-#            print 'res', res.collect()
+                return left_row, right_row
 
             # remove redundant key fields from the right
             # take into account any missing any missing rows
@@ -1770,9 +1762,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._entry(sort_column_names=sort_column_names, sort_column_orders=sort_column_orders)
 
         sort_column_indexes = [self.col_names.index(name) for name in sort_column_names]
-        key_fn = lambda row: CmpRows(row, sort_column_indexes, sort_column_orders)
 
-        res = self._rdd.sortBy(keyfunc=key_fn)
+        res = self._rdd.sortBy(keyfunc=lambda row: CmpRows(row, sort_column_indexes, sort_column_orders))
         self._exit()
         return self._rv(res)
 
