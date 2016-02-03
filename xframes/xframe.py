@@ -246,19 +246,19 @@ class XFrame(XObject):
             if not isinstance(data, basestring):
                 raise ValueError('Csv path is not a string')
             url = make_internal_url(data)
-            tmpxf = XFrame.read_csv(url, delimiter=',', header=True, verbose=verbose)
+            tmpxf = XFrame.read_csv(url, delimiter=',', header=True)
             self._impl = tmpxf._impl
         elif _format == 'tsv':
             if not isinstance(data, basestring):
                 raise ValueError('Tsv path is not a string')
             url = make_internal_url(data)
-            tmpxf = XFrame.read_csv(url, delimiter='\t', header=True, verbose=verbose)
+            tmpxf = XFrame.read_csv(url, delimiter='\t', header=True)
             self._impl = tmpxf._impl
         elif _format == 'psv':
             if not isinstance(data, basestring):
                 raise ValueError('Psv path is not a string')
             url = make_internal_url(data)
-            tmpxf = XFrame.read_csv(url, delimiter='|', header=True, verbose=verbose)
+            tmpxf = XFrame.read_csv(url, delimiter='|', header=True)
             self._impl = tmpxf._impl
         elif _format == 'parquet':
             if not isinstance(data, basestring):
@@ -475,7 +475,8 @@ class XFrame(XObject):
                        na_values=None,
                        nrows=None,
                        drop_empty_header_cols=True,
-                       store_errors=True):
+                       store_errors=True,
+                       verbose=False):
         """
         Constructs an XFrame from a CSV file or a path to multiple CSVs, and
         returns a pair containing the XFrame and optionally
@@ -1094,6 +1095,9 @@ class XFrame(XObject):
         impl = XFrameImpl()
         impl.load_from_parquet(url)
         return cls(impl=impl)
+
+    def get_rdd(self):
+        return self._impl._rdd
 
     def dump_debug_info(self):
         """
@@ -1925,7 +1929,7 @@ class XFrame(XObject):
             if val is None:
                 return [None]
             if len(val) == 0:
-                return [util.nan]
+                return [None]
             try:
                 return [float(val)]
             except ValueError:
@@ -2443,7 +2447,8 @@ class XFrame(XObject):
 
         namelist : list of string, optional
             A list of column names. All names must be specified. `Namelist` is
-            ignored if `cols` is an XFrame.
+            ignored if `cols` is an XFrame.  If there are columns with duplicate names, they
+            fille be made unambiguous by adding .1 to the second copy.
 
         Returns
         -------
@@ -2473,14 +2478,19 @@ class XFrame(XObject):
         """
         col_list = cols
         if isinstance(cols, XFrame):
-            other = cols
-            namelist = other.column_names()
+            namelist = cols.column_names()
 
-            my_columns = set(self.column_names())
-            for name in namelist:
-                if name in my_columns:
-                    raise ValueError("Column '{}' already exists in current XFrame.".format(name))
-            return XFrame(impl=self._impl.add_columns_frame(cols))
+            def pick_unique_name(name, used_names):
+                n = 1
+                candidate = name
+                while candidate in used_names:
+                    candidate = '{}.{}'.format(name, n)
+                    n += 1
+                used_names.add(candidate)
+                return candidate
+            used_names = set(self.column_names())
+            new_column_names = [pick_unique_name(name, used_names) for name in namelist]
+            return XFrame(impl=self._impl.add_columns_frame(cols.rename(new_column_names)))
         else:
             if not hasattr(col_list, '__iter__'):
                 raise TypeError('Column list must be an iterable.')
