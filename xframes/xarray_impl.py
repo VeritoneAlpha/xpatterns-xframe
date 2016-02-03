@@ -17,10 +17,9 @@ import xframes
 from xframes.xobject_impl import XObjectImpl
 from xframes.traced_object import TracedObject
 from xframes.spark_context import spark_context
-import xframes.util as util
 import xframes.fileio as fileio
 from xframes.util import infer_type_of_list, cache, uncache
-from xframes.util import delete_file_or_dir, infer_type, infer_types
+from xframes.util import infer_type, infer_types
 from xframes.util import is_missing
 from xframes.util import distribute_seed
 from xframes.xrdd import XRdd
@@ -52,10 +51,13 @@ class ReverseCmp(object):
     def __ne__(self, other):
         return self.obj != other.obj
 
+
 class ApplyError(object):
     def __init__(self, msg):
         self.msg = msg
 
+
+# noinspection PyIncorrectDocstring
 class XArrayImpl(XObjectImpl, TracedObject):
     # What is missing:
     # sum over arrays
@@ -155,7 +157,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         def do_cast(x, dtype, ignore_cast_failure):
             if is_missing(x):
                 return x
-            if isinstance(x,str) and dtype is datetime.datetime:
+            if isinstance(x, str) and dtype is datetime.datetime:
                 return parser.parse(x)
             if isinstance(x, dtype):
                 return x
@@ -382,10 +384,9 @@ class XArrayImpl(XObjectImpl, TracedObject):
             # takeOrdered always sorts ascending
             # topk needs to sort descending if reverse is False, ascending if True
             if reverse:
-                order_fn = lambda w: w
+                top_pairs = pairs.takeOrdered(topk, lambda x: x[0])
             else:
-                order_fn = lambda y: ReverseCmp(y)
-            top_pairs = pairs.takeOrdered(topk, lambda x: order_fn(x[0]))
+                top_pairs = pairs.takeOrdered(topk, lambda x: ReverseCmp(x[0]))
             top_ranks = [v[1] for v in top_pairs]
             res = pairs.map(lambda z: z[1] in top_ranks)
             uncache(pairs)
@@ -759,7 +760,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
                 if dtype is None:
                     return [item for item in fn(x)]
                 return [dtype(item) for item in fn(x)]
-            except TypeError as e:
+            except TypeError:
                 return [ApplyError('TypeError')]
 
         res = self._rdd.flatMap(lambda x: apply_and_cast(x, fn, dtype, skip_undefined))
@@ -799,7 +800,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
                     if isinstance(res, dtype):
                         return res
                     raise ValueError
-                if dtype is array.array:
+                if dtype is array:
                     res = ast.literal_eval(x)
                     if isinstance(res, list) and len(res) > 0:
                         dtype = type(res[0])
@@ -809,11 +810,11 @@ class XArrayImpl(XObjectImpl, TracedObject):
                             return array.array('d', res)
                         if dtype is str:
                             return array.array('c', res)
-                    raise ValueError
-                raise ValueError
+                    raise ValueError('astype -- array not handled:{} type: {}'.format(res, dtype))
+                raise ValueError('astype -- type not handled: {}'.format(dtype))
             except ValueError as e:
                 if undefined_on_failure:
-                    return util.nan if dtype == float else None
+                    return None
                 raise e
         res = self._rdd.map(lambda x: convert_type(x, dtype))
         self._exit()
@@ -831,9 +832,11 @@ class XArrayImpl(XObjectImpl, TracedObject):
 
         # noinspection PyShadowingNames
         def clip_val(x, lower, upper):
-            if not math.isnan(lower) and x < lower:
+            if x is None:
+                return None
+            if lower is not None and not math.isnan(lower) and x < lower:
                 return lower
-            elif not math.isnan(upper) and x > upper:
+            elif upper is not None and not math.isnan(upper) and x > upper:
                 return upper
             else:
                 return x
@@ -1092,7 +1095,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             total = self._rdd.reduce(list_sum)
         elif self.elem_type is dict:
             def dict_sum(x, y):
-                return { k: x.get(k, 0) + y.get(k, 0) for k in set(x) & set(y) }
+                return {k: x.get(k, 0) + y.get(k, 0) for k in set(x) & set(y)}
             total = self._rdd.reduce(dict_sum)
 
         else:
@@ -1237,7 +1240,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             return tuple([expand_datetime_field(val, lim) for lim in limit])
         res = self._rdd.map(lambda x: expand_datetime(x, limit))
         self._exit()
-        return self._rv_frame(res._rdd, new_names, column_types)
+        return self._rv_frame(res.RDD(), new_names, column_types)
 
     def datetime_to_str(self, str_format):
         """
