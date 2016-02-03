@@ -1467,8 +1467,10 @@ class TestXFrameAddColumnsFrame(unittest.TestCase):
     def test_add_columns_dup_names(self):
         tf1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         tf2 = XFrame({'new1': [3.0, 2.0, 1.0], 'val': [30.0, 20.0, 10.0]})
-        with self.assertRaises(ValueError):
-            tf1.add_columns(tf2)
+        res = tf1.add_columns(tf2)
+        self.assertEqual(['id', 'val', 'new1', 'val.1'], res.column_names())
+        self.assertEqual([int, str, float, float], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0, 'val.1': 30.0}, res[0])
 
 
 class TestXFrameReplaceColumn(unittest.TestCase):
@@ -1499,6 +1501,7 @@ class TestXFrameReplaceColumn(unittest.TestCase):
         a = XArray(['x', 'y', 'z'])
         with self.assertRaises(TypeError):
             _ = t.replace_column(2, a)
+
 
 class TestXFrameRemoveColumn(unittest.TestCase):
     """
@@ -3627,6 +3630,13 @@ class TestXFrameDropna(unittest.TestCase):
 
     def test_dropna_nan(self):
         t = XFrame({'id': [1.0, float('nan'), 3.0], 'val': ['a', 'b', 'c']})
+        res = t.dropna()
+        self.assertEqual(2, len(res))
+        self.assertEqual({'id': 1.0, 'val': 'a'}, res[0])
+        self.assertEqual({'id': 3.0, 'val': 'c'}, res[1])
+
+    def test_dropna_none(self):
+        t = XFrame({'id': [1.0, None, 3.0], 'val': ['a', 'b', 'c']})
         res = t.dropna()
         self.assertEqual(2, len(res))
         self.assertEqual({'id': 1.0, 'val': 'a'}, res[0])

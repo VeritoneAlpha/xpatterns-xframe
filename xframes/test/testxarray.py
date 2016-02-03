@@ -1042,6 +1042,10 @@ class TestXArrayAll(unittest.TestCase):
         t = XArray([1.0, float('nan')])
         self.assertFalse(t.all())
 
+    def test_all_float_none(self):
+        t = XArray([1.0, None])
+        self.assertFalse(t.all())
+
     def test_all_float_zero(self):
         t = XArray([1.0, 0.0])
         self.assertFalse(t.all())
@@ -1141,12 +1145,20 @@ class TestXArrayAny(unittest.TestCase):
         t = XArray([1.0, float('nan')])
         self.assertTrue(t.any())
 
+    def test_any_float_missing_true_none(self):
+        t = XArray([1.0, None])
+        self.assertTrue(t.any())
+
     def test_any_float_missing_false(self):
         t = XArray([None, 0.0])
         self.assertFalse(t.any())
 
     def test_any_float_missing_false_nan(self):
         t = XArray([float('nan'), 0.0])
+        self.assertFalse(t.any())
+
+    def test_any_float_missing_false_none(self):
+        t = XArray([None, 0.0])
         self.assertFalse(t.any())
 
     # str
@@ -1386,12 +1398,12 @@ class TestXArrayNumMissing(unittest.TestCase):
         t = XArray([None, None, None], dtype=int)
         self.assertEqual(3, t.num_missing())
 
-    def test_num_missing_float_none(self):
-        t = XArray([1.0, 2.0, None])
-        self.assertEqual(1, t.num_missing())
-
     def test_num_missing_float_nan(self):
         t = XArray([1.0, 2.0, float('nan')])
+        self.assertEqual(1, t.num_missing())
+
+    def test_num_missing_float_none(self):
+        t = XArray([1.0, 2.0, None])
         self.assertEqual(1, t.num_missing())
 
 
@@ -1419,12 +1431,12 @@ class TestXArrayNumNonzero(unittest.TestCase):
         t = XArray([None, None, None], dtype=int)
         self.assertEqual(0, t.nnz())
 
-    def test_nnz_float_none(self):
-        t = XArray([1.0, 2.0, None])
-        self.assertEqual(2, t.nnz())
-
     def test_nnz_float_nan(self):
         t = XArray([1.0, 2.0, float('nan')])
+        self.assertEqual(2, t.nnz())
+
+    def test_nnz_float_none(self):
+        t = XArray([1.0, 2.0, None])
         self.assertEqual(2, t.nnz())
 
 
@@ -1550,6 +1562,11 @@ class TestXArrayClip(unittest.TestCase):
         res = t.clip(nan, nan)
         self.assertTrue(eq_list([1, 2, 3], res))
 
+    def test_clip_int_none(self):
+        t = XArray([1, 2, 3])
+        res = t.clip(None, None)
+        self.assertTrue(eq_list([1, 2, 3], res))
+
     def test_clip_int_def(self):
         t = XArray([1, 2, 3])
         res = t.clip()
@@ -1559,6 +1576,11 @@ class TestXArrayClip(unittest.TestCase):
         nan = float('nan')
         t = XArray([1.0, 2.0, 3.0])
         res = t.clip(nan, nan)
+        self.assertTrue(eq_list([1.0, 2.0, 3.0], res))
+
+    def test_clip_float_none(self):
+        t = XArray([1.0, 2.0, 3.0])
+        res = t.clip(None, None)
         self.assertTrue(eq_list([1.0, 2.0, 3.0], res))
 
     def test_clip_float_def(self):
@@ -1590,6 +1612,11 @@ class TestXArrayClip(unittest.TestCase):
         nan = float('nan')
         t = XArray([[1, 2, 3]])
         res = t.clip(nan, nan)
+        self.assertTrue(eq_list([[1, 2, 3]], res))
+
+    def test_clip_list_none(self):
+        t = XArray([[1, 2, 3]])
+        res = t.clip(None, None)
         self.assertTrue(eq_list([[1, 2, 3]], res))
 
     def test_clip_list_def(self):
@@ -1692,6 +1719,11 @@ class TestXArrayCountna(unittest.TestCase):
         res = t.countna()
         self.assertEqual(1, res)
 
+    def test_countna_float_none(self):
+        t = XArray([1.0, 2.0, None])
+        res = t.countna()
+        self.assertEqual(1, res)
+
 
 class TestXArrayDropna(unittest.TestCase):
     """ 
@@ -1709,6 +1741,11 @@ class TestXArrayDropna(unittest.TestCase):
 
     def test_dropna_nan(self):
         t = XArray([1.0, 2.0, float('nan')])
+        res = t.dropna()
+        self.assertTrue(eq_list([1.0, 2.0], res))
+
+    def test_dropna_float_none(self):
+        t = XArray([1.0, 2.0, None])
         res = t.dropna()
         self.assertTrue(eq_list([1.0, 2.0], res))
 
@@ -1737,8 +1774,18 @@ class TestXArrayFillna(unittest.TestCase):
         res = t.fillna(10.0)
         self.assertTrue(eq_list([1.0, 2.0, 10.0], res))
 
+    def test_fillna_float_none(self):
+        t = XArray([1.0, 2.0, None])
+        res = t.fillna(10.0)
+        self.assertTrue(eq_list([1.0, 2.0, 10.0], res))
+
     def test_fillna_nan_cast(self):
         t = XArray([1.0, 2.0, float('nan')])
+        res = t.fillna(10)
+        self.assertTrue(eq_list([1.0, 2.0, 10.0], res))
+
+    def test_fillna_none_float_cast(self):
+        t = XArray([1.0, 2.0, None])
         res = t.fillna(10)
         self.assertTrue(eq_list([1.0, 2.0, 10.0], res))
 
