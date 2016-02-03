@@ -1,0 +1,58 @@
+HDFS Docker Management
+----------------------
+
+For testing, a HDFS filesystem is supplied using a docker.
+This runs an HDFS internally, and exposes two interfaces:
+1) The HDFS master on 8020, and
+2) The HDFS server2 service on 50070.
+
+Spark accesses HDFS using the HDFS master.
+XFrames uses spark through the HDFS server2 service.
+Both are supported by the docker.
+
+Scripts
+-------
+The management scripts are:
+
+$ docker-setup
+Runs the HDFS docker and initializes an empty HDFS.
+The hdfs filesystem is mapped to $XFRAMES_HOME/cache, so that it is persistent
+across different runs of the docker.
+$XPATTERNS_HOME/dockdir is also exposed within the docker via /opt/xpatterns.
+
+$ docker-run
+Runs a docker without reinitializing hdfs.
+
+$ docker-stop docker-ID
+Stops the HDFS docker.
+Both docker-setup and docker-run create a docker-ID which they display.  This
+ID is given to docker-stop to identify the docker to stop.
+
+$ docker-ps
+Lists the running dockers.  This can be used to get the docker-ID of the
+HDFS docker.
+
+$ docker-connect docker-ID
+Connects to an interactive shell within the HDFS docker.
+This can be used, for instance, to go into /opt/xframes/scripts
+and run hdfs-setup to copy initial content into HDFS.
+
+
+Hosts
+-----
+The docker returns URLs with its hostname (xpatterns-hadoop) embedded.
+To resolve this properly, add the following line to /etc/hosts:
+127.0.0.1 xpatterns-hadoop
+A different hostname can be chosen, if desired, by modifying
+docker-run and docker-setup.
+
+Unit Tests
+----------
+Tests of HDFS capabilities are in xframes/test/hdfstests.py.
+These depend on configuration settings in default.ini.
+These tests assume the presence of preexisting files, which
+are created using the script in dockdir/scripts/hdfs-setup.
+So before running hdfstests:
+1) Run docker-setup.
+2) Using docker-connect, copy files to hdfs by running hdfs-setup.
+3) Make sure /etc/hosts has been updated, as described above.

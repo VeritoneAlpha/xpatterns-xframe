@@ -8,7 +8,7 @@ from sys import stderr
 from zipfile import PyZipFile
 from tempfile import NamedTemporaryFile
 
-from pyspark import SparkConf, SparkContext, SQLContext
+from pyspark import SparkConf, SparkContext, SQLContext, HiveContext
 
 from xframes.environment import Environment
 from xframes.singleton import Singleton
@@ -103,6 +103,7 @@ class CommonSparkContext(object):
                         setAll(config_pairs))
         self._sc = SparkContext(conf=self._config)
         self._sqlc = SQLContext(self._sc)
+        self._hivec = HiveContext(self._sc)
 
         if not context['master'].startswith('local'):
             self.zip_path = self.build_zip()
@@ -154,6 +155,18 @@ class CommonSparkContext(object):
         """
 
         return self._sqlc
+
+    def hivec(self):
+        """
+        Gets the hive context.
+
+        Returns
+        -------
+        out : sql.HiveContext
+            The hive context.
+        """
+
+        return self._hivec
 
     # noinspection PyBroadException
     @staticmethod
@@ -212,4 +225,17 @@ def spark_sql_context():
     """
 
     return CommonSparkContext.Instance().sqlc()
+
+
+def hive_context():
+    """
+    Returns the hive context.
+
+    Returns
+    -------
+    out : pyspark.sql.HiveContext
+        The HiveContext object from spark.
+    """
+
+    return CommonSparkContext.Instance().hivec()
 

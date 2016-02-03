@@ -103,4 +103,4 @@ class XObject(object):
         return XObjectImpl.spark_sql_context()
 
 #    def dump_debug_info(self):
-#        return self.__impl__.dump_debug_info()
+#        return self._impl.dump_debug_info()

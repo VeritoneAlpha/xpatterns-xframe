@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Set up the environment for command-line and notebook based execution.
 # This file should be run as follows:
 # source setup

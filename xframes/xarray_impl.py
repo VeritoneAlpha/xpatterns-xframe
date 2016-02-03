@@ -18,6 +18,7 @@ from xframes.xobject_impl import XObjectImpl
 from xframes.traced_object import TracedObject
 from xframes.spark_context import spark_context
 import xframes.util as util
+import xframes.fileio as fileio
 from xframes.util import infer_type_of_list, cache, uncache
 from xframes.util import delete_file_or_dir, infer_type, infer_types
 from xframes.util import is_missing
@@ -51,6 +52,9 @@ class ReverseCmp(object):
     def __ne__(self, other):
         return self.obj != other.obj
 
+class ApplyError(object):
+    def __init__(self, msg):
+        self.msg = msg
 
 class XArrayImpl(XObjectImpl, TracedObject):
     # What is missing:
@@ -201,7 +205,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         if os.path.isdir(path):
             res = XRdd(sc.pickleFile(path))
             metadata_path = os.path.join(path, '_metadata')
-            with open(metadata_path) as f:
+            with fileio.open_file(metadata_path) as f:
                 dtype = pickle.load(f)
         else:
             res = XRdd(sc.textFile(path, use_unicode=False))
@@ -232,7 +236,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         """
         self._entry(path=path)
         # this only works for local files
-        delete_file_or_dir(path)
+        fileio.delete(path)
         try:
             self._rdd.saveAsPickleFile(path)          # action ?
         except:
@@ -240,9 +244,10 @@ class XArrayImpl(XObjectImpl, TracedObject):
             raise TypeError('The XArray save failed.')
         metadata = self.elem_type
         metadata_path = os.path.join(path, '_metadata')
-        with open(metadata_path, 'w') as md:
+        # TODO detect filesystem errors
+        with fileio.open_file(metadata_path, 'w') as f:
             # TODO detect filesystem errors
-            pickle.dump(metadata, md)
+            pickle.dump(metadata, f)
         self._exit()
 
     def save_as_text(self, path):
@@ -251,17 +256,17 @@ class XArrayImpl(XObjectImpl, TracedObject):
         """
         self._entry(path=path)
         # this only works for local files
-        delete_file_or_dir(path)
+        fileio.delete(path)
         try:
             self._rdd.saveAsTextFile(path)           # action ?
         except:
             # TODO distinguish between filesystem errors and pickle errors
             raise TypeError('The XArray save failed.')
         metadata = self.elem_type
-        metadata_path = os.path.join(path, 'metadata')
-        with open(metadata_path, 'w') as md:
+        metadata_path = os.path.join(path, '_metadata')
+        with fileio.open_file(metadata_path, 'w') as f:
             # TODO detect filesystem errors
-            pickle.dump(metadata, md)
+            pickle.dump(metadata, f)
         self._exit()
 
     def save_as_csv(self, path, **params):
@@ -281,8 +286,8 @@ class XArrayImpl(XObjectImpl, TracedObject):
             except IOError:
                 return ''
 
-        delete_file_or_dir(path)
-        with open(path, 'w') as f:
+        fileio.delete(path)
+        with fileio.open_file(path, 'w') as f:
             self.begin_iterator()
             elems_at_a_time = 10000
             ret = self.iterator_get_next(elems_at_a_time)
@@ -636,6 +641,18 @@ class XArrayImpl(XObjectImpl, TracedObject):
         self._exit()
         return self._rv(res)
 
+    def count_missing_values(self):
+        """
+        Count missing values.
+
+        A missing value shows up in an RDD as 'NaN' or 'None'.
+        """
+        self._entry()
+        res = self._rdd.map(lambda x: 1 if is_missing(x) else 0)
+        total = res.sum()
+        self._exit()
+        return total
+
     def drop_missing_values(self):
         """
         Create new RDD containing only the non-missing values of the
@@ -676,6 +693,14 @@ class XArrayImpl(XObjectImpl, TracedObject):
             distribute_seed(self._rdd, seed)
             random.seed(seed)
 
+        def array_typecode(val):
+            typ = type(val)
+            if typ is int:
+                return 'l'
+            if typ is float:
+                return 'd'
+            return None
+
         # noinspection PyShadowingNames
         def apply_and_cast(x, fn, dtype, skip_undefined):
             if is_missing(x) and skip_undefined:
@@ -684,20 +709,25 @@ class XArrayImpl(XObjectImpl, TracedObject):
             try:
                 fnx = fn(x)
             except Exception:
-                return ValueError('Error evaluating function on "{}"'.format(x))
+                return ApplyError('Error evaluating function on "{}"'.format(x))
             if is_missing(fnx) and skip_undefined:
                 return None
+            if dtype is None:
+                return fnx
             try:
-                return dtype(fnx)
+                if dtype in [array.array]:
+                    return array.array(array_typecode(fnx[0]), fnx)
+                else:
+                    return dtype(fnx)
             except TypeError:
-                return ValueError('Error converting "{}" to {}'.format(fnx, dtype))
+                return ApplyError('Error converting "{}" to {}'.format(fnx, dtype))
 
         res = self._rdd.map(lambda x: apply_and_cast(x, fn, dtype, skip_undefined))
         # search for type error and throw exception
         # TODO this forces evaluatuion -- consider not doing it
-        errs = res.filter(lambda x: type(x) is ValueError).collect()
+        errs = res.filter(lambda x: type(x) is ApplyError).take(100)
         if len(errs) > 0:
-            raise ValueError('Transformation failures: ({}) {}'.format(len(errs), errs[0].args[0]))
+            raise ValueError('Transformation failures: errs {}'.format(len(errs)))
         self._exit()
         return self._rv(res, dtype)
 
@@ -720,21 +750,27 @@ class XArrayImpl(XObjectImpl, TracedObject):
             if is_missing(x) and skip_undefined:
                 return []
             try:
+                # It is tempting to define the lambda function on the fly, but that
+                #  leads to serilization difficulties.
                 if skip_undefined:
+                    if dtype is None:
+                        return [item for item in fn(x) if not is_missing(item)]
                     return [dtype(item) for item in fn(x) if not is_missing(item)]
+                if dtype is None:
+                    return [item for item in fn(x)]
                 return [dtype(item) for item in fn(x)]
-            except TypeError:
-                return TypeError
+            except TypeError as e:
+                return [ApplyError('TypeError')]
 
         res = self._rdd.flatMap(lambda x: apply_and_cast(x, fn, dtype, skip_undefined))
 
         # search for type error and throw exception
         try:
-            errs = res.filter(lambda x: x is TypeError).take(1)
+            errs = res.filter(lambda x: type(x) is ApplyError).take(100)
         except Exception:
-            raise ValueError('type conversion failure')
+            raise ValueError('Type conversion failure: {}'.format(dtype))
         if len(errs) > 0:
-            raise ValueError('type conversion failure')
+            raise ValueError('Type conversion failures  errs: {}'.format(len(errs)))
         self._exit()
         return self._rv(res, dtype)
 
@@ -829,23 +865,23 @@ class XArrayImpl(XObjectImpl, TracedObject):
 
     def unpack(self, column_name_prefix, limit, column_types, na_value):
         """
-        Convert an XArray of list, array, or dict type to an XFrame with
+        Convert an XArray of list, tuple, array, or dict type to an XFrame with
         multiple columns.
 
-        `unpack` expands an XArray using the values of each list/array/dict as
+        `unpack` expands an XArray using the values of each list/tuple/array/dict as
         elements in a new XFrame of multiple columns. For example, an XArray of
         lists each of length 4 will be expanded into an XFrame of 4 columns,
         one for each list element. An XArray of lists/arrays of varying size
-        will be expand to a number of columns equal to the longest list/array.
+        will be expand to a number of columns equal to the longest list/tuple/array.
         An XArray of dictionaries will be expanded into as many columns as
         there are keys.
 
-        When unpacking an XArray of list or array type, new columns are named:
+        When unpacking an XArray of list, tuple, or array type, new columns are named:
         `column_name_prefix`.0, `column_name_prefix`.1, etc. If unpacking a
         column of dict type, unpacked columns are named
         `column_name_prefix`.key1, `column_name_prefix`.key2, etc.
 
-        When unpacking an XArray of list or dictionary types, missing values in
+        When unpacking an XArray of list, tuple or dictionary types, missing values in
         the original element remain as missing values in the resultant columns.
         If the `na_value` parameter is specified, all values equal to this
         given value are also replaced with missing values. In an XArray of
@@ -862,7 +898,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
 
         # noinspection PyShadowingNames
         def select_elems(row, limit):
-            if type(row) == list:
+            if type(row) in [list, tuple, array.array]:
                 return [row[elem] if 0 <= elem < len(row) else None for elem in limit]
             else:
                 return [row[elem] if elem in row else None for elem in limit]
@@ -1030,9 +1066,9 @@ class XArrayImpl(XObjectImpl, TracedObject):
         Sum of all values in the RDD.
 
         Raises an exception if called on an RDD of strings, lists, or
-        dictionaries. If the RDD contains numeric arrays (array.array) and
+        dictionaries. If the RDD contains numeric lists or arrays (array.array) and
         all the arrays are the same length, the sum over all the arrays will be
-        returned (NOT IMPLEMENTED). Returns None on an empty RDD. For large values, this may
+        returned. Returns None on an empty RDD. For large values, this may
         overflow without warning.
         """
         self._entry()
@@ -1040,10 +1076,29 @@ class XArrayImpl(XObjectImpl, TracedObject):
         if count == 0:     # action
             return None
 
-        if self.elem_type not in (int, long, float, bool):
+        if self.elem_type in (int, long, float, bool):
+            total = self._rdd.sum()    # action
+        elif self.elem_type is array.array:
+            def array_sum(x, y):
+                if x.typecode != y.typecode:
+                    print 'arrays are not compatible'
+                total = array.array(x.typecode)
+                total.fromlist([a + b for a, b in zip(x, y)])
+                return total
+            total = self._rdd.reduce(array_sum)
+        elif self.elem_type is list:
+            def list_sum(x, y):
+                return [a + b for a, b in zip(x, y)]
+            total = self._rdd.reduce(list_sum)
+        elif self.elem_type is dict:
+            def dict_sum(x, y):
+                return { k: x.get(k, 0) + y.get(k, 0) for k in set(x) & set(y) }
+            total = self._rdd.reduce(dict_sum)
+
+        else:
             raise TypeError('sum: non numeric type')
         self._exit()
-        return self._rdd.sum()    # action
+        return total
 
     def mean(self):
         """

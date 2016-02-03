@@ -149,13 +149,13 @@ class Sketch(object):
             needs to be positive integer
         """
         if impl:
-            self.__impl__ = impl
+            self._impl = impl
         else:
-            self.__impl__ = SketchImpl()
+            self._impl = SketchImpl()
             if not isinstance(array, XArray):
                 raise TypeError("Sketch object can only be constructed from XArrays")
 
-            self.__impl__.construct_from_xarray(array.__impl__, sub_sketch_keys)
+            self._impl.construct_from_xarray(array._impl, sub_sketch_keys)
 
     # noinspection PyBroadException
     def __repr__(self):
@@ -248,7 +248,7 @@ class Sketch(object):
         out : int
             The number of elements of the input XArray.
         """
-        return int(self.__impl__.size())
+        return int(self._impl.size())
 
     def max(self):
         """
@@ -265,7 +265,7 @@ class Sketch(object):
         out : type of XArray
             Maximum value of XArray. Returns *nan* if the XArray is empty.
         """
-        return self.__impl__.max()
+        return self._impl.max()
 
     def min(self):
         """
@@ -282,7 +282,7 @@ class Sketch(object):
         out : type of XArray
             Minimum value of XArray. Returns *nan* if the xarray is empty.
         """
-        return self.__impl__.min()
+        return self._impl.min()
 
     def sum(self):
         """
@@ -300,7 +300,7 @@ class Sketch(object):
         out : type of XArray
             Sum of all values in XArray. Returns 0 if the XArray is empty.
         """
-        return self.__impl__.sum()
+        return self._impl.sum()
 
     def mean(self):
         """
@@ -317,7 +317,7 @@ class Sketch(object):
         out : float
             Mean of all values in XArray. Returns 0 if the xarray is empty.
         """
-        return self.__impl__.mean()
+        return self._impl.mean()
 
     def std(self):
         """
@@ -353,7 +353,27 @@ class Sketch(object):
         out : float
             The variance of all the values. Returns 0 if the XArray is empty.
         """
-        return self.__impl__.var()
+        return self._impl.var()
+
+    def avg_length(self):
+        """
+        Returns the average length of the values in the xarray. Returns 0 on an empty
+        array.
+
+        The length of a value in a numeric array is 1.  The length of a list or dictionary
+        value is the length of the list or dict.  The length of a string value is the string lenth.
+
+        Raises
+        ------
+        RuntimeError
+            If the xarray is a non-numeric type.
+
+        Returns
+        -------
+        out : float
+            The average length of the values. Returns 0 if the XArray is empty.
+        """
+        return self._impl.avg_length()
 
     def num_undefined(self):
         """
@@ -365,7 +385,7 @@ class Sketch(object):
         out : int
             The number of missing values in the XArray.
         """
-        return int(self.__impl__.num_undefined())
+        return int(self._impl.num_undefined())
 
     def num_unique(self):
         """
@@ -377,7 +397,7 @@ class Sketch(object):
         out : float
             An estimate of the number of unique values in the XArray.
         """
-        return int(self.__impl__.num_unique())
+        return int(self._impl.num_unique())
 
     def frequent_items(self):
         """
@@ -398,7 +418,27 @@ class Sketch(object):
         out : dict
             A dictionary mapping items and their estimated occurrence frequencies.
         """
-        return self.__impl__.frequent_items()
+        return self._impl.frequent_items()
+
+    def tf_idf(self):
+        """
+        Returns a tf-idf analysis of each document in a collection.
+
+        If the elements in the column are documents in string form, then a simple splitter is
+        used to create a list of words.
+
+        If the elemenst are already in list form, then the list elements are used as the terms.  These
+        are usually strings, but could be numeric instead.
+
+        Returns
+        -------
+        out : XArray of dict
+            For each document, a dictionary mapping terms to their tf_idf score.
+        """
+        if self._impl.dtype not in [list, str]:
+            raise TypeError('Column must be of type "list" or "str".')
+
+        return XArray(data=[], impl=self._impl.tf_idf())
 
     def quantile(self, quantile_val):
         """
@@ -426,7 +466,7 @@ class Sketch(object):
         out : float | str
             An estimate of the value at a quantile.
         """
-        return self.__impl__.get_quantile(quantile_val)
+        return self._impl.get_quantile(quantile_val)
 
     def frequency_count(self, element):
         """
@@ -450,7 +490,7 @@ class Sketch(object):
         out : int
             An estimate of the number of occurrences of the element.
         """
-        return int(self.__impl__.frequency_count(element))
+        return int(self._impl.frequency_count(element))
 
     def element_length_summary(self):
         """
@@ -493,7 +533,7 @@ class Sketch(object):
         out : Sketch
           An new sketch object regarding the element length of the current XArray
         """
-        return Sketch(impl=self.__impl__.element_length_summary())
+        return Sketch(impl=self._impl.element_length_summary())
 
     def dict_key_summary(self):
         """
@@ -520,7 +560,7 @@ class Sketch(object):
         +-------+---+------+--------+--------+
 
         """
-        return Sketch(impl=self.__impl__.dict_key_summary())
+        return Sketch(impl=self._impl.dict_key_summary())
 
     def dict_value_summary(self):
         """
@@ -561,7 +601,7 @@ class Sketch(object):
         +-----+-----+-----+-----+-----+-----+-----+-----+------+
 
         """
-        return Sketch(impl=self.__impl__.dict_value_summary())
+        return Sketch(impl=self._impl.dict_value_summary())
 
     def element_summary(self):
         """
@@ -601,7 +641,7 @@ class Sketch(object):
         | 1.0 | 1.0 | 1.0 | 2.0 | 3.0 | 4.0 | 5.0 | 5.0 | 5.0  |
         +-----+-----+-----+-----+-----+-----+-----+-----+------+
         """
-        return Sketch(impl=self.__impl__.element_summary())
+        return Sketch(impl=self._impl.element_summary())
 
     def element_sub_sketch(self, keys=None):
         """
@@ -667,7 +707,7 @@ class Sketch(object):
             if len(value_types) > 1:
                 raise ValueError("All keys should have the same type.")
 
-        ret_sketches = self.__impl__.element_sub_sketch(keys)
+        ret_sketches = self._impl.element_sub_sketch(keys)
         ret = {}
 
         # check return key matches input key

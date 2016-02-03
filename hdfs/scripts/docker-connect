@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# This docker is contains an HDFS file system, accessed through hdfs server interface
+# This connects to a shell in that docker.
+
+# Arg is the docker ID of the docker to connect to.
+# This is the identifier that is given by the the docker-run command
+
+if [ $# -ne 1 ]
+then
+    echo 'usage: docker-connect docker-id'
+    exit 1
+fi
+
+docker exec -it $1 /bin/bash

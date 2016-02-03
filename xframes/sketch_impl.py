@@ -4,18 +4,26 @@ This module provides an implementation of Sketch using pySpark RDDs.
 
 import inspect
 import math
+import datetime
 from sys import stderr
+from collections import Counter, defaultdict
+import copy
+import operator
 
 
 from xframes.dsq import QuantileAccumulator
 from xframes.frequent import FreqSketch
+from xframes import util
+import xframes
 
 __all__ = ['Sketch']
 
 
 def is_missing(x):
-    if x is None: return True
-    if isinstance(x, float) and math.isnan(x): return True
+    if x is None:
+        return True
+    if isinstance(x, float) and math.isnan(x):
+        return True
     return False
 
 
@@ -28,14 +36,18 @@ class SketchImpl(object):
         import xframes.util as util
         self._entry()
         self._rdd = None
+        self.defined = None
+        self.dtype = None
         self.sketch_type = None
         self.count = 0
+        self.stats = None
         self.min_val = util.nan
         self.max_val = util.nan
         self.mean_val = 0
         self.sum_val = 0
         self.variance_val = 0.0
         self.stdev_val = 0.0
+        self.avg_len = None
         self.num_undefined_val = None
         self.num_unique_val = None
         self.quantile_accumulator = None
@@ -64,25 +76,39 @@ class SketchImpl(object):
         if sub_sketch_keys is not None:
             raise NotImplementedError('sub_sketch_keys mode not implemented')
 
-        # calculate some basic statistics in one pass
+        # these are not going through the xrdd layer -- should they?
         defined = xa.to_rdd().filter(lambda x: not is_missing(x))
-        self.sketch_type = 'numeric' if xa.dtype() in (int, float) else 'non-numeric'
-        if self.sketch_type == 'numeric':
-            stats = defined.stats()
-            self.count = stats.count()
-            self.min_val = stats.min()
-            self.max_val = stats.max()
-            self.mean_val = stats.mean()
-            self.sum_val = stats.sum()
-            self.variance_val = stats.variance()
-            self.stdev_val = stats.stdev()
+        defined.cache()
+        self.dtype = xa.dtype()
+        self.count = defined.count()
+        if util.is_numeric_type(self.dtype):
+            self.sketch_type = 'numeric'
+        elif util.is_date_type(self.dtype):
+            self.sketch_type = 'date'
         else:
-            self.count = defined.count()
+            self.sketch_type = 'non-numeric'
 
-        # compute these later if needed
+        # compute others later if needed
         self._rdd = xa.to_rdd()
+        self.defined = defined
 
         self._exit()
+
+    def _create_stats(self):
+        # calculate some basic statistics
+        if self.stats is None:
+            if util.is_date_type(self.dtype):
+                self.min_val = self.defined.min()
+                self.max_val = self.defined.max()
+            else:
+                stats = self.defined.stats()
+                self.min_val = stats.min()
+                self.max_val = stats.max()
+                self.mean_val = stats.mean()
+                self.sum_val = stats.sum()
+                self.variance_val = stats.variance()
+                self.stdev_val = stats.stdev()
+                self.stats = stats
 
     def _create_quantile_accumulator(self):
         num_levels = 12
@@ -106,29 +132,47 @@ class SketchImpl(object):
         return self.count
 
     def max(self):
-        if self.sketch_type == 'numeric':
+        if self.sketch_type in ['numeric', 'date']:
+            self._create_stats()
             return self.max_val
-        raise ValueError('max only available for numeric types')
+        raise ValueError('max only available for numeric or date types')
 
     def min(self):
-        if self.sketch_type == 'numeric':
+        if self.sketch_type in ['numeric', 'date']:
+            self._create_stats()
             return self.min_val
-        raise ValueError('max only available for numeric types')
+        raise ValueError('min only available for numeric or date types')
 
     def sum(self):
         if self.sketch_type == 'numeric':
+            self._create_stats()
             return self.sum_val
-        raise ValueError('max only available for numeric types')
+        raise ValueError('sum only available for numeric types')
 
     def mean(self):
         if self.sketch_type == 'numeric':
+            self._create_stats()
             return self.mean_val
-        raise ValueError('max only available for numeric types')
+        raise ValueError('mean only available for numeric types')
 
     def var(self):
         if self.sketch_type == 'numeric':
+            self._create_stats()
             return self.variance_val
-        raise ValueError('max only available for numeric types')
+        raise ValueError('var only available for numeric types')
+
+    def avg_length(self):
+        if self.avg_len is None:
+            if self.count == 0:
+                self.avg_len = 0
+            elif self.dtype in [int, float, datetime.datetime]:
+                self.avg_len = 1
+            elif self.dtype in [list, dict, str]:
+                lens = self.defined.map(lambda x: len(x))
+                self.avg_len = lens.sum() / float(self.count)
+            else:
+                self.avg_len = 0
+        return self.avg_len
 
     def num_undefined(self):
         if self.num_undefined_val is None:
@@ -137,7 +181,12 @@ class SketchImpl(object):
 
     def num_unique(self):
         if self.num_unique_val is None:
-            self.num_unique_val = self._rdd.distinct().count()
+            # distinct fails if the values are not hashable
+            if self.dtype in [list, dict]:
+                rdd = self._rdd.map(lambda x: str(x))
+            else:
+                rdd = self._rdd
+            self.num_unique_val = rdd.distinct().count()
         return self.num_unique_val
 
     def frequent_items(self):
@@ -145,12 +194,73 @@ class SketchImpl(object):
             self.frequency_sketch = self._create_frequency_sketch()
         return self.frequency_sketch
 
+    def tf_idf(self):
+        """ Returns an RDD of td-idf dicts, one for each document. """
+        def normalize_doc(doc):
+            if doc is None:
+                return []
+            if type(doc) != str:
+                print >>stderr, 'Document should be str -- is {}: {}'.format(type(doc).__name__, doc)
+                return []
+            return doc.strip().lower().split()
+        if self.dtype is str:
+            docs = self._rdd.map(normalize_doc)
+        else:
+            docs = self._rdd.map(lambda doc: doc or [])
+        docs.cache()
+
+        # build TF
+        def build_tf(doc):
+            """ Build term Frequency for a document (cell)"""
+            if len(doc) == 0:
+                return {}
+            counts = Counter()
+            counts.update(doc)
+            # use augmented frequency (see en.wikipedia.org/wiki/Tf-idf)
+            k = 0.5   # regularization factor
+            max_count = float(counts.most_common(1)[0][1])
+            return {word: k + (((1.0 - k) * count) / max_count)
+                    for word, count in counts.iteritems()}
+        tf = docs.map(build_tf)
+
+        # get all terms
+        # we can afford to do this because there aren't that many words
+        all_terms = docs.flatMap(lambda x: x if x else '').distinct().collect()
+        term_count = {term: 0 for term in all_terms}
+
+        def seq_op(count, doc):
+            # Spark documentaton says you can modify first arg, but
+            #  it is not true!
+            counts = Counter(count)
+            counts.update(doc)
+            return dict(counts)
+
+        def comb_op(count1, count2):
+            counts = copy.copy(count1)
+            for term, count in count2.iteritems():
+                counts[term] += count
+            return counts
+
+        # create idf counts per document
+        counts = docs.aggregate(term_count, seq_op, comb_op)
+
+        doc_count = float(docs.count())
+        # add 1.0 to denominator, as suggested by wiki article cited above
+        idf = {term: math.log((doc_count + 1.0) / (count + 1.0))
+               for term, count in counts.iteritems()}
+
+        def build_tfidf(tf):
+            return {term: tf_count * idf[term] for term, tf_count in tf.iteritems()}
+        tfidf = tf.map(build_tfidf)
+        return xframes.xarray_impl.XArrayImpl(tfidf, dict)
+
     def get_quantile(self, quantile_val):
-        if self.sketch_type == 'numeric':
+        if self.sketch_type == 'numeric' or self.sketch_type == 'date':
             if self.quantile_accumulator is None:
+                self._create_stats()
                 self.quantile_accumulator = self._create_quantile_accumulator()
             return self.quantile_accumulator.ppf(quantile_val)
-        raise ValueError('max only available for numeric types')
+        raise ValueError('get_quantile only available for numeric or date types')
 
     def frequency_count(self, element):
         if self.frequency_sketch is None:

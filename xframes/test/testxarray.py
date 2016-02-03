@@ -1,7 +1,7 @@
 import unittest
 import math
 import os
-from array import array
+import array
 import datetime
 
 # python testxarray.py
@@ -15,6 +15,7 @@ from xframes import XFrame
 
 def eq_list(expected, result):
     return expected == list(result)
+
 
 class TestXArrayVersion(unittest.TestCase):
     """
@@ -302,6 +303,7 @@ class TestXArraySaveText(unittest.TestCase):
         t.save(path, format='text')
         success_path = os.path.join(path, '_SUCCESS')
         self.assertTrue(os.path.isfile(success_path))
+
 
 class TestXArraySaveCsv(unittest.TestCase):
     """
@@ -1281,6 +1283,18 @@ class TestXArraySum(unittest.TestCase):
         t = XArray([1.0, 2.0, 3.0])
         self.assertEqual(6.0, t.sum())
 
+    def test_sum_array(self):
+        t = XArray([array.array('l', [10, 20, 30]), array.array('l', [40, 50, 60])])
+        self.assertEqual(array.array('l', [50, 70, 90]), t.sum())
+
+    def test_sum_list(self):
+        t = XArray([[10, 20, 30], [40, 50, 60]])
+        self.assertEqual([50, 70, 90], t.sum())
+
+    def test_sum_dict(self):
+        t = XArray([{'x': 1, 'y': 2}, {'x': 3, 'y': 4}])
+        self.assertEqual({'x': 4, 'y': 6}, t.sum())
+
 
 class TestXArrayMean(unittest.TestCase):
     """ 
@@ -1657,6 +1671,26 @@ class TestXArrayTail(unittest.TestCase):
         t = XArray(range(1, 100))
         res = t.tail(100)
         self.assertEqual(range(1, 100), res)
+
+
+class TestXArrayCountna(unittest.TestCase):
+    """
+    Tests XArray countna
+    """
+    def test_countna_not(self):
+        t = XArray([1, 2, 3])
+        res = t.countna()
+        self.assertEqual(0, res)
+
+    def test_countna_none(self):
+        t = XArray([1, 2, None])
+        res = t.countna()
+        self.assertEqual(1, res)
+
+    def test_countna_nan(self):
+        t = XArray([1.0, 2.0, float('nan')])
+        res = t.countna()
+        self.assertEqual(1, res)
 
 
 class TestXArrayDropna(unittest.TestCase):

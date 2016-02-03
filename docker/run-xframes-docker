@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Build and run the xframes docker container 
 sudo docker run -d -p 7777:8888 -p 8000:80 -e "USE_HTTP=1" --name xframes xframes

@@ -3,16 +3,17 @@ from abc import ABCMeta, abstractmethod
 import os
 import pickle
 
+from pyspark import RDD
+from pyspark.mllib import recommendation
+from pyspark.mllib.recommendation import ALS, Rating
+
 from xframes.spark_context import CommonSparkContext
 from xframes.toolkit.model import Model, ModelBuilder
 from xframes import XArray, XFrame
 from xframes.xarray_impl import XArrayImpl
 from xframes.xframe_impl import XFrameImpl
 from xframes.util import delete_file_or_dir
-
-from pyspark import RDD
-from pyspark.mllib import recommendation
-from pyspark.mllib.recommendation import ALS, Rating
+from xframes import fileio
 
 ##
 ## TODO
@@ -177,7 +178,8 @@ class MatrixFactorizationModel(RecommenderModel):
         self.ratings.save(ratings_path)
         # save metadata
         metadata = [self.user_col, self.item_col, self.rating_col]
-        with open(metadata_path, 'w') as f:
+        with fileio.open_file(metadata_path, 'w') as f:
+            # TODO detect filesystem errors
             pickle.dump(metadata, f)
 
     @classmethod

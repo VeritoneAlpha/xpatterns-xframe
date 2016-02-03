@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Build and run the xframes docker container 
 sudo docker stop xframes || true

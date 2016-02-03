@@ -1,0 +1,35 @@
+This file gets mapped into /opt/xframes on the docker.
+
+HDFS Docker
+-----
+$ dockdir=$XFRAMES_HOME/dockdir
+$ docker run -dt -p 8020:8020 -p 50070:50070 -p 50075:50075 -v "$XFRAMES_HOME/dockdir":/opt/xframes --hostname xpatterns-hadoop xpatterns/hadoop
+Runs a docker where hdfs server is on 8020.
+
+Returned urls to the datanodes will have the internal hostname xpatterns-hadoop.
+Map this to 127.0.0.1 in the hosts file.
+
+Use docker exec to get an interactive shell.
+Then use scp to copy files in, and hdfs dfs commands to write them into hdfs.
+
+$ docker ps
+Lists the running dockers.  Look for the id.  ex: 8d1...
+
+$ docker exec 8d1 ls
+List the files in the docker local file system.
+
+$ docker exec -it 8d1 /bin/bash
+Get an interactive shell in the docker.
+
+
+$ docker run arg: -v "$dockdir":/opt/iad
+Don't know what this does.
+
+
+From within the docker, manipulate hdfs by "hdfs dfs" command.
+
+root@xpatterns-hadoop:/# hdfs dfs -ls /
+root@xpatterns-hadoop:/# hdfs dfs -mkdir /user/cch
+root@xpatterns-hadoop:/# hdfs dfs -ls /user
+
+

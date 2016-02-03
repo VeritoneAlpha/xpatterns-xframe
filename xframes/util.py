@@ -10,6 +10,7 @@ import os
 import re
 from zipfile import ZipFile
 import bz2 as _bz2
+import ast
 import tarfile
 import ConfigParser
 import itertools
@@ -18,6 +19,8 @@ import shutil
 import random
 import datetime
 from dateutil import parser
+
+import numpy
 
 import logging as _logging
 
@@ -30,6 +33,7 @@ from pyspark.sql.types import StringType, BooleanType, \
 
 from xframes.spark_context import spark_context
 from xframes.xobject import XObject
+from xframes import fileio
 
 __LOGGER__ = _logging.getLogger(__name__)
 
@@ -104,7 +108,7 @@ def make_internal_url(url):
             # protocol is a remote url not on server, just return
             return url
         elif protocol == 'hdfs':
-            if not has_hdfs():
+            if not fileio.has_hdfs():
                 raise ValueError('HDFS URL is not supported because Hadoop not found. '
                                  'Please make hadoop available from PATH or set the environment variable '
                                  'HADOOP_HOME and try again.')
@@ -116,14 +120,13 @@ def make_internal_url(url):
                 pass
             else:
                 # s3 url does not contain secret key/id pair, query the environment variables
-#                k, v = get_credentials()
-#                return 's3n://' + k + ':' + v + '@' + path
-                url = 's3n://' + path
-                return url
+                # k, v = get_credentials()
+                # return 's3n://' + k + ':' + v + '@' + path
+                return 's3n://' + path
         elif protocol == 'remote':
             # url for files on the server
             path_on_server = path
-        elif protocol == 'local':
+        elif protocol == 'local' or protocol == 'file':
             # url for files on local client, check if we are connecting to local server
             #
             # get spark context, get master, see if it starts with local
@@ -134,7 +137,7 @@ def make_internal_url(url):
                 raise ValueError('Cannot use local URL when connecting to a remote server.')
         else:
             raise ValueError('Invalid url protocol {}. Supported url protocols are: '
-                             's3:// and hdfs://'.format(protocol))
+                             'remote://, local://, file:// s3://, https:// and hdfs://'.format(protocol))
     elif len(urlsplit) == 1:
         # expand ~ to $HOME
         url = os.path.expanduser(url)
@@ -150,11 +153,6 @@ def make_internal_url(url):
         return os.path.abspath(os.path.expanduser(path_on_server))
     else:
         raise ValueError('Invalid url: {}.'.format(url))
-
-
-def has_hdfs():
-    # TODO -- detect if we have hdfs
-    return True
 
 
 def download_dataset(url_str, extract=True, force=False, output_dir="."):
@@ -414,12 +412,11 @@ def crossproduct(d):
 
 
 def delete_file_or_dir(path):
-    expected_errs = [errno.ENOENT, errno.ENOTDIR]     # no such file or directory
-    try:
-        shutil.rmtree(path)
-    except OSError as err:
-        if err.errno not in expected_errs:
-            raise err
+    if os.path.isdir(path):
+        shutil.rmtree(path, ignore_errors=True)
+    elif os.path.isfile(path):
+        os.remove(path)
+
 
 
 def possible_date(dt_str):
@@ -481,6 +478,39 @@ def infer_type(rdd):
     return dtype
 
 
+def infer_types(rdd):
+    """
+    From an RDD of tuples of strings, find what data type each one represents.
+    """
+    head = rdd.take(100)
+    n_cols = len(head[0])
+
+    def get_col(head, i):
+        return [row[i] for row in head]
+    try:
+        return [infer_type_of_list(get_col(head, i)) for i in range(n_cols)]
+    except IndexError:
+        raise ValueError('rows are not the same length')
+
+
+_numeric_types = (float, int, long, numpy.float64, numpy.int64)
+
+_date_types = [datetime.datetime]
+
+_sortable_types = (str, float, int, long, numpy.float64, numpy.int64, datetime.datetime)
+
+
+def is_numeric_type(typ):
+    return typ in _numeric_types
+
+def is_date_type(typ):
+    return typ in _date_types
+
+
+def is_sortable_type(typ):
+    return typ in _sortable_types
+
+
 def infer_type_of_list(data):
     """
     Look through an iterable and get its data type.
@@ -496,8 +526,7 @@ def infer_type_of_list(data):
         if candidate is None:
             candidate = d_type
         if d_type != candidate: 
-            numeric = (float, int, long)
-            if d_type in numeric and candidate in numeric:
+            if is_numeric_type(d_type) and is_numeric_type(candidate):
                 continue
             raise TypeError('Infer_type_of_list: mixed types in list: {} {}'.format(d_type, candidate))
     return candidate
@@ -588,6 +617,10 @@ def pytype_from_dtype(dtype):
         return datetime.datetime
     if dtype == 'object':
         return object
+    if dtype == 'str':
+        return str
+    if dtype == 'string':
+        return str
     return None
 
 
@@ -637,4 +670,33 @@ def to_schema_type(typ, elem):
         # todo set valueContainsNull correctly
         return MapType(key_type, val_type)
     return StringType()
+
+def safe_cast_val(val, typ):
+    if val is None:
+        return None
+    if type(val) is str and len(val) == 0:
+        if typ is int:
+            return 0
+        if typ is float:
+            return 0.0
+        if typ is str:
+            return ''
+        if typ is dict:
+            return {}
+        if typ is list:
+            return []
+    try:
+        if typ == dict:
+            return ast.literal_eval(val)
+    except ValueError:
+        return {}
+    try:
+        if typ == list:
+            return ast.literal_eval(val)
+    except ValueError:
+        return []
+    try:
+        return typ(val)
+    except UnicodeEncodeError:
+        return ''
 

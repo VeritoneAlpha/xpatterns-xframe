@@ -1,5 +1,6 @@
 import os
 from abc import ABCMeta, abstractmethod
+import pickle
 
 from pyspark.mllib.regression import LabeledPoint
 from pyspark.mllib.linalg import Vectors, DenseVector
@@ -20,6 +21,7 @@ from xframes.toolkit.model import Model, ModelBuilder
 from xframes import XFrame, XArray
 from xframes.xarray_impl import XArrayImpl
 from xframes.util import delete_file_or_dir
+from xframes import fileio
 
 __all__ = ['LogisticRegressionWithSGDBuilder', 
            'LogisticRegressionWithLBFGSBuilder', 
@@ -215,7 +217,8 @@ class ClassificationModel(Model):
         # save metadata
         model_type = self.__class__.__name__
         metadata = [model_type, self.feature_cols]
-        with open(metadata_path, 'w') as f:
+        with fileio.open_file(metadata_path, 'w') as f:
+            # TODO detect filesystem errors
             pickle.dump(metadata, f)
 
     @classmethod

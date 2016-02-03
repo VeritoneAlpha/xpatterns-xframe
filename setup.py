@@ -9,6 +9,7 @@ from setuptools import setup
 
 here = os.path.abspath(os.path.dirname(__file__))
 
+
 def get_version():
     version_file = 'xframes/version.py'
     try:
@@ -22,6 +23,7 @@ def get_version():
                 raise RuntimeError("Could not find version string in '{}'",format(version_file))
     except:
         raise RuntimeError("Could not find version file: '{}'".format(version_file))
+
 
 def read(*filenames, **kwargs):
     encoding = kwargs.get('encoding', 'utf-8')

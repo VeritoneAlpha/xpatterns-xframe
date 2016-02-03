@@ -16,11 +16,11 @@ All rights reserved.
 
 import array
 from textwrap import wrap
-import datetime
 import inspect
 import time
 import itertools
 from dateutil import parser
+import copy
 import ast
 from sys import stderr
 
@@ -36,6 +36,7 @@ from xframes.xarray_impl import infer_type_of_list
 from xframes.util import make_internal_url, classify_type
 from xframes.xarray import XArray
 import xframes
+import util
 
 __all__ = ['XFrame']
 
@@ -79,6 +80,7 @@ class XFrame(XObject):
     * your local file system
     * the XFrames Server's file system
     * HDFS
+    * Hive
     * Amazon S3
 
     Only basic examples of construction are covered here. For more information
@@ -117,6 +119,7 @@ class XFrame(XObject):
         - "parquet"
         - "rdd"
         - "spark.dataframe"
+        - "hive"
         - "xframe"
 
     Notes
@@ -174,7 +177,7 @@ class XFrame(XObject):
 
     Create an XFrame from a remote CSV file.
 
-    >>> url = 's3://atg-testdata/user.csv.gz'
+    >>> url = 'http://testdatasets.s3-website-us-west-2.amazonaws.com/users.csv.gz'
     >>> xf = XFrame.read_csv(url,
     ...     delimiter=',', header=True, comment_char="#",
     ...     column_type_hints={'user_id': int})
@@ -186,77 +189,105 @@ class XFrame(XObject):
         Construct a new XFrame from a url, a pandas.DataFrame or a Spark RDD or DataFrame.
         """
         if impl:
-            self.__impl__ = impl
+            self._impl = impl
             return
 
         _format = self._classify_auto(data) if format == 'auto' else format
         # print >>stderr, 'format', _format
 
         if _format == 'pandas.dataframe':
-            self.__impl__ = XFrameImpl.load_from_pandas_dataframe(data)
+            if type(data) is not pandas.DataFrame:
+                raise ValueError('Data is not pandas.DataFrame')
+            self._impl = XFrameImpl.load_from_pandas_dataframe(data)
         elif _format == 'xframe_obj':
-            self.__impl__ = XFrameImpl(data.to_rdd(), data.column_names(), data.column_types())
+            if type(data) is not XFrame:
+                raise ValueError('Data is not XFrame')
+            self._impl = XFrameImpl(data.to_rdd(), data.column_names(), data.column_types())
         elif _format == 'xarray':
-            self.__impl__ = XFrameImpl().add_column(data.__impl__, '')
+            if type(data) is not XArray:
+                raise ValueError('Data is not XArray')
+            self._impl = XFrameImpl().add_column(data._impl, '')
         elif _format == 'array':
             if len(data) > 0:
                 unique_types = set([type(x) for x in data if x is not None])
                 if len(unique_types) == 1 and XArray in unique_types:
                     xf = XFrameImpl()
                     for arr in data:
-                        xf.add_column(arr.__impl__, '')
-                    self.__impl__ = xf
+                        xf = xf.add_column(arr._impl, '')
+                    self._impl = xf
                 elif XArray in unique_types:
                     raise ValueError('Cannot create XFrame from mix of regular values and XArrays.')
                 else:
-                    self.__impl__ = XFrameImpl().add_column(XArray(data).__impl__, '')
+                    self._impl = XFrameImpl().add_column(XArray(data)._impl, '')
             else:
-                self.__impl__ = XFrameImpl()
+                self._impl = XFrameImpl()
         elif _format == 'iter':
-            self.__impl__ = XFrameImpl().add_column(XArray(data).__impl__, '')
+            self._impl = XFrameImpl().add_column(XArray(data)._impl, '')
         elif _format == 'dict':
+            if type(data) is not dict:
+                raise ValueError('Data is not dictionary')
             xf = XFrameImpl()
             for key, val in iter(sorted(data.iteritems())):
                 if isinstance(val, XArray):
-                    xf.add_column(val.__impl__, key)
+                    xf = xf.add_column(val._impl, key)
                 else:
-                    xf.add_column(XArray(val).__impl__, key)
-            self.__impl__ = xf
+                    xf = xf.add_column(XArray(val)._impl, key)
+            self._impl = xf
         elif _format == 'iteritems':
+            if data is None:
+                raise ValueError('Empty iterable')
             xf = XFrameImpl()
             for key, val in iter(sorted(data.iteritems())):
                 if not hasattr(val, '__iter__'):
                     raise TypeError('Iterator values must be iterable.')
-                xf.add_column(XArray(val).__impl__, key)
-            self.__impl__ = xf
+                xf = xf.add_column(XArray(val)._impl, key)
+            self._impl = xf
         elif _format == 'csv':
+            if not isinstance(data, basestring):
+                raise ValueError('Csv path is not a string')
             url = make_internal_url(data)
-            tmpxf = XFrame.read_csv(url, delimiter=',', header=True)
-            self.__impl__ = tmpxf.__impl__
+            tmpxf = XFrame.read_csv(url, delimiter=',', header=True, verbose=verbose)
+            self._impl = tmpxf._impl
         elif _format == 'tsv':
+            if not isinstance(data, basestring):
+                raise ValueError('Tsv path is not a string')
             url = make_internal_url(data)
-            tmpxf = XFrame.read_csv(url, delimiter='\t', header=True)
-            self.__impl__ = tmpxf.__impl__
+            tmpxf = XFrame.read_csv(url, delimiter='\t', header=True, verbose=verbose)
+            self._impl = tmpxf._impl
         elif _format == 'psv':
+            if not isinstance(data, basestring):
+                raise ValueError('Psv path is not a string')
             url = make_internal_url(data)
-            tmpxf = XFrame.read_csv(url, delimiter='|', header=True)
-            self.__impl__ = tmpxf.__impl__
+            tmpxf = XFrame.read_csv(url, delimiter='|', header=True, verbose=verbose)
+            self._impl = tmpxf._impl
         elif _format == 'parquet':
+            if not isinstance(data, basestring):
+                raise ValueError('Parquet path is not a string')
             url = make_internal_url(data)
             tmpxf = XFrame.read_parquet(url)
-            self.__impl__ = tmpxf.__impl__
+            self._impl = tmpxf._impl
         elif _format == 'xframe':
+            if data is None:
+                raise ValueError('Empty XFrame')
             url = make_internal_url(data)
-            self.__impl__ = XFrameImpl.load_from_xframe_index(url)
+            self._impl = XFrameImpl.load_from_xframe_index(url)
         elif _format == 'spark.dataframe':
-            self.__impl__ = XFrameImpl.load_from_spark_dataframe(data)
+            if data is None:
+                raise ValueError('Empty Spark Dataframe')
+            self._impl = XFrameImpl.load_from_spark_dataframe(data)
+        elif _format == 'hive':
+            if not isinstance(data, basestring):
+                raise ValueError('Hive path is not a string')
+            self._impl = XFrameImpl.load_from_hive(data)
         elif _format == 'rdd':
-            self.__impl__ = XFrameImpl.load_from_rdd(data)
+            if data is None:
+                raise ValueError('Empty RDD')
+            self._impl = XFrameImpl.load_from_rdd(data)
         elif _format == 'empty':
-            self.__impl__ = XFrameImpl()
+            self._impl = XFrameImpl()
         else:
             raise ValueError('Unknown input type: {}.'.format(format))
-        if self.__impl__ is None:
+        if self._impl is None:
             raise ValueError('Constructor failed')
 
     @staticmethod
@@ -357,10 +388,10 @@ class XFrame(XObject):
     @staticmethod
     def _infer_column_types_from_lines(first_rows, na_values):
         if len(first_rows.column_names()) < 1:
-            print >>stderr, 'Insufficient number of columns to perform type inference.'
+            print >> stderr, 'Insufficient number of columns to perform type inference.'
             raise RuntimeError('Insufficient columns.')
         if len(first_rows) < 1:
-            print >>stderr, 'Insufficient number of rows to perform type inference.'
+            print >> stderr, 'Insufficient number of rows to perform type inference.'
             raise RuntimeError('Insufficient rows.')
 
         col_names = first_rows.column_names()
@@ -368,6 +399,7 @@ class XFrame(XObject):
         # TODO get this in a way that does not require an iterator
         def row_as_array(row, col_names):
             return [row[col] for col in col_names]
+
         head = [row_as_array(row, col_names) for row in first_rows]
 
         def infer_type(col, na_values):
@@ -378,16 +410,17 @@ class XFrame(XObject):
                 dtype = types[0]
             elif unique_types == {int, float}:
                 dtype = float
-            else: 
+            else:
                 dtype = str
             return dtype
+
         n_cols = len(head[0])
         cols = [[row[i] for row in head] for i in range(n_cols)]
         types = [infer_type(col, na_values) for col in cols]
 
         # special handling for '\n'
-#        if delimiter == '\n' and len(column_type_hints) != 1:
-#          column_type_hints = [str]
+        #        if delimiter == '\n' and len(column_type_hints) != 1:
+        #          column_type_hints = [str]
 
         column_type_hints = types
         return column_type_hints
@@ -487,34 +520,32 @@ class XFrame(XObject):
                 # Get the first 100 rows (using all the desired arguments).
                 # first row may be excluded (based on heder setting)
                 first_rows = xframes.XFrame.read_csv(
-                    url,
-                    nrows=100,
-                    column_type_hints=str,
-                    header=header,
-                    delimiter=delimiter,
-                    comment_char=comment_char,
-                    escape_char=escape_char,
-                    double_quote=double_quote,
-                    quote_char=quote_char,
-                    skip_initial_space=skip_initial_space,
-                    drop_empty_header_cols=False)
+                        url,
+                        nrows=100,
+                        column_type_hints=str,
+                        header=header,
+                        delimiter=delimiter,
+                        comment_char=comment_char,
+                        escape_char=escape_char,
+                        double_quote=double_quote,
+                        quote_char=quote_char,
+                        skip_initial_space=skip_initial_space)
                 column_type_hints = XFrame._infer_column_types_from_lines(first_rows, na_values)
                 typelist = '[' + ','.join(t.__name__ for t in column_type_hints) + ']'
-
-# TODO move to where cast fails
-#                if verbose:
-#                    print >>stderr, '------------------------------------------------------'
-#                    print >>stderr, 'Inferred types from first line of file as '
-#                    print >>stderr, 'column_type_hints=' + typelist
-#                    print >>stderr, 'If parsing fails due to incorrect types, you can correct'
-#                    print >>stderr, 'the inferred type list above and pass it to read_csv in'
-#                    print >>stderr, 'the column_type_hints argument'
-#                    print >>stderr, '------------------------------------------------------'
+                if verbose:
+                    print >> stderr, '------------------------------------------------------'
+                    print >> stderr, 'Inferred types from first line of file as '
+                    print >> stderr, 'column_type_hints=' + typelist
+                    print >> stderr, 'If parsing fails due to incorrect types, you can correct'
+                    print >> stderr, 'the inferred type list above and pass it to read_csv in'
+                    print >> stderr, 'the column_type_hints argument'
+                    print >> stderr, '------------------------------------------------------'
                 column_type_inference_was_used = True
             except Exception as e:
                 # If the above fails, default back to str for all columns.
-                print >>stderr, 'Error', type(e), e
-                print >>stderr, 'Could not detect types. Using str for each column.'
+                if verbose:
+                    print >> stderr, 'Error', type(e), e
+                    print >> stderr, 'Could not detect types. Using str for each column.'
                 column_type_hints = str
 
         if type(column_type_hints) is type:
@@ -531,8 +562,8 @@ class XFrame(XObject):
         except IOError:
             if column_type_inference_was_used:
                 # try again
-                print >>stderr, 'Unable to parse the file with automatic type inference.'
-                print >>stderr, 'Defaulting to column_type_hints=str'
+                print >> stderr, 'Unable to parse the file with automatic type inference.'
+                print >> stderr, 'Defaulting to column_type_hints=str'
                 type_hints = {'__all_columns__': str}
                 try:
                     errors = impl.load_from_csv(internal_url, parsing_config, type_hints, drop_empty_header_cols)
@@ -664,8 +695,8 @@ class XFrame(XObject):
                                   delimiter=delimiter,
                                   header=header,
                                   error_bad_lines=False,  # we are storing errors,
-                                                          # thus we must not fail
-                                                          # on bad lines
+                                  # thus we must not fail
+                                  # on bad lines
                                   comment_char=comment_char,
                                   escape_char=escape_char,
                                   double_quote=double_quote,
@@ -1068,23 +1099,9 @@ class XFrame(XObject):
         """
         Print information about the Spark RDD associated with this XFrame.
         """
-        return self.__impl__.dump_debug_info()
+        return self._impl.dump_debug_info()
 
-    def __get_column_description__(self):
-        colnames = self.column_names()
-        coltypes = self.column_types()
-        ret = 'Columns:\n'
-        if len(colnames) > 0:
-            for i in range(len(colnames)):
-                ret = ret + '\t' + colnames[i] + '\t' + coltypes[i].__name__ + '\n'
-            ret += '\n'
-        else:
-            ret += '\tNone\n\n'
-        return ret
-
-    def _get_pretty_tables(self,
-                           wrap_text=False,
-                           max_row_width=MAX_ROW_WIDTH,
+    def _get_pretty_tables(self, wrap_text=False, max_row_width=MAX_ROW_WIDTH,
                            max_column_width=30, max_columns=20,
                            max_rows_to_display=60):
         """
@@ -1112,7 +1129,10 @@ class XFrame(XObject):
         -------
         out : list[PrettyTable]
         """
-        head_rows = self.__impl__.rdd().take(max_rows_to_display + 1)
+        # TODO use take to get just the beginning rows
+        # We are going to need a column of values at a time
+        # Take should return a list of tuples
+        head_rows = self._impl.rdd().take(max_rows_to_display + 1)
         if len(head_rows) == 0:
             return [PrettyTable()]
         if len(head_rows) > max_rows_to_display:
@@ -1165,7 +1185,7 @@ class XFrame(XObject):
                     ret = s[:max_column_width]
                     ret = ret[:-4] + ' ...'
                 return unicode(ret, errors='replace')
-            # end of truncate_str
+                # end of truncate_str
 
         columns = self.column_names()[:max_columns]
         columns.reverse()  # reverse the order of columns and we will pop from the end
@@ -1183,12 +1203,13 @@ class XFrame(XObject):
                 # check the max length of element in the column
                 header = truncate_str(col, wrap_text)
                 if n_rows > 0:
-                    col_width = min(max_column_width, max(max(len(as_string(x)) for x in cols[col]), len(header) + 3))
+                    col_width = min(max_column_width, max(max(len(str(x)) for x in cols[col]), len(header) + 3))
                 else:
                     col_width = max_column_width
                 if table_width + col_width < max_row_width:
-                    # this is where a value is actually converted into a str
-                    tbl.add_column(header, [truncate_str(as_string(x), wrap_text) for x in cols[col]])
+                    # truncate the header if necessary
+                    # tbl.add_column(header, [truncate_str(str(x), wrap_text) for x in headxf[col]])
+                    tbl.add_column(header, [truncate_str(str(x), wrap_text) for x in cols[col]])
                     table_width = str(tbl).find('\n')
                     num_column_of_last_table += 1
                 else:
@@ -1210,8 +1231,8 @@ class XFrame(XObject):
 
     def _create_footer(self, html_flag, max_rows_to_display):
         sep = '<br>' if html_flag else '\n'
-        if self._has_size():
-            footer = '[{} rows x {} columns]{}'.format(self.num_rows(), self.num_columns(), sep)
+        if self._is_materialized():
+            footer = '[{} rows x {} columns]{}'.format(self.num_rows(), self.num_columns, sep)
             if self.num_rows() > max_rows_to_display:
                 footer += sep.join(FOOTER_STRS)
         else:
@@ -1304,22 +1325,39 @@ class XFrame(XObject):
         """
         Returns a shallow copy of the xframe.
         """
-        return self.select_columns(self.column_names())
+        return XFrame(impl=self._impl.copy())
 
     def _row_selector(self, other):
         """
-        Where other is an XArray of identical length as the current Frame,
-        this returns a selection of a subset of rows in the current XFrame
-        where the corresponding row in the selector is non-zero.
+        Selects rows of the XFrame where the XArray evaluates to True.
         """
-        if type(other) is XArray:
-            return XFrame(impl=self.__impl__.logical_filter(other.__impl__))
+        if type(other) is not XArray:
+            raise ValueError('Argument must be an XArray')
+        return XFrame(impl=self._impl.logical_filter(other._impl))
+
+    def select_rows(self, xa):
+        """
+        Selects rows of the XFrame where the XArray evaluates to True.
+
+        Parameters
+        ----------
+        xa : XArray
+            Must be the same length as the XFRame. The filter values.
+
+        Returns
+        -------
+        out : XFrame
+            A new XFrame which contains the rows of the XFrame where the XArray is True.  The truth
+            test is the same as in python, so non-zero values are considered true.
+
+        """
+        return self._row_selector(xa)
 
     def width(self):
         """
         Diagnostic: the number of elements in each tuple of the RDD.
         """
-        return XArray(impl=self.__impl__.width())
+        return XArray(impl=self._impl.width())
 
     def num_rows(self):
         """
@@ -1335,7 +1373,7 @@ class XFrame(XObject):
         xframes.XFrame.num_columns
             Returns the number of columns.
         """
-        return self.__impl__.num_rows()
+        return self._impl.num_rows()
 
     def num_columns(self):
         """
@@ -1351,7 +1389,7 @@ class XFrame(XObject):
         xframes.XFrame.num_rows
             Returns the number of rows.
         """
-        return self.__impl__.num_columns()
+        return self._impl.num_columns()
 
     def column_names(self):
         """
@@ -1367,7 +1405,7 @@ class XFrame(XObject):
         xframes.XFrame.rename
             Renames the columns.
         """
-        return self.__impl__.column_names()
+        return copy.copy(self._impl.column_names())
 
     def column_types(self):
         """
@@ -1383,7 +1421,7 @@ class XFrame(XObject):
         xframes.XFrame.dtype
             This is a synonym for column_types.
         """
-        return self.__impl__.dtype()
+        return copy.copy(self._impl.dtype())
 
     def dtype(self):
         """
@@ -1423,7 +1461,7 @@ class XFrame(XObject):
         xframes.XFrame.print_rows
             Prints the XFrame.
         """
-        return XFrame(impl=self.__impl__.head(n))
+        return XFrame(impl=self._impl.head(n))
 
     def tail(self, n=10):
         """
@@ -1447,7 +1485,7 @@ class XFrame(XObject):
         xframes.XFrame.print_rows
             Prints the XFrame.
         """
-        return XFrame(impl=self.__impl__.tail(n))
+        return XFrame(impl=self._impl.tail(n))
 
     def to_pandas_dataframe(self):
         """
@@ -1509,7 +1547,7 @@ class XFrame(XObject):
         from_rdd
             Converts from a Spark RDD.
         """
-        return self.__impl__.to_rdd()
+        return self._impl.to_rdd()
 
     def to_spark_dataframe(self, table_name=None, number_of_partitions=4):
         """
@@ -1527,8 +1565,8 @@ class XFrame(XObject):
         -------
         out: spark.DataFrame
         """
-        return self.__impl__.to_spark_dataframe(table_name, 
-                                                number_of_partitions=number_of_partitions)
+        return self._impl.to_spark_dataframe(table_name,
+                                             number_of_partitions=number_of_partitions)
 
     @classmethod
     def from_rdd(cls, rdd, column_names=None, column_types=None):
@@ -1567,9 +1605,9 @@ class XFrame(XObject):
                             'Please call inferSchema(RDD) first.')
         xf = cls()
         if XFrameImpl.is_dataframe(rdd):
-            xf.__impl__ = XFrameImpl.load_from_spark_dataframe(rdd)
+            xf._impl = XFrameImpl.load_from_spark_dataframe(rdd)
         elif XFrameImpl.is_rdd(rdd):
-            xf.__impl__ = XFrameImpl.load_from_rdd(rdd, column_names, column_types)
+            xf._impl = XFrameImpl.load_from_rdd(rdd, column_names, column_types)
         else:
             raise ValueError('Argument is not an RDD.')
         return xf
@@ -1617,8 +1655,8 @@ class XFrame(XObject):
         """
         if not inspect.isfunction(fn):
             raise TypeError('Input must be a function.')
-        rows = self.__impl__.head_as_list(10)
-        names = self.__impl__.column_names()
+        rows = self._impl.head_as_list(10)
+        names = self._impl.column_names()
         dryrun = [fn(dict(zip(names, row))) for row in rows]
         if dtype is None:
             dtype = infer_type_of_list(dryrun)
@@ -1626,7 +1664,7 @@ class XFrame(XObject):
         if not seed:
             seed = int(time.time())
 
-        return XArray(impl=self.__impl__.transform(fn, dtype, seed))
+        return XArray(impl=self._impl.transform(fn, dtype, seed))
 
     def transform_col(self, col, fn=None, dtype=None, seed=None):
         """
@@ -1682,8 +1720,8 @@ class XFrame(XObject):
             fn = lambda row: row[col]
         elif not inspect.isfunction(fn):
             raise TypeError('Input must be a function.')
-        rows = self.__impl__.head_as_list(10)
-        names = self.__impl__.column_names()
+        rows = self._impl.head_as_list(10)
+        names = self._impl.column_names()
         # do the dryrun so we can see some diagnostic output
         dryrun = [fn(dict(zip(names, row))) for row in rows]
         if dtype is None:
@@ -1691,7 +1729,7 @@ class XFrame(XObject):
         if not seed:
             seed = int(time.time())
 
-        return XFrame(impl=self.__impl__.transform_col(col, fn, dtype, seed))
+        return XFrame(impl=self._impl.transform_col(col, fn, dtype, seed))
 
     def transform_cols(self, cols, fn=None, dtypes=None, seed=None):
         """
@@ -1749,8 +1787,8 @@ class XFrame(XObject):
             fn = lambda row: [row[col] for col in cols]
         elif not inspect.isfunction(fn):
             raise TypeError('Input must be a function: {}: {}.'.format(fn, type(fn)))
-        rows = self.__impl__.head_as_list(10)
-        names = self.__impl__.column_names()
+        rows = self._impl.head_as_list(10)
+        names = self._impl.column_names()
         # do the dryrun so we can see some diagnostic output
         dryrun = [fn(dict(zip(names, row))) for row in rows]
         if dtypes is None:
@@ -1766,7 +1804,7 @@ class XFrame(XObject):
         if not seed:
             seed = int(time.time())
 
-        return XFrame(impl=self.__impl__.transform_cols(cols, fn, dtypes, seed))
+        return XFrame(impl=self._impl.transform_cols(cols, fn, dtypes, seed))
 
     def detect_type(self, column_name):
         """
@@ -1853,6 +1891,7 @@ class XFrame(XObject):
         """
         If the column is of string type, and the values can all be interpreted as
         integer or float values, then cast the column to the numerical type.
+        Otherwise, returns a copy of the XFrame.
 
         Parameters
         ----------
@@ -1951,7 +1990,7 @@ class XFrame(XObject):
         rows within the outer list make up the data for the output XFrame.
         All rows must have the same length and the same order of types to
         make sure the result columns are homogeneously typed.  For example, if
-        the first element emitted into in the outer list by `fn` is
+        the first element emitted into the outer list by `fn` is
         ``[43, 2.3, 'string']``, then all other elements emitted into the outer
         list must be a list with three elements, where the first is an `int`,
         second is a `float`, and third is a `string`.  If `column_types` is not
@@ -2010,8 +2049,8 @@ class XFrame(XObject):
         # determine the column_types
         if column_types == 'auto':
             types = set()
-            rows = self.__impl__.head_as_list(10)
-            names = self.__impl__.column_names()
+            rows = self._impl.head_as_list(10)
+            names = self._impl.column_names()
             results = [fn(dict(zip(names, row))) for row in rows]
             if not (results is None or type(results) == list):
                 raise TypeError('Output type of the lambda function must be a list of lists.')
@@ -2031,7 +2070,7 @@ class XFrame(XObject):
         assert type(column_types) is list
         if not len(column_types) == len(column_names):
             raise TypeError('Number of output columns must match the size of column names.')
-        return XFrame(impl=self.__impl__.flat_map(fn, column_names, column_types, seed))
+        return XFrame(impl=self._impl.flat_map(fn, column_names, column_types, seed))
 
     def sample(self, fraction, seed=None):
         """
@@ -2072,9 +2111,9 @@ class XFrame(XObject):
             raise ValueError('Invalid sampling rate: {}.'.format(fraction))
 
         if self.num_rows() == 0 or self.num_columns() == 0:
-            return self
+            return XFrame(impl=self._impl.copy())
         else:
-            return XFrame(impl=self.__impl__.sample(fraction, seed))
+            return XFrame(impl=self._impl.sample(fraction, seed))
 
     def random_split(self, fraction, seed=None):
         """
@@ -2122,7 +2161,7 @@ class XFrame(XObject):
         except ValueError:
             raise ValueError("The 'seed' parameter must be of type int.")
 
-        impl_pair = self.__impl__.random_split(fraction, seed)
+        impl_pair = self._impl.random_split(fraction, seed)
         return XFrame(data=[], impl=impl_pair[0]), XFrame(data=[], impl=impl_pair[1])
 
     def topk(self, column_name, k=10, reverse=False):
@@ -2237,16 +2276,16 @@ class XFrame(XObject):
         url = make_internal_url(filename)
 
         if file_format is 'binary':
-            self.__impl__.save(url)
+            self._impl.save(url)
 
         elif file_format is 'csv':
             if not filename.endswith(('.csv', '.csv.gz')):
                 raise ValueError('File name must end with .csv or .csv.gz.')
-            self.__impl__.save_as_csv(url)
+            self._impl.save_as_csv(url)
         elif file_format is 'parquet':
             if not filename.endswith('.parquet'):
                 raise ValueError('File name must wnd with .parquet.')
-            self.__impl__.save_as_parquet(url, number_of_partitions=8)
+            self._impl.save_as_parquet(url, number_of_partitions=8)
         else:
             raise ValueError('Unsupported format: {}.'.format(file_format))
 
@@ -2286,7 +2325,7 @@ class XFrame(XObject):
         """
         if not isinstance(column_name, str):
             raise TypeError('Invalid column_name type: must be str.')
-        return XArray(data=[], impl=self.__impl__.select_column(column_name))
+        return XArray(data=[], impl=self._impl.select_column(column_name))
 
     def select_columns(self, keylist):
         """
@@ -2303,7 +2342,8 @@ class XFrame(XObject):
         -------
         out : XFrame
             A new XFrame that is made up of the columns referred to in
-            `keylist` from the current XFrame.
+            `keylist` from the current XFrame.  The order of the columns
+            is preserved.
 
         See Also
         --------
@@ -2339,18 +2379,18 @@ class XFrame(XObject):
                 if keylist.count(key) > 1:
                     raise ValueError("There are duplicate keys in key list: '{}'.".format(key))
 
-        return XFrame(data=[], impl=self.__impl__.select_columns(keylist))
+        return XFrame(data=[], impl=self._impl.select_columns(keylist))
 
-    def add_column(self, data, name=''):
+    def add_column(self, col, name=''):
         """
         Add a column to this XFrame. The length of the new column
         must match the length of the existing XFrame. This
-        operation modifies the current XFrame in place and returns self. If no
-        `name` is given, a default name is chosen.
+        operation returns a new XFrame with the additional columns.
+        If no `name` is given, a default name is chosen.
 
         Parameters
         ----------
-        data : XArray
+        col : XArray
             The 'column' of data to add.
 
         name : string, optional
@@ -2360,7 +2400,7 @@ class XFrame(XObject):
         Returns
         -------
         out : XFrame
-            The current XFrame.
+            A new XFrame with the new column.
 
         See Also
         --------
@@ -2370,10 +2410,10 @@ class XFrame(XObject):
         Examples
         --------
         >>> xf = xframes.XFrame({'id': [1, 2, 3], 'val': ['A', 'B', 'C']})
-        >>> sa = xframes.XArray(['cat', 'dog', 'fossa'])
-        >>> # This line is equivalant to `xf['species'] = sa`
-        >>> xf.add_column(sa, name='species')
-        >>> xf
+        >>> xa = xframes.XArray(['cat', 'dog', 'fossa'])
+        >>> # This line is equivalant to `xf['species'] = xa`
+        >>> xf2 = xf.add_column(xa, name='species')
+        >>> xf2
         +----+-----+---------+
         | id | val | species |
         +----+-----+---------+
@@ -2384,32 +2424,31 @@ class XFrame(XObject):
         [3 rows x 3 columns]
         """
         # Check type for pandas dataframe or XArray?
-        if not isinstance(data, XArray):
+        if not isinstance(col, XArray):
             raise TypeError('Must give column as XArray.')
         if not isinstance(name, str):
             raise TypeError('Invalid column name: must be str.')
-        self.__impl__.add_column(data.__impl__, name)
-        return self
+        return XFrame(impl=self._impl.add_column(col._impl, name))
 
-    def add_columns(self, data, namelist=None):
+    def add_columns(self, cols, namelist=None):
         """
         Adds multiple columns to this XFrame. The length of the new columns
         must match the length of the existing XFrame. This
-        operation modifies the current XFrame in place and returns self.
+        operation returns a new XFrame with the additional columns.
 
         Parameters
         ----------
-        data : list of XArray or XFrame
-            The columns to add.  If `data` is an XFrame, all columns in it are added.
+        cols : list of XArray or XFrame
+            The columns to add.  If `cols` is an XFrame, all columns in it are added.
 
         namelist : list of string, optional
             A list of column names. All names must be specified. `Namelist` is
-            ignored if `data` is an XFrame.
+            ignored if `cols` is an XFrame.
 
         Returns
         -------
         out : XFrame
-            The current XFrame.
+            The XFrame with additional columns.
 
         See Also
         --------
@@ -2419,50 +2458,92 @@ class XFrame(XObject):
         Examples
         --------
         >>> xf = xframes.XFrame({'id': [1, 2, 3], 'val': ['A', 'B', 'C']})
-        >>> xf2 = xframes.XFrame({'species': ['cat', 'dog', 'fossa'],
+        >>> xf2 = xframes.XFrame({'species': ['cat', 'dog', 'horse'],
         ...                        'age': [3, 5, 9]})
-        >>> xf.add_columns(xf2)
-        >>> xf
+        >>> xf3 = xf.add_columns(xf2)
+        >>> xf3
         +----+-----+-----+---------+
         | id | val | age | species |
         +----+-----+-----+---------+
         | 1  |  A  |  3  |   cat   |
         | 2  |  B  |  5  |   dog   |
-        | 3  |  C  |  9  |  fossa  |
+        | 3  |  C  |  9  |  horse  |
         +----+-----+-----+---------+
         [3 rows x 4 columns]
         """
-        datalist = data
-        if isinstance(data, XFrame):
-            other = data
+        col_list = cols
+        if isinstance(cols, XFrame):
+            other = cols
             namelist = other.column_names()
 
             my_columns = set(self.column_names())
             for name in namelist:
                 if name in my_columns:
                     raise ValueError("Column '{}' already exists in current XFrame.".format(name))
-            self.__impl__.add_columns_frame(data)
-            return self
+            return XFrame(impl=self._impl.add_columns_frame(cols))
         else:
-            if not hasattr(datalist, '__iter__'):
-                raise TypeError('Datalist must be an iterable.')
+            if not hasattr(col_list, '__iter__'):
+                raise TypeError('Column list must be an iterable.')
             if not hasattr(namelist, '__iter__'):
                 raise TypeError('Namelist must be an iterable.')
 
-            if not all([isinstance(x, XArray) for x in datalist]):
+            if not all([isinstance(x, XArray) for x in col_list]):
                 raise TypeError('Must give column as XArray.')
             if not all([isinstance(x, str) for x in namelist]):
                 raise TypeError("Invalid column name in list : must all be 'str'.")
-            if len(namelist) != len(datalist):
+            if len(namelist) != len(col_list):
                 raise ValueError('Namelist length mismatch.')
 
-            self.__impl__.add_columns_array(datalist, namelist)
-            return self
+            return XFrame(impl=self._impl.add_columns_array(col_list, namelist))
+
+    def replace_column(self, name, col):
+        """
+        Replace a column in this XFrame. The length of the new column
+        must match the length of the existing XFrame. This
+        operation returns a new XFrame with the replacement column.
+
+        Parameters
+        ----------
+        name : string
+            The name of the column.
+
+        col : XArray
+            The 'column' to add.
+
+        Returns
+        -------
+        out : XFrame
+            A new XFrame with specified column replaced.
+
+
+        Examples
+        --------
+        >>> xf = xframes.XFrame({'id': [1, 2, 3], 'val': ['A', 'B', 'C']})
+        >>> xa = xframes.XArray(['cat', 'dog', 'horse'])
+        >>> xf2 = xf.replace_column('val', xa)
+        >>> xf2
+        +----+---------+
+        | id | species |
+        +----+---------+
+        | 1  |   cat   |
+        | 2  |   dog   |
+        | 3  |  horse  |
+        +----+---------+
+        [3 rows x 2 columns]
+        """
+        # Check type for pandas dataframe or XArray?
+        if not isinstance(col, XArray):
+            raise TypeError('Must give column as XArray.')
+        if not isinstance(name, str):
+            raise TypeError('Invalid column name: must be str.')
+        if name not in self.column_names():
+            raise ValueError('Column name must be in XFrame')
+        return XFrame(impl=self._impl.replace_selected_column(name, col))
 
     def remove_column(self, name):
         """
-        Remove a column from this XFrame. This operation modifies the current
-        XFrame in place and returns self.
+        Remove a column from this XFrame. This
+        operation returns a new XFrame with the given column removed.
 
         Parameters
         ----------
@@ -2472,14 +2553,14 @@ class XFrame(XObject):
         Returns
         -------
         out : XFrame
-            The XFrame with given column removed.
+            A new XFrame with given column removed.
 
         Examples
         --------
         >>> xf = xframes.XFrame({'id': [1, 2, 3], 'val': ['A', 'B', 'C']})
         >>> # This is equivalent to `del xf['val']`
-        >>> xf.remove_column('val')
-        >>> xf
+        >>> xf2 = xf.remove_column('val')
+        >>> xf2
         +----+
         | id |
         +----+
@@ -2491,13 +2572,12 @@ class XFrame(XObject):
         """
         if name not in self.column_names():
             raise KeyError('Cannot find column {}.'.format(name))
-        self.__impl__.remove_column(name)
-        return self
+        return XFrame(impl=self._impl.remove_column(name))
 
     def remove_columns(self, column_names):
         """
-        Removes one or more columns from this XFrame. This operation modifies the current
-        XFrame in place and returns self.
+        Removes one or more columns from this XFrame. This
+        operation returns a new XFrame with the given columns removed.
 
         Parameters
         ----------
@@ -2507,13 +2587,13 @@ class XFrame(XObject):
         Returns
         -------
         out : XFrame
-            The XFrame with given columns removed.
+            A new XFrame with given columns removed.
 
         Examples
         --------
         >>> xf = xframes.XFrame({'id': [1, 2, 3], 'val1': ['A', 'B', 'C'], 'val2': [10, 11, 12]})
-        >>> xf.remove_columns(['val1', 'val2'])
-        >>> xf
+        >>> xf2 = xf.remove_columns(['val1', 'val2'])
+        >>> xf2
         +----+
         | id |
         +----+
@@ -2528,13 +2608,12 @@ class XFrame(XObject):
         for name in column_names:
             if name not in self.column_names():
                 raise KeyError('Cannot find column {}.'.format(name))
-        self.__impl__.remove_columns(column_names)
-        return self
+        return XFrame(impl=self._impl.remove_columns(column_names))
 
     def swap_columns(self, column_1, column_2):
         """
-        Swap the columns with the given names. This operation modifies the
-        current XFrame in place and returns self.
+        Swap the columns with the given names. This
+        operation returns a new XFrame with the given columns swapped.
 
         Parameters
         ----------
@@ -2547,13 +2626,13 @@ class XFrame(XObject):
         Returns
         -------
         out : XFrame
-            The XFrame with swapped columns.
+            A new XFrame with specified columns swapped.
 
         Examples
         --------
         >>> xf = xframes.XFrame({'id': [1, 2, 3], 'val': ['A', 'B', 'C']})
-        >>> xf.swap_columns('id', 'val')
-        >>> xf
+        >>> xf2 = xf.swap_columns('id', 'val')
+        >>> xf2
         +-----+-----+
         | val | id  |
         +-----+-----+
@@ -2568,8 +2647,52 @@ class XFrame(XObject):
         if column_2 not in self.column_names():
             raise KeyError("Cannot find column '{}'.".format(column_2))
 
-        self.__impl__.swap_columns(column_1, column_2)
-        return self
+        return XFrame(impl=self._impl.swap_columns(column_1, column_2))
+
+    def reorder_columns(self, column_names):
+        """
+        Reorder the columns in the table.  This
+        operation returns a new XFrame with the given columns reordered.
+
+        Parameters
+        ----------
+        column_names : list of string
+            Names of the columns in desired order.
+
+        Returns
+        -------
+        out : XFrame
+            A new XFrame with reordered columns.
+
+        See Also
+        --------
+        xframes.XFrame.select_columns
+            Returns a subset of the columns but does not change the column order.
+
+        Examples
+        --------
+        >>> xf = xframes.XFrame({'id': [1, 2, 3], 'val': ['A', 'B', 'C']})
+        >>> xf2 = xf.reorder_columns(['val', 'id'])
+        >>> xf2
+        +-----+-----+
+        | val | id  |
+        +-----+-----+
+        |  A  |  1  |
+        |  B  |  2  |
+        |  C  |  3  |
+        +----+------+
+        [3 rows x 2 columns]
+        """
+        if not hasattr(column_names, '__iter__'):
+            raise TypeError('Keylist must be an iterable.')
+        for col in column_names:
+            if col not in self.column_names():
+                raise KeyError("Cannot find column '{}'.".format(col))
+        for col in self.column_names():
+            if col not in column_names:
+                raise KeyError("Column '{}' not assigned'.".format(col))
+
+        return XFrame(impl=self._impl.reorder_columns(column_names))
 
     def rename(self, names):
         """
@@ -2578,17 +2701,17 @@ class XFrame(XObject):
         the keys and replaces them with the names given as the values.  Alternatively,
         `names` can be a list of the new column names.  In this case it must be
         the same length as the number of columns.  This
-        operation modifies the current XFrame in place and returns self.
+        operation returns a new XFrame with the given columns renamed.
 
         Parameters
         ----------
         names : dict [string, string] | list [ string ]
-            Dictionary of [old_name, new_name] or list of names
+            Dictionary of [old_name, new_name] or list of new names
 
         Returns
         -------
         out : XFrame
-            The current XFrame.
+            A new XFrame with columns renamed.
 
         See Also
         --------
@@ -2596,10 +2719,10 @@ class XFrame(XObject):
 
         Examples
         --------
-        >>> xf = XFrame({'X1': ['Alice','Bob'],
-        ...              'X2': ['123 Fake Street','456 Fake Street']})
-        >>> xf.rename({'X1': 'name', 'X2':'address'})
-        >>> xf
+        >>> xf = XFrame({'X.1': ['Alice','Bob'],
+        ...              'X.2': ['123 Fake Street','456 Fake Street']})
+        >>> xf2 = xf.rename({'X.1': 'name', 'X.2':'address'})
+        >>> xf2
         +-------+-----------------+
         |  name |     address     |
         +-------+-----------------+
@@ -2609,33 +2732,22 @@ class XFrame(XObject):
         [2 rows x 2 columns]
         """
         if type(names) not in [list, dict]:
-            raise TypeError('Names must be a dictionary: oldname -> newname or a list of newname.')
-        all_columns = set(self.column_names())
+            raise TypeError('Names must be a dictionary: oldname -> newname or a list of newname ({}).'
+                            .format(type(names)))
         if type(names) == dict:
+            new_names = copy.copy(self.column_names())
             for k in names:
-                if k not in all_columns:
+                if k not in self.column_names():
                     raise ValueError("Cannot find column '{}' in the XFrame.".format(k))
-            for k in names:
-                self.__impl__.set_column_name(k, names[k])
+                index = self.column_names().index(k)
+                new_names[index] = names[k]
         else:
-            if len(names) != len(self.column_names()):
-                raise ValueError('Names must be the same length as the number of columns ({})'
-                                 .format(len(self.column_names())))
-            self.__impl__.replace_column_names(names)
-        return self
+            new_names = names
+            if len(new_names) != len(self.column_names()):
+                raise ValueError('Names must be the same length as the number of columns (names: {} columns: {}).'
+                                 .format(len(new_names), len(self.column_names())))
+        return XFrame(impl=self._impl.replace_column_names(new_names))
 
-    def __getattr__(self, key):
-        """
-        This method allows the dot notation to refer to columns.
-
-        It is a little simpler than the subscript notation, but it less general because the
-        column name has to be a python constant rather than a variable, and because it has to be
-        an acceptable python constant (cannot contain minus sign, cannot start with a number, etc.)
-        It is also only an alternative to the "select_column" form of subscript notation.
-        """
-        # This should never see a key that corresponds to an existing attribute.
-        return self.__getitem__(key)
-        
     def __getitem__(self, key):
         """
         This method does things based on the type of `key`.
@@ -2659,12 +2771,14 @@ class XFrame(XObject):
             return self.select_columns(key)
         elif type(key) is str:
             return self.select_column(key)
+        elif type(key) is unicode:
+            return self.select_column(str(key))
         elif type(key) is int:
             if key < 0:
                 key += len(self)
             if key >= len(self):
                 raise IndexError('XFrame index out of range.')
-            return list(XFrame(impl=self.__impl__.copy_range(key, 1, key + 1)))[0]
+            return list(XFrame(impl=self._impl.copy_range(key, 1, key + 1)))[0]
         elif type(key) is slice:
             start = key.start
             stop = key.stop
@@ -2680,27 +2794,16 @@ class XFrame(XObject):
                 start += len(self)
             if stop < 0:
                 stop += len(self)
-            return XFrame(impl=self.__impl__.copy_range(start, step, stop))
+            return XFrame(impl=self._impl.copy_range(start, step, stop))
         else:
             raise TypeError('Invalid index type: must be XArray, ' +
                             "'int', 'list', slice, or 'str': ({})".format(type(key)))
 
-    def __setattr__(self, key, value):
-        """
-        This method allows the dot notation to refer to columns on the left side.
-
-        It is a little simpler than the subscript notation, but it less general because the
-        column name has to be a python constant rather than a variable, and because it has to be
-        an acceptable python constant (cannot contain minus sign, cannot start with a number, etc.)
-        """
-        if key.startswith('_'):
-            self.__dict__[key] = value
-        else:
-            self.__setitem__(key, value)
-
     def __setitem__(self, key, value):
         """
-        A wrapper around add_column(s).  Key can be either a list or a str.  If
+        Adds columns and returns the modified XFrame.
+
+        Key can be either a list or a str.  If
         value is an XArray, it is added to the XFrame as a column.  If it is a
         constant value (int, str, or float), then a column is created where
         every entry is equal to the constant value.  Existing columns can also
@@ -2708,31 +2811,47 @@ class XFrame(XObject):
 
         """
         if type(key) is list:
-            self.add_columns(value, key)
+            col_list = value
+            if isinstance(value, XFrame):
+                for name in value.column_names():
+                    if name in self.column_names():
+                        raise ValueError("Column '{}' already exists in current XFrame.".format(name))
+                self._impl.add_columns_frame_in_place(value)
+            else:
+                if not hasattr(col_list, '__iter__'):
+                    raise TypeError('Column list must be an iterable.')
+                if not hasattr(key, '__iter__'):
+                    raise TypeError('Namelist must be an iterable.')
+                if not all([isinstance(x, XArray) for x in col_list]):
+                    raise TypeError('Must give column as XArray.')
+                if not all([isinstance(x, str) for x in key]):
+                    raise TypeError("Invalid column name in list : must all be 'str'.")
+                if len(key) != len(col_list):
+                    raise ValueError('Namelist length mismatch.')
+                self._impl.add_columns_array_in_place(col_list, key)
         elif type(key) is str:
             if type(value) is XArray:
                 sa_value = value
             elif hasattr(value, '__iter__'):  # wrap list, array... to xarray
                 sa_value = XArray(value)
             else:
-                # special case of adding a const column
-                # it is very inefficient to create a column and then zip it in
+                # Special case of adding a const column.
+                # It is very inefficient to create a column and then zip it in
                 # a) num_rows() is inefficient
                 # b) parallelize is inefficient
                 # c) partitions differ, so zip --> zipWithIndex, sortByKey, etc
-                # map it in instead
-                # TODO get rid of XArray.from_const if no one else calls it
+                # Map it in instead
                 if type(value) not in {int, float, str, array.array, list, dict}:
                     raise TypeError("Cannot create xarray of value type '{}'.".format(type(value)))
                 if key not in self.column_names():
-                    self.__impl__.add_column_const(key, value)
+                    self._impl.add_column_const_in_place(key, value)
                 else:
-                    self.__impl__.replace_column_const(key, value)
+                    self._impl.replace_column_const_in_place(key, value)
                 return
 
             # set new column
             if key not in self.column_names():
-                self.add_column(sa_value, key)
+                self._impl.add_column_in_place(sa_value._impl, key)
             else:
                 # special case if replacing the only column.
                 # server would fail the replacement if the new column has different
@@ -2741,37 +2860,34 @@ class XFrame(XObject):
                 # implementation.
                 single_column = (self.num_columns() == 1)
                 if single_column:
-                    self.__impl__.replace_single_column(sa_value)
+                    self._impl.replace_single_column_in_place(sa_value)
                 else:
-                    self.__impl__.replace_selected_column(key, sa_value)
+                    self._impl.replace_selected_column_in_place(key, sa_value)
 
         else:
             raise TypeError('Cannot set column with key type {}.'.format(type(key)))
 
-    def __delitem__(self, key):
+    def __delitem__(self, name):
         """
-        Wrapper around remove_column.
+        Removes a column and returns the modified XFrame.
         """
-        self.remove_column(key)
+        if name not in self.column_names():
+            raise KeyError('Cannot find column {}.'.format(name))
+        self._impl.remove_column_in_place(name)
+        return self
 
-    def __materialize__(self):
+    def _materialize(self):
         """
         For an XFrame that is lazily evaluated, force the persistence of the
         XFrame to disk, committing all lazy evaluated operations.
         """
-        self.__impl__.materialize()
+        self._impl.materialize()
 
-    def __is_materialized__(self):
+    def _is_materialized(self):
         """
         Returns whether or not the XFrame has been materialized.
         """
-        return self.__impl__.is_materialized()
-
-    def _has_size(self):
-        """
-        Returns whether or not the size of the XFrame is known.
-        """
-        return self.__impl__.is_materialized()
+        return self._impl.is_materialized()
 
     def __iter__(self):
         """
@@ -2779,21 +2895,73 @@ class XFrame(XObject):
         """
 
         def generator():
-            elems_at_a_time = 262144
-            self.__impl__.begin_iterator()
-            ret = self.__impl__.iterator_get_next(elems_at_a_time)
+            # The more we get at a time, the more buffer space it takes.
+            # But getting a lot of items takes a lot of time, if we only need a few.
+            # Getting more is expensive, because we have to number everything and then
+            #  filter out the ones we don't want.  This is a compromise.
+            # TODO: start with getting fwer, and if that is not enough, get
+            # TODO: a bigger chunk.
+            elems_at_a_time = 200000
+            self._impl.begin_iterator()
+            ret = self._impl.iterator_get_next(elems_at_a_time)
             column_names = self.column_names()
             while True:
                 for j in ret:
+                    # Iterator returns dictionaries
                     yield dict(zip(column_names, j))
-#                    yield j
 
                 if len(ret) == elems_at_a_time:
-                    ret = self.__impl__.iterator_get_next(elems_at_a_time)
+                    ret = self._impl.iterator_get_next(elems_at_a_time)
                 else:
                     break
 
         return generator()
+
+    def range(self, key):
+        """
+        Extracts and returns rowsf the XFrame.
+
+        Parameters
+        ----------
+
+        key: int or slice
+
+        If `key` is:
+            * int
+                Returns a single row of the XFrame (the `key`th one) as a dictionary.
+            * slice
+                Returns an XFrame including only the sliced rows.
+
+        Returns
+        -------
+        out : dict or XFrame
+            The specified row of the XFrame or an XFrame containing the specified rows.
+
+        """
+        if type(key) is int:
+            if key < 0:
+                key += len(self)
+            if key >= len(self):
+                raise IndexError('XFrame index out of range.')
+            return list(XFrame(impl=self._impl.copy_range(key, 1, key + 1)))[0]
+        elif type(key) is slice:
+            start = key.start
+            stop = key.stop
+            step = key.step
+            if start is None:
+                start = 0
+            if stop is None:
+                stop = len(self)
+            if step is None:
+                step = 1
+            # handle negative indices
+            if start < 0:
+                start += len(self)
+            if stop < 0:
+                stop += len(self)
+            return XFrame(impl=self._impl.copy_range(start, step, stop))
+        else:
+            raise TypeError("Invalid argument type: must be int or slice ({})".format(type(key)))
 
     def append(self, other):
         """
@@ -2855,13 +3023,13 @@ class XFrame(XObject):
         for i in range(len(my_column_names)):
             if other_column_names[i] != my_column_names[i]:
                 raise RuntimeError('Column {} name is not the same in two XFrames, one is {} the other is {}.'.format(
-                    my_column_names[i], my_column_names[i], other_column_names[i]))
+                        my_column_names[i], my_column_names[i], other_column_names[i]))
             # check column type
             if my_column_types[i] != other_column_types[i]:
                 raise RuntimeError('Column {} type is not the same in two XFrames, one is {} the other is {}.'.format(
-                    my_column_names[i], my_column_types[i], other_column_types))
+                        my_column_names[i], my_column_types[i], other_column_types))
 
-        return XFrame(impl=self.__impl__.append(other.__impl__))
+        return XFrame(impl=self._impl.append(other._impl))
 
     def groupby(self, key_columns, operations=None, *args):
         """
@@ -3161,7 +3329,7 @@ class XFrame(XObject):
             # element (probably COUNT). wrap it in a list so we can reuse the
             # list processing code
             operation = op_entry
-            if not(isinstance(operation, list) or isinstance(operation, dict)):
+            if not (isinstance(operation, list) or isinstance(operation, dict)):
                 operation = [operation]
             if isinstance(operation, dict):
                 # now sweep the dict and add to group_columns and group_ops
@@ -3230,10 +3398,10 @@ class XFrame(XObject):
                     if col not in my_column_names:
                         raise KeyError("Column '{}' does not exist in XFrame.".format(col))
 
-        return XFrame(impl=self.__impl__.groupby_aggregate(key_columns_array,
-                                                           group_columns,
-                                                           group_output_columns,
-                                                           group_ops))
+        return XFrame(impl=self._impl.groupby_aggregate(key_columns_array,
+                                                        group_columns,
+                                                        group_output_columns,
+                                                        group_ops))
 
     def join(self, right, on=None, how='inner'):
         """
@@ -3264,7 +3432,7 @@ class XFrame(XObject):
               right XFrame that will be joined together. e.g.
               {'left_col_name':'right_col_name'}.
 
-        how : {'left', 'right', 'outer', 'inner'}, optional
+        how : {'inner', 'left', 'right', 'outer', 'full'}, optional
             The type of join to perform.  'inner' is default.
 
             * inner: Equivalent to a SQL inner join.  Result consists of the
@@ -3279,9 +3447,13 @@ class XFrame(XObject):
               between the result of an inner join and the rest of the rows from
               the right XFrame, merged with missing values.
 
-            * outer: Equivalent to a SQL full outer join. Result is
+            * full: Equivalent to a SQL full outer join. Result is
               the union between the result of a left outer join and a right
               outer join.
+
+            * cartesian: Cartesian product of left and right tables, with columns from each.
+              There is no common column matching: the resulting number of rows is the product
+              of the row counts of the left and right XFrames.
 
         Returns
         -------
@@ -3326,7 +3498,7 @@ class XFrame(XObject):
         +----+-------+-------+
         [4 rows x 3 columns]
 
-        >>> animals.join(sounds, on={'id':'id'}, how='outer')
+        >>> animals.join(sounds, on={'id':'id'}, how='full')
         +----+-------+-------+
         | id |  name | sound |
         +----+-------+-------+
@@ -3338,7 +3510,7 @@ class XFrame(XObject):
         +----+-------+-------+
         [5 rows x 3 columns]
         """
-        available_join_types = ['left', 'right', 'outer', 'inner']
+        available_join_types = ['inner', 'left', 'right', 'full', 'cartesian']
 
         if not isinstance(right, XFrame):
             raise TypeError('Can only join two XFrames.')
@@ -3365,7 +3537,7 @@ class XFrame(XObject):
         else:
             raise TypeError("Must pass a 'str', 'list', or 'dict' of join keys.")
 
-        return XFrame(impl=self.__impl__.join(right.__impl__, how, join_keys))
+        return XFrame(impl=self._impl.join(right._impl, how, join_keys))
 
     def split_datetime(self, expand_column, column_name_prefix=None, limit=None):
         """
@@ -3446,8 +3618,7 @@ class XFrame(XObject):
         new_xf.rename(dict(zip(new_xf.column_names(), new_names)))
 
         ret_xf = self.select_columns(rest_columns)
-        ret_xf.add_columns(new_xf)
-        return ret_xf
+        return ret_xf.add_columns(new_xf)
 
     # noinspection PyComparisonWithNone
     def filterby(self, values, column_name, exclude=False):
@@ -3460,7 +3631,7 @@ class XFrame(XObject):
 
         Parameters
         ----------
-        values : XArray | list | numpy.ndarray | pandas.Series | str
+        values : value, XArray | list |tuple | set | iterable | numpy.ndarray | pandas.Series | str
             The values to use to filter the XFrame.  The resulting XFrame will
             only include rows that have one of these values in the given
             column.
@@ -3507,19 +3678,34 @@ class XFrame(XObject):
         if column_name not in existing_columns:
             raise KeyError("Column '{}' not in XFrame.".format(column_name))
 
+        existing_type = self.column_types()[existing_columns.index(column_name)]
+
+        # If we are given the values directly, use filter.
         if type(values) is not XArray:
-            # If we were given a single element, try to put in list and convert
-            # to XArray
-            # TODO filter directly, not through join
-            if not hasattr(values, '__iter__'):
-                values = [values]
-            values = XArray(values)
+            # If we were given a single element, put into a set.
+            # If iterable, then convert to a set.
 
-        value_xf = XFrame()
-        value_xf.add_column(values, column_name)
+            if isinstance(values, basestring):
+                # Strings are iterable, but we don't want a set of characters.
+                values = {values}
+            elif not hasattr(values, '__iter__'):
+                values = {values}
+            else:
+                # Make a new set from the iterable.
+                values = set(values)
 
-        # Make sure the values list has unique values, or else join will not
-        # filter.
+            if len(values) == 0:
+                raise ValueError('Value list is empty.')
+
+            value_type = type(next(iter(values)))
+            if value_type != existing_type:
+                raise TypeError("Value type ({}) does not match column type ({}).".format(value_type, existing_type))
+            return XFrame(impl=self._impl.filter(values, column_name, exclude))
+
+        # If we have xArray, then use a different strategy based on join.
+        value_xf = XFrame().add_column(values, column_name)
+
+        # Make sure the values list has unique values, or else join will not filter.
         value_xf = value_xf.groupby(column_name, {})
 
         existing_type = self.column_types()[existing_columns.index(column_name)]
@@ -3536,17 +3722,17 @@ class XFrame(XObject):
                 id_name += '1'
             value_xf = value_xf.add_row_number(id_name)
 
-            tmp = XFrame(impl=self.__impl__.join(value_xf.__impl__,
-                                                 'left',
-                                                 {column_name: column_name}))
+            tmp = XFrame(impl=self._impl.join(value_xf._impl,
+                                              'left',
+                                              {column_name: column_name}))
             # DO NOT CHANGE the next line -- it in xArray operator
             ret_xf = tmp[tmp[id_name] == None]
             del ret_xf[id_name]
             return ret_xf
         else:
-            return XFrame(impl=self.__impl__.join(value_xf.__impl__,
-                                                  'inner',
-                                                  {column_name: column_name}))
+            return XFrame(impl=self._impl.join(value_xf._impl,
+                                               'inner',
+                                               {column_name: column_name}))
 
     # noinspection PyTypeChecker
     def pack_columns(self, columns=None, column_prefix=None, dtype=list,
@@ -3770,7 +3956,7 @@ class XFrame(XObject):
 
         else:
             dict_keys = columns
-            
+
         rest_columns = [name for name in self.column_names() if name not in columns]
         if new_column_name is not None:
             if type(new_column_name) != str:
@@ -3780,11 +3966,10 @@ class XFrame(XObject):
         else:
             new_column_name = ''
 
-        ret_sa = XArray(impl=self.__impl__.pack_columns(columns, dict_keys, dtype, fill_na))
+        ret_sa = XArray(impl=self._impl.pack_columns(columns, dict_keys, dtype, fill_na))
 
         new_xf = self.select_columns(rest_columns)
-        new_xf.add_column(ret_sa, new_column_name)
-        return new_xf
+        return new_xf.add_column(ret_sa, new_column_name)
 
     def unpack(self, unpack_column, column_name_prefix=None, column_types=None,
                na_value=None, limit=None):
@@ -3792,7 +3977,7 @@ class XFrame(XObject):
         Expand one column of this XFrame to multiple columns with each value in
         a separate column. Returns a new XFrame with the unpacked column
         replaced with a list of new columns.  The column must be of
-        list, array, or dict type.
+        list, tuple, array, or dict type.
 
         For more details regarding name generation, missing value handling and
         other, refer to the XArray version of
@@ -3924,8 +4109,7 @@ class XFrame(XObject):
         new_xf.rename(dict(zip(new_xf.column_names(), new_names)))
 
         ret_xf = self.select_columns(rest_columns)
-        ret_xf.add_columns(new_xf)
-        return ret_xf
+        return ret_xf.add_columns(new_xf)
 
     def stack(self, column_name, new_column_name=None, drop_na=False):
         """
@@ -4099,9 +4283,9 @@ class XFrame(XObject):
             new_column_type = [infer_type_of_list(values)]
 
         if stack_column_type is dict:
-            return XFrame(impl=self.__impl__.stack_dict(column_name, new_column_name, new_column_type, drop_na))
+            return XFrame(impl=self._impl.stack_dict(column_name, new_column_name, new_column_type, drop_na))
         else:
-            return XFrame(impl=self.__impl__.stack_list(column_name, new_column_name, new_column_type, drop_na))
+            return XFrame(impl=self._impl.stack_list(column_name, new_column_name, new_column_type, drop_na))
 
     def unstack(self, column, new_column_name=None):
         """
@@ -4239,7 +4423,7 @@ class XFrame(XObject):
         +----+-------+
         [4 rows x 2 columns]
         """
-        return XFrame(impl=self.__impl__.unique())
+        return XFrame(impl=self._impl.unique())
 
     def sort(self, sort_columns, ascending=True):
         """
@@ -4374,13 +4558,12 @@ class XFrame(XObject):
                 raise TypeError('Only string parameter can be passed in as column names.')
             if column not in my_column_names:
                 raise ValueError("XFrame has no column named: '{}'.".format(column))
-            else:
-                sortable_types = (str, int, float, numpy.int32, datetime.datetime)
-            if self[column].dtype() not in sortable_types:
-                raise TypeError("Only columns of type ('str', 'int', 'float', 'numpy.int32') can be sorted: {}."
+            if not util.is_sortable_type(self[column].dtype()):
+                raise TypeError("Only columns of type ('str', 'int', 'float', " +
+                                "'numpy.int32, 'numpy.float64'') can be sorted: {}."
                                 .format(self[column].dtype()))
 
-        return XFrame(impl=self.__impl__.sort(sort_column_names, sort_column_orders))
+        return XFrame(impl=self._impl.sort(sort_column_names, sort_column_orders))
 
     def dropna(self, columns=None, how='any'):
         """
@@ -4452,11 +4635,11 @@ class XFrame(XObject):
         # NA values being dropped would not be the expected behavior. This
         # is a NOOP, so let's not bother the server
         if type(columns) is list and len(columns) == 0:
-            return XFrame(impl=self.__impl__)
+            return XFrame(impl=self._impl)
 
-        (columns, all_behavior) = self.__dropna_errchk(columns, how)
+        (columns, all_behavior) = self._dropna_errchk(columns, how)
 
-        return XFrame(impl=self.__impl__.drop_missing_values(columns, all_behavior, False))
+        return XFrame(impl=self._impl.drop_missing_values(columns, all_behavior, False))
 
     def dropna_split(self, columns=None, how='any'):
         """
@@ -4513,11 +4696,11 @@ class XFrame(XObject):
         # NA values being dropped would not be the expected behavior. This
         # is a NOOP, so let's not bother the server
         if type(columns) is list and len(columns) == 0:
-            return XFrame(impl=self.__impl__), XFrame()
+            return XFrame(impl=self._impl), XFrame()
 
-        (columns, all_behavior) = self.__dropna_errchk(columns, how)
+        (columns, all_behavior) = self._dropna_errchk(columns, how)
 
-        xframe_tuple = self.__impl__.drop_missing_values(columns, all_behavior, True)
+        xframe_tuple = self._impl.drop_missing_values(columns, all_behavior, True)
 
         if len(xframe_tuple) != 2:
             raise RuntimeError('Did not return two XFrames.')
@@ -4525,7 +4708,7 @@ class XFrame(XObject):
         return XFrame(impl=xframe_tuple[0]), XFrame(impl=xframe_tuple[1])
 
     @staticmethod
-    def __dropna_errchk(columns, how):
+    def _dropna_errchk(columns, how):
         if columns is None:
             # Default behavior is to consider every column, specified to
             # the server by an empty list (to avoid sending all the column
@@ -4647,7 +4830,7 @@ class XFrame(XObject):
         if column_name in self.column_names():
             raise RuntimeError("Column '{}' already exists in the current XFrame.".format(column_name))
 
-        return XFrame(impl=self.__impl__.add_row_number(column_name, start))
+        return XFrame(impl=self._impl.add_row_number(column_name, start))
 
     def sql(self, sql_statement, table_name='xframe'):
         """
@@ -4686,7 +4869,7 @@ class XFrame(XObject):
         +----+-----  -+
         [3 rows x 2 columns]
         """
-        return XFrame(impl=self.__impl__.sql(sql_statement, table_name=table_name))
+        return XFrame(impl=self._impl.sql(sql_statement, table_name=table_name))
 
     @property
     def shape(self):

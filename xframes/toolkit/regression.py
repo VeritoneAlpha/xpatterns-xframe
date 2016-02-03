@@ -87,7 +87,7 @@ class RegressionBuilder(object):
         """
         Returns the labeled feature vector rdd.
         """
-        return self.labeled_feature_vector.__impl__.rdd.rdd
+        return self.labeled_feature_vector._impl.rdd.rdd
 
     @abstractmethod
     def train(self):

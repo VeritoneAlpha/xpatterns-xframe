@@ -1,0 +1,4 @@
+val_int,val_int_signed,val_float,val_float_signed,val_str,val_list,val_dict
+1,-1,1.0,-1.0,a,['a'],{1:'a'}
+2,-2,2.0,-2.0,b,['b'],{2:'b'}
+3,-3,3.0,-3.0,c,['c'],{3:'c'}

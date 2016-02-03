@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Arg is the docker ID of the docker to connect to.
+# This is the identifier that is given by the the docker-run command
+
+if [ $# -ne 1 ]
+then
+    echo 'usage: `basename $0` docker-id'
+    exit 1
+fi
+
+docker stop $1
+

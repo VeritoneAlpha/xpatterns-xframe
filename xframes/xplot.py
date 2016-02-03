@@ -2,6 +2,7 @@
 import traceback
 import operator
 import math
+import datetime
 
 from xframes.deps import HAS_MATPLOTLIB
 
@@ -175,21 +176,33 @@ class XPlot(object):
 
     @staticmethod
     def create_histogram_buckets(vals, bins, min_val, max_val):
-        delta = float(max_val - min_val)
-        if delta == 0:
+        if max_val == min_val:
             return None, None
+        interval = max_val - min_val
         n_buckets = bins or 50
-        delta = float(delta) / n_buckets
         bucket_vals = [0] * n_buckets
-        for i in range(0, n_buckets):
-            bucket_vals[i] = min_val + (i * delta)
+        usetd = type(interval) is datetime.timedelta
+        if usetd:
+            delta = interval.total_seconds() / n_buckets
+            for i in range(0, n_buckets):
+                bucket_vals[i] = min_val + datetime.timedelta(seconds=(i * delta))
+        else:
+            delta = float(interval) / n_buckets
+            for i in range(0, n_buckets):
+                bucket_vals[i] = min_val + (i * delta)
+
 
         def iterate_values(value_iterator):
             bucket_counts = [0] * n_buckets
             for val in value_iterator:
-                if val is None or math.isnan(val):
+                if val is None:
                     continue
-                b = int((val - min_val) / delta)
+                if type(val) is float and math.isnan(val):
+                    continue
+                if usetd:
+                    b = int((val - min_val).total_seconds() / delta)
+                else:
+                    b = int((val - min_val) / delta)
                 if b >= n_buckets:
                     b = n_buckets - 1
                 elif b < 0:
@@ -200,7 +213,7 @@ class XPlot(object):
         def merge_accumulators(acc1, acc2):
             return [a1 + a2 for a1, a2 in zip(acc1, acc2)]
 
-        accumulators = vals.__impl__._rdd.mapPartitions(iterate_values)
+        accumulators = vals._impl._rdd.mapPartitions(iterate_values)
         bucket_counts = accumulators.reduce(merge_accumulators)
         return bucket_vals, bucket_counts
 
@@ -285,8 +298,7 @@ class XPlot(object):
         Print column summary information.
 
         The number of the most frequent values is shown.
-        If the column to summarize is numerical, then a histogram is also shown.
-        the most frequent values is shown.
+        If the column to summarize is numerical or datetime, then a histogram is also shown.
 
         Parameters
         ----------
@@ -344,6 +356,16 @@ class XPlot(object):
             print 'Mean:         ', sk.mean()
             if unique_items > 1:
                 print 'StDev:        ', sk.std()
+                print 'Distribution Plot'
+                upper_cutoff = cutoff or 1.0
+                self.histogram(column, title=title, bins=bins, sketch=sk, upper_cutoff=upper_cutoff)
+
+        if col_type is datetime.datetime:
+            # datetime: show a histogram
+            print 'Num Undefined:', sk.num_undefined()
+            print 'Min:          ', sk.min()
+            print 'Max:          ', sk.max()
+            if unique_items > 1:
                 print 'Distribution Plot'
                 upper_cutoff = cutoff or 1.0
                 self.histogram(column, title=title, bins=bins, sketch=sk, upper_cutoff=upper_cutoff)

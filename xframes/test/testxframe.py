@@ -157,6 +157,7 @@ class TestXFrameConstructor(unittest.TestCase):
         class MyIterItem(object):
             def iteritems(self):
                 return iter([('id', [1, 2, 3]), ('val', ['a', 'b', 'c'])])
+
         t = XFrame(MyIterItem())
         self.assertEqual(3, len(t))
         self.assertEqual(['id', 'val'], t.column_names())
@@ -170,6 +171,7 @@ class TestXFrameConstructor(unittest.TestCase):
         class MyIterItem(object):
             def iteritems(self):
                 return iter([('id', 1), ('val', 'a')])
+
         with self.assertRaises(TypeError):
             _ = XFrame(MyIterItem())
 
@@ -178,6 +180,7 @@ class TestXFrameConstructor(unittest.TestCase):
         class MyIter(object):
             def __iter__(self):
                 return iter([1, 2, 3])
+
         t = XFrame(MyIter())
         self.assertEqual(3, len(t))
         self.assertEqual(['X0'], t.column_names())
@@ -191,6 +194,7 @@ class TestXFrameConstructor(unittest.TestCase):
         class MyIter(object):
             def __iter__(self):
                 return iter([])
+
         with self.assertRaises(TypeError):
             _ = XFrame(MyIter())
 
@@ -309,8 +313,8 @@ class TestXFrameConstructor(unittest.TestCase):
         # make binary file
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         path = 'tmp/frame'
-        t.save(path, file_format='binary')    # File does not necessarily save in order
-        res = XFrame(path).sort('id')         # so let's sort after we read it back
+        t.save(path, file_format='binary')  # File does not necessarily save in order
+        res = XFrame(path).sort('id')  # so let's sort after we read it back
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
         self.assertEqual([int, str], res.column_types())
@@ -600,6 +604,7 @@ class TestXFrameReadParquet(unittest.TestCase):
         self.assertEqual({'id': 3, 'val': {3: 3}}, res[2])
 
 
+# noinspection SqlDialectInspection,SqlNoDataSourceInspection
 class TestXFrameToSparkDataFrame(unittest.TestCase):
     """
     Tests XFrame to_spark_dataframe
@@ -733,13 +738,13 @@ class TestXFrameFromRdd(unittest.TestCase):
         sc = XFrame.spark_context()
         rdd = sc.parallelize([(1, 'a'), (2, 'b'), (3, 'c')])
         with self.assertRaises(ValueError):
-            XFrame.from_rdd(rdd, column_names=('id', ))
+            XFrame.from_rdd(rdd, column_names=('id',))
 
     def test_from_rdd_types_bad(self):
         sc = XFrame.spark_context()
         rdd = sc.parallelize([(None, 'a'), (2, 'b'), (3, 'c')])
         with self.assertRaises(ValueError):
-            XFrame.from_rdd(rdd, column_types=(int, ))
+            XFrame.from_rdd(rdd, column_types=(int,))
 
 
 class TestXFrameFromSparkDataFrame(unittest.TestCase):
@@ -792,6 +797,7 @@ class TestXFrameNonzero(unittest.TestCase):
     """
     Tests XFrame __nonzero__
     """
+
     def test_nonzero_true(self):
         # not empty, nonzero data
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
@@ -822,8 +828,8 @@ class TestXFrameLen(unittest.TestCase):
         t = XFrame()
         self.assertEqual(0, len(t))
 
-    # TODO make an XFrame and then somehow delete all its rows, so the RDD
-    # exists but is empty
+        # TODO make an XFrame and then somehow delete all its rows, so the RDD
+        # exists but is empty
 
 
 class TestXFrameCopy(unittest.TestCase):
@@ -892,6 +898,20 @@ class TestXFrameColumnTypes(unittest.TestCase):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         types = t.column_types()
         self.assertEqual([int, str], types)
+
+
+class TestXFrameSelectRows(unittest.TestCase):
+    """
+    Tests XFrame select_rows
+    """
+
+    def test_select_rowsr(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        a = XArray([1, 0, 1])
+        res = t.select_rows(a)
+        self.assertEqual(2, len(res))
+        self.assertTrue(eq_list([1, 3], res['id']))
+        self.assertTrue(eq_list(['a', 'c'], res['val']))
 
 
 class TestXFrameHead(unittest.TestCase):
@@ -1104,7 +1124,7 @@ class TestXFrameFlatMap(unittest.TestCase):
 
     def test_flat_map(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        res = t.flat_map(['number', 'letter'], 
+        res = t.flat_map(['number', 'letter'],
                          lambda row: [list(row.itervalues()) for _ in range(0, row['id'])],
                          column_types=[int, str])
         self.assertEqual(['number', 'letter'], res.column_names())
@@ -1118,7 +1138,7 @@ class TestXFrameFlatMap(unittest.TestCase):
 
     def test_flat_map_identity(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        res = t.flat_map(['number', 'letter'], 
+        res = t.flat_map(['number', 'letter'],
                          lambda row: [[row['id'], row['val']]],
                          column_types=[int, str])
         self.assertEqual(['number', 'letter'], res.column_names())
@@ -1129,7 +1149,7 @@ class TestXFrameFlatMap(unittest.TestCase):
 
     def test_flat_map_mapped(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        res = t.flat_map(['number', 'letter'], 
+        res = t.flat_map(['number', 'letter'],
                          lambda row: [[row['id'] * 2, row['val'] + 'x']],
                          column_types=[int, str])
         self.assertEqual(['number', 'letter'], res.column_names())
@@ -1140,7 +1160,7 @@ class TestXFrameFlatMap(unittest.TestCase):
 
     def test_flat_map_auto(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        res = t.flat_map(['number', 'letter'], 
+        res = t.flat_map(['number', 'letter'],
                          lambda row: [[row['id'] * 2, row['val'] + 'x']])
         self.assertEqual(['number', 'letter'], res.column_names())
         self.assertEqual([int, str], res.dtype())
@@ -1148,7 +1168,7 @@ class TestXFrameFlatMap(unittest.TestCase):
         self.assertEqual({'number': 4, 'letter': 'bx'}, res[1])
         self.assertEqual({'number': 6, 'letter': 'cx'}, res[2])
 
-    # TODO: test auto error cases
+        # TODO: test auto error cases
 
 
 class TestXFrameSample(unittest.TestCase):
@@ -1200,6 +1220,7 @@ class TestXFrameTopk(unittest.TestCase):
         t = XFrame({'id': [10, 20, 30], 'val': ['a', 'b', 'c']})
         res = t.topk('id', 2)
         self.assertEqual(2, len(res))
+        # noinspection PyUnresolvedReferences
         self.assertTrue((XArray([30, 20]) == res['id']).all())
         self.assertTrue(eq_list(['c', 'b'], res['val']))
         self.assertEqual([int, str], res.column_types())
@@ -1212,6 +1233,7 @@ class TestXFrameTopk(unittest.TestCase):
         self.assertTrue(eq_list([10, 20], res['id']))
         self.assertTrue(eq_list(['a', 'b'], res['val']))
 
+    # noinspection PyUnresolvedReferences
     def test_topk_float(self):
         t = XFrame({'id': [10.0, 20.0, 30.0], 'val': ['a', 'b', 'c']})
         res = t.topk('id', 2)
@@ -1282,6 +1304,7 @@ class TestXFrameSaveParquet(unittest.TestCase):
     """
     Tests XFrame save for parquet files
     """
+
     def test_save(self):
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
         path = 'tmp/frame-parquet'
@@ -1354,16 +1377,16 @@ class TestXFrameAddColumn(unittest.TestCase):
     def test_add_column_named(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         ta = XArray([3.0, 2.0, 1.0])
-        tf.add_column(ta, name='another')
-        self.assertEqual(['id', 'val', 'another'], tf.column_names())
-        self.assertEqual({'id': 1, 'val': 'a', 'another': 3.0}, tf[0])
+        res = tf.add_column(ta, name='another')
+        self.assertEqual(['id', 'val', 'another'], res.column_names())
+        self.assertEqual({'id': 1, 'val': 'a', 'another': 3.0}, res[0])
 
     def test_add_column_name_default(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         ta = XArray([3.0, 2.0, 1.0])
-        tf.add_column(ta)
-        self.assertEqual(['id', 'val', 'X2'], tf.column_names())
-        self.assertEqual({'id': 1, 'val': 'a', 'X2': 3.0}, tf[0])
+        res = tf.add_column(ta)
+        self.assertEqual(['id', 'val', 'X2'], res.column_names())
+        self.assertEqual({'id': 1, 'val': 'a', 'X2': 3.0}, res[0])
 
     def test_add_column_name_dup(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
@@ -1380,20 +1403,20 @@ class TestXFrameAddColumnsArray(unittest.TestCase):
     def test_add_columns_one(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         ta = XArray([3.0, 2.0, 1.0])
-        tf.add_columns([ta], namelist=['new1'])
-        self.assertEqual(['id', 'val', 'new1'], tf.column_names())
-        self.assertEqual([int, str, float], tf.column_types())
-        self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0}, tf[0])
-        
+        res = tf.add_columns([ta], namelist=['new1'])
+        self.assertEqual(['id', 'val', 'new1'], res.column_names())
+        self.assertEqual([int, str, float], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0}, res[0])
+
     def test_add_columns_two(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         ta1 = XArray([3.0, 2.0, 1.0])
         ta2 = XArray([30.0, 20.0, 10.0])
-        tf.add_columns([ta1, ta2], namelist=['new1', 'new2'])
-        self.assertEqual(['id', 'val', 'new1', 'new2'], tf.column_names())
-        self.assertEqual([int, str, float, float], tf.column_types())
-        self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0, 'new2': 30.0}, tf[0])
-        
+        res = tf.add_columns([ta1, ta2], namelist=['new1', 'new2'])
+        self.assertEqual(['id', 'val', 'new1', 'new2'], res.column_names())
+        self.assertEqual([int, str, float, float], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0, 'new2': 30.0}, res[0])
+
     def test_add_columns_namelist_missing(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         ta1 = XArray([3.0, 2.0, 1.0])
@@ -1436,10 +1459,10 @@ class TestXFrameAddColumnsFrame(unittest.TestCase):
     def test_add_columns(self):
         tf1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         tf2 = XFrame({'new1': [3.0, 2.0, 1.0], 'new2': [30.0, 20.0, 10.0]})
-        tf1.add_columns(tf2)
-        self.assertEqual(['id', 'val', 'new1', 'new2'], tf1.column_names())
-        self.assertEqual([int, str, float, float], tf1.column_types())
-        self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0, 'new2': 30.0}, tf1[0])
+        res = tf1.add_columns(tf2)
+        self.assertEqual(['id', 'val', 'new1', 'new2'], res.column_names())
+        self.assertEqual([int, str, float, float], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0, 'new2': 30.0}, res[0])
 
     def test_add_columns_dup_names(self):
         tf1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
@@ -1448,6 +1471,35 @@ class TestXFrameAddColumnsFrame(unittest.TestCase):
             tf1.add_columns(tf2)
 
 
+class TestXFrameReplaceColumn(unittest.TestCase):
+    """
+    Tests XFrame replace_column
+    """
+
+    def test_replace_column(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        a = XArray(['x', 'y', 'z'])
+        res = t.replace_column('val', a)
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual({'id': 1, 'val': 'x'}, res[0])
+
+    def test_replace_column_bad_col_type(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        with self.assertRaises(TypeError):
+            _ = t.replace_column('val', ['x', 'y', 'z'])
+
+    def test_replace_column_bad_name(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        a = XArray(['x', 'y', 'z'])
+        with self.assertRaises(ValueError):
+            _ = t.replace_column('xx', a)
+
+    def test_replace_column_bad_name_type(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        a = XArray(['x', 'y', 'z'])
+        with self.assertRaises(TypeError):
+            _ = t.replace_column(2, a)
+
 class TestXFrameRemoveColumn(unittest.TestCase):
     """
     Tests XFrame remove_column
@@ -1455,8 +1507,9 @@ class TestXFrameRemoveColumn(unittest.TestCase):
 
     def test_remove_column(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'another': [3.0, 2.0, 1.0]})
-        t.remove_column('another')
-        self.assertEqual({'id': 1, 'val': 'a'}, t[0])
+        res = t.remove_column('another')
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual(3, len(t.column_names()))
 
     def test_remove_column_not_found(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'another': [3.0, 2.0, 1.0]})
@@ -1471,8 +1524,9 @@ class TestXFrameRemoveColumns(unittest.TestCase):
 
     def test_remove_columns(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'new1': [3.0, 2.0, 1.0], 'new2': [30.0, 20.0, 10.0]})
-        t.remove_columns(['new1', 'new2'])
-        self.assertEqual({'id': 1, 'val': 'a'}, t[0])
+        res = t.remove_columns(['new1', 'new2'])
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual(4, len(t.column_names()))
 
     def test_remove_column_not_iterable(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'another': [3.0, 2.0, 1.0]})
@@ -1492,9 +1546,9 @@ class TestXFrameSwapColumns(unittest.TestCase):
 
     def test_swap_columns(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'x': [3.0, 2.0, 1.0]})
-        t.swap_columns('val', 'x')
-        self.assertEqual(['id', 'x', 'val'], t.column_names())
-        self.assertEqual({'id': 1, 'x': 3.0, 'val': 'a'}, t[0])
+        res = t.swap_columns('val', 'x')
+        self.assertEqual(['id', 'x', 'val'], res.column_names())
+        self.assertEqual({'id': 1, 'x': 3.0, 'val': 'a'}, res[0])
 
     def test_swap_columns_bad_col_1(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'another': [3.0, 2.0, 1.0]})
@@ -1507,6 +1561,33 @@ class TestXFrameSwapColumns(unittest.TestCase):
             t.swap_columns('val', 'xx')
 
 
+class TestXFrameReorderColumns(unittest.TestCase):
+    """
+    Tests XFrame reorder_columns
+    """
+
+    def test_reorder_columns(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'x': [3.0, 2.0, 1.0]})
+        res = t.reorder_columns(['val', 'x', 'id'])
+        self.assertEqual(['val', 'x', 'id'], res.column_names())
+        self.assertEqual({'id': 1, 'x': 3.0, 'val': 'a'}, res[0])
+
+    def test_reorder_columns_list_not_iterable(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'x': [3.0, 2.0, 1.0]})
+        with self.assertRaises(TypeError):
+            t.reorder_columns('val')
+
+    def test_reorder_columns_bad_col(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'x': [3.0, 2.0, 1.0]})
+        with self.assertRaises(KeyError):
+            t.reorder_columns(['val', 'y', 'id'])
+
+    def test_reorder_columns_incomplete(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'x': [3.0, 2.0, 1.0]})
+        with self.assertRaises(KeyError):
+            t.reorder_columns(['val', 'id'])
+
+
 class TestXFrameRename(unittest.TestCase):
     """
     Tests XFrame rename
@@ -1514,9 +1595,9 @@ class TestXFrameRename(unittest.TestCase):
 
     def test_rename(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        t.rename({'id': 'new_id'})
-        self.assertEqual(['new_id', 'val'], t.column_names())
-        self.assertEqual({'new_id': 1, 'val': 'a'}, t[0])
+        res = t.rename({'id': 'new_id'})
+        self.assertEqual(['new_id', 'val'], res.column_names())
+        self.assertEqual({'new_id': 1, 'val': 'a'}, res[0])
 
     def test_rename_arg_not_dict(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
@@ -1528,13 +1609,16 @@ class TestXFrameRename(unittest.TestCase):
         with self.assertRaises(ValueError):
             t.rename({'xx': 'new_id'})
 
+    def test_rename_bad_length(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        with self.assertRaises(ValueError):
+            t.rename(['id'])
+
     def test_rename_list(self):
         t = XFrame({'X0': [1, 2, 3], 'X1': ['a', 'b', 'c']})
-        t.rename(['id', 'val'])
-        self.assertEqual(['id', 'val'], t.column_names())
-        self.assertEqual({'id': 1, 'val': 'a'}, t[0])
-
-    # TODO test column rename with list wrong length
+        res = t.rename(['id', 'val'])
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
 
 
 class TestXFrameGetitem(unittest.TestCase):
@@ -1588,17 +1672,6 @@ class TestXFrameGetitem(unittest.TestCase):
     # TODO: need to implement
     def test_getitem_xarray(self):
         pass
-
-
-class TestXFrameGetattr(unittest.TestCase):
-    """
-    Tests XFrame __getattr__
-    """
-
-    def test_getattr(self):
-        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        res = t.id
-        self.assertTrue(eq_list([1, 2, 3], res))
 
 
 class TestXFrameSetitem(unittest.TestCase):
@@ -1660,24 +1733,6 @@ class TestXFrameSetitem(unittest.TestCase):
         self.assertEqual({'val': 2.0}, t[1])
 
 
-class TestXFrameSetattr(unittest.TestCase):
-    """
-    Tests XFrame __setattr__
-    """
-
-    def test_setitem_const(self):
-        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        t.x = 5.0
-        self.assertEqual(['id', 'val', 'x'], t.column_names())
-        self.assertEqual({'id': 2, 'val': 'b', 'x': 5.0}, t[1])
-
-    def test_setitem_str_iter_replace(self):
-        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        t.val = [1.0, 2.0, 3.0]
-        self.assertEqual(['id', 'val'], t.column_names())
-        self.assertEqual({'id': 2, 'val': 2.0}, t[1])
-
-
 class TestXFrameDelitem(unittest.TestCase):
     """
     Tests XFrame __delitem__
@@ -1694,19 +1749,19 @@ class TestXFrameDelitem(unittest.TestCase):
             del t['xx']
 
 
-class TestXFrameHasSize(unittest.TestCase):
+class TestXFrameIsMaterialized(unittest.TestCase):
     """
-    Tests XFrame _has_size
+    Tests XFrame _is_materialized
     """
 
-    def test_hassize_false(self):
+    def test_is_materialized_false(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        self.assertFalse(t._has_size())
+        self.assertFalse(t._is_materialized())
 
-    def test_hassize_true(self):
+    def test_is_materialized(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         len(t)
-        self.assertTrue(t._has_size())
+        self.assertTrue(t._is_materialized())
 
 
 class TestXFrameIter(unittest.TestCase):
@@ -1721,6 +1776,44 @@ class TestXFrameIter(unittest.TestCase):
         for item in zip(t, expect_id, expect_val):
             self.assertEqual(item[1], item[0]['id'])
             self.assertEqual(item[2], item[0]['val'])
+
+
+class TestXFrameRange(unittest.TestCase):
+    """
+    Tests XFrame range
+    """
+
+    def test_range_int_pos(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.range(1)
+        self.assertEqual({'id': 2, 'val': 'b'}, res)
+
+    def test_range_int_neg(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.range(-2)
+        self.assertEqual({'id': 2, 'val': 'b'}, res)
+
+    def test_range_int_too_low(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        with self.assertRaises(IndexError):
+            _ = t.range(-100)
+
+    def test_range_int_too_high(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        with self.assertRaises(IndexError):
+            _ = t.range(100)
+
+    def test_range_slice(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.range(slice(0, 2))
+        self.assertEqual(2, len(res))
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
+
+    def test_range_bad_type(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        with self.assertRaises(TypeError):
+            _ = t.range({'a': 1})
 
 
 class TestXFrameAppend(unittest.TestCase):
@@ -1786,8 +1879,8 @@ class TestXFrameGroupby(unittest.TestCase):
     """
 
     def test_groupby(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', {})
         res = res.topk('id', reverse=True)
@@ -1812,42 +1905,42 @@ class TestXFrameGroupby(unittest.TestCase):
         self.assertEqual({'id': 3}, res[2])
 
     def test_groupby_bad_col_name_type(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         with self.assertRaises(TypeError):
             t.groupby(1, {})
 
     def test_groupby_bad_col_name_list_type(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         with self.assertRaises(TypeError):
             t.groupby([1], {})
 
     def test_groupby_bad_col_group_name(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         with self.assertRaises(KeyError):
             t.groupby('xx', {})
 
     def test_groupby_bad_group_type(self):
-        t = XFrame({'id': [{1: 'a', 2: 'b'}], 
+        t = XFrame({'id': [{1: 'a', 2: 'b'}],
                     'val': ['a', 'b']})
         with self.assertRaises(TypeError):
             t.groupby('id', {})
 
     def test_groupby_bad_agg_group_name(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         with self.assertRaises(KeyError):
             t.groupby('id', SUM('xx'))
 
     def test_groupby_bad_agg_group_type(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         with self.assertRaises(TypeError):
             t.groupby('id', SUM(1))
@@ -1859,8 +1952,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
     """
 
     def test_groupby_count(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', {'count': COUNT})
         res = res.topk('id', reverse=True)
@@ -1872,8 +1965,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'count': 1}, res[2])
 
     def test_groupby_sum(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', {'sum': SUM('another')})
         res = res.topk('id', reverse=True)
@@ -1885,8 +1978,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'sum': 30}, res[2])
 
     def test_groupby_sum_def(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', SUM('another'))
         res = res.topk('id', reverse=True)
@@ -1898,8 +1991,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'sum': 30}, res[2])
 
     def test_groupby_sum_sum_def(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', [SUM('another'), SUM('another')])
         res = res.topk('id', reverse=True)
@@ -1911,8 +2004,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'sum': 30, 'sum.1': 30}, res[2])
 
     def test_groupby_sum_rename(self):
-        t = XFrame({'sum': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'sum': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('sum', SUM('another'))
         res = res.topk('sum', reverse=True)
@@ -1924,8 +2017,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'sum': 3, 'sum.1': 30}, res[2])
 
     def test_groupby_count_sum(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', {'count': COUNT, 'sum': SUM('another')})
         res = res.topk('id', reverse=True)
@@ -1937,8 +2030,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'count': 1, 'sum': 30}, res[2])
 
     def test_groupby_count_sum_def(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', [COUNT, SUM('another')])
         res = res.topk('id', reverse=True)
@@ -1950,8 +2043,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'count': 1, 'sum': 30}, res[2])
 
     def test_groupby_argmax(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', {'argmax': ARGMAX('another', 'val')})
         res = res.topk('id', reverse=True)
@@ -1963,8 +2056,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'argmax': 'c'}, res[2])
 
     def test_groupby_argmin(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', {'argmin': ARGMIN('another', 'val')})
         res = res.topk('id', reverse=True)
@@ -1976,8 +2069,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'argmin': 'c'}, res[2])
 
     def test_groupby_max(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', {'max': MAX('another')})
         res = res.topk('id', reverse=True)
@@ -1989,8 +2082,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'max': 30}, res[2])
 
     def test_groupby_max_float(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10.0, 20.0, 30.0, 40.0, 50.0, 60.0]})
         res = t.groupby('id', {'max': MAX('another')})
         res = res.topk('id', reverse=True)
@@ -2002,8 +2095,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'max': 30.0}, res[2])
 
     def test_groupby_max_str(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10.0, 20.0, 30.0, 40.0, 50.0, 60.0]})
         res = t.groupby('id', {'max': MAX('val')})
         res = res.topk('id', reverse=True)
@@ -2015,8 +2108,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'max': 'c'}, res[2])
 
     def test_groupby_min(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', {'min': MIN('another')})
         res = res.topk('id', reverse=True)
@@ -2028,8 +2121,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'min': 30}, res[2])
 
     def test_groupby_min_float(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10.0, 20.0, 30.0, 40.0, 50.0, 60.0]})
         res = t.groupby('id', {'min': MIN('another')})
         res = res.topk('id', reverse=True)
@@ -2041,8 +2134,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'min': 30.0}, res[2])
 
     def test_groupby_min_str(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10.0, 20.0, 30.0, 40.0, 50.0, 60.0]})
         res = t.groupby('id', {'min': MIN('val')})
         res = res.topk('id', reverse=True)
@@ -2054,8 +2147,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'min': 'c'}, res[2])
 
     def test_groupby_mean(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', {'mean': MEAN('another')})
         res = res.topk('id', reverse=True)
@@ -2067,8 +2160,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'mean': 30.0}, res[2])
 
     def test_groupby_variance(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', {'variance': VARIANCE('another')})
         res = res.topk('id', reverse=True)
@@ -2080,8 +2173,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'variance': 0.0}, res[2])
 
     def test_groupby_stdv(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', {'stdv': STDV('another')})
         res = res.topk('id', reverse=True)
@@ -2093,8 +2186,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'stdv': 0.0}, res[2])
 
     def test_groupby_select_one(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', {'select_one': SELECT_ONE('another')})
         res = res.topk('id', reverse=True)
@@ -2106,8 +2199,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'select_one': 30}, res[2])
 
     def test_groupby_select_one_float(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10.0, 20.0, 30.0, 40.0, 50.0, 60.0]})
         res = t.groupby('id', {'select_one': SELECT_ONE('another')})
         res = res.topk('id', reverse=True)
@@ -2119,8 +2212,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'select_one': 30.0}, res[2])
 
     def test_groupby_select_one_str(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10.0, 20.0, 30.0, 40.0, 50.0, 60.0]})
         res = t.groupby('id', {'select_one': SELECT_ONE('val')})
         res = res.topk('id', reverse=True)
@@ -2132,8 +2225,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'select_one': 'c'}, res[2])
 
     def test_groupby_concat_list(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', {'concat': CONCAT('another')})
         res = res.topk('id', reverse=True)
@@ -2145,8 +2238,8 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         self.assertEqual({'id': 3, 'concat': [30]}, res[2])
 
     def test_groupby_concat_dict(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1], 
-                    'val': ['a', 'b', 'c', 'd', 'e', 'f'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', {'concat': CONCAT('val', 'another')})
         res = res.topk('id', reverse=True)
@@ -2162,6 +2255,435 @@ class TestXFrameGroupbyAggregators(unittest.TestCase):
         pass
 
 
+class TestXFrameGroupbyAggregatorsWithMissingValues(unittest.TestCase):
+    """
+    Tests XFrame groupby aggregators with missing values
+    """
+
+    def test_groupby_count(self):
+        t = XFrame({'id': [1, 2, 3, None, None, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, 30, 40, 50, 60]})
+        res = t.groupby('id', COUNT)
+        res = res.topk('id', reverse=True)
+        self.assertEqual(4, len(res))
+        self.assertEqual(['id', 'count'], res.column_names())
+        self.assertEqual([int, int], res.column_types())
+        self.assertEqual({'id': None, 'count': 2}, res[0])
+        self.assertEqual({'id': 1, 'count': 2}, res[1])
+        self.assertEqual({'id': 2, 'count': 1}, res[2])
+        self.assertEqual({'id': 3, 'count': 1}, res[3])
+
+    def test_groupby_sum(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, 30, None, None, 60]})
+        res = t.groupby('id', SUM('another'))
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'sum'], res.column_names())
+        self.assertEqual([int, int], res.column_types())
+        self.assertEqual({'id': 1, 'sum': 70}, res[0])
+        self.assertEqual({'id': 2, 'sum': 20}, res[1])
+        self.assertEqual({'id': 3, 'sum': 30}, res[2])
+
+    def test_groupby_argmax(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, 30, 40, None, None]})
+        res = t.groupby('id', {'argmax': ARGMAX('another', 'val')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'argmax'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 1, 'argmax': 'd'}, res[0])
+        self.assertEqual({'id': 2, 'argmax': 'b'}, res[1])
+        self.assertEqual({'id': 3, 'argmax': 'c'}, res[2])
+
+    def test_groupby_argmin(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, None, 30, 40, 50, 60]})
+        res = t.groupby('id', {'argmin': ARGMIN('another', 'val')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'argmin'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 1, 'argmin': 'a'}, res[0])
+        self.assertEqual({'id': 2, 'argmin': 'e'}, res[1])
+        self.assertEqual({'id': 3, 'argmin': 'c'}, res[2])
+
+    def test_groupby_max(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, 30, None, None, 60]})
+        res = t.groupby('id', {'max': MAX('another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'max'], res.column_names())
+        self.assertEqual([int, int], res.column_types())
+        self.assertEqual({'id': 1, 'max': 60}, res[0])
+        self.assertEqual({'id': 2, 'max': 20}, res[1])
+        self.assertEqual({'id': 3, 'max': 30}, res[2])
+
+    def test_groupby_max_float(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10.0, 20.0, 30.0, float('nan'), float('nan'), 60.0]})
+        res = t.groupby('id', {'max': MAX('another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'max'], res.column_names())
+        self.assertEqual([int, float], res.column_types())
+        self.assertEqual({'id': 1, 'max': 60.0}, res[0])
+        self.assertEqual({'id': 2, 'max': 20.0}, res[1])
+        self.assertEqual({'id': 3, 'max': 30.0}, res[2])
+
+    def test_groupby_max_str(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', None, None, 'f'],
+                    'another': [10.0, 20.0, 30.0, 40.0, 50.0, 60.0]})
+        res = t.groupby('id', {'max': MAX('val')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'max'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 1, 'max': 'f'}, res[0])
+        self.assertEqual({'id': 2, 'max': 'b'}, res[1])
+        self.assertEqual({'id': 3, 'max': 'c'}, res[2])
+
+    def test_groupby_min(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [None, None, 30, 40, 50, 60]})
+        res = t.groupby('id', {'min': MIN('another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'min'], res.column_names())
+        self.assertEqual([int, int], res.column_types())
+        self.assertEqual({'id': 1, 'min': 40}, res[0])
+        self.assertEqual({'id': 2, 'min': 50}, res[1])
+        self.assertEqual({'id': 3, 'min': 30}, res[2])
+
+    def test_groupby_min_float(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [None, None, 30.0, 40.0, 50.0, 60.0]})
+        res = t.groupby('id', {'min': MIN('another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'min'], res.column_names())
+        self.assertEqual([int, float], res.column_types())
+        self.assertEqual({'id': 1, 'min': 40.0}, res[0])
+        self.assertEqual({'id': 2, 'min': 50.0}, res[1])
+        self.assertEqual({'id': 3, 'min': 30.0}, res[2])
+
+    def test_groupby_min_str(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': [None, None, 'c', 'd', 'e', 'f'],
+                    'another': [10.0, 20.0, 30.0, 40.0, 50.0, 60.0]})
+        res = t.groupby('id', {'min': MIN('val')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'min'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 1, 'min': 'd'}, res[0])
+        self.assertEqual({'id': 2, 'min': 'e'}, res[1])
+        self.assertEqual({'id': 3, 'min': 'c'}, res[2])
+
+    def test_groupby_mean(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, 30, None, None, 60]})
+        res = t.groupby('id', {'mean': MEAN('another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'mean'], res.column_names())
+        self.assertEqual([int, float], res.column_types())
+        self.assertEqual({'id': 1, 'mean': 70.0 / 2.0}, res[0])
+        self.assertEqual({'id': 2, 'mean': 20.0}, res[1])
+        self.assertEqual({'id': 3, 'mean': 30.0}, res[2])
+
+    def test_groupby_variance(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, 30, None, None, 60]})
+        res = t.groupby('id', {'variance': VARIANCE('another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'variance'], res.column_names())
+        self.assertEqual([int, float], res.column_types())
+        self.assertAlmostEqual(2500.0 / 4.0, res[0]['variance'])
+        self.assertAlmostEqual(0.0, res[1]['variance'])
+        self.assertEqual({'id': 3, 'variance': 0.0}, res[2])
+
+    def test_groupby_stdv(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, 30, None, None, 60]})
+        res = t.groupby('id', {'stdv': STDV('another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'stdv'], res.column_names())
+        self.assertEqual([int, float], res.column_types())
+        self.assertAlmostEqual(math.sqrt(2500.0 / 4.0), res[0]['stdv'])
+        self.assertAlmostEqual(math.sqrt(0.0), res[1]['stdv'])
+        self.assertEqual({'id': 3, 'stdv': 0.0}, res[2])
+
+    def test_groupby_select_one(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, 30, None, None, 60]})
+        res = t.groupby('id', {'select_one': SELECT_ONE('another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'select_one'], res.column_names())
+        self.assertEqual([int, int], res.column_types())
+        self.assertEqual({'id': 1, 'select_one': 60}, res[0])
+        self.assertEqual({'id': 2, 'select_one': 20}, res[1])
+        self.assertEqual({'id': 3, 'select_one': 30}, res[2])
+
+    def test_groupby_concat_list(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, 30, None, None, 60]})
+        res = t.groupby('id', {'concat': CONCAT('another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'concat'], res.column_names())
+        self.assertEqual([int, list], res.column_types())
+        self.assertEqual({'id': 1, 'concat': [10, 60]}, res[0])
+        self.assertEqual({'id': 2, 'concat': [20]}, res[1])
+        self.assertEqual({'id': 3, 'concat': [30]}, res[2])
+
+    def test_groupby_concat_dict(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', None, None, 'f'],
+                    'another': [10, 20, 30, 40, 50, 60]})
+        res = t.groupby('id', {'concat': CONCAT('val', 'another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'concat'], res.column_names())
+        self.assertEqual([int, dict], res.column_types())
+        self.assertEqual({'id': 1, 'concat': {'a': 10, 'f': 60}}, res[0])
+        self.assertEqual({'id': 2, 'concat': {'b': 20}}, res[1])
+        self.assertEqual({'id': 3, 'concat': {'c': 30}}, res[2])
+
+
+class TestXFrameGroupbyAggregatorsEmpty(unittest.TestCase):
+    """
+    Tests XFrame groupby aggregators with missing values
+    """
+
+    def test_groupby_count(self):
+        t = XFrame({'id': [1, 2, None, None, None, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, 30, 40, 50, 60]})
+        res = t.groupby('id', COUNT)
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'count'], res.column_names())
+        self.assertEqual([int, int], res.column_types())
+        self.assertEqual({'id': None, 'count': 3}, res[0])
+        self.assertEqual({'id': 1, 'count': 2}, res[1])
+        self.assertEqual({'id': 2, 'count': 1}, res[2])
+
+    def test_groupby_sum(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, None, None, None, 60]})
+        res = t.groupby('id', SUM('another'))
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'sum'], res.column_names())
+        self.assertEqual([int, int], res.column_types())
+        self.assertEqual({'id': 1, 'sum': 70}, res[0])
+        self.assertEqual({'id': 2, 'sum': 20}, res[1])
+        self.assertEqual({'id': 3, 'sum': None}, res[2])
+
+    def test_groupby_argmax(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, None, 40, None, None]})
+        res = t.groupby('id', {'argmax': ARGMAX('another', 'val')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'argmax'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 1, 'argmax': 'd'}, res[0])
+        self.assertEqual({'id': 2, 'argmax': 'b'}, res[1])
+        self.assertEqual({'id': 3, 'argmax': None}, res[2])
+
+    def test_groupby_argmin(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, None, None, 40, 50, 60]})
+        res = t.groupby('id', {'argmin': ARGMIN('another', 'val')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'argmin'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 1, 'argmin': 'a'}, res[0])
+        self.assertEqual({'id': 2, 'argmin': 'e'}, res[1])
+        self.assertEqual({'id': 3, 'argmin': None}, res[2])
+
+    def test_groupby_max(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, None, None, None, 60]})
+        res = t.groupby('id', {'max': MAX('another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'max'], res.column_names())
+        self.assertEqual([int, int], res.column_types())
+        self.assertEqual({'id': 1, 'max': 60}, res[0])
+        self.assertEqual({'id': 2, 'max': 20}, res[1])
+        self.assertEqual({'id': 3, 'max': None}, res[2])
+
+    def test_groupby_max_float(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10.0, 20.0, None, float('nan'), float('nan'), 60.0]})
+        res = t.groupby('id', {'max': MAX('another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'max'], res.column_names())
+        self.assertEqual([int, float], res.column_types())
+        self.assertEqual({'id': 1, 'max': 60.0}, res[0])
+        self.assertEqual({'id': 2, 'max': 20.0}, res[1])
+        self.assertEqual({'id': 3, 'max': None}, res[2])
+
+    def test_groupby_max_str(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', None, None, None, 'f'],
+                    'another': [10.0, 20.0, 30.0, 40.0, 50.0, 60.0]})
+        res = t.groupby('id', {'max': MAX('val')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'max'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 1, 'max': 'f'}, res[0])
+        self.assertEqual({'id': 2, 'max': 'b'}, res[1])
+        self.assertEqual({'id': 3, 'max': None}, res[2])
+
+    def test_groupby_min(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [None, None, None, 40, 50, 60]})
+        res = t.groupby('id', {'min': MIN('another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'min'], res.column_names())
+        self.assertEqual([int, int], res.column_types())
+        self.assertEqual({'id': 1, 'min': 40}, res[0])
+        self.assertEqual({'id': 2, 'min': 50}, res[1])
+        self.assertEqual({'id': 3, 'min': None}, res[2])
+
+    def test_groupby_min_float(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [None, None, None, 40.0, 50.0, 60.0]})
+        res = t.groupby('id', {'min': MIN('another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'min'], res.column_names())
+        self.assertEqual([int, float], res.column_types())
+        self.assertEqual({'id': 1, 'min': 40.0}, res[0])
+        self.assertEqual({'id': 2, 'min': 50.0}, res[1])
+        self.assertEqual({'id': 3, 'min': None}, res[2])
+
+    def test_groupby_min_str(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': [None, None, None, 'd', 'e', 'f'],
+                    'another': [10.0, 20.0, 30.0, 40.0, 50.0, 60.0]})
+        res = t.groupby('id', {'min': MIN('val')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'min'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 1, 'min': 'd'}, res[0])
+        self.assertEqual({'id': 2, 'min': 'e'}, res[1])
+        self.assertEqual({'id': 3, 'min': None}, res[2])
+
+    def test_groupby_mean(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, None, None, None, 60]})
+        res = t.groupby('id', {'mean': MEAN('another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'mean'], res.column_names())
+        self.assertEqual([int, float], res.column_types())
+        self.assertEqual({'id': 1, 'mean': 70.0 / 2.0}, res[0])
+        self.assertEqual({'id': 2, 'mean': 20.0}, res[1])
+        self.assertEqual({'id': 3, 'mean': None}, res[2])
+
+    def test_groupby_variance(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, None, None, None, 60]})
+        res = t.groupby('id', {'variance': VARIANCE('another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'variance'], res.column_names())
+        self.assertEqual([int, float], res.column_types())
+        self.assertAlmostEqual(2500.0 / 4.0, res[0]['variance'])
+        self.assertAlmostEqual(0.0, res[1]['variance'])
+        self.assertEqual({'id': 3, 'variance': None}, res[2])
+
+    def test_groupby_stdv(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, None, None, None, 60]})
+        res = t.groupby('id', {'stdv': STDV('another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'stdv'], res.column_names())
+        self.assertEqual([int, float], res.column_types())
+        self.assertAlmostEqual(math.sqrt(2500.0 / 4.0), res[0]['stdv'])
+        self.assertAlmostEqual(math.sqrt(0.0), res[1]['stdv'])
+        self.assertEqual({'id': 3, 'stdv': None}, res[2])
+
+    def test_groupby_select_one(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, None, None, None, 60]})
+        res = t.groupby('id', {'select_one': SELECT_ONE('another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'select_one'], res.column_names())
+        self.assertEqual([int, int], res.column_types())
+        self.assertEqual({'id': 1, 'select_one': 60}, res[0])
+        self.assertEqual({'id': 2, 'select_one': 20}, res[1])
+        self.assertEqual({'id': 3, 'select_one': None}, res[2])
+
+    def test_groupby_concat_list(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, None, None, None, 60]})
+        res = t.groupby('id', {'concat': CONCAT('another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'concat'], res.column_names())
+        self.assertEqual([int, list], res.column_types())
+        self.assertEqual({'id': 1, 'concat': [10, 60]}, res[0])
+        self.assertEqual({'id': 2, 'concat': [20]}, res[1])
+        self.assertEqual({'id': 3, 'concat': []}, res[2])
+
+    def test_groupby_concat_dict(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', None, None, None, 'f'],
+                    'another': [10, 20, 30, 40, 50, 60]})
+        res = t.groupby('id', {'concat': CONCAT('val', 'another')})
+        res = res.topk('id', reverse=True)
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id', 'concat'], res.column_names())
+        self.assertEqual([int, dict], res.column_types())
+        self.assertEqual({'id': 1, 'concat': {'a': 10, 'f': 60}}, res[0])
+        self.assertEqual({'id': 2, 'concat': {'b': 20}}, res[1])
+        self.assertEqual({'id': 3, 'concat': None}, res[2])
+
+
 class TestXFrameJoin(unittest.TestCase):
     """
     Tests XFrame join
@@ -2170,52 +2692,61 @@ class TestXFrameJoin(unittest.TestCase):
     def test_join(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id': [1, 2, 3], 'doubled': ['aa', 'bb', 'cc']})
-        res = t1.join(t2)
+        res = t1.join(t2).sort('id').head()
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val', 'doubled'], res.column_names())
         self.assertEqual([int, str, str], res.column_types())
-        self.assertEqual({'id': 3, 'val': 'c', 'doubled': 'cc'}, res.topk('id', 1)[0])
+        self.assertEqual({'id': 1, 'val': 'a', 'doubled': 'aa'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'bb'}, res[1])
+        self.assertEqual({'id': 3, 'val': 'c', 'doubled': 'cc'}, res[2])
 
     def test_join_rename(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id': [1, 2, 3], 'val': ['aa', 'bb', 'cc']})
-        res = t1.join(t2, on='id')
+        res = t1.join(t2, on='id').sort('id').head()
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val', 'val.1'], res.column_names())
         self.assertEqual([int, str, str], res.column_types())
-        self.assertEqual({'id': 3, 'val': 'c', 'val.1': 'cc'}, res.topk('id', 1)[0])
+        self.assertEqual({'id': 1, 'val': 'a', 'val.1': 'aa'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b', 'val.1': 'bb'}, res[1])
+        self.assertEqual({'id': 3, 'val': 'c', 'val.1': 'cc'}, res[2])
 
     def test_join_compound_key(self):
         t1 = XFrame({'id1': [1, 2, 3], 'id2': [10, 20, 30], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id1': [1, 2, 3], 'id2': [10, 20, 30], 'doubled': ['aa', 'bb', 'cc']})
-        res = t1.join(t2)
+        res = t1.join(t2).sort('id1').head()
         self.assertEqual(3, len(res))
         self.assertEqual(['id1', 'id2', 'val', 'doubled'], res.column_names())
         self.assertEqual([int, int, str, str], res.column_types())
-        self.assertEqual({'id1': 3, 'id2': 30, 'val': 'c', 'doubled': 'cc'}, res.topk('id1', 1)[0])
+        self.assertEqual({'id1': 1, 'id2': 10, 'val': 'a', 'doubled': 'aa'}, res[0])
+        self.assertEqual({'id1': 2, 'id2': 20, 'val': 'b', 'doubled': 'bb'}, res[1])
+        self.assertEqual({'id1': 3, 'id2': 30, 'val': 'c', 'doubled': 'cc'}, res[2])
 
     def test_join_dict_key(self):
         t1 = XFrame({'id1': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id2': [1, 2, 3], 'doubled': ['aa', 'bb', 'cc']})
-        res = t1.join(t2, on={'id1': 'id2'})
+        res = t1.join(t2, on={'id1': 'id2'}).sort('id1').head()
         self.assertEqual(3, len(res))
         self.assertEqual(['id1', 'val', 'doubled'], res.column_names())
         self.assertEqual([int, str, str], res.column_types())
-        self.assertEqual({'id1': 3, 'val': 'c', 'doubled': 'cc'}, res.topk('id1', 1)[0])
+        self.assertEqual({'id1': 1, 'val': 'a', 'doubled': 'aa'}, res[0])
+        self.assertEqual({'id1': 2, 'val': 'b', 'doubled': 'bb'}, res[1])
+        self.assertEqual({'id1': 3, 'val': 'c', 'doubled': 'cc'}, res[2])
 
     def test_join_partial(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id': [1, 2, 4], 'doubled': ['aa', 'bb', 'cc']})
-        res = t1.join(t2)
+        res = t1.join(t2).sort('id').head()
         self.assertEqual(2, len(res))
         self.assertEqual(['id', 'val', 'doubled'], res.column_names())
         self.assertEqual([int, str, str], res.column_types())
-        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'bb'}, res.topk('id', 1)[0])
+        self.assertEqual({'id': 1, 'val': 'a', 'doubled': 'aa'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'bb'}, res[1])
 
     def test_join_empty(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id': [4, 5, 6], 'doubled': ['aa', 'bb', 'cc']})
-        res = t1.join(t2)
+        res = t1.join(t2).head()
         self.assertEqual(0, len(res))
         self.assertEqual(['id', 'val', 'doubled'], res.column_names())
         self.assertEqual([int, str, str], res.column_types())
@@ -2223,53 +2754,69 @@ class TestXFrameJoin(unittest.TestCase):
     def test_join_on_val(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id': [10, 20, 30], 'val': ['a', 'b', 'c']})
-        res = t1.join(t2, on='val')
+        res = t1.join(t2, on='val').sort('id').head()
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val', 'id.1'], res.column_names())
         self.assertEqual([int, str, int], res.column_types())
-        self.assertEqual({'id': 3, 'val': 'c', 'id.1': 30}, res.topk('id', 1)[0])
+        self.assertEqual({'id': 1, 'val': 'a', 'id.1': 10}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b', 'id.1': 20}, res[1])
+        self.assertEqual({'id': 3, 'val': 'c', 'id.1': 30}, res[2])
 
     def test_join_inner(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id': [1, 2, 4], 'doubled': ['aa', 'bb', 'cc']})
-        res = t1.join(t2, how='inner')
+        res = t1.join(t2, how='inner').sort('id').head()
         self.assertEqual(2, len(res))
         self.assertEqual(['id', 'val', 'doubled'], res.column_names())
         self.assertEqual([int, str, str], res.column_types())
-        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'bb'}, res.topk('id', 1)[0])
+        self.assertEqual({'id': 1, 'val': 'a', 'doubled': 'aa'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'bb'}, res[1])
 
     def test_join_left(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id': [1, 2, 4], 'doubled': ['aa', 'bb', 'cc']})
-        res = t1.join(t2, how='left')
+        res = t1.join(t2, how='left').sort('id').head()
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val', 'doubled'], res.column_names())
         self.assertEqual([int, str, str], res.column_types())
-        self.assertEqual({'id': 3, 'val': 'c', 'doubled': None}, res.topk('id', 1)[0])
+        self.assertEqual({'id': 1, 'val': 'a', 'doubled': 'aa'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'bb'}, res[1])
+        self.assertEqual({'id': 3, 'val': 'c', 'doubled': None}, res[2])
 
     def test_join_right(self):
-        # TODO is this the right expected result?
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        t2 = XFrame({'id': [1, 2, 4], 'doubled': ['aa', 'bb', 'cc']})
-        res = t1.join(t2, how='right')
+        t2 = XFrame({'id': [1, 2, 4], 'doubled': ['aa', 'bb', 'dd']})
+        res = t1.join(t2, how='right').sort('id').head()
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val', 'doubled'], res.column_names())
         self.assertEqual([int, str, str], res.column_types())
-        top = res.topk('doubled', 2)
-        self.assertEqual({'id': None, 'val': None, 'doubled': 'cc'}, top[0])
-        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'bb'}, top[1])
+        self.assertEqual({'id': 1, 'val': 'a', 'doubled': 'aa'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'bb'}, res[1])
+        self.assertEqual({'id': 4, 'val': None, 'doubled': 'dd'}, res[2])
 
-    def test_join_outer(self):
+    def test_join_full(self):
+        t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        t2 = XFrame({'id': [1, 2, 4], 'doubled': ['aa', 'bb', 'dd']})
+        res = t1.join(t2, how='full').sort('id').head()
+        self.assertEqual(4, len(res))
+        self.assertEqual(['id', 'val', 'doubled'], res.column_names())
+        self.assertEqual([int, str, str], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a', 'doubled': 'aa'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'bb'}, res[1])
+        self.assertEqual({'id': 3, 'val': 'c', 'doubled': None}, res[2])
+        self.assertEqual({'id': 4, 'val': None, 'doubled': 'dd'}, res[3])
+
+    def test_join_cartesian(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id': [10, 20, 30], 'doubled': ['aa', 'bb', 'cc']})
-        res = t1.join(t2, how='outer')
+        res = t1.join(t2, how='cartesian').sort(['id', 'id.1']).head()
         self.assertEqual(9, len(res))
         self.assertEqual(['id', 'val', 'doubled', 'id.1'], res.column_names())
         self.assertEqual([int, str, str, int], res.column_types())
-        top = res.topk('id', 3)
-        top = top.topk('doubled', 2)
-        self.assertEqual({'id': 3, 'val': 'c', 'doubled': 'cc', 'id.1': 30}, top[0])
-        self.assertEqual({'id': 3, 'val': 'c', 'doubled': 'bb', 'id.1': 20}, top[1])
+        self.assertEqual({'id': 1, 'val': 'a', 'doubled': 'aa', 'id.1': 10}, res[0])
+        self.assertEqual({'id': 1, 'val': 'a', 'doubled': 'bb', 'id.1': 20}, res[1])
+        self.assertEqual({'id': 2, 'val': 'b', 'doubled': 'aa', 'id.1': 10}, res[3])
+        self.assertEqual({'id': 3, 'val': 'c', 'doubled': 'cc', 'id.1': 30}, res[8])
 
     def test_join_bad_how(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
@@ -2339,27 +2886,69 @@ class TestXFrameSplitDatetime(unittest.TestCase):
         self.assertTrue(eq_list([2011, 2012, 2013], res['val.year.1']))
 
     def test_split_datetime_bad_col(self):
-        t = XFrame({'id': [1, 2, 3], 'val': [datetime(2011, 1, 1), 
+        t = XFrame({'id': [1, 2, 3], 'val': [datetime(2011, 1, 1),
                                              datetime(2011, 2, 2),
                                              datetime(2011, 3, 3)]})
         with self.assertRaises(KeyError):
             t.split_datetime('xx')
-        
 
-class TestXFrameFilterBy(unittest.TestCase):
+
+class TestXFrameFilterby(unittest.TestCase):
     """
-    Tests XFrame filter_by
+    Tests XFrame filterby
     """
 
-    # not tested -- test after group by
-    def test_filter_by_list_id(self):
+    def test_filterby_int_id(self):
+        t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
+        res = t.filterby(1, 'id').sort('id')
+        self.assertEquals(1, len(res))
+        self.assertEquals({'id': 1, 'val': 'a'}, res[0])
+
+    def test_filterby_str_id(self):
+        t = XFrame({'id': ['qaz', 'wsx', 'edc', 'rfv'], 'val': ['a', 'b', 'c', 'd']})
+        res = t.filterby('qaz', 'id').sort('id')
+        self.assertEquals(1, len(res))
+        self.assertEquals({'id': 'qaz', 'val': 'a'}, res[0])
+
+    def test_filterby_object_id(self):
+        t = XFrame({'id': [datetime(2016, 2, 1, 0, 0),
+                           datetime(2016, 2, 2, 0, 0),
+                           datetime(2016, 2, 3, 0, 0),
+                           datetime(2016, 2, 4, 0, 0)],
+                    'val': ['a', 'b', 'c', 'd']})
+        res = t.filterby(datetime(2016, 2, 1, 0, 0), 'id').sort('id')
+        self.assertEquals(1, len(res))
+        self.assertEquals({'id': datetime(2016, 2, 1, 0, 0), 'val': 'a'}, res[0])
+
+    def test_filterby_list_id(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         res = t.filterby([1, 3], 'id').sort('id')
         self.assertEquals(2, len(res))
         self.assertEquals({'id': 1, 'val': 'a'}, res[0])
         self.assertEquals({'id': 3, 'val': 'c'}, res[1])
 
-    def test_filter_by_list_val(self):
+    def test_filterby_tuple_id(self):
+        t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
+        res = t.filterby((1, 3), 'id').sort('id')
+        self.assertEquals(2, len(res))
+        self.assertEquals({'id': 1, 'val': 'a'}, res[0])
+        self.assertEquals({'id': 3, 'val': 'c'}, res[1])
+
+    def test_filterby_iterable_id(self):
+        t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
+        res = t.filterby(xrange(3), 'id').sort('id')
+        self.assertEquals(2, len(res))
+        self.assertEquals({'id': 1, 'val': 'a'}, res[0])
+        self.assertEquals({'id': 2, 'val': 'b'}, res[1])
+
+    def test_filterby_set_id(self):
+        t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
+        res = t.filterby({1, 3}, 'id').sort('id')
+        self.assertEquals(2, len(res))
+        self.assertEquals({'id': 1, 'val': 'a'}, res[0])
+        self.assertEquals({'id': 3, 'val': 'c'}, res[1])
+
+    def test_filterby_list_val(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         res = t.filterby(['a', 'b'], 'val').sort('id')
         self.assertEquals(2, len(res))
@@ -2367,7 +2956,7 @@ class TestXFrameFilterBy(unittest.TestCase):
         self.assertEquals({'id': 2, 'val': 'b'}, res[1])
         self.assertTrue(eq_list([1, 2], res['id']))
 
-    def test_filter_by_xarray(self):
+    def test_filterby_xarray(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         a = XArray([1, 3])
         res = t.filterby(a, 'id').sort('id')
@@ -2376,7 +2965,7 @@ class TestXFrameFilterBy(unittest.TestCase):
         self.assertEquals({'id': 3, 'val': 'c'}, res[1])
         self.assertTrue(eq_list([1, 3], res['id']))
 
-    def test_filter_by_list_exclude(self):
+    def test_filterby_list_exclude(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         res = t.filterby([1, 3], 'id', exclude=True).sort('id')
         self.assertEquals(2, len(res))
@@ -2384,7 +2973,12 @@ class TestXFrameFilterBy(unittest.TestCase):
         self.assertEquals({'id': 4, 'val': 'd'}, res[1])
         self.assertTrue(eq_list([2, 4], res['id']))
 
-    def test_filter_by_xarray_exclude(self):
+    def test_filterby_bad_column_type_list(self):
+        t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
+        with self.assertRaises(TypeError):
+            t.filterby([1, 3], 'val')
+
+    def test_filterby_xarray_exclude(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         a = XArray([1, 3])
         res = t.filterby(a, 'id', exclude=True).sort('id')
@@ -2393,20 +2987,32 @@ class TestXFrameFilterBy(unittest.TestCase):
         self.assertEquals({'id': 4, 'val': 'd'}, res[1])
         self.assertTrue(eq_list([2, 4], res['id']))
 
-    def test_filter_by_bad_column_name_type(self):
+    def test_filterby_bad_column_name_type(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         with self.assertRaises(TypeError):
             t.filterby([1, 3], 1)
 
-    def test_filter_by_bad_column_name(self):
+    def test_filterby_bad_column_name(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         with self.assertRaises(KeyError):
             t.filterby([1, 3], 'xx')
 
-    def test_filter_by_bad_column_type(self):
+    def test_filterby_bad_column_type_xarray(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
+        a = XArray([1, 3])
         with self.assertRaises(TypeError):
-            t.filterby([1, 3], 'val')
+            t.filterby(a, 'val')
+
+    def test_filterby_bad_list_empty(self):
+        t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
+        with self.assertRaises(ValueError):
+            t.filterby([], 'id').sort('id')
+
+    def test_filterby_bad_xarray_empty(self):
+        t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
+        a = XArray([])
+        with self.assertRaises(TypeError):
+            t.filterby(a, 'val')
 
 
 class TestXFramePackColumnsList(unittest.TestCase):
@@ -2532,24 +3138,24 @@ class TestXFramePackColumnsList(unittest.TestCase):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         with self.assertRaises(ValueError):
             t.pack_columns(columns=['id', 'val'], dtype=int)
-    
+
     def test_pack_columns_bad_new_col_name_type(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         with self.assertRaises(TypeError):
             t.pack_columns(columns=['id', 'val'], new_column_name=1)
-    
+
     def test_pack_columns_bad_new_col_name_dup_rest(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd'], 'another': [11, 12, 13, 14]})
         with self.assertRaises(KeyError):
             t.pack_columns(columns=['id', 'val'], new_column_name='another')
-    
+
     def test_pack_columns_good_new_col_name_dup_key(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         res = t.pack_columns(columns=['id', 'val'], new_column_name='id')
         self.assertEqual(['id'], res.column_names())
         self.assertEqual({'id': [1, 'a']}, res[0])
         self.assertEqual({'id': [2, 'b']}, res[1])
-    
+
 
 class TestXFramePackColumnsDict(unittest.TestCase):
     """
@@ -2651,6 +3257,7 @@ class TestXFrameUnpackList(unittest.TestCase):
     """
     Tests XFrame unpack where the unpacked column contains a list
     """
+
     def test_unpack(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': [[10, 'a'], [20, 'b'], [30, 'c'], [40, 'd']]})
         res = t.unpack('val')
@@ -2703,6 +3310,7 @@ class TestXFrameUnpackDict(unittest.TestCase):
     """
     Tests XFrame unpack where the unpacked column contains a dict
     """
+
     def test_unpack(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': [{'a': 1}, {'b': 2}, {'c': 3}, {'d': 4}]})
         res = t.unpack('val')
@@ -2917,10 +3525,11 @@ class TestXFrameUnstackDict(unittest.TestCase):
     """
     Tests XFrame unstack where unstack column is dict
     """
+
     # untested -- test after groupby
     def test_unstack(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1, 3], 
-                    'key': ['ka1', 'kb1', 'kc1', 'ka2', 'kb2', 'ka3', 'kc3'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1, 3],
+                    'key': ['ka1', 'kb1', 'kc1', 'ka2', 'kb2', 'ka3', 'kc3'],
                     'val': ['a1', 'b1', 'c1', 'a2', 'b2', 'a3', 'c3']})
         res = t.unstack(['key', 'val'])
         res = res.topk('id', reverse=True)
@@ -2932,8 +3541,8 @@ class TestXFrameUnstackDict(unittest.TestCase):
         self.assertEqual({'id': 3, 'unstack': {'kc1': 'c1', 'kc3': 'c3'}}, res[2])
 
     def test_unstack_name(self):
-        t = XFrame({'id': [1, 2, 3, 1, 2, 1, 3], 
-                    'key': ['ka1', 'kb1', 'kc1', 'ka2', 'kb2', 'ka3', 'kc3'], 
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1, 3],
+                    'key': ['ka1', 'kb1', 'kc1', 'ka2', 'kb2', 'ka3', 'kc3'],
                     'val': ['a1', 'b1', 'c1', 'a2', 'b2', 'a3', 'c3']})
         res = t.unstack(['key', 'val'], new_column_name='vals')
         res = res.topk('id', reverse=True)
@@ -3174,6 +3783,7 @@ class TestXFrameShape(unittest.TestCase):
         self.assertEqual((0, 0), t.shape)
 
 
+# noinspection SqlNoDataSourceInspection,SqlDialectInspection
 class TestXFrameSql(unittest.TestCase):
     """
     Tests XFrame sql
@@ -3198,4 +3808,3 @@ class TestXFrameSql(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
