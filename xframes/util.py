@@ -117,7 +117,7 @@ def make_internal_url(url):
         elif protocol == 's3' or protocol == 's3n':
             if len(path.split(":")) == 3:
                 # s3 url already contains secret key/id pairs, just return
-                pass
+                return url
             else:
                 # s3 url does not contain secret key/id pair, query the environment variables
                 # k, v = get_credentials()
