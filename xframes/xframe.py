@@ -20,6 +20,7 @@ import inspect
 import time
 import itertools
 from dateutil import parser
+import datetime
 import copy
 import ast
 from sys import stderr
@@ -1219,8 +1220,6 @@ class XFrame(XObject):
                     col_width = max_column_width
                 if table_width + col_width < max_row_width:
                     # truncate the header if necessary
-                    # tbl.add_column(header, [truncate_str(str(x), wrap_text) for x in headxf[col]])
-                    tbl.add_column(header, [truncate_str(str(x), wrap_text) for x in cols[col]])
                     tbl.add_column(header, [truncate_str(as_string(x), wrap_text) for x in cols[col]])
                     table_width = str(tbl).find('\n')
                     num_column_of_last_table += 1
