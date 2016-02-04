@@ -474,6 +474,7 @@ class TestXArrayOpScalar(unittest.TestCase):
         self.assertEqual(4, res[1])
         self.assertEqual(9, res[2])
 
+    # noinspection PyUnresolvedReferences
     def test_lt_scalar(self):
         t = XArray([1, 2, 3])
         res = t < 3
@@ -481,6 +482,7 @@ class TestXArrayOpScalar(unittest.TestCase):
         self.assertEqual(True, res[1])
         self.assertEqual(False, res[2])
 
+    # noinspection PyUnresolvedReferences
     def test_le_scalar(self):
         t = XArray([1, 2, 3])
         res = t <= 2
@@ -488,6 +490,7 @@ class TestXArrayOpScalar(unittest.TestCase):
         self.assertEqual(True, res[1])
         self.assertEqual(False, res[2])
 
+    # noinspection PyUnresolvedReferences
     def test_gt_scalar(self):
         t = XArray([1, 2, 3])
         res = t > 2
@@ -495,6 +498,7 @@ class TestXArrayOpScalar(unittest.TestCase):
         self.assertEqual(False, res[1])
         self.assertEqual(True, res[2])
 
+    # noinspection PyUnresolvedReferences
     def test_ge_scalar(self):
         t = XArray([1, 2, 3])
         res = t >= 3
@@ -509,6 +513,7 @@ class TestXArrayOpScalar(unittest.TestCase):
         self.assertEqual(3, res[1])
         self.assertEqual(4, res[2])
 
+    # noinspection PyUnresolvedReferences
     def test_rsub_scalar(self):
         t = XArray([1, 2, 3])
         res = 1 - t
@@ -516,6 +521,7 @@ class TestXArrayOpScalar(unittest.TestCase):
         self.assertEqual(-1, res[1])
         self.assertEqual(-2, res[2])
 
+    # noinspection PyUnresolvedReferences
     def test_rmul_scalar(self):
         t = XArray([1, 2, 3])
         res = 2 * t
@@ -530,6 +536,7 @@ class TestXArrayOpScalar(unittest.TestCase):
         self.assertEqual(6, res[1])
         self.assertEqual(4, res[2])
 
+    # noinspection PyUnresolvedReferences
     def test_eq_scalar(self):
         t = XArray([1, 2, 3])
         res = t == 2
@@ -537,6 +544,7 @@ class TestXArrayOpScalar(unittest.TestCase):
         self.assertTrue(res[1])
         self.assertFalse(res[2])
 
+    # noinspection PyUnresolvedReferences
     def test_ne_scalar(self):
         t = XArray([1, 2, 3])
         res = t != 2
