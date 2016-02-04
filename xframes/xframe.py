@@ -25,7 +25,6 @@ import ast
 from sys import stderr
 
 from prettytable import PrettyTable
-import numpy
 
 from xframes.deps import pandas, HAS_PANDAS
 from xframes.deps import dataframeplus, HAS_DATAFRAME_PLUS
@@ -206,32 +205,32 @@ class XFrame(XObject):
         elif _format == 'xarray':
             if type(data) is not XArray:
                 raise ValueError('Data is not XArray')
-            self._impl = XFrameImpl().add_column(data._impl, '')
+            self._impl = XFrameImpl().add_column(data.get_impl(), '')
         elif _format == 'array':
             if len(data) > 0:
                 unique_types = set([type(x) for x in data if x is not None])
                 if len(unique_types) == 1 and XArray in unique_types:
                     xf = XFrameImpl()
                     for arr in data:
-                        xf = xf.add_column(arr._impl, '')
+                        xf = xf.add_column(arr.get_impl(), '')
                     self._impl = xf
                 elif XArray in unique_types:
                     raise ValueError('Cannot create XFrame from mix of regular values and XArrays.')
                 else:
-                    self._impl = XFrameImpl().add_column(XArray(data)._impl, '')
+                    self._impl = XFrameImpl().add_column(XArray(data).get_impl(), '')
             else:
                 self._impl = XFrameImpl()
         elif _format == 'iter':
-            self._impl = XFrameImpl().add_column(XArray(data)._impl, '')
+            self._impl = XFrameImpl().add_column(XArray(data).get_impl(), '')
         elif _format == 'dict':
             if type(data) is not dict:
                 raise ValueError('Data is not dictionary')
             xf = XFrameImpl()
             for key, val in iter(sorted(data.iteritems())):
                 if isinstance(val, XArray):
-                    xf = xf.add_column(val._impl, key)
+                    xf = xf.add_column(val.get_impl(), key)
                 else:
-                    xf = xf.add_column(XArray(val)._impl, key)
+                    xf = xf.add_column(XArray(val).get_impl(), key)
             self._impl = xf
         elif _format == 'iteritems':
             if data is None:
@@ -240,7 +239,7 @@ class XFrame(XObject):
             for key, val in iter(sorted(data.iteritems())):
                 if not hasattr(val, '__iter__'):
                     raise TypeError('Iterator values must be iterable.')
-                xf = xf.add_column(XArray(val)._impl, key)
+                xf = xf.add_column(XArray(val).get_impl(), key)
             self._impl = xf
         elif _format == 'csv':
             if not isinstance(data, basestring):
@@ -520,17 +519,16 @@ class XFrame(XObject):
             try:
                 # Get the first 100 rows (using all the desired arguments).
                 # first row may be excluded (based on heder setting)
-                first_rows = xframes.XFrame.read_csv(
-                        url,
-                        nrows=100,
-                        column_type_hints=str,
-                        header=header,
-                        delimiter=delimiter,
-                        comment_char=comment_char,
-                        escape_char=escape_char,
-                        double_quote=double_quote,
-                        quote_char=quote_char,
-                        skip_initial_space=skip_initial_space)
+                first_rows = xframes.XFrame.read_csv(url,
+                                                     nrows=100,
+                                                     column_type_hints=str,
+                                                     header=header,
+                                                     delimiter=delimiter,
+                                                     comment_char=comment_char,
+                                                     escape_char=escape_char,
+                                                     double_quote=double_quote,
+                                                     quote_char=quote_char,
+                                                     skip_initial_space=skip_initial_space)
                 column_type_hints = XFrame._infer_column_types_from_lines(first_rows, na_values)
                 typelist = '[' + ','.join(t.__name__ for t in column_type_hints) + ']'
                 if verbose:
@@ -653,6 +651,10 @@ class XFrame(XObject):
 
         nrows : int, optional
             If set, only this many rows will be read from the file.
+
+        drop_empty_header_cols: bool, optional
+            If set, drop any column whose header is empty.  This sometimes arises when a delimiter such
+            as double pipe.
 
         Returns
         -------
@@ -788,6 +790,10 @@ class XFrame(XObject):
 
         nrows : int, optional
             If set, only this many rows will be read from the file.
+
+        drop_empty_header_cols: bool, optional
+            If set, drop any column whose header is empty.  This sometimes arises when a delimiter such
+            as double pipe.
 
         Returns
         -------
@@ -1097,7 +1103,10 @@ class XFrame(XObject):
         return cls(impl=impl)
 
     def get_rdd(self):
-        return self._impl._rdd
+        return self._impl.get__rdd()
+
+    def get_impl(self):
+        return self._impl
 
     def dump_debug_info(self):
         """
@@ -1152,19 +1161,17 @@ class XFrame(XObject):
             cols[col_name] = [row[index] for row in head_rows]
 
         def as_string(x):
-            """
-            This is where a value gets converted to a string for printing.
-            """
+            #  This is where a value gets converted to a string for printing.
+
             if isinstance(x, datetime.datetime):
                 if x.hour == 0 and x.minute == 0 and x.second == 0:
                     return x.strftime('%Y-%m-%d')
             return str(x)
 
         def truncate_str(s, wrap_str=False):
-            """
-            Truncate and optionally wrap the input string as unicode, replace
-            unconvertible character with a diamond ?.
-            """
+            #  Truncate and optionally wrap the input string as unicode, replace
+            #  unconvertible character with a diamond ?.
+
             s = repr(s)
             # repr adds the escape characters. but also adds quotes around
             # the string
@@ -1214,6 +1221,7 @@ class XFrame(XObject):
                     # truncate the header if necessary
                     # tbl.add_column(header, [truncate_str(str(x), wrap_text) for x in headxf[col]])
                     tbl.add_column(header, [truncate_str(str(x), wrap_text) for x in cols[col]])
+                    tbl.add_column(header, [truncate_str(as_string(x), wrap_text) for x in cols[col]])
                     table_width = str(tbl).find('\n')
                     num_column_of_last_table += 1
                 else:
@@ -1337,7 +1345,7 @@ class XFrame(XObject):
         """
         if type(other) is not XArray:
             raise ValueError('Argument must be an XArray')
-        return XFrame(impl=self._impl.logical_filter(other._impl))
+        return XFrame(impl=self._impl.logical_filter(other.get_impl()))
 
     def select_rows(self, xa):
         """
@@ -1721,7 +1729,8 @@ class XFrame(XObject):
 
         """
         if fn is None:
-            fn = lambda row: row[col]
+            def fn(row):
+                return row[col]
         elif not inspect.isfunction(fn):
             raise TypeError('Input must be a function.')
         rows = self._impl.head_as_list(10)
@@ -1788,7 +1797,8 @@ class XFrame(XObject):
 
         """
         if fn is None:
-            fn = lambda row: [row[col] for col in cols]
+            def fn(row):
+                return[row[col] for col in cols]
         elif not inspect.isfunction(fn):
             raise TypeError('Input must be a function: {}: {}.'.format(fn, type(fn)))
         rows = self._impl.head_as_list(10)
@@ -2236,7 +2246,7 @@ class XFrame(XObject):
             remote URL. If the format is 'binary', a directory will be created
             at the location which will contain the xframe.
 
-        format : {'binary', 'csv', 'parquet'}, optional
+        file_format : {'binary', 'csv', 'parquet'}, optional
             Format in which to save the XFrame. Binary saved XFrames can be
             loaded much faster and without any format conversion losses. If not
             given, will try to infer the format from filename given. If file
@@ -2432,7 +2442,7 @@ class XFrame(XObject):
             raise TypeError('Must give column as XArray.')
         if not isinstance(name, str):
             raise TypeError('Invalid column name: must be str.')
-        return XFrame(impl=self._impl.add_column(col._impl, name))
+        return XFrame(impl=self._impl.add_column(col.get_impl(), name))
 
     def add_columns(self, cols, namelist=None):
         """
@@ -2861,7 +2871,7 @@ class XFrame(XObject):
 
             # set new column
             if key not in self.column_names():
-                self._impl.add_column_in_place(sa_value._impl, key)
+                self._impl.add_column_in_place(sa_value.get_impl(), key)
             else:
                 # special case if replacing the only column.
                 # server would fail the replacement if the new column has different
@@ -2935,12 +2945,11 @@ class XFrame(XObject):
         ----------
 
         key: int or slice
-
-        If `key` is:
-            * int
-                Returns a single row of the XFrame (the `key`th one) as a dictionary.
-            * slice
-                Returns an XFrame including only the sliced rows.
+            If `key` is:
+                * int
+                    Returns a single row of the XFrame (the `key`th one) as a dictionary.
+                * slice
+                    Returns an XFrame including only the sliced rows.
 
         Returns
         -------
@@ -3032,14 +3041,14 @@ class XFrame(XObject):
         # check if the order of column name is the same
         for i in range(len(my_column_names)):
             if other_column_names[i] != my_column_names[i]:
-                raise RuntimeError('Column {} name is not the same in two XFrames, one is {} the other is {}.'.format(
-                        my_column_names[i], my_column_names[i], other_column_names[i]))
+                raise RuntimeError('Column {} name is not the same in two XFrames, one is {} the other is {}.'
+                                   .format(my_column_names[i], my_column_names[i], other_column_names[i]))
             # check column type
             if my_column_types[i] != other_column_types[i]:
-                raise RuntimeError('Column {} type is not the same in two XFrames, one is {} the other is {}.'.format(
-                        my_column_names[i], my_column_types[i], other_column_types))
+                raise RuntimeError('Column {} type is not the same in two XFrames, one is {} the other is {}.'
+                                   .format(my_column_names[i], my_column_types[i], other_column_types))
 
-        return XFrame(impl=self._impl.append(other._impl))
+        return XFrame(impl=self._impl.append(other.get_impl()))
 
     def groupby(self, key_columns, operations=None, *args):
         """
