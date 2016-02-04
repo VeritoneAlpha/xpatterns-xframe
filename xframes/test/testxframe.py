@@ -3635,7 +3635,7 @@ class TestXFrameDropna(unittest.TestCase):
         self.assertEqual({'id': 1.0, 'val': 'a'}, res[0])
         self.assertEqual({'id': 3.0, 'val': 'c'}, res[1])
 
-    def test_dropna_none(self):
+    def test_dropna_float_none(self):
         t = XFrame({'id': [1.0, None, 3.0], 'val': ['a', 'b', 'c']})
         res = t.dropna()
         self.assertEqual(2, len(res))
