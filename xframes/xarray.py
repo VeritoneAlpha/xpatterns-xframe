@@ -6,14 +6,6 @@ XArray acts similarly to pandas.Series but without indexing.
 The data is immutable, homogeneous, and is stored in a Spark RDD.
 """
 
-"""
-Copyright (c) 2014, Dato, Inc.
-All rights reserved.
-
-Copyright (c) 2015, Atigeo, Inc.
-All rights reserved.
-"""
-
 import inspect
 import math
 import time
@@ -28,6 +20,14 @@ from xframes.xobject import XObject
 from xframes.xarray_impl import XArrayImpl
 from xframes.util import make_internal_url, infer_type_of_list, pytype_from_dtype
 import xframes
+
+"""
+Copyright (c) 2014, Dato, Inc.
+All rights reserved.
+
+Copyright (c) 2015, Atigeo, Inc.
+All rights reserved.
+"""
 
 __all__ = ['XArray']
 
@@ -66,7 +66,7 @@ class XArray(XObject):
         saved, this is loaded as an XArray read directly out of that
         directory.
 
-    dtype : {int, float, str, list, array.array, dict, datetime.datetime}, optional
+    dtype : {int, float, str, list, array, dict, datetime.datetime}, optional
         The data type of the XArray. If not specified, we attempt to
         infer it from the input. If it is a numpy array or a Pandas series, the
         data type of the array or series is used. If it is a list, the data type is
@@ -154,7 +154,7 @@ class XArray(XObject):
     @staticmethod
     def _classify_auto(data):
         if isinstance(data, list):
-            # if it is a list, get the first type and make sure
+            # if it is a list, Get the first type and make sure
             # the remaining items are all of the same type
             return infer_type_of_list(data)
         elif isinstance(data, array.array):
@@ -202,7 +202,7 @@ class XArray(XObject):
 
         Parameters
         ----------
-        value : [int | float | str | array.array | datetime.datetime | list | dict]
+        value : [int | float | str | array | datetime.datetime | list | dict]
           The value to fill the XArray.
 
         size : int
@@ -223,6 +223,7 @@ class XArray(XObject):
             raise TypeError("Cannot create xarray of value type '{}'.".format(type(value)))
         return cls(impl=XArrayImpl.load_from_const(value, size))
 
+    # noinspection PyIncorrectDocstring
     @classmethod
     def from_sequence(cls, *args):
         """
@@ -329,6 +330,12 @@ class XArray(XObject):
         """
         Convert the current XArray to the Spark RDD.
 
+        Parameters
+        ----------
+        number_of_partitions : int, optional
+            The number of partitions to store the RDD.
+
+        Returns
         ----------
         out: RDD
             The internal RDD used to stores XArray instances.
@@ -645,6 +652,12 @@ class XArray(XObject):
         else:
             raise IndexError('Invalid type to use for indexing.')
 
+    def get_rdd(self):
+        return self._impl.get_rdd()
+
+    def get_impl(self):
+        return self._impl
+
     def _materialize(self):
         """
         For a XArray that is lazily evaluated, force persist this xarray
@@ -746,7 +759,7 @@ class XArray(XObject):
         [1.0, 2.0]
 
         >>> g.vector_slice(0, 2) # extracts the first two elements of each vector
-        dtype: array.array
+        dtype: array
         Rows: 2
         [array('d', [1.0, 2.0]), array('d', [2.0, 3.0])]
 
@@ -754,7 +767,7 @@ class XArray(XObject):
 
         >>> g = XArray([[1],[1,2],[1,2,3]])
         >>> g
-        dtype: array.array
+        dtype: array
         Rows: 3
         [array('d', [1.0]), array('d', [1.0, 2.0]), array('d', [1.0, 2.0, 3.0])]
 
@@ -782,8 +795,8 @@ class XArray(XObject):
         [['a'], ['b']]
 
         """
-        if (self.dtype() is array.array) and (self.dtype() is not list):
-            raise RuntimeError("Only 'array.array' and 'list' type can be sliced.")
+        if self.dtype() is array.array and self.dtype() is not list:
+            raise RuntimeError("Only 'array' and 'list' type can be sliced.")
         if end is None:
             end = start + 1
 
@@ -1161,7 +1174,7 @@ class XArray(XObject):
             The function to transform each element. Must return exactly one
             value which can be cast into the type specified by `dtype`.
 
-        dtype : {int, float, str, list, array.array, dict}, optional
+        dtype : {int, float, str, list, array, dict}, optional
             The data type of the new XArray. If not supplied, the first 100 elements
             of the array are used to guess the target data type.
 
@@ -1222,7 +1235,7 @@ class XArray(XObject):
             The function to transform each element. Must return a list of 
             values which can be cast into the type specified by `dtype`.
 
-        dtype : {None, int, float, str, list, array.array, dict}, optional
+        dtype : {None, int, float, str, list, array, dict}, optional
             The data type of the new XArray. If None, the first 100 elements
             of the array are used to guess the target data type.
 
@@ -1253,7 +1266,8 @@ class XArray(XObject):
         """
 
         if fn is None:
-            fn = lambda x: x
+            def fn(x):
+                return x
         if not inspect.isfunction(fn):
             raise TypeError('Input must be a function.')
 
@@ -1478,7 +1492,7 @@ class XArray(XObject):
         Sum of all values in this XArray.
 
         Raises an exception if called on an XArray of strings.
-        If the XArray contains numeric arrays (list or array.array) and
+        If the XArray contains numeric arrays (list or array) and
         all the lists or arrays are the same length, the sum over all the arrays will be
         returned.
         If the XArray contains dictionaries whose values are numeric, then the sum of values whose
@@ -1646,7 +1660,7 @@ class XArray(XObject):
 
         Parameters
         ----------
-        dtype : {int, float, str, list, array.array, dict, datetime.datetime}
+        dtype : {int, float, str, list, array, dict, datetime.datetime}
             The type to cast the elements to in XArray
 
         undefined_on_failure: bool, optional
@@ -1687,7 +1701,7 @@ class XArray(XObject):
 
         return XArray(impl=self._impl.astype(dtype, undefined_on_failure))
 
-    def clip(self, lower=float('nan'), upper=float('nan')):
+    def clip(self, lower=None, upper=None):
         """
         Create a new XArray with each value clipped to be within the given
         bounds.
@@ -1697,17 +1711,17 @@ class XArray(XObject):
         to the upper bound value. This function can operate on XArrays of
         numeric type as well as array type, in which case each individual
         element in each array is clipped. By default `lower` and `upper` are
-        set to ``float('nan')`` which indicates the respective bound should be
+        set to ``None`` which indicates the respective bound should be
         ignored. The method fails if invoked on an XArray of non-numeric type.
 
         Parameters
         ----------
         lower : int, optional
-            The lower bound used to clip. Ignored if equal to ``float('nan')``
+            The lower bound used to clip. Ignored if equal to ``None``
             (the default).
 
         upper : int, optional
-            The upper bound used to clip. Ignored if equal to ``float('nan')``
+            The upper bound used to clip. Ignored if equal to ``None``
             (the default).
 
         Returns
@@ -1758,7 +1772,7 @@ class XArray(XObject):
         Rows: 3
         [2, 2, 3]
         """
-        return XArray(impl=self._impl.clip(threshold, float('nan')))
+        return XArray(impl=self._impl.clip(threshold, None))
 
     def clip_upper(self, threshold):
         """
@@ -1788,7 +1802,7 @@ class XArray(XObject):
         Rows: 3
         [1, 2, 2]
         """
-        return XArray(impl=self._impl.clip(float('nan'), threshold))
+        return XArray(impl=self._impl.clip(None, threshold))
 
     def tail(self, n=10):
         """
@@ -1811,7 +1825,7 @@ class XArray(XObject):
         """
         Count the number of missing values in the XArray.
 
-        A missing value is represented in a float XArray as 'NaN'.  A missing value in other types of
+        A missing value is represented in a float XArray as 'NaN' or None.  A missing value in other types of
         XArrays is None.
 
         Returns
@@ -1827,7 +1841,7 @@ class XArray(XObject):
         Create new XArray containing only the non-missing values of the
         XArray.
 
-        A missing value is represented in a float XArray as 'NaN'.  A missing value in other types of
+        A missing value is represented in a float XArray as 'NaN' on None.  A missing value in other types of
         XArrays is None.
 
         Returns
@@ -2085,7 +2099,7 @@ class XArray(XObject):
 
         if column_name_prefix is None:
             column_name_prefix = ''
-        if not  isinstance(column_name_prefix, str):
+        if not isinstance(column_name_prefix, str):
             raise TypeError("'Column_name_prefix' must be a string.")
 
         # convert limit to column_keys
@@ -2105,7 +2119,6 @@ class XArray(XObject):
                     raise ValueError("'Limit' values may be 'year', 'month', 'day', 'hour', 'minute', or 'second': {}"
                                      .format(item))
 
-
         if limit is not None:
             column_types = list()
             for _ in limit:
@@ -2114,11 +2127,7 @@ class XArray(XObject):
             limit = ['year', 'month', 'day', 'hour', 'minute', 'second']
             column_types = [int, int, int, int, int, int]
 
-        if tzone:
-            limit += ['tzone']
-            column_types += [float]
-
-        return xframes.XFrame(impl=self._impl.expand(column_name_prefix, limit, column_types))
+        return xframes.XFrame(impl=self._impl.split_datetime(column_name_prefix, limit, column_types))
 
     def unpack(self, column_name_prefix='X', column_types=None, na_value=None, limit=None):
         """
@@ -2142,7 +2151,7 @@ class XArray(XObject):
         the original element remain as missing values in the resultant columns.
         If the `na_value` parameter is specified, all values equal to this
         given value are also replaced with missing values. In an XArray of
-        array.array type, NaN is interpreted as a missing value.
+        array type, NaN is interpreted as a missing value.
 
         :py:func:`xframes.XFrame.pack_columns()` is the reverse effect of unpack
 
@@ -2267,7 +2276,7 @@ class XArray(XObject):
                     val = row[key]
                     if key not in col_types and not is_missing(val):
                         col_types[key] = type(val)
-                        
+
             return [col_types[key] for key in keys]
 
         if self.dtype() not in [dict, array.array, list, tuple]:
@@ -2287,7 +2296,7 @@ class XArray(XObject):
             if len(name_types) != 1:
                 raise TypeError("'Limit' contains values that are different types.")
 
-            # limit value should be numeric if unpacking xarray.array value
+            # limit value should be numeric if unpacking array value
             if self.dtype() is not dict and name_types.pop() is not int:
                 raise TypeError("'Limit' must contain integer values.")
 
@@ -2302,7 +2311,7 @@ class XArray(XObject):
                 if column_type not in (int, float, str, list, dict, array.array):
                     raise TypeError("'Column_types' contains unsupported types. " +
                                     "Supported types are ['float', 'int', 'list', " +
-                                    "'dict', 'str', 'array.array'].")
+                                    "'dict', 'str', 'array'].")
 
             if limit is not None:
                 if len(limit) != len(column_types):
@@ -2331,7 +2340,7 @@ class XArray(XObject):
                     # adjust the length
                     length = len(limit)
 
-                if self.dtype() == array.array:
+                if self.dtype() is array.array:
                     typ = type_from_typecode(head_rows[0].typecode)
                     column_types = [typ for _ in range(length)]
                 else:
