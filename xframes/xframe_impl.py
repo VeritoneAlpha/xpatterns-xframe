@@ -248,7 +248,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         # 'escape_char': '\\'
 
         # 'comment_char': '', 
-        # 'na_values': ['NA'], 
+        # 'na_values': ['NA'],
         # 'continue_on_failure': True, 
         # 'store_errors': False, 
 
@@ -360,15 +360,17 @@ class XFrameImpl(XObjectImpl, TracedObject):
         # apply na values to value
         def apply_na(row, na_values):
             return [None if val in na_values else val for val in row]
-        res = res.map(lambda row: apply_na(row, na_values))
+        if len(na_values) > 0:
+            res = res.map(lambda row: apply_na(row, na_values))
 
         # drop columns with empty header
         remove_cols = [col_index for col_index, col_name in enumerate(col_names) if len(col_name) == 0]
 
         def remove_columns(row):
             return [val for index, val in enumerate(row) if index not in remove_cols]
-        res = res.map(remove_columns)
-        col_names = remove_columns(col_names)
+        if len(remove_cols) > 0:
+            res = res.map(remove_columns)
+            col_names = remove_columns(col_names)
 
         # cast to desired type
         def cast_val(val, typ, name):
@@ -396,11 +398,12 @@ class XFrameImpl(XObjectImpl, TracedObject):
         def cast_row(row, types, names):
             return tuple([cast_val(val, typ, name) for val, typ, name in zip(row, types, names)])
 
-        # TODO -- if cast fails, then don't cast and adjust type appropriately ??
-        res = res.map(lambda row: cast_row(row, types, col_names))
-        if row_limit is None:
-            persist(res)
-        self._replace(res, col_names, column_types)
+        # TODO -- if cast fails, then stopre None
+        if len(types) == 0 or all([t == str for t in types]):
+            res = res.map(lambda row: cast_row(row, types, col_names))
+            if row_limit is None:
+                persist(res)
+            self._replace(res, col_names, column_types)
 
         self._exit()
         # returns a dict of errors
