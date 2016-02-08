@@ -136,11 +136,11 @@ class TestXFrameConstructor(unittest.TestCase):
         xa = XArray([1, 2, 3])
         t = XFrame(xa)
         self.assertEqual(3, len(t))
-        self.assertEqual(['X0'], t.column_names())
+        self.assertEqual(['X.0'], t.column_names())
         self.assertEqual([int], t.column_types())
-        self.assertEqual({'X0': 1}, t[0])
-        self.assertEqual({'X0': 2}, t[1])
-        self.assertEqual({'X0': 3}, t[2])
+        self.assertEqual({'X.0': 1}, t[0])
+        self.assertEqual({'X.0': 2}, t[1])
+        self.assertEqual({'X.0': 3}, t[2])
 
     def test_construct_xframe(self):
         # construct an XFrame given another XFrame
@@ -183,11 +183,11 @@ class TestXFrameConstructor(unittest.TestCase):
 
         t = XFrame(MyIter())
         self.assertEqual(3, len(t))
-        self.assertEqual(['X0'], t.column_names())
+        self.assertEqual(['X.0'], t.column_names())
         self.assertEqual([int], t.column_types())
-        self.assertEqual({'X0': 1}, t[0])
-        self.assertEqual({'X0': 2}, t[1])
-        self.assertEqual({'X0': 3}, t[2])
+        self.assertEqual({'X.0': 1}, t[0])
+        self.assertEqual({'X.0': 2}, t[1])
+        self.assertEqual({'X.0': 3}, t[2])
 
     def test_construct_iter_bad(self):
         # construct an XFrame from an object that has __iter__
@@ -231,7 +231,7 @@ class TestXFrameConstructor(unittest.TestCase):
         # construct an XFrame from an array
         t = XFrame([1, 2, 3], format='array')
         self.assertEqual(3, len(t))
-        self.assertEqual([1, 2, 3], t['X0'])
+        self.assertEqual([1, 2, 3], t['X.0'])
 
     def test_construct_array_mixed_xarray(self):
         # construct an XFrame from an xarray and values
@@ -261,11 +261,11 @@ class TestXFrameConstructor(unittest.TestCase):
         xa2 = XArray(['a', 'b', 'c'])
         t = XFrame([xa1, xa2], format='array')
         self.assertEqual(3, len(t))
-        self.assertEqual(['X0', 'X1'], t.column_names())
+        self.assertEqual(['X.0', 'X.1'], t.column_names())
         self.assertEqual([int, str], t.column_types())
-        self.assertEqual({'X0': 1, 'X1': 'a'}, t[0])
-        self.assertEqual({'X0': 2, 'X1': 'b'}, t[1])
-        self.assertEqual({'X0': 3, 'X1': 'c'}, t[2])
+        self.assertEqual({'X.0': 1, 'X.1': 'a'}, t[0])
+        self.assertEqual({'X.0': 2, 'X.1': 'b'}, t[1])
+        self.assertEqual({'X.0': 3, 'X.1': 'c'}, t[2])
 
     def test_construct_dict_int(self):
         # construct an XFrame from a dict of int
@@ -602,6 +602,22 @@ class TestXFrameReadParquet(unittest.TestCase):
         self.assertEqual({'id': 1, 'val': {1: 1}}, res[0])
         self.assertEqual({'id': 2, 'val': {2: 2}}, res[1])
         self.assertEqual({'id': 3, 'val': {3: 3}}, res[2])
+
+
+class TestXFrameFromXArray(unittest.TestCase):
+    """
+    Tests XFrame from_xarray
+    """
+
+    def test_from_xarray(self):
+        a = XArray([1, 2, 3])
+        res = XFrame.from_xarray(a, 'id')
+        self.assertEqual(3, len(res))
+        self.assertEqual(['id'], res.column_names())
+        self.assertEqual([int], res.column_types())
+        self.assertEqual({'id': 1}, res[0])
+        self.assertEqual({'id': 2}, res[1])
+        self.assertEqual({'id': 3}, res[2])
 
 
 # noinspection SqlDialectInspection,SqlNoDataSourceInspection
@@ -1385,14 +1401,15 @@ class TestXFrameAddColumn(unittest.TestCase):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         ta = XArray([3.0, 2.0, 1.0])
         res = tf.add_column(ta)
-        self.assertEqual(['id', 'val', 'X2'], res.column_names())
-        self.assertEqual({'id': 1, 'val': 'a', 'X2': 3.0}, res[0])
+        self.assertEqual(['id', 'val', 'X.2'], res.column_names())
+        self.assertEqual({'id': 1, 'val': 'a', 'X.2': 3.0}, res[0])
 
     def test_add_column_name_dup(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         ta = XArray([3.0, 2.0, 1.0])
-        with self.assertRaises(ValueError):
-            tf.add_column(ta, name='id')
+        res = tf.add_column(ta, name='id')
+        self.assertEqual(['id', 'val', 'id.2'], res.column_names())
+        self.assertEqual({'id': 1, 'val': 'a', 'id.2': 3.0}, res[0])
 
 
 class TestXFrameAddColumnsArray(unittest.TestCase):
@@ -1500,6 +1517,7 @@ class TestXFrameReplaceColumn(unittest.TestCase):
         with self.assertRaises(TypeError):
             _ = t.replace_column(2, a)
 
+
 class TestXFrameRemoveColumn(unittest.TestCase):
     """
     Tests XFrame remove_column
@@ -1510,6 +1528,7 @@ class TestXFrameRemoveColumn(unittest.TestCase):
         res = t.remove_column('another')
         self.assertEqual({'id': 1, 'val': 'a'}, res[0])
         self.assertEqual(3, len(t.column_names()))
+        self.assertEqual(2, len(res.column_names()))
 
     def test_remove_column_not_found(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'another': [3.0, 2.0, 1.0]})
@@ -1526,6 +1545,7 @@ class TestXFrameRemoveColumns(unittest.TestCase):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'new1': [3.0, 2.0, 1.0], 'new2': [30.0, 20.0, 10.0]})
         res = t.remove_columns(['new1', 'new2'])
         self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual(2, len(res.column_names()))
         self.assertEqual(4, len(t.column_names()))
 
     def test_remove_column_not_iterable(self):
@@ -1548,6 +1568,7 @@ class TestXFrameSwapColumns(unittest.TestCase):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'x': [3.0, 2.0, 1.0]})
         res = t.swap_columns('val', 'x')
         self.assertEqual(['id', 'x', 'val'], res.column_names())
+        self.assertEqual(['id', 'val', 'x'], t.column_names())
         self.assertEqual({'id': 1, 'x': 3.0, 'val': 'a'}, res[0])
 
     def test_swap_columns_bad_col_1(self):
@@ -1570,6 +1591,7 @@ class TestXFrameReorderColumns(unittest.TestCase):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'x': [3.0, 2.0, 1.0]})
         res = t.reorder_columns(['val', 'x', 'id'])
         self.assertEqual(['val', 'x', 'id'], res.column_names())
+        self.assertEqual(['id', 'val', 'x'], t.column_names())
         self.assertEqual({'id': 1, 'x': 3.0, 'val': 'a'}, res[0])
 
     def test_reorder_columns_list_not_iterable(self):
@@ -1597,6 +1619,7 @@ class TestXFrameRename(unittest.TestCase):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         res = t.rename({'id': 'new_id'})
         self.assertEqual(['new_id', 'val'], res.column_names())
+        self.assertEqual(['id', 'val'], t.column_names())
         self.assertEqual({'new_id': 1, 'val': 'a'}, res[0])
 
     def test_rename_arg_not_dict(self):
@@ -1618,6 +1641,7 @@ class TestXFrameRename(unittest.TestCase):
         t = XFrame({'X0': [1, 2, 3], 'X1': ['a', 'b', 'c']})
         res = t.rename(['id', 'val'])
         self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual(['X0', 'X1'], t.column_names())
         self.assertEqual({'id': 1, 'val': 'a'}, res[0])
 
 
@@ -1862,7 +1886,7 @@ class TestXFrameAppend(unittest.TestCase):
 
     def test_append_col_name_mismatch(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        t2 = XFrame({'id': [10, 20], 'xx': ['aa', 'bb']})
+        t2 = XFrame({'id': [10, 20, 30], 'xx': ['a', 'b', 'c']})
         with self.assertRaises(RuntimeError):
             t1.append(t2)
 
@@ -3065,9 +3089,9 @@ class TestXFramePackColumnsList(unittest.TestCase):
         self.assertEqual(4, len(res))
         self.assertEqual(1, res.num_columns())
         self.assertEqual([list], res.dtype())
-        self.assertEqual(['X0'], res.column_names())
-        self.assertEqual({'X0': [1, 'a']}, res[0])
-        self.assertEqual({'X0': [2, 'b']}, res[1])
+        self.assertEqual(['X.0'], res.column_names())
+        self.assertEqual({'X.0': [1, 'a']}, res[0])
+        self.assertEqual({'X.0': [2, 'b']}, res[1])
 
     def test_pack_columns_prefix_def_new_name(self):
         t = XFrame({'x.id': [1, 2, 3, 4], 'x.val': ['a', 'b', 'c', 'd'], 'another': [10, 20, 30, 40]})
