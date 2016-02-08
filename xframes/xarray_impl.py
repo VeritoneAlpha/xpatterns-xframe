@@ -14,7 +14,7 @@ import random
 import xframes
 from xframes.xobject_impl import XObjectImpl
 from xframes.traced_object import TracedObject
-from xframes.spark_context import spark_context
+from xframes.spark_context import CommonSparkContext
 import xframes.util as util
 import xframes.fileio as fileio
 from xframes.util import infer_type_of_list, cache, uncache
@@ -111,7 +111,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         else:
             stop = start - size
             step = -1
-        sc = spark_context()
+        sc = CommonSparkContext.spark_context()
         rdd = XRdd(sc.parallelize(range(start, stop, step)))
         return XArrayImpl(rdd, int)
 
@@ -129,7 +129,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         """
         cls._entry(dtype=dtype, ignore_cast_failure=ignore_cast_failure)
         dtype = dtype or None
-        sc = spark_context()
+        sc = CommonSparkContext.spark_context()
         try:
             if len(values) == 0:
                 cls._exit()
@@ -178,7 +178,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         """
         cls._entry(value=value, size=size)
         values = [value for _ in xrange(0, size)]
-        sc = spark_context()
+        sc = CommonSparkContext.spark_context()
         cls._exit()
         return cls(XRdd(sc.parallelize(values)), type(value))
 
@@ -197,7 +197,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         # If the path is a file, look for that file
         # Use type inference to determine the element type.
         # Passed-in dtype is always str and is ignored.
-        sc = spark_context()
+        sc = CommonSparkContext.spark_context()
         if os.path.isdir(path):
             res = XRdd(sc.pickleFile(path))
             metadata_path = os.path.join(path, '_metadata')
