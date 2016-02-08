@@ -11,12 +11,26 @@ from tempfile import NamedTemporaryFile
 from pyspark import SparkConf, SparkContext, SQLContext, HiveContext
 
 from xframes.environment import Environment
-from xframes.singleton import Singleton
+from xframes.xrdd import XRdd
 
 
 def get_xframes_home():
     import xframes
     return os.path.dirname(xframes.__file__)
+
+
+# CommonSparkContext wraps SparkContext, which must only be instantiated once in a program.
+# This is used as a metaclass for CommonSparkContext, so that only one
+#  instance is created.
+class Singleton(type):
+    def __init__(cls, name, bases, dictionary):
+        super(Singleton, cls).__init__(name, bases, dictionary)
+        cls.instance = None
+
+    def __call__(cls, *args):
+        if cls.instance is None:
+            cls.instance = super(Singleton, cls).__call__(*args)
+        return cls.instance
 
 
 # noinspection PyClassHasNoInit
@@ -44,11 +58,12 @@ class SparkInitContext:
 
         """
         SparkInitContext.context = context
-        CommonSparkContext.Instance()
+        CommonSparkContext()
 
 
-@Singleton
 class CommonSparkContext(object):
+    __metaclass__ = Singleton
+
     def __init__(self):
         """
         Create a spark context.
@@ -88,19 +103,20 @@ class CommonSparkContext(object):
 
         # This reads from default.ini and then xframes/config.ini
         # if they exist.
-        env = Environment.create()
+        self._env = Environment.create()
+        verbose = self._env.get_config('xframes', 'verbose', 'false').lower() == 'true'
         default_context = {'master': 'local',
-                           'cores_max': '4',
-                           'executor_memory': '2g',
-                           'app_name': 'xFrame'}
+                           'app_name': 'xFrames'}
         # get values from [spark] section
-        config_context = env.get_config_items('spark')
+        config_context = self._env.get_config_items('spark')
         context = merge_dicts(default_context, config_context)
         context = merge_dicts(context, SparkInitContext.context)
         config_pairs = [(k, v) for k, v in context.iteritems()]
         self._config = (SparkConf().setMaster(context['master']).
                         setAppName(context['app_name']).
                         setAll(config_pairs))
+        if verbose:
+            print >> stderr, 'Spark Config:', config_pairs
         self._sc = SparkContext(conf=self._config)
         self._sqlc = SQLContext(self._sc)
         self._hivec = HiveContext(self._sc)
@@ -111,6 +127,9 @@ class CommonSparkContext(object):
                 self._sc.addPyFile(self.zip_path)
         else:
             self.zip_path = None
+
+        trace_flag = self._env.get_config('xframes', 'rdd-trace', 'false').lower() == 'true'
+        XRdd.set_trace(trace_flag)
         atexit.register(self.close_context)
 
     def config(self):
@@ -185,57 +204,32 @@ class CommonSparkContext(object):
             print >>stderr, 'Check for unexpected files in xframes directory.'
             return None
 
+    @staticmethod
+    def spark_context():
+        """
+        Returns the spark context.
 
-def common_spark_context():
-    """
-    Returns the common spark context.
+        Returns
+        -------
+        out : pyspark.SparkContext
+            The SparkContext object from spark.
+        """
 
-    This is the xframes object that contains the actual spark context.
+        return CommonSparkContext()._sc
 
-    Returns
-    -------
-    out : CommonSparkContext
-        The xframes singleton containing the SparkContext.
-    """
+    @staticmethod
+    def spark_sql_context():
+        """
+        Returns the spark sql context.
 
-    return CommonSparkContext.Instance()
+        Returns
+        -------
+        out : pyspark.sql.SQLContext
+            The SQLContext object from spark.
+        """
 
+        return CommonSparkContext()._sqlc
 
-def spark_context():
-    """
-    Returns the spark context.
-
-    Returns
-    -------
-    out : pyspark.SparkContext
-        The SparkContext object from spark.
-    """
-
-    return CommonSparkContext.Instance().sc()
-
-
-def spark_sql_context():
-    """
-    Returns the spark sql context.
-
-    Returns
-    -------
-    out : pyspark.sql.SQLContext
-        The SQLContext object from spark.
-    """
-
-    return CommonSparkContext.Instance().sqlc()
-
-
-def hive_context():
-    """
-    Returns the hive context.
-
-    Returns
-    -------
-    out : pyspark.sql.HiveContext
-        The HiveContext object from spark.
-    """
-
-    return CommonSparkContext.Instance().hivec()
-
+    @staticmethod
+    def environment():
+        return CommonSparkContext()._env
