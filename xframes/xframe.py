@@ -6,14 +6,6 @@ XFrame acts similarly to pandas.DataFrame, but the data is immutable
 and is stored as Spark RDDs.
 """
 
-"""
-Copyright (c) 2014, Dato, Inc.
-All rights reserved.
-
-Copyright (c) 2015, Atigeo, Inc.
-All rights reserved.
-"""
-
 import array
 from prettytable import PrettyTable
 from textwrap import wrap
@@ -33,6 +25,14 @@ from xframes.util import make_internal_url, classify_type
 from xframes.xarray import XArray
 import xframes
 import util
+
+"""
+Copyright (c) 2014, Dato, Inc.
+All rights reserved.
+
+Copyright (c) 2015, Atigeo, Inc.
+All rights reserved.
+"""
 
 __all__ = ['XFrame']
 
@@ -205,23 +205,23 @@ class XFrame(XObject):
         elif _format == 'xarray':
             if type(data) is not XArray:
                 raise ValueError('Data is not XArray')
-            self._impl = XFrameImpl().add_column(data._impl, '')
+            self._impl = XFrameImpl.from_xarray(data.impl())
         elif _format == 'array':
             if len(data) > 0:
                 unique_types = set([type(x) for x in data if x is not None])
                 if len(unique_types) == 1 and XArray in unique_types:
                     xf = XFrameImpl()
                     for arr in data:
-                        xf = xf.add_column(arr._impl, '')
+                        xf = xf.add_column(arr.impl(), '')
                     self._impl = xf
                 elif XArray in unique_types:
                     raise ValueError('Cannot create XFrame from mix of regular values and XArrays.')
                 else:
-                    self._impl = XFrameImpl().add_column(XArray(data)._impl, '')
+                    self._impl = XFrameImpl.from_xarray(XArray(data).impl())
             else:
                 self._impl = XFrameImpl()
         elif _format == 'iter':
-            self._impl = XFrameImpl().add_column(XArray(data)._impl, '')
+            self._impl = XFrameImpl.from_xarray(XArray(data).impl())
         elif _format == 'dict':
             if type(data) is not dict:
                 raise ValueError('Data is not dictionary')
@@ -230,7 +230,7 @@ class XFrame(XObject):
                 if type(val) == XArray:
                     xf = xf.add_column(val._impl, key)
                 else:
-                    xf = xf.add_column(XArray(val)._impl, key)
+                    xf = xf.add_column(XArray(val).impl(), key)
             self._impl = xf
         elif _format == 'iteritems':
             if data is None:
@@ -239,32 +239,32 @@ class XFrame(XObject):
             for key, val in iter(sorted(data.iteritems())):
                 if not hasattr(val, '__iter__'):
                     raise TypeError('Iterator values must be iterable.')
-                xf = xf.add_column(XArray(val)._impl, key)
+                xf = xf.add_column(XArray(val).impl(), key)
             self._impl = xf
         elif _format == 'csv':
             if not isinstance(data, basestring):
                 raise ValueError('Csv path is not a string')
             url = make_internal_url(data)
             tmpxf = XFrame.read_csv(url, delimiter=',', header=True, verbose=verbose)
-            self._impl = tmpxf._impl
+            self._impl = tmpxf.impl()
         elif _format == 'tsv':
             if not isinstance(data, basestring):
                 raise ValueError('Tsv path is not a string')
             url = make_internal_url(data)
             tmpxf = XFrame.read_csv(url, delimiter='\t', header=True, verbose=verbose)
-            self._impl = tmpxf._impl
+            self._impl = tmpxf.impl()
         elif _format == 'psv':
             if not isinstance(data, basestring):
                 raise ValueError('Psv path is not a string')
             url = make_internal_url(data)
             tmpxf = XFrame.read_csv(url, delimiter='|', header=True, verbose=verbose)
-            self._impl = tmpxf._impl
+            self._impl = tmpxf.impl()
         elif _format == 'parquet':
             if not isinstance(data, basestring):
                 raise ValueError('Parquet path is not a string')
             url = make_internal_url(data)
             tmpxf = XFrame.read_parquet(url)
-            self._impl = tmpxf._impl
+            self._impl = tmpxf.impl()
         elif _format == 'xframe':
             if data is None:
                 raise ValueError('Empty XFrame')
@@ -488,6 +488,10 @@ class XFrame(XObject):
             If true, the output errors dict will be filled.
 
         See `read_csv` for the rest of the parameters.
+
+        Returns
+        -------
+        A new XFrame with the contents that were read.
         """
         na_values = na_values or '[NA]'
         parsing_config = dict()
@@ -508,7 +512,6 @@ class XFrame(XObject):
         if nrows is not None:
             parsing_config['row_limit'] = nrows
 
-        impl = XFrameImpl()
         internal_url = make_internal_url(url)
 
         # Attempt to automatically detect the column types. Either produce a
@@ -557,7 +560,7 @@ class XFrame(XObject):
             raise TypeError("Invalid type for column_type_hints. Must be a 'dict, 'list' or a single type.")
 
         try:
-            errors = impl.load_from_csv(internal_url, parsing_config, type_hints)
+            errors, impl = XFrameImpl.load_from_csv(internal_url, parsing_config, type_hints)
         except IOError:
             if column_type_inference_was_used:
                 # try again
@@ -565,7 +568,7 @@ class XFrame(XObject):
                 print >> stderr, 'Defaulting to column_type_hints=str'
                 type_hints = {'__all_columns__': str}
                 try:
-                    errors = impl.load_from_csv(internal_url, parsing_config, type_hints)
+                    errors, impl = XFrameImpl.load_from_csv(internal_url, parsing_config, type_hints)
                 except:
                     raise
             else:
@@ -965,11 +968,38 @@ class XFrame(XObject):
         return ret[0]
 
     @classmethod
-    def read_text(cls,
-                  url,
-                  delimiter=None,
-                  nrows=None,
-                  verbose=False):
+    def from_xarray(cls, arry, name):
+        """
+        Constructs a one column XFrame from an XArray and a column name.
+
+        Parameters
+        ----------
+        arry : XArray
+            The XArray that will become an XFrame of one column.
+
+        name: str
+            The column name.
+
+        Returns
+        -------
+        out: XFrame
+            Returns an XFrame with one column, containing the values in arry and with the given name.
+
+        Examples
+        Create an XFrame from an XArray.
+        >>>  print  XFrame.from_xarray(XArray([1, 2, 3]), 'name')
+        +------+
+        | name |
+        +------+
+        |  1   |
+        |  2   |
+        |  3   |
+        +------+
+        """
+        return XFrame(impl=XFrameImpl.from_xarray(arry.impl(), name))
+
+    @classmethod
+    def read_text(cls, url, delimiter=None,nrows=None, verbose=False):
         """
         Constructs an XFrame from a text file or a path to multiple text files.
 
@@ -1045,12 +1075,7 @@ class XFrame(XObject):
 
 
         """
-        impl = XFrameImpl()
-        impl.read_from_text(url,
-                            delimiter=delimiter,
-                            nrows=nrows,
-                            verbose=verbose)
-        return cls(impl=impl)
+        return cls(impl=XFrameImpl.read_from_text(url, delimiter=delimiter, nrows=nrows, verbose=verbose))
 
     @classmethod
     def read_parquet(cls, url):
@@ -1075,9 +1100,10 @@ class XFrame(XObject):
             The constructor can read parquet files.
 
         """
-        impl = XFrameImpl()
-        impl.load_from_parquet(url)
-        return cls(impl=impl)
+        return cls(impl=XFrameImpl.load_from_parquet(url))
+
+    def impl(self):
+        return self._impl
 
     def dump_debug_info(self):
         """
@@ -1308,7 +1334,7 @@ class XFrame(XObject):
         """
         if type(other) is not XArray:
             raise ValueError('Argument must be an XArray')
-        return XFrame(impl=self._impl.logical_filter(other._impl))
+        return XFrame(impl=self._impl.logical_filter(other.impl()))
 
     def select_rows(self, xa):
         """
@@ -1692,7 +1718,8 @@ class XFrame(XObject):
 
         """
         if fn is None:
-            fn = lambda row: row[col]
+            def fn(row):
+                return row[col]
         elif not inspect.isfunction(fn):
             raise TypeError('Input must be a function.')
         rows = self._impl.head_as_list(10)
@@ -1759,7 +1786,8 @@ class XFrame(XObject):
 
         """
         if fn is None:
-            fn = lambda row: [row[col] for col in cols]
+            def fn(row):
+                return [row[col] for col in cols]
         elif not inspect.isfunction(fn):
             raise TypeError('Input must be a function.')
         rows = self._impl.head_as_list(10)
@@ -2144,7 +2172,7 @@ class XFrame(XObject):
             remote URL. If the format is 'binary', a directory will be created
             at the location which will contain the xframe.
 
-        format : {'binary', 'csv', 'parquet'}, optional
+        file_format : {'binary', 'csv', 'parquet'}, optional
             Format in which to save the XFrame. Binary saved XFrames can be
             loaded much faster and without any format conversion losses. If not
             given, will try to infer the format from filename given. If file
@@ -2340,7 +2368,7 @@ class XFrame(XObject):
             raise TypeError('Must give column as XArray.')
         if not isinstance(name, str):
             raise TypeError('Invalid column name: must be str.')
-        return XFrame(impl=self._impl.add_column(col._impl, name))
+        return XFrame(impl=self._impl.add_column(col.impl(), name))
 
     def add_columns(self, cols, namelist=None):
         """
@@ -2763,7 +2791,7 @@ class XFrame(XObject):
 
             # set new column
             if key not in self.column_names():
-                self._impl.add_column_in_place(sa_value._impl, key)
+                self._impl.add_column_in_place(sa_value.impl(), key)
             else:
                 # special case if replacing the only column.
                 # server would fail the replacement if the new column has different
@@ -2934,14 +2962,16 @@ class XFrame(XObject):
         # check if the order of column name is the same
         for i in range(len(my_column_names)):
             if other_column_names[i] != my_column_names[i]:
-                raise RuntimeError('Column {} name is not the same in two XFrames, one is {} the other is {}.'.format(
-                        my_column_names[i], my_column_names[i], other_column_names[i]))
+                raise RuntimeError(
+                                   'Column {} name is not the same in two XFrames, one is {} the other is {}.'.format(
+                                   my_column_names[i], my_column_names[i], other_column_names[i]))
             # check column type
             if my_column_types[i] != other_column_types[i]:
-                raise RuntimeError('Column {} type is not the same in two XFrames, one is {} the other is {}.'.format(
-                        my_column_names[i], my_column_types[i], other_column_types))
+                raise RuntimeError(
+                                   'Column {} type is not the same in two XFrames, one is {} the other is {}.'.format(
+                                   my_column_names[i], my_column_types[i], other_column_types))
 
-        return XFrame(impl=self._impl.append(other._impl))
+        return XFrame(impl=self._impl.append(other.impl()))
 
     def groupby(self, key_columns, operations=None, *args):
         """
