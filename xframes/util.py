@@ -30,7 +30,7 @@ from pyspark.sql.types import StringType, BooleanType, \
     ShortType, IntegerType, LongType, \
     ArrayType, MapType
 
-from xframes.spark_context import spark_context
+from xframes.spark_context import CommonSparkContext
 from xframes.xobject import XObject
 from xframes import fileio
 
@@ -129,7 +129,7 @@ def make_internal_url(url):
             # url for files on local client, check if we are connecting to local server
             #
             # get spark context, get master, see if it starts with local
-            sc = spark_context()
+            sc = CommonSparkContext.spark_context()
             if sc.master.startswith('local'):
                 path_on_server = path
             else:
