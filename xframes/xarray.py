@@ -665,6 +665,12 @@ class XArray(XObject):
         """
         return self._impl.size()
 
+    def impl(self):
+        """
+        Get the impl.  For internal use.
+        """
+        return self._impl
+
     def dtype(self):
         """
         The data type of the XArray.
