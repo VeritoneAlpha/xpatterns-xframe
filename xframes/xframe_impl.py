@@ -23,6 +23,7 @@ from pyspark.sql.types import StructType, StructField
 import xframes.fileio as fileio
 from xframes.xobject_impl import XObjectImpl
 from xframes.traced_object import TracedObject
+from xframes.spark_context import CommonSparkContext
 from xframes.util import infer_type_of_rdd
 from xframes.util import cache, uncache, persist
 from xframes.util import is_missing, is_missing_or_empty
@@ -218,11 +219,12 @@ class XFrameImpl(XObjectImpl, TracedObject):
         cls._exit()
         return cls(rdd, names, types)
 
-    def load_from_csv(self, path, parsing_config, type_hints):
+    @classmethod
+    def load_from_csv(cls, path, parsing_config, type_hints):
         """
-        Load RDD from a csv file
+        Load RDD from a csv file and return a XFrameImpl
         """
-        self._entry(path=path, parsing_config=parsing_config, type_hints=type_hints)
+        cls._entry(path=path, parsing_config=parsing_config, type_hints=type_hints)
 
         def get_config(name):
             return parsing_config[name] if name in parsing_config else None
@@ -235,7 +237,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         store_errors = get_config('store_errors')
         errors = {}
 
-        sc = self.spark_context()
+        sc = CommonSparkContext().spark_context()
         raw = XRdd(sc.textFile(path))
         # parsing_config
         # 'row_limit': 100, 
@@ -398,25 +400,26 @@ class XFrameImpl(XObjectImpl, TracedObject):
         def cast_row(row, types, names):
             return tuple([cast_val(val, typ, name) for val, typ, name in zip(row, types, names)])
 
-        # TODO -- if cast fails, then stopre None
-        if len(types) == 0 or all([t == str for t in types]):
+        # TODO -- if cast fails, then store None
+        if not (len(types) == 0 or all([t == str for t in types])):
             res = res.map(lambda row: cast_row(row, types, col_names))
             if row_limit is None:
                 persist(res)
-            self._replace(res, col_names, column_types)
+#            self._replace(res, col_names, column_types)
 
-        self._exit()
+        cls._exit()
         # returns a dict of errors
-        return errors
+        return errors, XFrameImpl(res, col_names, column_types)
 
     # noinspection PyUnusedLocal
-    def read_from_text(self, path, delimiter, nrows, verbose):
+    @classmethod
+    def read_from_text(cls, path, delimiter, nrows, verbose):
         """
         Load RDD from a text file
         """
         # TODO handle nrows, verbose
-        self._entry(path=path)
-        sc = self.spark_context()
+        cls._entry(path=path, delimiter=delimiter, nrows=nrows)
+        sc = CommonSparkContext.spark_context()
         if delimiter is None:
             rdd = sc.textFile(path)
             res = rdd.map(lambda line: [line.encode('utf-8')])
@@ -433,25 +436,24 @@ class XFrameImpl(XObjectImpl, TracedObject):
             res = rdd.values().map(lambda line: (fixup_line(line), ))
         col_names = ['text']
         col_types = [str]
-        self._exit()
-        return self._replace(res, col_names, col_types)
+        cls._exit()
+        return XFrameImpl(res, col_names, col_types)
 
-    def load_from_parquet(self, path):
+    @classmethod
+    def load_from_parquet(cls, path):
         """
         Load RDD from a parquet file
         """
-        self._entry(path=path)
-        sqlc = self.spark_sql_context()
+        cls._entry(path=path)
+        sqlc = CommonSparkContext.spark_sql_context()
         s_rdd = sqlc.parquetFile(path)
         schema = s_rdd.schema
         col_names = [str(col.name) for col in schema.fields]
         col_types = [to_ptype(col.dataType) for col in schema.fields]
 
-        def row_to_tuple(row):
-            return tuple([row[i] for i in range(len(row))])
-        rdd = s_rdd.map(row_to_tuple)
-        self._exit()
-        return self._replace(rdd, col_names, col_types)
+        rdd = s_rdd.map(lambda row: tuple(row))
+        cls._exit()
+        return XFrameImpl(rdd, col_names, col_types)
 
     # Save
     def save(self, path):
@@ -760,6 +762,16 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._exit()
         return self._rv(self._rdd)
 
+    @classmethod
+    def from_xarray(cls, arry_impl, name=None):
+        cls._entry(name=name)
+        name = name or 'X.0'
+        col_names = [name]
+        col_types = [arry_impl.elem_type]
+        rdd = arry_impl.rdd().map(lambda val: (val,))
+        cls._exit()
+        return XFrameImpl(rdd, col_names, col_types)
+
     def add_column(self, col, name):
         """
         Create a new xFrame with one additional column.
@@ -770,12 +782,18 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         self._entry(name=name)
         col_index = len(self.col_names)
-        if name == '':
-            name = 'X{}'.format(col_index)
-        if name in self.col_names:
-            raise ValueError("Column name already exists: '{}'.".format(name))
+        if name is None or len(name) == 0:
+            new_name = 'X.{}'.format(col_index)
+            while new_name in self.column_names():
+                col_index += 1
+        elif name in self.column_names():
+            new_name = '{}.{}'.format(name, col_index)
+            while new_name in self.column_names():
+                col_index += 1
+        else:
+            new_name = name
         col_names = copy.copy(self.col_names)
-        col_names.append(name)
+        col_names.append(new_name)
         col_types = copy.copy(self.column_types)
         col_types.append(col.elem_type)
         # zip the data into the rdd, then shift into the tuple
