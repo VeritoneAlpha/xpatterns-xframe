@@ -240,19 +240,19 @@ class XFrameImpl(XObjectImpl, TracedObject):
         sc = CommonSparkContext().spark_context()
         raw = XRdd(sc.textFile(path))
         # parsing_config
-        # 'row_limit': 100, 
-        # 'use_header': True, 
+        # 'row_limit': 100,
+        # 'use_header': True,
 
-        # 'double_quote': True, 
-        # 'skip_initial_space': True, 
-        # 'delimiter': '\n', 
-        # 'quote_char': '"', 
+        # 'double_quote': True,
+        # 'skip_initial_space': True,
+        # 'delimiter': '\n',
+        # 'quote_char': '"',
         # 'escape_char': '\\'
 
-        # 'comment_char': '', 
+        # 'comment_char': '',
         # 'na_values': ['NA'],
-        # 'continue_on_failure': True, 
-        # 'store_errors': False, 
+        # 'continue_on_failure': True,
+        # 'store_errors': False,
 
         def apply_comment(line, comment_char):
             return line.partition(comment_char)[0].rstrip()
@@ -286,9 +286,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 lines = raw.take(row_limit)
                 raw = XRdd(sc.parallelize(lines))
 
-        # TODO: Use per partition operations to create a reader once per partition
-        # See p 106: Learning Spark
-        # See mapPartitions
         def csv_to_array(line, params):
             line = line.replace('\r', '').replace('\n', '') + '\n'
             reader = csv.reader([line.encode('utf-8')], **params)
@@ -301,6 +298,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
             except Exception as e:
                 print 'Error', e
                 return ''
+        # TODO replace this with code from Jonathan to return errors and to 
+        #    parse within partition
         res = raw.map(lambda row: csv_to_array(row, params))
 
         # use first row, if available, to make column names
@@ -405,10 +404,9 @@ class XFrameImpl(XObjectImpl, TracedObject):
             res = res.map(lambda row: cast_row(row, types, col_names))
             if row_limit is None:
                 persist(res)
-#            self._replace(res, col_names, column_types)
 
         cls._exit()
-        # returns a dict of errors
+        # returns a dict of errors and XFrameImpl
         return errors, XFrameImpl(res, col_names, column_types)
 
     # noinspection PyUnusedLocal
@@ -458,7 +456,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
     # Save
     def save(self, path):
         """
-        Save to a file.  
+        Save to a file.
 
         Saved in an efficient internal format, intended for reading back into an RDD.
         """

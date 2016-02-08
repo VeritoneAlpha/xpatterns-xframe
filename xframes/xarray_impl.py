@@ -124,7 +124,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         Note
         ----
         Values must not only be iterable, but also it must support len and __getitem__
-        
+
         Modifies the existing RDD: does not return a new XArray.
         """
         cls._entry(dtype=dtype, ignore_cast_failure=ignore_cast_failure)
