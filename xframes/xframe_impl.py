@@ -298,7 +298,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
             except Exception as e:
                 print 'Error', e
                 return ''
-        # TODO replace this with code from Jonathan to return errors and to 
+        # TODO replace this with code from Jonathan to return errors and to
         #    parse within partition
         res = raw.map(lambda row: csv_to_array(row, params))
 

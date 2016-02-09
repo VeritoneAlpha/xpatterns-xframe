@@ -228,7 +228,7 @@ class XFrame(XObject):
             xf = XFrameImpl()
             for key, val in iter(sorted(data.iteritems())):
                 if type(val) == XArray:
-                    xf = xf.add_column(val._impl, key)
+                    xf = xf.add_column(val.impl(), key)
                 else:
                     xf = xf.add_column(XArray(val).impl(), key)
             self._impl = xf
@@ -999,7 +999,7 @@ class XFrame(XObject):
         return XFrame(impl=XFrameImpl.from_xarray(arry.impl(), name))
 
     @classmethod
-    def read_text(cls, url, delimiter=None,nrows=None, verbose=False):
+    def read_text(cls, url, delimiter=None, nrows=None, verbose=False):
         """
         Constructs an XFrame from a text file or a path to multiple text files.
 
@@ -1087,9 +1087,6 @@ class XFrame(XObject):
         url : string
             Location of the parquet file to load. 
 
-        verbose : bool, optional
-            If True, print the progress while reading the file.
-
         Returns
         -------
         out : XFrame
@@ -1158,10 +1155,8 @@ class XFrame(XObject):
             cols[col_name] = [row[index] for row in head_rows]
 
         def truncate_str(s, wrap_str=False):
-            """
-            Truncate and optionally wrap the input string as unicode, replace
-            unconvertible character with a diamond ?.
-            """
+            # Truncate and optionally wrap the input string as unicode, replace
+            # unconvertible character with a diamond ?.
             s = repr(s)
             # repr adds the escape characters. but also adds quotes around
             # the string
@@ -2962,14 +2957,12 @@ class XFrame(XObject):
         # check if the order of column name is the same
         for i in range(len(my_column_names)):
             if other_column_names[i] != my_column_names[i]:
-                raise RuntimeError(
-                                   'Column {} name is not the same in two XFrames, one is {} the other is {}.'.format(
-                                   my_column_names[i], my_column_names[i], other_column_names[i]))
+                raise RuntimeError('Column {} name is not the same in two XFrames, one is {} the other is {}.'
+                    .format(my_column_names[i], my_column_names[i], other_column_names[i]))
             # check column type
             if my_column_types[i] != other_column_types[i]:
-                raise RuntimeError(
-                                   'Column {} type is not the same in two XFrames, one is {} the other is {}.'.format(
-                                   my_column_names[i], my_column_types[i], other_column_types))
+                raise RuntimeError('Column {} type is not the same in two XFrames, one is {} the other is {}.'
+                    .format(my_column_names[i], my_column_types[i], other_column_types))
 
         return XFrame(impl=self._impl.append(other.impl()))
 
