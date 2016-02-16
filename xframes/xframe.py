@@ -574,7 +574,7 @@ class XFrame(XObject):
             else:
                 raise
 
-        return cls(impl=impl), {f: XArray(impl=es) for (f, es) in errors.iteritems()}
+        return cls(impl=impl), {f: XArray(impl=es) for f, es in errors.iteritems() if es.size() != 0 }
 
     @classmethod
     def read_csv_with_errors(cls,
@@ -592,9 +592,21 @@ class XFrame(XObject):
                              verbose=False):
         """
         Constructs an XFrame from a CSV file or a path to multiple CSVs, and
-        returns a pair containing the XFrame and a dict of filenames to XArrays
-        indicating for each file, what are the incorrectly parsed lines
+        returns a pair containing the XFrame and a dict of error type to XArrays
+        indicating for each type, what are the incorrectly parsed lines
         encountered.
+
+        The kinds of errors that are detected are:
+            * width -- The row has the wrong number of columns.
+            * header -- The first row in the file did not parse correctly.  This row is used to
+                        determine the table width, so the rest of the file is not processed.
+                        The result is an empty XFrame.
+            * csv -- The csv parser raised a csv.Error exception.  This can be caused by having an
+                     unacceptable character, such as a null byte, in the input.
+                     This error interrupts processing, so all remaining data in
+                     the input file is not processed.
+            * system -- The csv parser raised a SystemError.  his error interrupts processing,
+                     so all remaining data in the input file is not processed.
 
         Parameters
         ----------
@@ -1136,9 +1148,10 @@ class XFrame(XObject):
         -------
         out : list[PrettyTable]
         """
-        # TODO use take to get just the beginning rows
         # We are going to need a column of values at a time
         # Take should return a list of tuples
+        if self._impl.rdd() is None:
+            return [PrettyTable()]
         head_rows = self._impl.rdd().take(max_rows_to_display + 1)
         if len(head_rows) == 0:
             return [PrettyTable()]
