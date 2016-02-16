@@ -347,8 +347,45 @@ class TestXFrameReadCsvWithErrors(unittest.TestCase):
     Tests XFrame read_csv_with_errors
     """
 
-    def test_read_csv_with_errors(self):
-        pass
+    def test_read_csv_no_errors(self):
+        path = 'files/test-frame.csv'
+        res, errs = XFrame.read_csv_with_errors(path)
+        self.assertEqual(3, len(res))
+        self.assertEqual({}, errs)
+
+    def test_read_csv_width_error(self):
+        path = 'files/test-frame-width-err.csv'
+        res, errs = XFrame.read_csv_with_errors(path)
+        self.assertIn('width', errs)
+        width_errs = errs['width']
+        self.assertIsInstance(width_errs, XArray)
+        self.assertEqual(2, len(width_errs))
+        self.assertEqual('1', width_errs[0])
+        self.assertEqual('2,x,y', width_errs[1])
+        self.assertEqual(2, len(res))
+
+    def test_read_csv_null_error(self):
+        path = 'files/test-frame-null.csv'
+        res, errs = XFrame.read_csv_with_errors(path)
+        self.assertIn('csv', errs)
+        csv_errs = errs['csv']
+        self.assertIsInstance(csv_errs, XArray)
+        self.assertEqual(1, len(csv_errs))
+        self.assertEqual('2,\x00b', csv_errs[0])
+        self.assertEqual(1, len(res))
+
+    def test_read_csv_null_header_error(self):
+        path = 'files/test-frame-null-header.csv'
+        res, errs = XFrame.read_csv_with_errors(path)
+        self.assertIn('header', errs)
+        csv_errs = errs['header']
+        self.assertIsInstance(csv_errs, XArray)
+        self.assertEqual(1, len(csv_errs))
+        self.assertEqual('id,\x00val', csv_errs[0])
+        self.assertEqual(0, len(res))
+
+    # Cannot figure out how to cause SystemError in csv reader.
+    # But it happened one time
 
 
 class TestXFrameReadCsv(unittest.TestCase):
