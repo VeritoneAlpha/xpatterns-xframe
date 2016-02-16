@@ -717,7 +717,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
                 return ApplyError('Error converting "{}" to {}'.format(fnx, dtype))
 
         res = self._rdd.map(lambda x: apply_and_cast(x, fn, dtype, skip_undefined))
-        # search for type error and throw exception
+        # search for type error and raise exception
         # TODO this forces evaluatuion -- consider not doing it
         errs = res.filter(lambda x: type(x) is ApplyError).take(100)
         if len(errs) > 0:
@@ -758,7 +758,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
 
         res = self._rdd.flatMap(lambda x: apply_and_cast(x, fn, dtype, skip_undefined))
 
-        # search for type error and throw exception
+        # search for type error and raise exception
         try:
             errs = res.filter(lambda x: type(x) is ApplyError).take(100)
         except Exception:
