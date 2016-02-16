@@ -5,6 +5,7 @@
 
 # Do this if operating in a virtual environment.
 source ../venv/bin/activate
+export PS1='(xframes) '${PS1}
 
 # XFRAMES_HOME is used to find config.ini and xframes package
 export XFRAMES_HOME=`pwd`
