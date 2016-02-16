@@ -25,16 +25,22 @@ from xframes.xobject_impl import XObjectImpl
 from xframes.traced_object import TracedObject
 from xframes.spark_context import CommonSparkContext
 from xframes.util import infer_type_of_rdd
-from xframes.util import cache, uncache, persist
+from xframes.util import cache, uncache, persist, unpersist
 from xframes.util import is_missing, is_missing_or_empty
 from xframes.util import to_ptype, to_schema_type, pytype_from_dtype, safe_cast_val
 from xframes.util import distribute_seed
 import xframes
+from xframes.xarray_impl import XArrayImpl
 from xframes.xrdd import XRdd
 from xframes.cmp_rows import CmpRows
 from xframes.aggregator_impl import aggregator_properties
 
+# Used to save the original line being parsed.
+# If there are any errors, then the line is picked up from here.
+saved_line = None
 
+
+# noinspection PyUnresolvedReferences,PyShadowingNames,PyIncorrectDocstring
 def name_col(existing_col_names, proposed_name):
     """ Give a column a unique name.
 
@@ -50,7 +56,7 @@ def name_col(existing_col_names, proposed_name):
     return candidate
 
 
-# noinspection PyUnresolvedReferences,PyShadowingNames
+# noinspection PyUnresolvedReferences,PyShadowingNames,PyIncorrectDocstring
 class XFrameImpl(XObjectImpl, TracedObject):
     """ Implementation for XFrame. """
 
@@ -183,6 +189,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         cls._exit()
         return cls(xf_rdd, xf_names, xf_types)
 
+    # noinspection SqlNoDataSourceInspection
     @classmethod
     def load_from_hive(cls, dataset):
         """
@@ -231,11 +238,10 @@ class XFrameImpl(XObjectImpl, TracedObject):
         row_limit = get_config('row_limit')
         use_header = get_config('use_header')
         comment_char = get_config('comment_char')
+        store_errors = get_config('store_errors')
         na_values = get_config('na_values')
         if not type(na_values) == list:
             na_values = [na_values]
-        store_errors = get_config('store_errors')
-        errors = {}
 
         sc = CommonSparkContext().spark_context()
         raw = XRdd(sc.textFile(path))
@@ -286,46 +292,101 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 lines = raw.take(row_limit)
                 raw = XRdd(sc.parallelize(lines))
 
-        def csv_to_array(line, params):
-            line = line.replace('\r', '').replace('\n', '') + '\n'
-            reader = csv.reader([line.encode('utf-8')], **params)
+        # read and parse a csv file in a partition
+        def read_csv_stream(f, params, num_columns):
+            def record_input(_f):
+                global saved_line
+                for line in _f:
+                    saved_line = line
+                    yield line
+
+            def strip_utf8_bom(_f):
+                for line in _f:
+                    if len(line) > 3 and ord(line[0]) == 239 and ord(line[1]) == 187 and ord(line[2]) == 191:
+                        yield line[3:]
+                    else:
+                        yield line
+
+            def handle_unicode(_f):
+                # The Python 2 CSV parser can only handle ASCII and UTF-8.
+                for line in _f:
+                    if type(line) is str:
+                        yield line
+                    else:
+                        yield line.encode('utf-8')
+
+            def strip_comments(_f, comment_char):
+                # Wraps the file iterator, providing comment stripping
+                for line in _f:
+                    yield line.partition(comment_char)[0].rstrip()
+
+            def unquote(field):
+                if field is None or len(field) == 0:
+                    return field
+                if field[0] == '"' and field[-1] == '"':
+                    return field[1: -1]
+                if field[0] == "'" and field[-1] == "'":
+                    return field[1: -1]
+                return field
+
+            def strip_newline(field):
+                return field.replace('\n', '\\n').replace('\r', '\\r')
+
+            f = strip_utf8_bom(handle_unicode(record_input(f)))
+
+            params = copy.copy(params)
+
+            if 'commentchar' in params:
+                commentchar = params['commentchar']
+                del params['commentchar']
+                f = strip_comments(f, commentchar)
+
+            reader = csv.reader(f, **params)
+
             try:
-                res = reader.next()
-                return res
-            except IOError:
-                print 'Malformed line:', line
-                return ''
-            except Exception as e:
-                print 'Error', e
-                return ''
-        # TODO replace this with code from Jonathan to return errors and to
-        #    parse within partition
-        res = raw.map(lambda row: csv_to_array(row, params))
+                for row in reader:
+                    # get rid of newline in fields
+                    # get rid of quotes around fields
+                    row = [unquote(strip_newline(col)) for col in row]
+                    if num_columns is not None and len(row) != num_columns:
+                        yield 'width', saved_line
+                    else:
+                        yield 'data', row
+            except csv.Error:
+                yield 'csv', saved_line
+            except SystemError:
+                yield 'system', saved_line
+
+        errs = {}
 
         # use first row, if available, to make column names
-        first = res.first()
+        first_raw = raw.first()
+        res = read_csv_stream([first_raw], params, num_columns=None).next()
+        if res[0] != 'data':
+            errs['header'] = XArrayImpl(rdd=sc.parallelize([res[1]]), elem_type=str)
+            return errs, XFrameImpl()
+        first = res[1]
         if use_header:
             col_names = [item.strip() for item in first]
         else:
             col_names = ['X.{}'.format(i) for i in range(len(first))]
         col_count = len(col_names)
 
+        parsed = raw.mapPartitions(lambda partition:
+                                   read_csv_stream(partition, params, col_count))
+
+        persist(parsed)
+        res = parsed.filter(lambda tup: tup[0] == 'data').values()
+        if store_errors:
+            errs['width'] = XArrayImpl(rdd=parsed.filter(lambda tup: tup[0] == 'width').values(), elem_type=str)
+            errs['csv'] = XArrayImpl(rdd=parsed.filter(lambda tup: tup[0] == 'csv').values(), elem_type=str)
+            errs['system'] = XArrayImpl(rdd=parsed.filter(lambda tup: tup[0] == 'system').values(), elem_type=str)
+        unpersist(parsed)
+
         # filter out all rows that match header
         # this could potentialy filter data rows, but we will ignore that for now
         if use_header:
             res = res.filter(lambda row: row != first)
-
-        if store_errors:
-            before_count = res.count()
-            res = res.filter(lambda row: len(row) == col_count)
-            after_count = res.count()
-            filter_diff = before_count - after_count
-            if filter_diff > 0:
-                print >>stderr, '{} rows dropped because of incorrect column count'.format(filter_diff)
-                errors['dropped'] = filter_diff
-        else:
-            # filter out rows with invalid col count
-            res = res.filter(lambda row: len(row) == col_count)
 
         # Transform hints: __X{}__ ==> name.
         # If it is not of this form, leave it alone.
@@ -407,7 +468,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
         cls._exit()
         # returns a dict of errors and XFrameImpl
-        return errors, XFrameImpl(res, col_names, column_types)
+        return errs, XFrameImpl(res, col_names, column_types)
 
     # noinspection PyUnusedLocal
     @classmethod
@@ -844,10 +905,10 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         self._entry(namelist=namelist)
         names = self.col_names + namelist
-        types = self.column_types + [col._impl.elem_type for col in cols]
+        types = self.column_types + [col.impl().elem_type for col in cols]
         rdd = self._rdd
         for col in cols:
-            rdd = rdd.zip(col._impl.rdd())
+            rdd = rdd.zip(col.impl().rdd())
 
             def move_inside(old_val, new_elem):
                 return tuple(old_val + (new_elem, ))
@@ -863,10 +924,10 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         self._entry(namelist=namelist)
         names = self.col_names + namelist
-        types = self.column_types + [col._impl.elem_type for col in cols]
+        types = self.column_types + [col.impl().elem_type for col in cols]
         rdd = self._rdd
         for col in cols:
-            rdd = rdd.zip(col._impl.rdd())
+            rdd = rdd.zip(col.impl().rdd())
 
             def move_inside(old_val, new_elem):
                 return tuple(old_val + (new_elem, ))
@@ -885,13 +946,13 @@ class XFrameImpl(XObjectImpl, TracedObject):
         This operation returns a new XFrame.
         """
         self._entry()
-        names = self.col_names + other._impl.col_names
-        types = self.column_types + other._impl.column_types
+        names = self.col_names + other.impl().col_names
+        types = self.column_types + other.impl().column_types
 
         def merge(old_cols, new_cols):
             return old_cols + new_cols
 
-        rdd = self._rdd.zip(other._impl.rdd())
+        rdd = self._rdd.zip(other.impl().rdd())
         res = rdd.map(lambda pair: merge(pair[0], pair[1]))
         self._exit(names=names, types=types)
         return self._rv(res, names, types)
@@ -903,13 +964,13 @@ class XFrameImpl(XObjectImpl, TracedObject):
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry()
-        names = self.col_names + other._impl.col_names
-        types = self.column_types + other._impl.column_types
+        names = self.col_names + other.impl().col_names
+        types = self.column_types + other.impl().column_types
 
         def merge(old_cols, new_cols):
             return old_cols + new_cols
 
-        rdd = self._rdd.zip(other._impl.rdd())
+        rdd = self._rdd.zip(other.impl().rdd())
         res = rdd.map(lambda pair: merge(pair[0], pair[1]))
         self._exit(names=names, types=types)
         return self._replace(res, names, types)
@@ -1113,8 +1174,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry()
-        res = col._impl.rdd().map(lambda item: (item, ))
-        col_type = infer_type_of_rdd(col._impl.rdd())
+        res = col.impl().rdd().map(lambda item: (item, ))
+        col_type = infer_type_of_rdd(col.impl().rdd())
         self.column_types[0] = col_type
         self._exit()
         return self._replace(res)
@@ -1126,7 +1187,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         This operation returns a new XFrame.
         """
         self._entry(column_name=column_name)
-        rdd = self._rdd.zip(col._impl.rdd())
+        rdd = self._rdd.zip(col.impl().rdd())
         col_num = self.col_names.index(column_name)
 
         def replace_col(row_col, col_num):
@@ -1137,7 +1198,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         res = rdd.map(lambda row_col: replace_col(row_col, col_num))
         col_names = copy.copy(self.column_names())
         col_names[col_num] = column_name
-        col_type = infer_type_of_rdd(col._impl.rdd())
+        col_type = infer_type_of_rdd(col.impl().rdd())
         col_types = copy.copy(self.column_types)
         col_types[col_num] = col_type
         self._exit()
@@ -1150,7 +1211,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry(column_name=column_name)
-        rdd = self._rdd.zip(col._impl.rdd())
+        rdd = self._rdd.zip(col.impl().rdd())
         col_num = self.col_names.index(column_name)
 
         def replace_col(row_col, col_num):
@@ -1159,7 +1220,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
             row[col_num] = col
             return tuple(row)
         res = rdd.map(lambda row_col: replace_col(row_col, col_num))
-        col_type = infer_type_of_rdd(col._impl.rdd())
+        col_type = infer_type_of_rdd(col.impl().rdd())
         self.column_types[col_num] = col_type
         self._exit()
         return self._replace(res)
@@ -1543,7 +1604,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         res = self._rdd.filter(filter_fun)
         return self._rv(res)
 
-
     def groupby_aggregate(self, key_columns_array, group_columns, group_output_columns, group_ops):
         """
         Perform a group on the key_columns followed by aggregations on the
@@ -1720,10 +1780,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
                     left_row = tuple([None] * left_count)
                 if right_row is None:
                     right_row = tuple([None] * right_count)
-                return (left_row, right_row)
-
-            #res = pairs.map(lambda row: combine_results(row[0], row[1],
-            #                left_count, right_count))
+                return left_row, right_row
 
 #            print 'res', res.collect()
 
@@ -1771,7 +1828,9 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._entry(sort_column_names=sort_column_names, sort_column_orders=sort_column_orders)
 
         sort_column_indexes = [self.col_names.index(name) for name in sort_column_names]
-        key_fn = lambda row: CmpRows(row, sort_column_indexes, sort_column_orders)
+
+        def key_fn(row):
+            return CmpRows(row, sort_column_indexes, sort_column_orders)
 
         res = self._rdd.sortBy(keyfunc=key_fn)
         self._exit()
