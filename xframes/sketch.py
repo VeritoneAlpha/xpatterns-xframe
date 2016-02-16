@@ -447,7 +447,7 @@ class Sketch(object):
         1%: meaning that if you ask for the 0.55 quantile, the returned value is
         guaranteed to be between the true 0.54 quantile and the true 0.56
         quantile. The quantiles are only defined for numeric arrays and this
-        function will throw an exception if called on a sketch constructed for a
+        function will raise an exception if called on a sketch constructed for a
         non-numeric column.
 
         Parameters
