@@ -133,7 +133,7 @@ class XArray(XObject):
             self._impl = impl
             return
         if type(data) == XArray:
-            self._impl = data._impl
+            self._impl = data.impl()
             return
 
         # we need to perform type inference
@@ -225,14 +225,14 @@ class XArray(XObject):
         return cls(impl=XArrayImpl.load_from_const(value, size))
 
     @classmethod
-    def from_sequence(cls, *args):
+    def from_sequence(cls, start, stop=None):
         """
         Constructs an XArray by generating a sequence of consecutive numbers.
 
         Parameters
         ----------
         start : int
-            If `end` is not given, the sequence consists of numbers 0 .. `start`-1.
+            If `stop` is not given, the sequence consists of numbers 0 .. `start`-1.
             Otherwise, the sequence starts with `start`.
 
         stop : int, optional
@@ -254,26 +254,17 @@ class XArray(XObject):
         >>> XArray(range(10, 1000))
 
         """
-        start = None
-        stop = None
-        # fill with args. This checks for from_sequence(100), from_sequence(10,100)
-        if len(args) == 1:
-            stop = args[0]
-        elif len(args) == 2:
-            start = args[0]
-            stop = args[1]
+        if type(start) not in (int, ) or (stop is not None and type(stop) not in (int, )):
+            raise TypeError("Expects 'start' and 'stop' to be an int.")
+        if stop is None:
+            return _create_sequential_xarray(start)
 
-        if stop is None and start is None:
-            raise TypeError("Expects at least one argument. Supply 'stop' or 'start'.")
-        elif start is None:
-            return _create_sequential_xarray(stop)
-        else:
-            size = stop - start
-            # this matches the behavior of range
-            # i.e. range(100,10) just returns an empty array
-            if size < 0:
-                size = 0
-            return _create_sequential_xarray(size, start)
+        size = stop - start
+        # this matches the behavior of range
+        # i.e. range(100,10) just returns an empty array
+        if size < 0:
+            size = 0
+        return _create_sequential_xarray(size, start)
 
     def _get_content_identifier(self):
         """
@@ -330,7 +321,13 @@ class XArray(XObject):
         """
         Convert the current XArray to the Spark RDD.
 
+        Parameters
         ----------
+        number_of_partitions: int, optional
+            The number of partitions to create in the rdd.  Defaults to 4.
+
+        Returns
+        -------
         out: RDD
             The internal RDD used to stores XArray instances.
 
@@ -433,7 +430,7 @@ class XArray(XObject):
         addition of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(impl=self._impl.vector_operator(other._impl, '+'))
+            return XArray(impl=self._impl.vector_operator(other.impl(), '+'))
         else:
             return XArray(impl=self._impl.left_scalar_operator(other, '+'))
 
@@ -444,7 +441,7 @@ class XArray(XObject):
         subtraction of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(impl=self._impl.vector_operator(other._impl, '-'))
+            return XArray(impl=self._impl.vector_operator(other.impl(), '-'))
         else:
             return XArray(impl=self._impl.left_scalar_operator(other, '-'))
 
@@ -455,7 +452,7 @@ class XArray(XObject):
         multiplication of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(impl=self._impl.vector_operator(other._impl, '*'))
+            return XArray(impl=self._impl.vector_operator(other.impl(), '*'))
         else:
             return XArray(impl=self._impl.left_scalar_operator(other, '*'))
 
@@ -466,7 +463,7 @@ class XArray(XObject):
         an element-wise division of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(impl=self._impl.vector_operator(other._impl, '/'))
+            return XArray(impl=self._impl.vector_operator(other.impl(), '/'))
         else:
             return XArray(impl=self._impl.left_scalar_operator(other, '/'))
 
@@ -485,7 +482,7 @@ class XArray(XObject):
         an element-wise comparison of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(impl=self._impl.vector_operator(other._impl, '<'))
+            return XArray(impl=self._impl.vector_operator(other.impl(), '<'))
         else:
             return XArray(impl=self._impl.left_scalar_operator(other, '<'))
 
@@ -496,7 +493,7 @@ class XArray(XObject):
         an element-wise comparison of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(impl=self._impl.vector_operator(other._impl, '>'))
+            return XArray(impl=self._impl.vector_operator(other.impl(), '>'))
         else:
             return XArray(impl=self._impl.left_scalar_operator(other, '>'))
 
@@ -507,7 +504,7 @@ class XArray(XObject):
         an element-wise comparison of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(impl=self._impl.vector_operator(other._impl, '<='))
+            return XArray(impl=self._impl.vector_operator(other.impl(), '<='))
         else:
             return XArray(impl=self._impl.left_scalar_operator(other, '<='))
 
@@ -518,7 +515,7 @@ class XArray(XObject):
         an element-wise comparison of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(impl=self._impl.vector_operator(other._impl, '>='))
+            return XArray(impl=self._impl.vector_operator(other.impl(), '>='))
         else:
             return XArray(impl=self._impl.left_scalar_operator(other, '>='))
 
@@ -575,7 +572,7 @@ class XArray(XObject):
         an element-wise comparison of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(impl=self._impl.vector_operator(other._impl, '=='))
+            return XArray(impl=self._impl.vector_operator(other.impl(), '=='))
         else:
             return XArray(impl=self._impl.left_scalar_operator(other, '=='))
 
@@ -586,7 +583,7 @@ class XArray(XObject):
         an element-wise comparison of the two arrays.
         """
         if type(other) is XArray:
-            return XArray(impl=self._impl.vector_operator(other._impl, '!='))
+            return XArray(impl=self._impl.vector_operator(other.impl(), '!='))
         else:
             return XArray(impl=self._impl.left_scalar_operator(other, '!='))
 
@@ -595,7 +592,7 @@ class XArray(XObject):
         Perform a logical element-wise 'and' against another XArray.
         """
         if type(other) is XArray:
-            return XArray(impl=self._impl.vector_operator(other._impl, '&'))
+            return XArray(impl=self._impl.vector_operator(other.impl(), '&'))
         else:
             raise TypeError('XArray can only perform logical and against another XArray.')
 
@@ -604,7 +601,7 @@ class XArray(XObject):
         Perform a logical element-wise 'or' against another XArray.
         """
         if type(other) is XArray:
-            return XArray(impl=self._impl.vector_operator(other._impl, '|'))
+            return XArray(impl=self._impl.vector_operator(other.impl(), '|'))
         else:
             raise TypeError('XArray can only perform logical or against another XArray.')
 
@@ -620,7 +617,7 @@ class XArray(XObject):
         if type(other) is XArray:
             if len(other) != len(self):
                 raise IndexError('Cannot perform logical indexing on arrays of different length.')
-            return XArray(impl=self._impl.logical_filter(other._impl))
+            return XArray(impl=self._impl.logical_filter(other.impl()))
         elif type(other) is int:
             if other < 0:
                 other += len(self)
@@ -1260,7 +1257,8 @@ class XArray(XObject):
         """
 
         if fn is None:
-            fn = lambda x: x
+            def fn(x):
+                return x
         if not inspect.isfunction(fn):
             raise TypeError('Input must be a function.')
 
@@ -1971,7 +1969,7 @@ class XArray(XObject):
         if self.dtype() != other.dtype():
             raise RuntimeError('Data types in both XArrays have to be the same.')
 
-        return XArray(impl=self._impl.append(other._impl))
+        return XArray(impl=self._impl.append(other.impl()))
 
     def unique(self):
         """
