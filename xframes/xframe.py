@@ -574,7 +574,7 @@ class XFrame(XObject):
             else:
                 raise
 
-        return cls(impl=impl), {f: XArray(impl=es) for f, es in errors.iteritems() if es.size() != 0 }
+        return cls(impl=impl), {f: XArray(impl=es) for f, es in errors.iteritems() if es.size() != 0}
 
     @classmethod
     def read_csv_with_errors(cls,
