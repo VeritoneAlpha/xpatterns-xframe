@@ -355,7 +355,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
             except csv.Error:
                 yield 'csv', saved_line
             except SystemError:
-                yield 'system', saved_line
+                yield 'csv', saved_line
 
         errs = {}
 
@@ -380,7 +380,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         if store_errors:
             errs['width'] = XArrayImpl(rdd=parsed.filter(lambda tup: tup[0] == 'width').values(), elem_type=str)
             errs['csv'] = XArrayImpl(rdd=parsed.filter(lambda tup: tup[0] == 'csv').values(), elem_type=str)
-            errs['system'] = XArrayImpl(rdd=parsed.filter(lambda tup: tup[0] == 'system').values(), elem_type=str)
         unpersist(parsed)
 
         # filter out all rows that match header

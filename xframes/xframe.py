@@ -601,12 +601,13 @@ class XFrame(XObject):
             * header -- The first row in the file did not parse correctly.  This row is used to
                         determine the table width, so the rest of the file is not processed.
                         The result is an empty XFrame.
-            * csv -- The csv parser raised a csv.Error exception.  This can be caused by having an
-                     unacceptable character, such as a null byte, in the input.
-                     This error interrupts processing, so all remaining data in
+            * csv -- The csv parser raised a csv.Error or a SystemError exception.
+                     This can be caused by having an
+                     unacceptable character, such as a null byte, in the input,
+                     or by serious system errors.
+                     This presence of this error indicates that processing has been
+                     interrupted, so all remaining data in
                      the input file is not processed.
-            * system -- The csv parser raised a SystemError.  his error interrupts processing,
-                     so all remaining data in the input file is not processed.
 
         Parameters
         ----------
