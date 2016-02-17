@@ -28,7 +28,7 @@ from pyspark import StorageLevel
 from pyspark.sql.types import StringType, BooleanType, \
     DoubleType, FloatType, \
     ShortType, IntegerType, LongType, \
-    ArrayType, MapType
+    ArrayType, MapType, TimestampType
 
 from xframes.spark_context import CommonSparkContext
 from xframes.xobject import XObject
@@ -601,6 +601,8 @@ def to_ptype(schema_type):
         return list
     elif isinstance(schema_type, MapType):
         return dict
+    elif isinstance(schema_type, TimestampType):
+        return datetime.datetime
     else:
         return str
 
@@ -627,6 +629,8 @@ def to_schema_type(typ, elem):
         val_type = to_schema_type(type(elem.values()[0]), None)
         # todo set valueContainsNull correctly
         return MapType(key_type, val_type)
+    if typ == datetime.datetime:
+        return TimestampType()
     return StringType()
 
 def safe_cast_val(val, typ):
