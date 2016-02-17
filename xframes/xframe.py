@@ -521,17 +521,16 @@ class XFrame(XObject):
             try:
                 # Get the first 100 rows (using all the desired arguments).
                 # first row may be excluded (based on heder setting)
-                first_rows = xframes.XFrame.read_csv(
-                        url,
-                        nrows=100,
-                        column_type_hints=str,
-                        header=header,
-                        delimiter=delimiter,
-                        comment_char=comment_char,
-                        escape_char=escape_char,
-                        double_quote=double_quote,
-                        quote_char=quote_char,
-                        skip_initial_space=skip_initial_space)
+                first_rows = xframes.XFrame.read_csv(url,
+                                                     nrows=100,
+                                                     column_type_hints=str,
+                                                     header=header,
+                                                     delimiter=delimiter,
+                                                     comment_char=comment_char,
+                                                     escape_char=escape_char,
+                                                     double_quote=double_quote,
+                                                     quote_char=quote_char,
+                                                     skip_initial_space=skip_initial_space)
                 column_type_hints = XFrame._infer_column_types_from_lines(first_rows, na_values)
                 typelist = '[' + ','.join(t.__name__ for t in column_type_hints) + ']'
                 if verbose:
@@ -2874,12 +2873,11 @@ class XFrame(XObject):
         ----------
 
         key: int or slice
-
-        If `key` is:
-            * int
-                Returns a single row of the XFrame (the `key`th one) as a dictionary.
-            * slice
-                Returns an XFrame including only the sliced rows.
+            If `key` is:
+                * int:
+                    Returns a single row of the XFrame (the `key`th one) as a dictionary.
+                * slice
+                    Returns an XFrame including only the sliced rows.
 
         Returns
         -------
@@ -2972,11 +2970,11 @@ class XFrame(XObject):
         for i in range(len(my_column_names)):
             if other_column_names[i] != my_column_names[i]:
                 raise RuntimeError('Column {} name is not the same in two XFrames, one is {} the other is {}.'
-                    .format(my_column_names[i], my_column_names[i], other_column_names[i]))
+                                   .format(my_column_names[i], my_column_names[i], other_column_names[i]))
             # check column type
             if my_column_types[i] != other_column_types[i]:
                 raise RuntimeError('Column {} type is not the same in two XFrames, one is {} the other is {}.'
-                    .format(my_column_names[i], my_column_types[i], other_column_types))
+                                   .format(my_column_names[i], my_column_types[i], other_column_types))
 
         return XFrame(impl=self._impl.append(other.impl()))
 
