@@ -1154,7 +1154,6 @@ class XFrame(XObject):
         -------
         out : list[PrettyTable]
         """
-        # TODO use take to get just the beginning rows
         # We are going to need a column of values at a time
         # Take should return a list of tuples
         if self._impl.rdd() is None:
@@ -2496,9 +2495,6 @@ class XFrame(XObject):
             namelist = other.column_names()
 
             my_columns = set(self.column_names())
-#            for name in namelist:
-#                if name in my_columns:
-#                    raise ValueError("Column '{}' already exists in current XFrame.".format(name))
             return XFrame(impl=self._impl.add_columns_frame(cols))
         else:
             if not hasattr(col_list, '__iter__'):

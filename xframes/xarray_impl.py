@@ -193,7 +193,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
     def load_autodetect(cls, path, dtype):
         """
         Load from the given path.
-        
+
         This can be anything that spark will read from: local file or HDFS file.
         It can also be a directory, and spark will read and concatenate them all.
         """

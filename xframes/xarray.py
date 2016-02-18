@@ -613,7 +613,7 @@ class XArray(XObject):
         where the corresponding value in the other array evaluates to true.
         If the key is an integer this returns a single row of
         the XArray. If the key is a slice, this returns an XArray with the
-        sliced rows. 
+        sliced rows.
         """
         if isinstance(other, XArray):
             if len(other) != len(self):
@@ -2322,7 +2322,7 @@ class XArray(XObject):
                                    'XArray may be empty. ' +
                                    'Please explicitly provide column types.')
 
-            # infer column types for dict type at server side, 
+            # infer column types for dict type at server side,
             # for list and array, infer from client side
             if self.dtype() is not dict:
                 length = max(lengths)
@@ -2338,12 +2338,12 @@ class XArray(XObject):
                 else:
                     column_types = list()
                     for i in limit:
-                        t = [(x[i] if ((x is not None) and len(x) > i) else None) 
+                        t = [(x[i] if ((x is not None) and len(x) > i) else None)
                              for x in head_rows]
                         column_types.append(infer_type_of_list(t))
 
             else:                      # self.dtype() is dict
-                if limit is None:  
+                if limit is None:
                     keys = set()
                     for row in head_rows:
                         keys |= set(row.keys())

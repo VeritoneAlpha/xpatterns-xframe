@@ -2917,7 +2917,7 @@ class TestXFrameSplitDatetime(unittest.TestCase):
     """
 
     def test_split_datetime(self):
-        t = XFrame({'id': [1, 2, 3], 'val': [datetime(2011, 1, 1), 
+        t = XFrame({'id': [1, 2, 3], 'val': [datetime(2011, 1, 1),
                                              datetime(2012, 2, 2),
                                              datetime(2013, 3, 3)]})
         res = t.split_datetime('val')

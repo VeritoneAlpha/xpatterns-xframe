@@ -130,7 +130,7 @@ class TestXArrayConstructorLocal(unittest.TestCase):
 
 
 class TestXArrayConstructorRange(unittest.TestCase):
-    """ 
+    """
     Tests XArray constructors for sequential ranges.
     """
 
@@ -161,7 +161,7 @@ class TestXArrayConstructorRange(unittest.TestCase):
 
 
 class TestXArrayConstructFromRdd(unittest.TestCase):
-    """ 
+    """
     Tests XArray from_rdd class method
     """
 
@@ -171,7 +171,7 @@ class TestXArrayConstructFromRdd(unittest.TestCase):
 
 
 class TestXArrayConstructorLoad(unittest.TestCase):
-    """ 
+    """
     Tests XArray constructors that loads from file.
     """
 
@@ -215,7 +215,7 @@ class TestXArrayConstructorLoad(unittest.TestCase):
 
 
 class TestXArrayFromConst(unittest.TestCase):
-    """ 
+    """
     Tests XArray constructed from const.
     """
 
@@ -269,7 +269,7 @@ class TestXArrayFromConst(unittest.TestCase):
 
 
 class TestXArraySaveBinary(unittest.TestCase):
-    """ 
+    """
     Tests XArray save binary format
     """
     def test_save(self):
@@ -288,7 +288,7 @@ class TestXArraySaveBinary(unittest.TestCase):
 
 
 class TestXArraySaveText(unittest.TestCase):
-    """ 
+    """
     Tests XArray save text format
     """
     def test_save(self):
@@ -330,7 +330,7 @@ class TestXArraySaveCsv(unittest.TestCase):
 
 
 class TestXArrayRepr(unittest.TestCase):
-    """ 
+    """
     Tests XArray __repr__ function.
     """
     def test_repr(self):
@@ -342,7 +342,7 @@ Rows: 3
 
 
 class TestXArrayStr(unittest.TestCase):
-    """ 
+    """
     Tests XArray __str__ function.
     """
     def test_str(self):
@@ -358,7 +358,7 @@ class TestXArrayStr(unittest.TestCase):
 
 
 class TestXArrayNonzero(unittest.TestCase):
-    """ 
+    """
     Tests XArray __nonzero__ function
     """
     def test_nonzero_nonzero(self):
@@ -371,7 +371,7 @@ class TestXArrayNonzero(unittest.TestCase):
 
 
 class TestXArrayLen(unittest.TestCase):
-    """ 
+    """
     Tests XArray __len__ function
     """
     def test_len_nonzero(self):
@@ -384,7 +384,7 @@ class TestXArrayLen(unittest.TestCase):
 
 
 class TestXArrayIterator(unittest.TestCase):
-    """ 
+    """
     Tests XArray iteration function
     """
     def test_iter_empty(self):
@@ -404,7 +404,7 @@ class TestXArrayIterator(unittest.TestCase):
 
 
 class TestXArrayAddScalar(unittest.TestCase):
-    """ 
+    """
     Tests XArray Scalar Addition
     """
     # noinspection PyAugmentAssignment
@@ -420,7 +420,7 @@ class TestXArrayAddScalar(unittest.TestCase):
 
 
 class TestXArrayAddVector(unittest.TestCase):
-    """ 
+    """
     Tests XArray Vector Addition
     """
     def test_add_vector(self):
@@ -444,7 +444,7 @@ class TestXArrayAddVector(unittest.TestCase):
 
         
 class TestXArrayOpScalar(unittest.TestCase):
-    """ 
+    """
     Tests XArray Scalar operations other than addition
     """
     def test_sub_scalar(self):
@@ -566,7 +566,7 @@ class TestXArrayOpScalar(unittest.TestCase):
 
 # noinspection PyUnresolvedReferences
 class TestXArrayOpVector(unittest.TestCase):
-    """ 
+    """
     Tests XArray Vector operations other than addition
     """
     def test_sub_vector(self):
@@ -659,7 +659,7 @@ class TestXArrayOpVector(unittest.TestCase):
 
 
 class TestXArrayOpUnary(unittest.TestCase):
-    """ 
+    """
     Tests XArray Unary operations
     """
     def test_neg_unary(self):
@@ -685,7 +685,7 @@ class TestXArrayOpUnary(unittest.TestCase):
 
 
 class TestXArrayLogicalFilter(unittest.TestCase):
-    """ 
+    """
     Tests XArray logical filter (XArray indexed by XArray)
     """
     def test_logical_filter_array(self):
@@ -711,7 +711,7 @@ class TestXArrayLogicalFilter(unittest.TestCase):
 
 
 class TestXArrayCopyRange(unittest.TestCase):
-    """ 
+    """
     Tests XArray integer and range indexing
     """
     def test_copy_range_pos(self):
@@ -762,7 +762,7 @@ class TestXArrayCopyRange(unittest.TestCase):
 
 
 class TestXArraySize(unittest.TestCase):
-    """ 
+    """
     Tests XArray size operation
     """
     def test_size(self):
@@ -771,7 +771,7 @@ class TestXArraySize(unittest.TestCase):
 
 
 class TestXArrayDtype(unittest.TestCase):
-    """ 
+    """
     Tests XArray dtype operation
     """
     def test_dtype(self):
@@ -780,7 +780,7 @@ class TestXArrayDtype(unittest.TestCase):
 
 
 class TestXArrayHead(unittest.TestCase):
-    """ 
+    """
     Tests XArray head operation
     """
     def test_head(self):
@@ -797,7 +797,7 @@ class TestXArrayHead(unittest.TestCase):
 
 
 class TestXArrayVectorSlice(unittest.TestCase):
-    """ 
+    """
     Tests XArray vector_slice operation
     """
     def test_vector_slice_start_0(self):
@@ -839,7 +839,7 @@ class TestXArrayVectorSlice(unittest.TestCase):
 
 
 class TestXArrayCountWords(unittest.TestCase):
-    """ 
+    """
     Tests XArray count_words
     """
     def test_count_words(self):
@@ -847,7 +847,7 @@ class TestXArrayCountWords(unittest.TestCase):
 
 
 class TestXArrayCountNgrams(unittest.TestCase):
-    """ 
+    """
     Tests XArray count_ngrams
     """
     def test_count_ngrams(self):
@@ -855,7 +855,7 @@ class TestXArrayCountNgrams(unittest.TestCase):
 
 
 class TestXArrayApply(unittest.TestCase):
-    """ 
+    """
     Tests XArray apply
     """
     def test_apply_int(self):
@@ -898,7 +898,7 @@ class TestXArrayApply(unittest.TestCase):
 
 
 class TestXArrayFlatMap(unittest.TestCase):
-    """ 
+    """
     Tests XArray flat_map
     """
     def test_flat_map(self):
@@ -980,7 +980,7 @@ class TestXArrayFlatMap(unittest.TestCase):
 
 
 class TestXArrayFilter(unittest.TestCase):
-    """ 
+    """
     Tests XArray filter
     """
     def test_filter(self):
@@ -988,7 +988,7 @@ class TestXArrayFilter(unittest.TestCase):
 
 
 class TestXArraySample(unittest.TestCase):
-    """ 
+    """
     Tests XArray sample
     """
     def test_sample_no_seed(self):
@@ -1022,7 +1022,7 @@ class TestXArraySample(unittest.TestCase):
 
 
 class TestXArraySaveAsText(unittest.TestCase):
-    """ 
+    """
     Tests XArray save_as_text
     """
     def test_save_as_text(self):
@@ -1030,7 +1030,7 @@ class TestXArraySaveAsText(unittest.TestCase):
 
 
 class TestXArrayAll(unittest.TestCase):
-    """ 
+    """
     Tests XArray all
     """
     # int
@@ -1109,7 +1109,7 @@ class TestXArrayAll(unittest.TestCase):
 
 
 class TestXArrayAny(unittest.TestCase):
-    """ 
+    """
     Tests XArray any
     """
     # int
@@ -1240,7 +1240,7 @@ class TestXArrayAny(unittest.TestCase):
 
 
 class TestXArrayMax(unittest.TestCase):
-    """ 
+    """
     Tests XArray max
     """
     def test_max_empty(self):
@@ -1262,7 +1262,7 @@ class TestXArrayMax(unittest.TestCase):
 
 
 class TestXArrayMin(unittest.TestCase):
-    """ 
+    """
     Tests XArray min
     """
     def test_min_empty(self):
@@ -1284,7 +1284,7 @@ class TestXArrayMin(unittest.TestCase):
 
 
 class TestXArraySum(unittest.TestCase):
-    """ 
+    """
     Tests XArray sum
     """
     def test_sum_empty(self):
@@ -1318,7 +1318,7 @@ class TestXArraySum(unittest.TestCase):
 
 
 class TestXArrayMean(unittest.TestCase):
-    """ 
+    """
     Tests XArray mean
     """
     def test_mean_empty(self):
@@ -1340,7 +1340,7 @@ class TestXArrayMean(unittest.TestCase):
 
 
 class TestXArrayStd(unittest.TestCase):
-    """ 
+    """
     Tests XArray std
     """
     def test_std_empty(self):
@@ -1364,7 +1364,7 @@ class TestXArrayStd(unittest.TestCase):
 
 
 class TestXArrayVar(unittest.TestCase):
-    """ 
+    """
     Tests XArray var
     """
     def test_var_empty(self):
@@ -1388,7 +1388,7 @@ class TestXArrayVar(unittest.TestCase):
 
 
 class TestXArrayNumMissing(unittest.TestCase):
-    """ 
+    """
     Tests XArray num_missing
     """
     def test_num_missing_empty(self):
@@ -1417,7 +1417,7 @@ class TestXArrayNumMissing(unittest.TestCase):
 
 
 class TestXArrayNumNonzero(unittest.TestCase):
-    """ 
+    """
     Tests XArray nnz
     """
     def test_nnz_empty(self):
@@ -1450,7 +1450,7 @@ class TestXArrayNumNonzero(unittest.TestCase):
 
 
 class TestXArrayDatetimeToStr(unittest.TestCase):
-    """ 
+    """
     Tests XArray datetime_to_str
     """
     def test_datetime_to_str(self):
@@ -1470,7 +1470,7 @@ class TestXArrayDatetimeToStr(unittest.TestCase):
 
 
 class TestXArrayStrToDatetime(unittest.TestCase):
-    """ 
+    """
     Tests XArray str_to_datetime
     """
     def test_str_to_datetime(self):
@@ -1497,7 +1497,7 @@ class TestXArrayStrToDatetime(unittest.TestCase):
 
 
 class TestXArrayAstype(unittest.TestCase):
-    """ 
+    """
     Tests XArray astype
     """
     def test_astype_empty(self):
@@ -1562,7 +1562,7 @@ class TestXArrayAstype(unittest.TestCase):
 
 
 class TestXArrayClip(unittest.TestCase):
-    """ 
+    """
     Tests XArray clip
     """
     def test_clip_int_nan(self):
@@ -1645,7 +1645,7 @@ class TestXArrayClip(unittest.TestCase):
 
 
 class TestXArrayClipLower(unittest.TestCase):
-    """ 
+    """
     Tests XArray clip_lower
     """
     def test_clip_lower_int_all(self):
@@ -1670,7 +1670,7 @@ class TestXArrayClipLower(unittest.TestCase):
 
 
 class TestXArrayClipUpper(unittest.TestCase):
-    """ 
+    """
     Tests XArray clip_upper
     """
     def test_clip_upper_int_all(self):
@@ -1695,7 +1695,7 @@ class TestXArrayClipUpper(unittest.TestCase):
 
 
 class TestXArrayTail(unittest.TestCase):
-    """ 
+    """
     Tests XArray tail
     """
     def test_tail(self):
@@ -1735,7 +1735,7 @@ class TestXArrayCountna(unittest.TestCase):
 
 
 class TestXArrayDropna(unittest.TestCase):
-    """ 
+    """
     Tests XArray dropna
     """
     def test_dropna_not(self):
@@ -1760,7 +1760,7 @@ class TestXArrayDropna(unittest.TestCase):
 
 
 class TestXArrayFillna(unittest.TestCase):
-    """ 
+    """
     Tests XArray fillna
     """
     def test_fillna_not(self):
@@ -1800,7 +1800,7 @@ class TestXArrayFillna(unittest.TestCase):
 
 
 class TestXArrayTopkIndex(unittest.TestCase):
-    """ 
+    """
     Tests XArray topk_index
     """
     def test_topk_index_0(self):
@@ -1865,7 +1865,7 @@ class TestXArrayTopkIndex(unittest.TestCase):
 
 
 class TestXArraySketchSummary(unittest.TestCase):
-    """ 
+    """
     Tests XArray sketch_summary
     """
     def test_sketch_summary_size(self):
@@ -1929,7 +1929,7 @@ class TestXArraySketchSummary(unittest.TestCase):
 
 
 class TestXArrayAppend(unittest.TestCase):
-    """ 
+    """
     Tests XArray append
     """
     def test_append(self):
@@ -1964,7 +1964,7 @@ class TestXArrayAppend(unittest.TestCase):
 
 
 class TestXArrayUnique(unittest.TestCase):
-    """ 
+    """
     Tests XArray unique
     """
     def test_unique_dict_err(self):
@@ -2010,7 +2010,7 @@ class TestXArrayUnique(unittest.TestCase):
 
 
 class TestXArrayItemLength(unittest.TestCase):
-    """ 
+    """
     Tests XArray item_length
     """
     def test_item_length_int(self):
@@ -2144,7 +2144,7 @@ class TestXArraySplitDatetime(unittest.TestCase):
 
 
 class TestXArrayUnpackErrors(unittest.TestCase):
-    """ 
+    """
     Tests XArray unpack errors
     """
     def test_unpack_str(self):
@@ -2204,7 +2204,7 @@ class TestXArrayUnpackErrors(unittest.TestCase):
 
 
 class TestXArrayUnpack(unittest.TestCase):
-    """ 
+    """
     Tests XArray unpack list
     """
     def test_unpack_list(self):
@@ -2341,7 +2341,7 @@ class TestXArrayUnpack(unittest.TestCase):
 
 
 class TestXArraySort(unittest.TestCase):
-    """ 
+    """
     Tests XArray sort
     """
     def test_sort_int(self):
@@ -2386,7 +2386,7 @@ class TestXArraySort(unittest.TestCase):
 
 
 class TestXArrayDictTrimByKeys(unittest.TestCase):
-    """ 
+    """
     Tests XArray dict_trim_by_keys
     """
     def test_dict_trim_by_keys_bad_type(self):
@@ -2406,7 +2406,7 @@ class TestXArrayDictTrimByKeys(unittest.TestCase):
 
 
 class TestXArrayDictTrimByValues(unittest.TestCase):
-    """ 
+    """
     Tests XArray dict_trim_by_values
     """
     def test_dict_trim_by_values_bad_type(self):
@@ -2421,7 +2421,7 @@ class TestXArrayDictTrimByValues(unittest.TestCase):
 
 
 class TestXArrayDictKeys(unittest.TestCase):
-    """ 
+    """
     Tests XArray dict_keys
     """
     # noinspection PyArgumentList
@@ -2444,7 +2444,7 @@ class TestXArrayDictKeys(unittest.TestCase):
 
 
 class TestXArrayDictValues(unittest.TestCase):
-    """ 
+    """
     Tests XArray dict_values
     """
     # noinspection PyArgumentList
@@ -2467,7 +2467,7 @@ class TestXArrayDictValues(unittest.TestCase):
 
 
 class TestXArrayDictHasAnyKeys(unittest.TestCase):
-    """ 
+    """
     Tests XArray dict_has_any_keys
     """
     def test_dict_has_any_keys_bad(self):
@@ -2482,7 +2482,7 @@ class TestXArrayDictHasAnyKeys(unittest.TestCase):
 
 
 class TestXArrayDictHasAllKeys(unittest.TestCase):
-    """ 
+    """
     Tests XArray dict_has_all_keys
     """
     def test_dict_has_all_keys_bad(self):
