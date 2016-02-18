@@ -10,6 +10,8 @@ import csv
 import copy
 import StringIO
 import random
+import datetime
+from dateutil import parser
 
 import xframes
 from xframes.xobject_impl import XObjectImpl
@@ -50,10 +52,13 @@ class ReverseCmp(object):
     def __ne__(self, other):
         return self.obj != other.obj
 
+
 class ApplyError(object):
     def __init__(self, msg):
         self.msg = msg
 
+
+# noinspection PyIncorrectDocstring
 class XArrayImpl(XObjectImpl, TracedObject):
     # What is missing:
     # sum over arrays
@@ -153,7 +158,9 @@ class XArrayImpl(XObjectImpl, TracedObject):
         def do_cast(x, dtype, ignore_cast_failure):
             if is_missing(x):
                 return x
-            if type(x) == dtype:
+            if isinstance(x, str) and dtype is datetime.datetime:
+                return parser.parse(x)
+            if isinstance(x, dtype):
                 return x
             try:
                 return dtype(x)
@@ -191,7 +198,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         It can also be a directory, and spark will read and concatenate them all.
         """
         # Read the file as string
-        # Examine the first 100 lines, and cast if necessary to int or float
+        # Examine the first 100 lines, and cast if necessary to int, float, or datetime
         cls._entry(path=path, dtype=dtype)
         # If the path is a directory, then look for sarray-data file in the directory.
         # If the path is a file, look for that file
@@ -210,6 +217,8 @@ class XArrayImpl(XObjectImpl, TracedObject):
         if dtype != str:
             if dtype in (list, dict):
                 res = res.map(lambda x: ast.literal_eval(x))
+            elif dtype is datetime.datetime:
+                res = res.map(lambda x: parser.parse(x))
             else:
                 res = res.map(lambda x: dtype(x))
         cls._exit()
@@ -376,10 +385,9 @@ class XArrayImpl(XObjectImpl, TracedObject):
             # takeOrdered always sorts ascending
             # topk needs to sort descending if reverse is False, ascending if True
             if reverse:
-                order_fn = lambda w: w
+                top_pairs = pairs.takeOrdered(topk, lambda x: x[0])
             else:
-                order_fn = lambda y: ReverseCmp(y)
-            top_pairs = pairs.takeOrdered(topk, lambda x: order_fn(x[0]))
+                top_pairs = pairs.takeOrdered(topk, lambda x: ReverseCmp(x[0]))
             top_ranks = [v[1] for v in top_pairs]
             res = pairs.map(lambda z: z[1] in top_ranks)
             uncache(pairs)
@@ -753,7 +761,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
                 if dtype is None:
                     return [item for item in fn(x)]
                 return [dtype(item) for item in fn(x)]
-            except TypeError as e:
+            except TypeError:
                 return [ApplyError('TypeError')]
 
         res = self._rdd.flatMap(lambda x: apply_and_cast(x, fn, dtype, skip_undefined))
@@ -770,8 +778,8 @@ class XArrayImpl(XObjectImpl, TracedObject):
 
     def astype(self, dtype, undefined_on_failure):
         """
-        Create a new rdd with all values cast to the given type. Throws an
-        exception if the types are not castable to the given type.
+        Create a new rdd with all values cast or converted to the given type. Raises an
+        exception if the values cannot be converted to the given type.
         """
         # can parse strings that look like list and dict into corresponding types
         # does not do this now
@@ -783,16 +791,33 @@ class XArrayImpl(XObjectImpl, TracedObject):
                 if dtype in (int, long, float):
                     x = 0 if x == '' else x
                     return dtype(x)
-                elif dtype == str:
+                if dtype is str:
                     return dtype(x)
-                elif dtype in (list, dict):
+                if dtype is datetime.datetime:
+                    dt = parser.parse(x)
+                    if isinstance(dt, datetime.datetime):
+                        return dt
+                    raise ValueError
+                if dtype in (list, dict):
                     res = ast.literal_eval(x)
                     if isinstance(res, dtype):
                         return res
-                raise ValueError
+                    raise ValueError
+                if dtype is array:
+                    res = ast.literal_eval(x)
+                    if isinstance(res, list) and len(res) > 0:
+                        dtype = type(res[0])
+                        if dtype in (int, long):
+                            return array.array('i', res)
+                        if dtype is float:
+                            return array.array('d', res)
+                        if dtype is str:
+                            return array.array('c', res)
+                    raise ValueError('astype -- array not handled:{} type: {}'.format(res, dtype))
+                raise ValueError('astype -- type not handled: {}'.format(dtype))
             except ValueError as e:
                 if undefined_on_failure:
-                    return util.nan if dtype == float else None
+                    return None
                 raise e
         res = self._rdd.map(lambda x: convert_type(x, dtype))
         self._exit()
@@ -810,9 +835,11 @@ class XArrayImpl(XObjectImpl, TracedObject):
 
         # noinspection PyShadowingNames
         def clip_val(x, lower, upper):
-            if not math.isnan(lower) and x < lower:
+            if x is None:
+                return None
+            if lower is not None and not math.isnan(lower) and x < lower:
                 return lower
-            elif not math.isnan(upper) and x > upper:
+            elif upper is not None and not math.isnan(upper) and x > upper:
                 return upper
             else:
                 return x
@@ -940,7 +967,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         necessarily preserve the order of the given RDD in the new RDD.
         """
         self._entry()
-        if self.elem_type == dict:
+        if self.elem_type is dict:
             raise TypeError('unique: type is dict')
         res = self._rdd.distinct()
         self._exit()
@@ -1071,7 +1098,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             total = self._rdd.reduce(list_sum)
         elif self.elem_type is dict:
             def dict_sum(x, y):
-                return { k: x.get(k, 0) + y.get(k, 0) for k in set(x) & set(y) }
+                return {k: x.get(k, 0) + y.get(k, 0) for k in set(x) & set(y)}
             total = self._rdd.reduce(dict_sum)
 
         else:
@@ -1173,7 +1200,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         """
         Length of each element in the current XArray.
 
-        Only works on XArrays of dict, array, or list type. If a given element
+        Only works on XArrays of str, dict, array, or list type. If a given element
         is a missing value, then the output elements is also a missing value.
         This function is equivalent to the following but more performant:
 
@@ -1187,27 +1214,58 @@ class XArrayImpl(XObjectImpl, TracedObject):
         return self._rv(res, int)
 
     # Date/Time Handling
-    def expand(self, column_name_prefix, limit, column_types):
+    def split_datetime(self, column_name_prefix, limit, column_types):
         """
-        Used only in split_datetime.
+        Split a datatime value into separate columns.
         """
-        raise NotImplementedError('datetime_to_str')
+        # generate new column names
+        if column_name_prefix != '':
+            new_names = [column_name_prefix + '.' + name for name in limit]
+        else:
+            new_names = [name for name in limit]
+
+        def expand_datetime_field(val, limit):
+            if limit == 'year':
+                return val.year
+            if limit == 'month':
+                return val.month
+            if limit == 'day':
+                return val.day
+            if limit == 'hour':
+                return val.hour
+            if limit == 'minute':
+                return val.minute
+            if limit == 'second':
+                return val.second
+            return None
+
+        def expand_datetime(val, limit):
+            return tuple([expand_datetime_field(val, lim) for lim in limit])
+        res = self._rdd.map(lambda x: expand_datetime(x, limit))
+        self._exit()
+        return self._rv_frame(res.RDD(), new_names, column_types)
 
     def datetime_to_str(self, str_format):
         """
-        Create a new RDD with all the values cast to str. The string format is
-        specified by the 'str_format' parameter.
+        Create a new RDD with all the values converted to str according to str_format.
         """
         self._entry(str_format=str_format)
-        raise NotImplementedError('datetime_to_str')
+        res = self._rdd.map(lambda x: x.strftime(str_format))
+        self._exit()
+        return self._rv(res, str)
 
     def str_to_datetime(self, str_format):
         """
-        Create a new RDD with all the values cast to datetime. The string format is
-        specified by the 'str_format' parameter.
+        Create a new RDD with all the values converted to datetime by datetime.strptime.
+        If not str_format is given, use dateutil.parser.
         """
         self._entry(str_format=str_format)
-        raise NotImplementedError('str_to_datetime')
+        if str_format is None:
+            res = self._rdd.map(lambda x: parser.parse(x))
+        else:
+            res = self._rdd.map(lambda x: datetime.datetime.strptime(x, str_format))
+        self._exit()
+        return self._rv(res, datetime.datetime)
 
     # Text Processing
     def count_bag_of_words(self, options):
@@ -1228,7 +1286,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         returned RDD.
         """
         self._entry(keys=keys, exclude=exclude)
-        if self.dtype() != dict:
+        if self.dtype() is not dict:
             raise TypeError('type must be dict: {}'.format(self.dtype))
 
         def trim_keys(items):
@@ -1248,7 +1306,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         RDDs whose data type is not ``dict``.
         """
         self._entry(lower=lower, upper=upper)
-        if self.dtype() != dict:
+        if self.dtype() is not dict:
             raise TypeError('type must be dict: {}'.format(self.dtype))
 
         def trim_values(items):
@@ -1263,7 +1321,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         element as a list. Fails on RDDs whose data type is not ``dict``.
         """
         self._entry()
-        if self.dtype() != dict:
+        if self.dtype() is not dict:
             raise TypeError('type must be dict: {}'.format(self.dtype))
 
         res = self._rdd.map(lambda item: item.keys())
@@ -1278,7 +1336,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         element as a list. Fails on RDDs whose data type is not ``dict``.
         """
         self._entry()
-        if self.dtype() != dict:
+        if self.dtype() is not dict:
             raise TypeError('type must be dict: {}'.format(self.dtype))
 
         res = self._rdd.map(lambda item: item.values())
@@ -1295,7 +1353,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         Fails on RDDs whose data type is not ``dict``.
         """
         self._entry(keys=keys)
-        if self.dtype() != dict:
+        if self.dtype() is not dict:
             raise TypeError('type must be dict: {}'.format(self.dtype))
 
         def has_any_keys(items):
@@ -1312,7 +1370,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         Fails on RDDs whose data type is not ``dict``.
         """
         self._entry(keys=keys)
-        if self.dtype() != dict:
+        if self.dtype() is not dict:
             raise TypeError('type must be dict: {}'.format(self.dtype))
 
         def has_all_keys(items):

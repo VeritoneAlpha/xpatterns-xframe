@@ -1521,8 +1521,10 @@ class TestXFrameAddColumnsFrame(unittest.TestCase):
     def test_add_columns_dup_names(self):
         tf1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         tf2 = XFrame({'new1': [3.0, 2.0, 1.0], 'val': [30.0, 20.0, 10.0]})
-        with self.assertRaises(ValueError):
-            tf1.add_columns(tf2)
+        res = tf1.add_columns(tf2)
+        self.assertEqual(['id', 'val', 'new1', 'val.1'], res.column_names())
+        self.assertEqual([int, str, float, float], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a', 'new1': 3.0, 'val.1': 30.0}, res[0])
 
 
 class TestXFrameReplaceColumn(unittest.TestCase):
@@ -2915,11 +2917,36 @@ class TestXFrameSplitDatetime(unittest.TestCase):
     """
 
     def test_split_datetime(self):
-        t = XFrame({'id': [1, 2, 3], 'val': [datetime(2011, 1, 1),
-                                             datetime(2011, 2, 2),
-                                             datetime(2011, 3, 3)]})
-        with self.assertRaises(NotImplementedError):
-            t.split_datetime('val')
+        t = XFrame({'id': [1, 2, 3], 'val': [datetime(2011, 1, 1), 
+                                             datetime(2012, 2, 2),
+                                             datetime(2013, 3, 3)]})
+        res = t.split_datetime('val')
+        self.assertEqual(['id',
+                          'val.year', 'val.month', 'val.day',
+                          'val.hour', 'val.minute', 'val.second'], res.column_names())
+        self.assertEqual([int, int, int, int, int, int, int], res.column_types())
+        self.assertEqual(3, len(res))
+        self.assertTrue(eq_list([1, 2, 3], res['id']))
+        self.assertTrue(eq_list([2011, 2012, 2013], res['val.year']))
+        self.assertTrue(eq_list([1, 2, 3], res['val.month']))
+        self.assertTrue(eq_list([1, 2, 3], res['val.day']))
+        self.assertTrue(eq_list([0, 0, 0], res['val.hour']))
+        self.assertTrue(eq_list([0, 0, 0], res['val.minute']))
+        self.assertTrue(eq_list([0, 0, 0], res['val.second']))
+
+    def test_split_datetime_col_conflict(self):
+        t = XFrame({'id': [1, 2, 3],
+                    'val.year': ['x', 'y', 'z'],
+                    'val': [datetime(2011, 1, 1),
+                            datetime(2012, 2, 2),
+                            datetime(2013, 3, 3)]})
+        res = t.split_datetime('val', limit='year')
+        self.assertEqual(['id', 'val.year', 'val.year.1'], res.column_names())
+        self.assertEqual([int, str, int], res.column_types())
+        self.assertEqual(3, len(res))
+        self.assertTrue(eq_list([1, 2, 3], res['id']))
+        self.assertTrue(eq_list(['x', 'y', 'z'], res['val.year']))
+        self.assertTrue(eq_list([2011, 2012, 2013], res['val.year.1']))
 
     def test_split_datetime_bad_col(self):
         t = XFrame({'id': [1, 2, 3], 'val': [datetime(2011, 1, 1),
@@ -3663,6 +3690,13 @@ class TestXFrameDropna(unittest.TestCase):
 
     def test_dropna_nan(self):
         t = XFrame({'id': [1.0, float('nan'), 3.0], 'val': ['a', 'b', 'c']})
+        res = t.dropna()
+        self.assertEqual(2, len(res))
+        self.assertEqual({'id': 1.0, 'val': 'a'}, res[0])
+        self.assertEqual({'id': 3.0, 'val': 'c'}, res[1])
+
+    def test_dropna_float_none(self):
+        t = XFrame({'id': [1.0, None, 3.0], 'val': ['a', 'b', 'c']})
         res = t.dropna()
         self.assertEqual(2, len(res))
         self.assertEqual({'id': 1.0, 'val': 'a'}, res[0])

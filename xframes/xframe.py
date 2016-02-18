@@ -12,8 +12,13 @@ from textwrap import wrap
 import inspect
 import time
 import itertools
+from dateutil import parser
+import datetime
 import copy
+import ast
 from sys import stderr
+
+from prettytable import PrettyTable
 
 from xframes.deps import pandas, HAS_PANDAS
 from xframes.deps import dataframeplus, HAS_DATAFRAME_PLUS
@@ -92,8 +97,10 @@ class XFrame(XObject):
         stored in the XFrame. If `data` is an object supporting iteritems, then is is handled
         like a dictionary.  If `data` is an object supporting iteration, then the values
         are iterated to form the XFrame.  If `data` is a string, it is interpreted as a
-        file. Files can be read from local file system or urls (local://,
-        hdfs://, s3://, http://, or remote://).
+        file. Files can be read from local file system or urls (hdfs://, s3://, or other
+        Hadoop-supported file systems).  To read files from s3, you must set the
+        AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables, even if the
+        file is publicly accessible.
 
     format : string, optional
         Format of the data. The default, "auto" will automatically infer the
@@ -125,7 +132,6 @@ class XFrame(XObject):
     The following functionality is currently not implemented.
         - pack_columns data types except list, array, and dict
         - groupby quantile
-        - split_datetime
 
     See Also
     --------
@@ -321,7 +327,7 @@ class XFrame(XObject):
                 return 'csv'
             else:
                 return 'xframe'
-        raise ValueError('Cannot infer input type for data {}.'.format(date))
+        raise ValueError('Cannot infer input type for data {}.'.format(data))
 
     @classmethod
     def set_max_row_width(cls, width):
@@ -1148,6 +1154,7 @@ class XFrame(XObject):
         -------
         out : list[PrettyTable]
         """
+        # TODO use take to get just the beginning rows
         # We are going to need a column of values at a time
         # Take should return a list of tuples
         if self._impl.rdd() is None:
@@ -1797,7 +1804,7 @@ class XFrame(XObject):
             def fn(row):
                 return [row[col] for col in cols]
         elif not inspect.isfunction(fn):
-            raise TypeError('Input must be a function.')
+            raise TypeError('Input must be a function: {}: {}.'.format(fn, type(fn)))
         rows = self._impl.head_as_list(10)
         names = self._impl.column_names()
         # do the dryrun so we can see some diagnostic output
@@ -1852,27 +1859,48 @@ class XFrame(XObject):
                 return ''
             if s.startswith('-'):
                 s = s[1:]
+            try:
+                dt = parser.parse(s, default=datetime.datetime(1, 1, 1, 0, 0, 0))
+                if not s.isdigit() and dt.year != 1:
+                    return 'datetime'
+            except ValueError:
+                pass
+            except OverflowError:
+                pass
             if s.isdigit():
                 return 'int'
             if s.replace('.', '', 1).isdigit():
                 return 'float'
+            if s.startswith('[') or s.startswith('{'):
+                val = ast.literal_eval(s)
+                if isinstance(val, list) or isinstance(val, dict):
+                    return type(val).__name__
             return 'str'
 
         types = list(column.apply(classify_type).unique())
-        if len(types) == 2 and '' in types and 'int' in types:
-            types = ['float']
-        if '' in types:
-            types.remove('')
-        if len(types) != 1:
-            return str
-        if len(types) == 1 and types[0] == 'str':
+        if 'str' in types:
             return str
 
-        if len(types) == 1 and 'int' in types:
-            return int
-        if len(types) == 1 and 'float' in types:
-            return float
+        if '' in types:
+            types.remove('')
+
+        if len(types) == 1 and types[0] == 'datetime':
+            return datetime.datetime
+
+        if len(types) == 1 and types[0] == 'list':
+            return list
+
+        if len(types) == 1 and types[0] == 'dict':
+            return dict
+
+        if 'datetime' in types:
+            types.remove('datetime')
+
         if len(types) == 2 and 'float' in types and 'int' in types:
+            return float
+        if len(types) == 1 and types[0] == 'int':
+            return int
+        if len(types) == 1 and types[0] == 'float':
             return float
 
         return str
@@ -1915,18 +1943,60 @@ class XFrame(XObject):
             if val is None:
                 return [None]
             if len(val) == 0:
-                return [util.nan]
+                return [None]
             try:
                 return [float(val)]
             except ValueError:
                 raise ValueError('Cast failed: (float) {}'.format(val))
 
-        if new_type in [int]:
-            return XFrame(impl=self._impl.transform_cols([column_name], cast_int, [int], 0))
-        if new_type in [float]:
-            return XFrame(impl=self._impl.transform_cols([column_name], cast_float, [float], 0))
+        def cast_datetime(row):
+            val = row[column_name]
+            if val is None:
+                return [None]
+            if len(val) == 0:
+                return [None]
+            try:
+                dt = parser.parse(val)
+                return [dt]
+            except ValueError:
+                raise ValueError('Cast failed: (datetime) {}'.format(val))
 
-        return XFrame(impl=self._impl.copy())
+        def cast_list(row):
+            val = row[column_name]
+            if val is None:
+                return [None]
+            if len(val) == 0:
+                return [None]
+            try:
+                lst = ast.literal_eval(val)
+                return [lst]
+            except ValueError:
+                raise ValueError('Cast failed: (list) {}'.format(val))
+
+        def cast_dict(row):
+            val = row[column_name]
+            if val is None:
+                return [None]
+            if len(val) == 0:
+                return [None]
+            try:
+                dct = ast.literal_eval(val)
+                return [dct]
+            except ValueError:
+                raise ValueError('Cast failed: (dict) {}'.format(val))
+
+        if new_type is int:
+            return XFrame(impl=self.__impl__.transform_cols([column_name], cast_int, [int], 0))
+        if new_type is float:
+            return XFrame(impl=self.__impl__.transform_cols([column_name], cast_float, [float], 0))
+        if new_type is list:
+            return XFrame(impl=self.__impl__.transform_cols([column_name], cast_list, [list], 0))
+        if new_type is dict:
+            return XFrame(impl=self.__impl__.transform_cols([column_name], cast_dict, [dict], 0))
+        if new_type is datetime.datetime:
+            return XFrame(impl=self.__impl__.transform_cols([column_name], cast_datetime, [datetime.datetime], 0))
+
+        return self
 
     def flat_map(self, column_names, fn, column_types='auto', seed=None):
         """
@@ -2391,7 +2461,8 @@ class XFrame(XObject):
 
         namelist : list of string, optional
             A list of column names. All names must be specified. `Namelist` is
-            ignored if `cols` is an XFrame.
+            ignored if `cols` is an XFrame.  If there are columns with duplicate names, they
+            will be made unambiguous by adding .1 to the second copy.
 
         Returns
         -------
@@ -2425,9 +2496,9 @@ class XFrame(XObject):
             namelist = other.column_names()
 
             my_columns = set(self.column_names())
-            for name in namelist:
-                if name in my_columns:
-                    raise ValueError("Column '{}' already exists in current XFrame.".format(name))
+#            for name in namelist:
+#                if name in my_columns:
+#                    raise ValueError("Column '{}' already exists in current XFrame.".format(name))
             return XFrame(impl=self._impl.add_columns_frame(cols))
         else:
             if not hasattr(col_list, '__iter__'):
@@ -2874,7 +2945,7 @@ class XFrame(XObject):
 
         key: int or slice
             If `key` is:
-                * int:
+                * int
                     Returns a single row of the XFrame (the `key`th one) as a dictionary.
                 * slice
                     Returns an XFrame including only the sliced rows.
@@ -3020,7 +3091,7 @@ class XFrame(XObject):
         Suppose we have an XFrame with movie ratings by many users.
 
         >>> import xframes.aggregate as agg
-        >>> url = 'http://s3.amazonaws.com/gl-testdata/rating_data_example.csv'
+        >>> url = 'http://atg-testdata/rating.csv'
         >>> xf = xframes.XFrame.read_csv(url)
         >>> xf
         +---------+----------+--------+
@@ -3262,7 +3333,7 @@ class XFrame(XObject):
             if column not in my_column_names:
                 raise KeyError("Column '{}' does not exist in XFrame".format(column))
             col_type = my_column_types[my_column_names.index(column)]
-            if col_type == dict:
+            if col_type is dict:
                 raise TypeError('Cannot group on a dictionary column.')
             key_columns_array.append(column)
 
@@ -3486,11 +3557,11 @@ class XFrame(XObject):
 
         return XFrame(impl=self._impl.join(right._impl, how, join_keys))
 
-    def split_datetime(self, expand_column, column_name_prefix=None, limit=None, tzone=False):
+    def split_datetime(self, expand_column, column_name_prefix=None, limit=None):
         """
         Splits a datetime column of XFrame to multiple columns, with each value in a
         separate column. Returns a new XFrame with the expanded column replaced with
-        a list of new columns. The expanded column must be of datetime type.
+        a list of new columns. The expanded column must be of datetime.datetime type.
 
         For more details regarding name generation and
         other, refer to :py:func:`xframes.XArray.expand()`
@@ -3509,10 +3580,6 @@ class XFrame(XObject):
             Elements are 'year','month','day','hour','minute',
             and 'second'.
 
-        tzone : bool, optional
-            A boolean parameter that determines whether to show the timezone
-            column or not. Defaults to False.
-
         Returns
         -------
         out : XFrame
@@ -3525,15 +3592,15 @@ class XFrame(XObject):
         >>> xf
         Columns:
             id   int
-            submission  datetime
+            submission  datetime.datetime
         Rows: 2
         Data:
-            +----+-------------------------------------------------+
-            | id |               submission                        |
-            +----+-------------------------------------------------+
-            | 1  | datetime(2011, 1, 21, 7, 17, 21, tzinfo=GMT(+1))|
-            | 2  | datetime(2011, 1, 21, 5, 43, 21, tzinfo=GMT(+1))|
-            +----+-------------------------------------------------+
+            +----+----------------------------------------------------------+
+            | id |               submission                                 |
+            +----+----------------------------------------------------------+
+            | 1  | datetime.datetime(2011, 1, 21, 7, 17, 21)                |
+            | 2  | datetime.datetime(2011, 1, 21, 5, 43, 21)                |
+            +----+----------------------------------------------------------+
 
         >>> xf.split_datetime('submission',limit=['hour','minute'])
         Columns:
@@ -3550,13 +3617,16 @@ class XFrame(XObject):
         +----+-----------------+-------------------+
 
         """
+        # TODO: example above output is not correct -- prints differently
         if expand_column not in self.column_names():
             raise KeyError("Column '{}' does not exist in current XFrame.".format(expand_column))
 
         if column_name_prefix is None:
             column_name_prefix = expand_column
 
-        new_xf = self[expand_column].split_datetime(column_name_prefix, limit, tzone)
+        # let xarray.split_datetime check limit parameter
+
+        new_xf = self[expand_column].split_datetime(column_name_prefix, limit)
 
         # construct return XFrame, check if there is conflict
         rest_columns = [name for name in self.column_names() if name != expand_column]
@@ -3658,7 +3728,7 @@ class XFrame(XObject):
 
         existing_type = self.column_types()[existing_columns.index(column_name)]
         given_type = value_xf.column_types()[0]
-        if given_type != existing_type:
+        if given_type is not existing_type:
             raise TypeError("Type of given values ('{}') does not match type of column '{}' ('{}') in XFrame."
                             .format(given_type, column_name, existing_type))
 
@@ -3882,7 +3952,7 @@ class XFrame(XObject):
             raise ValueError("Resulting dtype has to be one of 'dict', 'array.array', or 'list type.")
 
         # fill_na value for array needs to be numeric
-        if dtype == array.array:
+        if dtype is array.array:
             if fill_na is not None and type(fill_na) not in (int, float):
                 raise ValueError('Fill_na value for array needs to be numeric type.')
             # all columns have to be numeric type
@@ -3894,7 +3964,7 @@ class XFrame(XObject):
         # we try to be smart here
         # if all column names are like: a.b, a.c, a.d,...
         # we then use "b", "c", "d", etc as the dictionary key during packing
-        if dtype == dict and column_prefix is not None and remove_prefix:
+        if dtype is dict and column_prefix is not None and remove_prefix:
             size_prefix = len(column_prefix)
             first_char = set([c[size_prefix:size_prefix + 1] for c in columns])
             if len(first_char) == 1 and first_char.pop() in ['.', '-', '_']:
@@ -4183,7 +4253,7 @@ class XFrame(XObject):
             raise ValueError("Cannot find column '{}' in the XFrame.".format(column_name))
 
         stack_column_type = self[column_name].dtype()
-        if stack_column_type not in [dict, array.array, list]:
+        if stack_column_type not in (dict, array.array, list):
             raise TypeError("Stack is only supported for column of 'dict', 'list', or 'array' type.")
 
         if new_column_name is not None:
@@ -4202,7 +4272,7 @@ class XFrame(XObject):
                 if name in self.column_names() and name != column_name:
                     raise ValueError("Column with name '{}' already exists, pick a new column name.".format(name))
         else:
-            if stack_column_type == dict:
+            if stack_column_type is dict:
                 new_column_name = ['', '']
             else:
                 new_column_name = ['']
@@ -4212,7 +4282,7 @@ class XFrame(XObject):
         head_row = XArray(self[column_name].head(100)).dropna()
         if len(head_row) == 0:
             raise ValueError('Cannot infer column type because there are not enough rows to infer value.')
-        if stack_column_type == dict:
+        if stack_column_type is dict:
             # infer key/value type
             keys = []
             values = []
@@ -4230,7 +4300,7 @@ class XFrame(XObject):
             values = [v for v in itertools.chain.from_iterable(head_row)]
             new_column_type = [infer_type_of_list(values)]
 
-        if stack_column_type == dict:
+        if stack_column_type is dict:
             return XFrame(impl=self._impl.stack_dict(column_name, new_column_name, new_column_type, drop_na))
         else:
             return XFrame(impl=self._impl.stack_list(column_name, new_column_name, new_column_type, drop_na))
@@ -4484,10 +4554,10 @@ class XFrame(XObject):
                 raise ValueError('Sort_columns element are not of the same type.')
 
             first_param_type = first_param_types.pop()
-            if first_param_type == tuple:
+            if first_param_type is tuple:
                 sort_column_names = [i[0] for i in sort_columns]
                 sort_column_orders = [i[1] for i in sort_columns]
-            elif first_param_type == str:
+            elif first_param_type is str:
                 sort_column_names = sort_columns
             else:
                 raise TypeError('Sort_columns type is not supported.')

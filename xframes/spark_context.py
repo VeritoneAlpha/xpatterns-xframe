@@ -19,6 +19,11 @@ def get_xframes_home():
     return os.path.dirname(xframes.__file__)
 
 
+def merge_dicts(x, y):
+    z = x.copy()
+    z.update(y)
+    return z
+
 # CommonSparkContext wraps SparkContext, which must only be instantiated once in a program.
 # This is used as a metaclass for CommonSparkContext, so that only one
 #  instance is created.
@@ -56,6 +61,29 @@ class SparkInitContext:
             Dictionary of property/value pairs.  These are passed to spark as config parameters.
             If a config file is present, these parameters will override the parameters there.
 
+        Notes
+        -----
+        The following values are the most commonly used.  They will be given default values if
+        none are supplied in a configuration file.  Other values
+        can be found in the spark configuration documentation.
+
+        spark.master : str, optional
+            The url of the spark cluster to use.  To use the local spark, give
+            'local'.  To use a spark cluster with its master on a specific IP address,
+            give the IP address or the hostname as in the following examples:
+
+            spark.master=spark://my_spark_host:7077
+
+            spark.master=mesos://my_mesos_host:5050
+
+        app.name : str, optional
+            The app name is used on the job monitoring server, and for logging.
+
+        spark.cores.max : str, optional
+            The maximum number of cores to use for execution.
+
+        spark.executor.memory : str, optional
+            The amount of main memory to allocate to executors.  For example, '2g'.
         """
         SparkInitContext.context = context
         CommonSparkContext()
@@ -70,50 +98,21 @@ class CommonSparkContext(object):
 
         The spark configuration is taken from xframes/config.ini and from
         the values set in SparkInitContext.set() if this has been called.
-
-        Notes
-        -----
-        The following values are the most commonly used.  They will be given default values if
-        none are supplied in a configuration file or through SparkInitContext.  Other values
-        can be found in the spark configuration documentation.
-
-        master : str, optional
-            The url of the spark cluster to use.  To use the local spark, give
-            'local'.  To use a spark cluster with its master on a specific IP address,
-            give the IP address or the hostname as in the following examples:
-
-            master=spark://my_spark_host:7077
-
-            master=mesos://my_mesos_host:5050
-
-        app_name : str, optional
-            The app name is used on the job monitoring server, and for logging.
-
-        cores_max : str, optional
-            The maximum number of cores to use for execution.
-
-        executor_memory : str, optional
-            The amount of main memory to allocate to executors.  For example, '2g'.
         """
-
-        def merge_dicts(x, y):
-            z = x.copy()
-            z.update(y)
-            return z
 
         # This reads from default.ini and then xframes/config.ini
         # if they exist.
         self._env = Environment.create()
         verbose = self._env.get_config('xframes', 'verbose', 'false').lower() == 'true'
-        default_context = {'master': 'local',
-                           'app_name': 'xFrames'}
+        default_context = {'spark.master': 'local',
+                           'app.name': 'xFrames'}
         # get values from [spark] section
         config_context = self._env.get_config_items('spark')
         context = merge_dicts(default_context, config_context)
         context = merge_dicts(context, SparkInitContext.context)
         config_pairs = [(k, v) for k, v in context.iteritems()]
-        self._config = (SparkConf().setMaster(context['master']).
-                        setAppName(context['app_name']).
+        self._config = (SparkConf().setMaster(context['spark.master']).
+                        setAppName(context['app.name']).
                         setAll(config_pairs))
         if verbose:
             print >> stderr, 'Spark Config:', config_pairs
@@ -121,7 +120,7 @@ class CommonSparkContext(object):
         self._sqlc = SQLContext(self._sc)
         self._hivec = HiveContext(self._sc)
 
-        if not context['master'].startswith('local'):
+        if not context['spark.master'].startswith('local'):
             self.zip_path = self.build_zip()
             if self.zip_path:
                 self._sc.addPyFile(self.zip_path)

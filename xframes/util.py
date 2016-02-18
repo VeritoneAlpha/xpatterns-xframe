@@ -18,6 +18,7 @@ import errno
 import shutil
 import random
 import datetime
+from dateutil import parser
 
 import numpy
 
@@ -418,6 +419,25 @@ def delete_file_or_dir(path):
 
 
 
+def possible_date(dt_str):
+    """
+    Detect if the given string is a possible date.
+
+    Accepts everything that dateutil.parser considers a date except:
+      must set the year
+      cannot be a number (integer or float)
+    """
+    if len(dt_str) == 0 or dt_str.isdigit() or dt_str.replace('.', '', 1).isdigit():
+        return False
+    try:
+        dt = parser.parse(dt_str, default=datetime.datetime(1, 1, 1, 0, 0, 0))
+        if dt.year == 1:
+            return False
+        return dt
+    except ValueError:
+        return False
+
+
 def classify_type(s):
     if s.startswith('-'):
         rest = s[1:]
@@ -433,12 +453,18 @@ def classify_type(s):
         return list
     if s.startswith('{'):
         return dict
+    if possible_date(s):
+        return datetime.datetime
     return str
 
 
 def infer_type(rdd):
     """
     From an RDD of strings, find what data type they represent.
+
+    If all classify as a single type, then select that one.
+    If they are all either int or float, then pick float.
+    If they differ in other ways, then we will call it a string.
     """
     head = rdd.take(100)
     types = [classify_type(s) for s in head]
@@ -490,6 +516,7 @@ def infer_type_of_list(data):
     Look through an iterable and get its data type.
     Use the first type, and check to make sure the rest are of that type.
     Missing values are skipped.
+    Since these come from a program, do not attempt to parse strings info numbers, datetimes, etc.
     """
     candidate = None
     for d in data:
@@ -501,12 +528,27 @@ def infer_type_of_list(data):
         if d_type != candidate: 
             if is_numeric_type(d_type) and is_numeric_type(candidate):
                 continue
-            raise TypeError('infer_type_of_list: mixed types in list: {} {}'.format(d_type, candidate))
+            raise TypeError('Infer_type_of_list: mixed types in list: {} {}'.format(d_type, candidate))
     return candidate
 
 
 def infer_type_of_rdd(rdd):
     return infer_type_of_list(rdd.take(100))
+
+
+def infer_types(rdd):
+    """
+    From an RDD of tuples of strings, find what data type each one represents.
+    """
+    head = rdd.take(100)
+    n_cols = len(head[0])
+
+    def get_col(head, i):
+        return [row[i] for row in head]
+    try:
+        return [infer_type_of_list(get_col(head, i)) for i in range(n_cols)]
+    except IndexError:
+        raise ValueError('Rows are not the same length')
 
 
 # Random seed

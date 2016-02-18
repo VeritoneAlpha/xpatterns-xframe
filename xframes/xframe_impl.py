@@ -13,8 +13,10 @@ import shutil
 import re
 import copy
 from sys import stderr
+import datetime
 
 import numpy
+from dateutil import parser
 
 from xframes.deps import HAS_PANDAS
 from pyspark.sql import DataFrame
@@ -844,10 +846,12 @@ class XFrameImpl(XObjectImpl, TracedObject):
             new_name = 'X.{}'.format(col_index)
             while new_name in self.column_names():
                 col_index += 1
+                new_name = 'X.{}'.format(col_index)
         elif name in self.column_names():
             new_name = '{}.{}'.format(name, col_index)
             while new_name in self.column_names():
                 col_index += 1
+                new_name = '{}.{}'.format(name, col_index)
         else:
             new_name = name
         col_names = copy.copy(self.col_names)
@@ -892,6 +896,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._exit()
         return self._replace(res)
 
+    # noinspection PyProtectedMember
     def add_columns_array(self, cols, namelist):
         """
         Adds multiple columns to this XFrame.
@@ -946,6 +951,16 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         self._entry()
         names = self.col_names + other.impl().col_names
+        new_names = []
+        for name in names:
+            if name in new_names:
+                col_index = 1
+                name = '{}.{}'.format(name, col_index)
+                while name in new_names:
+                    col_index += 1
+                    name = '{}.{}'.format(name, col_index)
+            new_names.append(name)
+
         types = self.column_types + other.impl().column_types
 
         def merge(old_cols, new_cols):
@@ -953,8 +968,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
         rdd = self._rdd.zip(other.impl().rdd())
         res = rdd.map(lambda pair: merge(pair[0], pair[1]))
-        self._exit(names=names, types=types)
-        return self._rv(res, names, types)
+        self._exit(names=new_names, types=types)
+        return self._rv(res, new_names, types)
 
     def add_columns_frame_in_place(self, other):
         """
@@ -1473,12 +1488,12 @@ class XFrameImpl(XObjectImpl, TracedObject):
                     d[key] = new_val
             return d
 
-        if dtype == list:
+        if dtype is list:
             res = keys.map(lambda row: pack_row_list(row, fill_na))
-        elif dtype == array.array:
+        elif dtype is array.array:
             typecode = 'd'
             res = keys.map(lambda row: pack_row_array(row, fill_na, typecode))
-        elif dtype == dict:
+        elif dtype is dict:
             res = keys.map(lambda row: pack_row_dict(row, dict_keys, fill_na))
         else:
             raise NotImplementedError
@@ -1503,9 +1518,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
         def transformer(row):
             row_as_dict = dict(zip(names, row))
             result = fn(row_as_dict)
-            if type(result) != dtype:
-                cast_result = safe_cast_val(result, dtype)
-                return cast_result
+            if not isinstance(result, dtype):
+                return safe_cast_val(result, dtype)
             return result
         res = self._rdd.map(transformer)
         self._exit(dtype=dtype)
@@ -1534,7 +1548,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         def transformer(row):
             row_as_dict = dict(zip(names, row))
             result = fn(row_as_dict)
-            if type(result) != dtype:
+            if not isinstance(result, dtype):
                 result = dtype(result)
             lst = list(row)
             lst[col_index] = result
@@ -1574,9 +1588,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
             for dtype_index, col_index in enumerate(col_indexes):
                 dtype = dtypes[dtype_index]
                 result_item = result[dtype_index]
-                if result_item is None:
-                    lst[col_index] = None
-                elif type(result_item) == dtype:
+                if isinstance(result_item, dtype):
                     lst[col_index] = result_item
                 else:
                     lst[col_index] = safe_cast_val(result_item, dtype)

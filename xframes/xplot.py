@@ -191,7 +191,6 @@ class XPlot(object):
             for i in range(0, n_buckets):
                 bucket_vals[i] = min_val + (i * delta)
 
-
         def iterate_values(value_iterator):
             bucket_counts = [0] * n_buckets
             for val in value_iterator:

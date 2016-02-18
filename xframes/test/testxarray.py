@@ -2,6 +2,7 @@ import unittest
 import math
 import os
 import array
+import datetime
 
 # python testxarray.py
 # python -m unittest testxarray
@@ -9,6 +10,7 @@ import array
 # python -m unittest testxarray.TestXArrayVersion.test_version
 
 from xframes import XArray
+from xframes import XFrame
 
 
 def eq_list(expected, result):
@@ -132,6 +134,7 @@ class TestXArrayConstructorRange(unittest.TestCase):
     Tests XArray constructors for sequential ranges.
     """
 
+    # noinspection PyArgumentList
     def test_construct_none(self):
         with self.assertRaises(TypeError):
             XArray.from_sequence()
@@ -202,6 +205,14 @@ class TestXArrayConstructorLoad(unittest.TestCase):
         self.assertEqual(dict, t.dtype())
         self.assertEqual({1: 'a', 2: 'b'}, t[0])
 
+    def test_construct_local_file_datetime(self):
+        t = XArray('files/test-array-datetime')
+        self.assertEqual(3, len(t))
+        self.assertEqual(datetime.datetime, t.dtype())
+        self.assertEqual(datetime.datetime(2015, 8, 15), t[0])
+        self.assertEqual(datetime.datetime(2016, 9, 16), t[1])
+        self.assertEqual(datetime.datetime(2017, 10, 17), t[2])
+
 
 class TestXArrayFromConst(unittest.TestCase):
     """ 
@@ -225,6 +236,12 @@ class TestXArrayFromConst(unittest.TestCase):
         self.assertEqual(10, len(t))
         self.assertEqual('a', t[0])
         self.assertEqual(str, t.dtype())
+
+    def test_from_const_datetime(self):
+        t = XArray.from_const(datetime.datetime(2015, 10, 11), 10)
+        self.assertEqual(10, len(t))
+        self.assertEqual(datetime.datetime(2015, 10, 11), t[0])
+        self.assertEqual(datetime.datetime, t.dtype())
 
     def test_from_const_list(self):
         t = XArray.from_const([1, 2], 10)
@@ -458,6 +475,7 @@ class TestXArrayOpScalar(unittest.TestCase):
         self.assertEqual(4, res[1])
         self.assertEqual(9, res[2])
 
+    # noinspection PyUnresolvedReferences
     def test_lt_scalar(self):
         t = XArray([1, 2, 3])
         res = t < 3
@@ -465,6 +483,7 @@ class TestXArrayOpScalar(unittest.TestCase):
         self.assertEqual(True, res[1])
         self.assertEqual(False, res[2])
 
+    # noinspection PyUnresolvedReferences
     def test_le_scalar(self):
         t = XArray([1, 2, 3])
         res = t <= 2
@@ -472,6 +491,7 @@ class TestXArrayOpScalar(unittest.TestCase):
         self.assertEqual(True, res[1])
         self.assertEqual(False, res[2])
 
+    # noinspection PyUnresolvedReferences
     def test_gt_scalar(self):
         t = XArray([1, 2, 3])
         res = t > 2
@@ -479,6 +499,7 @@ class TestXArrayOpScalar(unittest.TestCase):
         self.assertEqual(False, res[1])
         self.assertEqual(True, res[2])
 
+    # noinspection PyUnresolvedReferences
     def test_ge_scalar(self):
         t = XArray([1, 2, 3])
         res = t >= 3
@@ -493,6 +514,7 @@ class TestXArrayOpScalar(unittest.TestCase):
         self.assertEqual(3, res[1])
         self.assertEqual(4, res[2])
 
+    # noinspection PyUnresolvedReferences
     def test_rsub_scalar(self):
         t = XArray([1, 2, 3])
         res = 1 - t
@@ -500,6 +522,7 @@ class TestXArrayOpScalar(unittest.TestCase):
         self.assertEqual(-1, res[1])
         self.assertEqual(-2, res[2])
 
+    # noinspection PyUnresolvedReferences
     def test_rmul_scalar(self):
         t = XArray([1, 2, 3])
         res = 2 * t
@@ -514,6 +537,7 @@ class TestXArrayOpScalar(unittest.TestCase):
         self.assertEqual(6, res[1])
         self.assertEqual(4, res[2])
 
+    # noinspection PyUnresolvedReferences
     def test_eq_scalar(self):
         t = XArray([1, 2, 3])
         res = t == 2
@@ -521,6 +545,7 @@ class TestXArrayOpScalar(unittest.TestCase):
         self.assertTrue(res[1])
         self.assertFalse(res[2])
 
+    # noinspection PyUnresolvedReferences
     def test_ne_scalar(self):
         t = XArray([1, 2, 3])
         res = t != 2
@@ -1026,6 +1051,10 @@ class TestXArrayAll(unittest.TestCase):
         t = XArray([1.0, float('nan')])
         self.assertFalse(t.all())
 
+    def test_all_float_none(self):
+        t = XArray([1.0, None])
+        self.assertFalse(t.all())
+
     def test_all_float_zero(self):
         t = XArray([1.0, 0.0])
         self.assertFalse(t.all())
@@ -1125,12 +1154,20 @@ class TestXArrayAny(unittest.TestCase):
         t = XArray([1.0, float('nan')])
         self.assertTrue(t.any())
 
+    def test_any_float_missing_true_none(self):
+        t = XArray([1.0, None])
+        self.assertTrue(t.any())
+
     def test_any_float_missing_false(self):
         t = XArray([None, 0.0])
         self.assertFalse(t.any())
 
     def test_any_float_missing_false_nan(self):
         t = XArray([float('nan'), 0.0])
+        self.assertFalse(t.any())
+
+    def test_any_float_missing_false_none(self):
+        t = XArray([None, 0.0])
         self.assertFalse(t.any())
 
     # str
@@ -1417,7 +1454,19 @@ class TestXArrayDatetimeToStr(unittest.TestCase):
     Tests XArray datetime_to_str
     """
     def test_datetime_to_str(self):
-        pass
+        t = XArray([datetime.datetime(2015, 8, 21),
+                    datetime.datetime(2016, 9, 22),
+                    datetime.datetime(2017, 10, 23)])
+        res = t.datetime_to_str('%Y %m %d')
+        self.assertEqual(str, res.dtype())
+        self.assertEqual('2015 08 21', res[0])
+        self.assertEqual('2016 09 22', res[1])
+        self.assertEqual('2017 10 23', res[2])
+
+    def test_datetime_to_str_bad_type(self):
+        t = XArray([1, 2, 3])
+        with self.assertRaises(TypeError):
+            t.datetime_to_str('%Y %M %d')
 
 
 class TestXArrayStrToDatetime(unittest.TestCase):
@@ -1425,7 +1474,26 @@ class TestXArrayStrToDatetime(unittest.TestCase):
     Tests XArray str_to_datetime
     """
     def test_str_to_datetime(self):
-        pass
+        t = XArray(['2015 08 21', '2015 08 22', '2015 08 23'])
+        res = t.str_to_datetime('%Y %m %d')
+        self.assertEqual(datetime.datetime, res.dtype())
+        self.assertEqual(datetime.datetime(2015, 8, 21), res[0])
+        self.assertEqual(datetime.datetime(2015, 8, 22), res[1])
+        self.assertEqual(datetime.datetime(2015, 8, 23), res[2])
+
+    def test_str_to_datetime_parse(self):
+        t = XArray(['2015 8 21', '2015 Aug 22', '23 Aug 2015', 'Aug 24 2015'])
+        res = t.str_to_datetime()
+        self.assertEqual(datetime.datetime, res.dtype())
+        self.assertEqual(datetime.datetime(2015, 8, 21), res[0])
+        self.assertEqual(datetime.datetime(2015, 8, 22), res[1])
+        self.assertEqual(datetime.datetime(2015, 8, 23), res[2])
+        self.assertEqual(datetime.datetime(2015, 8, 24), res[3])
+
+    def test_str_to_datetime_bad_type(self):
+        t = XArray([1, 2, 3])
+        with self.assertRaises(TypeError):
+            t.str_to_datetime()
 
 
 class TestXArrayAstype(unittest.TestCase):
@@ -1479,6 +1547,19 @@ class TestXArrayAstype(unittest.TestCase):
         self.assertEqual(dict, res.dtype())
         self.assertEqual({'a': 1, 'b': 2}, res[0])
 
+    def test_astype_str_array(self):
+        t = XArray(['[1, 2, 3]', '[4, 5, 6]'])
+        res = t.astype(array)
+        self.assertEqual(array, res.dtype())
+        self.assertTrue([1, 2, 3], res[0])
+
+    def test_astype_str_datetime(self):
+        t = XArray(['Aug 23, 2015', '2015 8 24'])
+        res = t.astype(datetime.datetime)
+        self.assertEqual(datetime.datetime, res.dtype())
+        self.assertTrue(datetime.datetime(2015, 8, 23), res[0])
+        self.assertTrue(datetime.datetime(2015, 8, 24), res[1])
+
 
 class TestXArrayClip(unittest.TestCase):
     """ 
@@ -1490,6 +1571,11 @@ class TestXArrayClip(unittest.TestCase):
         res = t.clip(nan, nan)
         self.assertTrue(eq_list([1, 2, 3], res))
 
+    def test_clip_int_none(self):
+        t = XArray([1, 2, 3])
+        res = t.clip(None, None)
+        self.assertTrue(eq_list([1, 2, 3], res))
+
     def test_clip_int_def(self):
         t = XArray([1, 2, 3])
         res = t.clip()
@@ -1499,6 +1585,11 @@ class TestXArrayClip(unittest.TestCase):
         nan = float('nan')
         t = XArray([1.0, 2.0, 3.0])
         res = t.clip(nan, nan)
+        self.assertTrue(eq_list([1.0, 2.0, 3.0], res))
+
+    def test_clip_float_none(self):
+        t = XArray([1.0, 2.0, 3.0])
+        res = t.clip(None, None)
         self.assertTrue(eq_list([1.0, 2.0, 3.0], res))
 
     def test_clip_float_def(self):
@@ -1530,6 +1621,11 @@ class TestXArrayClip(unittest.TestCase):
         nan = float('nan')
         t = XArray([[1, 2, 3]])
         res = t.clip(nan, nan)
+        self.assertTrue(eq_list([[1, 2, 3]], res))
+
+    def test_clip_list_none(self):
+        t = XArray([[1, 2, 3]])
+        res = t.clip(None, None)
         self.assertTrue(eq_list([[1, 2, 3]], res))
 
     def test_clip_list_def(self):
@@ -1632,6 +1728,11 @@ class TestXArrayCountna(unittest.TestCase):
         res = t.countna()
         self.assertEqual(1, res)
 
+    def test_countna_float_none(self):
+        t = XArray([1.0, 2.0, None])
+        res = t.countna()
+        self.assertEqual(1, res)
+
 
 class TestXArrayDropna(unittest.TestCase):
     """ 
@@ -1649,6 +1750,11 @@ class TestXArrayDropna(unittest.TestCase):
 
     def test_dropna_nan(self):
         t = XArray([1.0, 2.0, float('nan')])
+        res = t.dropna()
+        self.assertTrue(eq_list([1.0, 2.0], res))
+
+    def test_dropna_float_none(self):
+        t = XArray([1.0, 2.0, None])
         res = t.dropna()
         self.assertTrue(eq_list([1.0, 2.0], res))
 
@@ -1677,8 +1783,18 @@ class TestXArrayFillna(unittest.TestCase):
         res = t.fillna(10.0)
         self.assertTrue(eq_list([1.0, 2.0, 10.0], res))
 
+    def test_fillna_float_none(self):
+        t = XArray([1.0, 2.0, None])
+        res = t.fillna(10.0)
+        self.assertTrue(eq_list([1.0, 2.0, 10.0], res))
+
     def test_fillna_nan_cast(self):
         t = XArray([1.0, 2.0, float('nan')])
+        res = t.fillna(10)
+        self.assertTrue(eq_list([1.0, 2.0, 10.0], res))
+
+    def test_fillna_none_float_cast(self):
+        t = XArray([1.0, 2.0, None])
         res = t.fillna(10)
         self.assertTrue(eq_list([1.0, 2.0, 10.0], res))
 
@@ -1924,6 +2040,107 @@ class TestXArrayItemLength(unittest.TestCase):
         res = t.item_length()
         self.assertTrue(eq_list([1, 2, 3], res))
         self.assertEqual(int, res.dtype())
+
+
+class TestXArraySplitDatetime(unittest.TestCase):
+    """
+    Tests XArray split_datetime
+    """
+
+    def test_split_datetime_year(self):
+        t = XArray([datetime.datetime(2011, 1, 1),
+                    datetime.datetime(2012, 2, 2),
+                    datetime.datetime(2013, 3, 3)])
+        res = t.split_datetime('date', limit='year')
+        self.assertTrue(isinstance(res, XFrame))
+        self.assertEqual(['date.year'], res.column_names())
+        self.assertEqual([int], res.column_types())
+        self.assertEqual(3, len(res))
+        self.assertTrue(eq_list([2011, 2012, 2013], res['date.year']))
+
+    def test_split_datetime_year_mo(self):
+        t = XArray([datetime.datetime(2011, 1, 1),
+                    datetime.datetime(2012, 2, 2),
+                    datetime.datetime(2013, 3, 3)])
+        res = t.split_datetime('date', limit=['year', 'month'])
+        self.assertTrue(isinstance(res, XFrame))
+        self.assertEqual(['date.year', 'date.month'], res.column_names())
+        self.assertEqual([int, int], res.column_types())
+        self.assertEqual(3, len(res))
+        self.assertTrue(eq_list([2011, 2012, 2013], res['date.year']))
+        self.assertTrue(eq_list([1, 2, 3], res['date.month']))
+
+    def test_split_datetime_all(self):
+        t = XArray([datetime.datetime(2011, 1, 1, 1, 1, 1),
+                    datetime.datetime(2012, 2, 2, 2, 2, 2),
+                    datetime.datetime(2013, 3, 3, 3, 3, 3)])
+        res = t.split_datetime('date')
+        self.assertTrue(isinstance(res, XFrame))
+        self.assertEqual(['date.year', 'date.month', 'date.day',
+                          'date.hour', 'date.minute', 'date.second'], res.column_names())
+        self.assertEqual([int, int, int, int, int, int], res.column_types())
+        self.assertEqual(3, len(res))
+        self.assertTrue(eq_list([2011, 2012, 2013], res['date.year']))
+        self.assertTrue(eq_list([1, 2, 3], res['date.month']))
+        self.assertTrue(eq_list([1, 2, 3], res['date.day']))
+        self.assertTrue(eq_list([1, 2, 3], res['date.hour']))
+        self.assertTrue(eq_list([1, 2, 3], res['date.minute']))
+        self.assertTrue(eq_list([1, 2, 3], res['date.second']))
+
+    def test_split_datetime_year_no_prefix(self):
+        t = XArray([datetime.datetime(2011, 1, 1),
+                    datetime.datetime(2012, 2, 2),
+                    datetime.datetime(2013, 3, 3)])
+        res = t.split_datetime(limit='year')
+        self.assertTrue(isinstance(res, XFrame))
+        self.assertEqual(['X.year'], res.column_names())
+        self.assertEqual([int], res.column_types())
+        self.assertEqual(3, len(res))
+        self.assertTrue(eq_list([2011, 2012, 2013], res['X.year']))
+
+    def test_split_datetime_year_null_prefix(self):
+        t = XArray([datetime.datetime(2011, 1, 1),
+                    datetime.datetime(2012, 2, 2),
+                    datetime.datetime(2013, 3, 3)])
+        res = t.split_datetime(column_name_prefix=None, limit='year')
+        self.assertTrue(isinstance(res, XFrame))
+        self.assertEqual(['year'], res.column_names())
+        self.assertEqual([int], res.column_types())
+        self.assertEqual(3, len(res))
+        self.assertTrue(eq_list([2011, 2012, 2013], res['year']))
+
+    def test_split_datetime_bad_col_type(self):
+        t = XArray([1, 2, 3])
+        with self.assertRaises(TypeError):
+            t.split_datetime('date')
+
+    def test_split_datetime_bad_prefix_type(self):
+        t = XArray([datetime.datetime(2011, 1, 1),
+                    datetime.datetime(2011, 2, 2),
+                    datetime.datetime(2011, 3, 3)])
+        with self.assertRaises(TypeError):
+            t.split_datetime(1)
+
+    def test_split_datetime_bad_limit_val(self):
+        t = XArray([datetime.datetime(2011, 1, 1),
+                    datetime.datetime(2011, 2, 2),
+                   datetime. datetime(2011, 3, 3)])
+        with self.assertRaises(ValueError):
+            t.split_datetime('date', limit='xx')
+
+    def test_split_datetime_bad_limit_type(self):
+        t = XArray([datetime.datetime(2011, 1, 1),
+                    datetime.datetime(2011, 2, 2),
+                    datetime.datetime(2011, 3, 3)])
+        with self.assertRaises(TypeError):
+            t.split_datetime('date', limit=1)
+
+    def test_split_datetime_bad_limit_not_list(self):
+        t = XArray([datetime.datetime(2011, 1, 1),
+                    datetime.datetime(2011, 2, 2),
+                    datetime.datetime(2011, 3, 3)])
+        with self.assertRaises(TypeError):
+            t.split_datetime('date', limit=datetime.datetime(2011, 1, 1))
 
 
 class TestXArrayUnpackErrors(unittest.TestCase):
