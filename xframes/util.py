@@ -14,7 +14,6 @@ import ast
 import tarfile
 import ConfigParser
 import itertools
-import errno
 import shutil
 import random
 import datetime
@@ -87,7 +86,7 @@ def make_internal_url(url):
 
     Parameters
     ----------
-    string
+    url : str
         A URL (as described above).
 
     Raises
@@ -206,10 +205,12 @@ def get_newest_version(timeout=5, url=XFRAMES_CURRENT_VERSION_URL):
     Returns the version of XPatterns XFrames currently available from atigeo.com.
     Will raise an exception if we are unable to reach the atigeo.com servers.
 
-    timeout: int
+    Parameters
+    ----------
+    timeout: int, optional
         How many seconds to wait for the remote server to respond
 
-    url: string
+    url: string, optional
         The URL to go to to check the current version.
     """
     request = urllib2.urlopen(url=url, timeout=timeout)
@@ -217,7 +218,7 @@ def get_newest_version(timeout=5, url=XFRAMES_CURRENT_VERSION_URL):
     return version
 
 
-# noinspection PyBroadException
+# noinspection PyBroadException,PyIncorrectDocstring
 def perform_version_check(configfile=(os.path.join(os.path.expanduser("~"), ".xframes", "config")),
                           url=XFRAMES_CURRENT_VERSION_URL,
                           _outputstream=sys.stderr):
@@ -263,6 +264,7 @@ def perform_version_check(configfile=(os.path.join(os.path.expanduser("~"), ".xf
     return False
 
 
+# noinspection PyUnusedLocal
 def parse_version(version):
     # TODO compute version, once we decide what it looks like
     return 0
@@ -425,6 +427,16 @@ def possible_date(dt_str):
     Accepts everything that dateutil.parser considers a date except:
       must set the year
       cannot be a number (integer or float)
+
+    Parameters
+    ----------
+    dt_str : str
+        The string to be tested for a date.
+
+    Returns
+    -------
+    out : boolean
+        True if the input string is possibly a date.
     """
     if len(dt_str) == 0 or dt_str.isdigit() or dt_str.replace('.', '', 1).isdigit():
         return False
@@ -464,6 +476,16 @@ def infer_type(rdd):
     If all classify as a single type, then select that one.
     If they are all either int or float, then pick float.
     If they differ in other ways, then we will call it a string.
+
+    Parameters
+    ----------
+    rdd : XRdd
+        An XRdd of single values.
+
+    Returns
+    -------
+    out : type
+        The type of the values in the rdd.
     """
     head = rdd.take(100)
     types = [classify_type(s) for s in head]
@@ -480,6 +502,16 @@ def infer_type(rdd):
 def infer_types(rdd):
     """
     From an RDD of tuples of strings, find what data type each one represents.
+
+    Parameters
+    ----------
+    rdd : XRdd
+        An XRdd of tuples.
+
+    Returns
+    -------
+    out : list(type)
+        A list of the types of the values in the rdd.
     """
     head = rdd.take(100)
     n_cols = len(head[0])
@@ -502,6 +534,7 @@ _sortable_types = (str, float, int, long, numpy.float64, numpy.int64, datetime.d
 def is_numeric_type(typ):
     return typ in _numeric_types
 
+
 def is_date_type(typ):
     return typ in _date_types
 
@@ -516,6 +549,16 @@ def infer_type_of_list(data):
     Use the first type, and check to make sure the rest are of that type.
     Missing values are skipped.
     Since these come from a program, do not attempt to parse strings info numbers, datetimes, etc.
+
+    Parameters
+    ----------
+    data : list
+        A list of values
+
+    Returns
+    -------
+    out : type
+        The type of values in the list.
     """
     candidate = None
     for d in data:
@@ -537,6 +580,7 @@ def infer_type_of_rdd(rdd):
 
 # Random seed
 def distribute_seed(rdd, seed):
+    # noinspection PyUnusedLocal
     def set_seed(iterator):
         random.seed(seed)
         yield seed
@@ -562,7 +606,19 @@ def unpersist(rdd):
 
 
 def is_missing(x):
-    """ Tests for missing values. """
+    """
+    Tests for missing values.
+
+    Parameters
+    ----------
+    x : object
+        The value to test.
+
+    Returns
+    -------
+    out : boolean
+        True if the value is missing.
+    """
     if x is None:
         return True
     if type(x) in [str, dict, list] and len(x) == 0:
@@ -573,7 +629,19 @@ def is_missing(x):
 
 
 def is_missing_or_empty(val):
-    """ Tests for missing or empty values. """
+    """
+    Tests for missing or empty values.
+
+    Parameters
+    ----------
+    val : object
+        The value to test.
+
+    Returns
+    -------
+    out : boolean
+        True if the value is missing or empty.
+    """
     if is_missing(val):
         return True
     if type(val) in (list, dict):
@@ -659,6 +727,7 @@ def to_schema_type(typ, elem):
         return TimestampType()
     return StringType()
 
+
 def safe_cast_val(val, typ):
     if val is None:
         return None
@@ -687,4 +756,3 @@ def safe_cast_val(val, typ):
         return typ(val)
     except UnicodeEncodeError:
         return ''
-
