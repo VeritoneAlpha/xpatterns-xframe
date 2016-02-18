@@ -18,8 +18,6 @@ import copy
 import ast
 from sys import stderr
 
-from prettytable import PrettyTable
-
 from xframes.deps import pandas, HAS_PANDAS
 from xframes.deps import dataframeplus, HAS_DATAFRAME_PLUS
 from xframes.xobject import XObject

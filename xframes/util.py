@@ -418,7 +418,6 @@ def delete_file_or_dir(path):
         os.remove(path)
 
 
-
 def possible_date(dt_str):
     """
     Detect if the given string is a possible date.
@@ -534,21 +533,6 @@ def infer_type_of_list(data):
 
 def infer_type_of_rdd(rdd):
     return infer_type_of_list(rdd.take(100))
-
-
-def infer_types(rdd):
-    """
-    From an RDD of tuples of strings, find what data type each one represents.
-    """
-    head = rdd.take(100)
-    n_cols = len(head[0])
-
-    def get_col(head, i):
-        return [row[i] for row in head]
-    try:
-        return [infer_type_of_list(get_col(head, i)) for i in range(n_cols)]
-    except IndexError:
-        raise ValueError('Rows are not the same length')
 
 
 # Random seed

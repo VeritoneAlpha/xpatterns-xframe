@@ -13,10 +13,8 @@ import shutil
 import re
 import copy
 from sys import stderr
-import datetime
 
 import numpy
-from dateutil import parser
 
 from xframes.deps import HAS_PANDAS
 from pyspark.sql import DataFrame
