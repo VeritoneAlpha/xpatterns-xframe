@@ -125,7 +125,7 @@ class XArray(XObject):
         Construct a new XArray. The source of data includes: list,
         numpy.ndarray, pandas.Series, and urls.
         """
-        if dtype is not None and not isinstance(type, type):
+        if dtype is not None and not isinstance(dtype, type):
             raise TypeError("Dtype must be a type, e.g. use int rather than 'int'.")
 
         if impl:
