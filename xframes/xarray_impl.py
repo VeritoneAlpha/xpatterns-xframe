@@ -17,10 +17,9 @@ import xframes
 from xframes.xobject_impl import XObjectImpl
 from xframes.traced_object import TracedObject
 from xframes.spark_context import CommonSparkContext
-import xframes.util as util
 import xframes.fileio as fileio
 from xframes.util import infer_type_of_list, cache, uncache
-from xframes.util import delete_file_or_dir, infer_type, infer_types
+from xframes.util import infer_type, infer_types
 from xframes.util import is_missing
 from xframes.util import distribute_seed
 from xframes.xrdd import XRdd
