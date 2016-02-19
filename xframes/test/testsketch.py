@@ -112,6 +112,19 @@ class TestSketchConstructor(unittest.TestCase):
         ss = t.sketch_summary()
         self.assertEqual(2, ss.frequency_count(3))
 
+    def test_missing(self):
+        t = XArray([None], dtype=int)
+        ss = t.sketch_summary()
+        self.assertIsNone(ss.min())
+        self.assertIsNone(ss.max())
+        self.assertEqual(0, ss.mean())
+        self.assertEqual(0.0, ss.sum())
+        self.assertIsNone(ss.var())
+        self.assertIsNone(ss.std())
+        self.assertIsNone(ss.max())
+        self.assertEqual(0, ss.avg_length())
+
+
 
 if __name__ == '__main__':
     unittest.main()
