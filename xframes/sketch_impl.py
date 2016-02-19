@@ -22,7 +22,7 @@ __all__ = ['Sketch']
 def is_missing(x):
     if x is None:
         return True
-    if isinstance(x, float) and (
+    if type(x) in (float, int) and (
             math.isnan(x) or math.isinf(x)):
         return True
     return False
