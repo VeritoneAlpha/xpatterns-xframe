@@ -336,7 +336,8 @@ class Sketch(object):
         RuntimeError
             If the xarray is a non-numeric type.
         """
-        return sqrt(self.var())
+        var = self.var()
+        return None if var is None else sqrt(var)
 
     def var(self):
         """
