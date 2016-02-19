@@ -22,9 +22,14 @@ __all__ = ['Sketch']
 def is_missing(x):
     if x is None:
         return True
-    if isinstance(x, float) and math.isnan(x):
+    if isinstance(x, float) and (
+            math.isnan(x) or math.isinf(x)):
         return True
     return False
+
+
+def normalize_number(x):
+    return None if is_missing(x) else x
 
 
 class SketchImpl(object):
@@ -41,12 +46,12 @@ class SketchImpl(object):
         self.sketch_type = None
         self.count = 0
         self.stats = None
-        self.min_val = util.nan
-        self.max_val = util.nan
-        self.mean_val = 0
-        self.sum_val = 0
-        self.variance_val = 0.0
-        self.stdev_val = 0.0
+        self.min_val = None
+        self.max_val = None
+        self.mean_val = None
+        self.sum_val = None
+        self.variance_val = None
+        self.stdev_val = None
         self.avg_len = None
         self.num_undefined_val = None
         self.num_unique_val = None
@@ -98,16 +103,16 @@ class SketchImpl(object):
         # calculate some basic statistics
         if self.stats is None:
             if util.is_date_type(self.dtype):
-                self.min_val = self.defined.min()
-                self.max_val = self.defined.max()
+                self.min_val = normalize_number(self.defined.min())
+                self.max_val = normalize_number(self.defined.max())
             else:
                 stats = self.defined.stats()
-                self.min_val = stats.min()
-                self.max_val = stats.max()
-                self.mean_val = stats.mean()
-                self.sum_val = stats.sum()
-                self.variance_val = stats.variance()
-                self.stdev_val = stats.stdev()
+                self.min_val = normalize_number(stats.min())
+                self.max_val = normalize_number(stats.max())
+                self.mean_val = normalize_number(stats.mean())
+                self.sum_val = normalize_number(stats.sum())
+                self.variance_val = normalize_number(stats.variance())
+                self.stdev_val = normalize_number(stats.stdev())
                 self.stats = stats
 
     def _create_quantile_accumulator(self):
