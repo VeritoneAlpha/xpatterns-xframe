@@ -125,15 +125,49 @@ class CommonSparkContext(object):
             print 'Spark Version:', self._sc.version
 
         if not context['spark.master'].startswith('local'):
-            self.zip_path = self.build_zip()
-            if self.zip_path:
-                self._sc.addPyFile(self.zip_path)
+            zip_path = self.build_zip(get_xframes_home())
+            if zip_path:
+                self._sc.addPyFile(zip_path)
+                self.zip_path.append(zip_path)
         else:
-            self.zip_path = None
+            self.zip_path = []
 
         trace_flag = self._env.get_config('xframes', 'rdd-trace', 'false').lower() == 'true'
         XRdd.set_trace(trace_flag)
         atexit.register(self.close_context)
+
+    def spark_add_files(self, dirs):
+        """
+        Adds python files in the given directory or directories.
+
+        Parameters
+        ----------
+        dirs: str or list(str)
+            If a str, the pathname to a directory containing a python module.
+            If a list, then it is a list of such directories.
+
+            The python files in each directory are compiled, packed into a zip, distributed to each
+            spark slave, and placed in PYTHONPATH.
+
+            This is only done if spark is deployed on a cluster.
+        """
+        props = self._config.getAll()
+        if props.get('spark.master', 'local').startswith('local'):
+            return
+        if isinstance(dirs, basestring):
+            dirs = [dirs]
+        for path in dirs:
+            zip_path = self.build_zip(path)
+            if zip_path:
+                self._sc.addPyFile(zip_path)
+                self.zip_path.append(zip_path)
+
+    def close_context(self):
+        if self._sc:
+            self._sc.stop()
+            self._sc = None
+            for zip_path in self.zip_path:
+                os.remove(zip_path)
 
     def config(self):
         """
@@ -146,13 +180,6 @@ class CommonSparkContext(object):
         """
         props = self._config.getAll()
         return {prop[0]: prop[1] for prop in props}
-
-    def close_context(self):
-        if self._sc:
-            self._sc.stop()
-            self._sc = None
-            if self.zip_path:
-                os.remove(self.zip_path)
 
     def env(self):
         """
@@ -204,14 +231,14 @@ class CommonSparkContext(object):
 
     # noinspection PyBroadException
     @staticmethod
-    def build_zip():
+    def build_zip(dir):
         # This can fail at writepy if there is something wrong with the files
         #  in xframes.  Go ahead anyway, but things will probably fail if this job is
         #  distributed
         try:
             tf = NamedTemporaryFile(suffix='.zip', delete=False)
             z = PyZipFile(tf, 'w')
-            z.writepy(get_xframes_home())
+            z.writepy(dir)
             z.close()
             return tf.name
         except:
