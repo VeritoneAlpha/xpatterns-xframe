@@ -106,21 +106,23 @@ class CommonSparkContext(object):
         verbose = self._env.get_config('xframes', 'verbose', 'false').lower() == 'true'
         hdfs_user_name = self._env.get_config('hdfs', 'user', 'hdfs')
         os.environ['HADOOP_USER_NAME'] = hdfs_user_name
-        default_context = {'spark.master': 'local',
-                           'app.name': 'xFrames'}
+        default_context = {'spark.master': 'local[*]',
+                           'spark.app.name': 'xFrames'}
         # get values from [spark] section
         config_context = self._env.get_config_items('spark')
         context = merge_dicts(default_context, config_context)
         context = merge_dicts(context, SparkInitContext.context)
         config_pairs = [(k, v) for k, v in context.iteritems()]
-        self._config = (SparkConf().setMaster(context['spark.master']).
-                        setAppName(context['app.name']).
-                        setAll(config_pairs))
+        self._config = (SparkConf().setAll(config_pairs))
         if verbose:
             print >> stderr, 'Spark Config:', config_pairs
+
         self._sc = SparkContext(conf=self._config)
         self._sqlc = SQLContext(self._sc)
         self._hivec = HiveContext(self._sc)
+
+        if verbose:
+            print 'Spark Version:', self._sc.version
 
         if not context['spark.master'].startswith('local'):
             self.zip_path = self.build_zip()
@@ -151,6 +153,18 @@ class CommonSparkContext(object):
             self._sc = None
             if self.zip_path:
                 os.remove(self.zip_path)
+
+    def env(self):
+        """
+        Gets the config environment.
+
+        Returns
+        -------
+        out : Environment
+            The environment.  This contains all the values from the configuration file(s).
+        """
+
+        return self._env
 
     def sc(self):
         """
@@ -216,7 +230,20 @@ class CommonSparkContext(object):
             The SparkContext object from spark.
         """
 
-        return CommonSparkContext()._sc
+        return CommonSparkContext().sc()
+
+    @staticmethod
+    def spark_config():
+        """
+        Returns the spark cofig parameters.
+
+        Returns
+        -------
+        out : list
+            A list of the key-value pairs stored as tuples, used to initialize the spark context.
+        """
+
+        return CommonSparkContext().config()
 
     @staticmethod
     def spark_sql_context():
@@ -229,8 +256,8 @@ class CommonSparkContext(object):
             The SQLContext object from spark.
         """
 
-        return CommonSparkContext()._sqlc
+        return CommonSparkContext().sqlc()
 
     @staticmethod
     def environment():
-        return CommonSparkContext()._env
+        return CommonSparkContext().env()
