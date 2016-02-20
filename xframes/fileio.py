@@ -286,7 +286,7 @@ def m_time(uri):
         return os.stat(parsed_uri.path).st_mtime
     elif parsed_uri.scheme == 'hdfs':
         hdfs_connection = _make_hdfs_connection(parsed_uri)
-        files = hdfs_connection.status(parsed_uri.path)['modificationTime']
-        return files
+        file_time = hdfs_connection.status(parsed_uri.path)['modificationTime']/1000.0
+        return file_time
     else:
         raise UriError('Unknown scheme: {}'.format(parsed_uri.scheme))
