@@ -104,6 +104,8 @@ class CommonSparkContext(object):
         # if they exist.
         self._env = Environment.create()
         verbose = self._env.get_config('xframes', 'verbose', 'false').lower() == 'true'
+        hdfs_user_name = self._env.get_config('hdfs', 'user', 'hdfs')
+        os.environ['HADOOP_USER_NAME'] = hdfs_user_name
         default_context = {'spark.master': 'local',
                            'app.name': 'xFrames'}
         # get values from [spark] section
@@ -190,7 +192,7 @@ class CommonSparkContext(object):
     @staticmethod
     def build_zip():
         # This can fail at writepy if there is something wrong with the files
-        #  in xframes.  Go ahead anyway, but things will probably fail of this job is
+        #  in xframes.  Go ahead anyway, but things will probably fail if this job is
         #  distributed
         try:
             tf = NamedTemporaryFile(suffix='.zip', delete=False)
