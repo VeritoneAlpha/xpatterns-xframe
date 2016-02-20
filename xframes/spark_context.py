@@ -151,7 +151,7 @@ class CommonSparkContext(object):
 
             This is only done if spark is deployed on a cluster.
         """
-        props = self._config.getAll()
+        props = self.config()
         if props.get('spark.master', 'local').startswith('local'):
             return
         if isinstance(dirs, basestring):
@@ -175,8 +175,8 @@ class CommonSparkContext(object):
 
         Returns
         -------
-        out : list
-            A list of the key-value pairs stored as tuples, used to initialize the spark context.
+        out : dict
+            A dict of the properties used to initialize the spark context.
         """
         props = self._config.getAll()
         return {prop[0]: prop[1] for prop in props}
