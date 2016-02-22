@@ -68,7 +68,7 @@ def get_credentials():
     return os.environ['AWS_ACCESS_KEY_ID'], os.environ['AWS_SECRET_ACCESS_KEY']
 
 
-def make_internal_url(url):
+def make_internal_url_simple(url):
     """
     Takes a user input url string and translates into url relative to the server process.
     - URL to a local location begins with "local://" or has no "*://" modifier.
@@ -88,6 +88,11 @@ def make_internal_url(url):
     ----------
     url : str
         A URL (as described above).
+
+    Returns
+    -------
+    out : str
+        Translated url.
 
     Raises
     ------
@@ -153,6 +158,27 @@ def make_internal_url(url):
     else:
         raise ValueError('Invalid url: {}.'.format(url))
 
+
+def make_internal_url(compound_url):
+    """
+    Create a list of urls by processing each list element with make_internal_url_simple.
+
+    Parameters
+    ----------
+    compound_url : str
+        A comma-separated list of urls.  Each url is described in `make_internal_url_simple`.
+
+    Returns
+    -------
+    out : str
+        Translated compound url.
+
+Raises
+    ------
+    ValueError
+        If a bad url is provided.
+    """
+    return ','.join([make_internal_url_simple(url) for url in compound_url.split(',')])
 
 def download_dataset(url_str, extract=True, force=False, output_dir="."):
     """Download a remote dataset and extract the contents.
