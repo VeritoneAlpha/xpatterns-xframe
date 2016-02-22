@@ -125,12 +125,11 @@ class CommonSparkContext(object):
             print 'Spark Version:', self._sc.version
 
         if not context['spark.master'].startswith('local'):
+            self.zip_path = []
             zip_path = self.build_zip(get_xframes_home())
             if zip_path:
                 self._sc.addPyFile(zip_path)
                 self.zip_path.append(zip_path)
-        else:
-            self.zip_path = []
 
         trace_flag = self._env.get_config('xframes', 'rdd-trace', 'false').lower() == 'true'
         XRdd.set_trace(trace_flag)
