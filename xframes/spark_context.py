@@ -120,12 +120,12 @@ class CommonSparkContext(object):
         self._sc = SparkContext(conf=self._config)
         self._sqlc = SQLContext(self._sc)
         self._hivec = HiveContext(self._sc)
+        self.zip_path = []
 
         if verbose:
             print 'Spark Version:', self._sc.version
 
         if not context['spark.master'].startswith('local'):
-            self.zip_path = []
             zip_path = self.build_zip(get_xframes_home())
             if zip_path:
                 self._sc.addPyFile(zip_path)
