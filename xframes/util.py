@@ -180,6 +180,7 @@ Raises
     """
     return ','.join([make_internal_url_simple(url) for url in compound_url.split(',')])
 
+
 def download_dataset(url_str, extract=True, force=False, output_dir="."):
     """Download a remote dataset and extract the contents.
 
