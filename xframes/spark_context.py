@@ -245,7 +245,7 @@ class CommonSparkContext(object):
 
         Returns
         -------
-        out: map(job_id: job_info
+        out: map(job_id: job_info}
             A map of the active job IDs and their corresponding job info
         """
         return {job_id: self.status_tracker.getJobInfo(job_id) for job_id in self.status_tracker.getActiveJobIds()}
