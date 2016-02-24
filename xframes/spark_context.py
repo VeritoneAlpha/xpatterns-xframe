@@ -24,6 +24,7 @@ def merge_dicts(x, y):
     z.update(y)
     return z
 
+
 # CommonSparkContext wraps SparkContext, which must only be instantiated once in a program.
 # This is used as a metaclass for CommonSparkContext, so that only one
 #  instance is created.
@@ -121,9 +122,17 @@ class CommonSparkContext(object):
         self._sqlc = SQLContext(self._sc)
         self._hivec = HiveContext(self._sc)
         self.zip_path = []
+        self.version = self._sc.version.split('.')
+        self.status_tracker = self._sc.statusTracker()
+        if self.version >= [1, 4, 1]:
+            self.application_id = self._sc.applicationId
+        else:
+            self.application_id = None
 
         if verbose:
-            print 'Spark Version:', self._sc.version
+            print 'Spark Version:', '.'.join(self.version)
+            if self.application_id:
+                print 'Application Id:', self.application_id
 
         if not context['spark.master'].startswith('local'):
             zip_path = self.build_zip(get_xframes_home())
@@ -228,16 +237,29 @@ class CommonSparkContext(object):
 
         return self._hivec
 
+    def jobs(self):
+        """
+        Get the spark job ID and info for the active jobs.
+
+        This method would normally be called by another thread from the executing job.
+
+        Returns
+        -------
+        out: map(job_id: job_info
+            A map of the active job IDs and their corresponding job info
+        """
+        return {job_id: self.status_tracker.getJobInfo(job_id) for job_id in self.status_tracker.getActiveJobIds()}
+
     # noinspection PyBroadException
     @staticmethod
-    def build_zip(dir):
+    def build_zip(module_dir):
         # This can fail at writepy if there is something wrong with the files
         #  in xframes.  Go ahead anyway, but things will probably fail if this job is
         #  distributed
         try:
             tf = NamedTemporaryFile(suffix='.zip', delete=False)
             z = PyZipFile(tf, 'w')
-            z.writepy(dir)
+            z.writepy(module_dir)
             z.close()
             return tf.name
         except:
