@@ -60,7 +60,7 @@ def name_col(existing_col_names, proposed_name):
 class XFrameImpl(XObjectImpl, TracedObject):
     """ Implementation for XFrame. """
 
-    def __init__(self, rdd=None, col_names=None, column_types=None):
+    def __init__(self, rdd=None, col_names=None, column_types=None, table_lineage=None):
         """ Instantiate a XFrame implementation.
 
         The RDD holds all the data for the XFrame.
@@ -74,15 +74,16 @@ class XFrameImpl(XObjectImpl, TracedObject):
         column_types = column_types or []
         self.col_names = list(col_names)
         self.column_types = list(column_types)
+        self.table_lineage = table_lineage or {}
         self.iter_pos = None
         self._num_rows = None
 
         self.materialized = False
         self._exit()
 
-    def _rv(self, rdd, col_names=None, column_types=None):
+    def _rv(self, rdd, col_names=None, column_types=None, table_lineage=None):
         """
-        Return a new XFrameImpl containing the RDD, column names, and column types.
+        Return a new XFrameImpl containing the RDD, column names, column types, and lineage.
 
         Column names and types default to the existing ones.
         This is typically used when a function returns a new XFrame.
@@ -90,19 +91,21 @@ class XFrameImpl(XObjectImpl, TracedObject):
         # only use defaults if values are None, not []
         col_names = self.col_names if col_names is None else col_names
         column_types = self.column_types if column_types is None else column_types
-        return XFrameImpl(rdd, col_names, column_types)
+        table_lineage = self.table_lineage if table_lineage is None else table_lineage
+        return XFrameImpl(rdd, col_names, column_types, table_lineage)
 
     def _reset(self):
         self._rdd = None
         self.col_names = []
         self.column_types = []
+        self.table_lineage = {}
         self.materialized = False
 
-    def _replace(self, rdd, col_names=None, column_types=None):
+    def _replace(self, rdd, col_names=None, column_types=None, table_lineage=None):
         """
-        Replaces the existing RDD, column names, and column types with new values.
+        Replaces the existing RDD, column names, column types, and lineage with new values.
 
-        Column names and types default to the existing ones.
+        Column names, types, and lineage default to the existing ones.
         This is typically used when a function modifies the current XFrame.
         """
         self._replace_rdd(rdd)
@@ -110,6 +113,9 @@ class XFrameImpl(XObjectImpl, TracedObject):
             self.col_names = col_names
         if column_types is not None:
             self.column_types = column_types
+        if table_lineage is not None:
+            self.table_lineage = table_lineage
+
         self._num_rows = None
         self.materialized = False
         return self
@@ -156,7 +162,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         sc = cls.spark_context()
         rdd = sc.parallelize(res)
         cls._exit()
-        return XFrameImpl(rdd, column_names, column_types)
+        return XFrameImpl(rdd, column_names, column_types, {'PANDAS'})
 
     @classmethod
     def load_from_xframe_index(cls, path):
@@ -171,7 +177,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         with fileio.open_file(metadata_path) as f:
             names, types = pickle.load(f)
         cls._exit()
-        return cls(res, names, types)
+        return cls(res, names, types, {'METADATA PLACEHOLDER'})
 
     @classmethod
     def load_from_spark_dataframe(cls, rdd):
@@ -187,7 +193,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
             return tuple([row[i] for i in range(len(row))])
         xf_rdd = rdd.map(row_to_tuple)
         cls._exit()
-        return cls(xf_rdd, xf_names, xf_types)
+        return cls(xf_rdd, xf_names, xf_types, {'DATAFRAME'})
 
     # noinspection SqlNoDataSourceInspection
     @classmethod
@@ -224,7 +230,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         types = types or [type(elem) for elem in first_row]
         # TODO sniff types using more of the rdd
         cls._exit()
-        return cls(rdd, names, types)
+        return cls(rdd, names, types, {'RDD'})
 
     @classmethod
     def load_from_csv(cls, path, parsing_config, type_hints):
@@ -467,7 +473,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
         cls._exit()
         # returns a dict of errors and XFrameImpl
-        return errs, XFrameImpl(res, col_names, column_types)
+        return errs, XFrameImpl(res, col_names, column_types, {path})
 
     # noinspection PyUnusedLocal
     @classmethod
@@ -495,7 +501,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         col_names = ['text']
         col_types = [str]
         cls._exit()
-        return XFrameImpl(res, col_names, col_types)
+        return XFrameImpl(res, col_names, col_types, {path})
 
     @classmethod
     def load_from_parquet(cls, path):
@@ -511,7 +517,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
         rdd = s_rdd.map(lambda row: tuple(row))
         cls._exit()
-        return XFrameImpl(rdd, col_names, col_types)
+        return XFrameImpl(rdd, col_names, col_types, {path})
 
     # Save
     def save(self, path):
@@ -672,6 +678,14 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._exit(column_types=column_types)
         return column_types
 
+    def lineage(self):
+        """
+        Returns the table lineage
+        """
+        self._entry()
+        self._exit(lineage = self.table_lineage)
+        return self.table_lineage
+
     # Get Data
     def head(self, n):
         """
@@ -826,9 +840,10 @@ class XFrameImpl(XObjectImpl, TracedObject):
         name = name or 'X.0'
         col_names = [name]
         col_types = [arry_impl.elem_type]
+        table_lineage = array_impl.table_lineage
         rdd = arry_impl.rdd().map(lambda val: (val,))
         cls._exit()
-        return XFrameImpl(rdd, col_names, col_types)
+        return XFrameImpl(rdd, col_names, col_types, table_lineage)
 
     def add_column(self, col, name):
         """
