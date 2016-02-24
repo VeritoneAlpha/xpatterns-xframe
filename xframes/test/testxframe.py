@@ -911,6 +911,23 @@ class TestXFrameDtype(unittest.TestCase):
         self.assertEqual(str, dt[1])
 
 
+class TestXFrameLineage(unittest.TestCase):
+    """
+    Tests XFrame lineage
+    """
+
+    def test_lineage(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        lineage = t.lineage()
+        print lineage
+
+    def test_frame_auto_lineage(self):
+        path = 'files/test-frame-auto.csv'
+        res = XFrame(path)
+        lineage = res.lineage()
+        print lineage
+
+
 class TestXFrameNumRows(unittest.TestCase):
     """
     Tests XFrame num_rows
