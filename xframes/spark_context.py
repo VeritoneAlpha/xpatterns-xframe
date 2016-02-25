@@ -122,15 +122,15 @@ class CommonSparkContext(object):
         self._sqlc = SQLContext(self._sc)
         self._hivec = HiveContext(self._sc)
         self.zip_path = []
-        self.version = self._sc.version.split('.')
+        self.version = [int(n) for n in self._sc.version.split('.')]
         self.status_tracker = self._sc.statusTracker()
-        if cmp(self.version, [1, 4, 1] >= 0):
+        if cmp(self.version, [1, 4, 1]) >= 0:
             self.application_id = self._sc.applicationId
         else:
             self.application_id = None
 
         if verbose:
-            print 'Spark Version:', '.'.join(self.version)
+            print 'Spark Version:', '.'.join([str(n) for n in self.version])
             if self.application_id:
                 print 'Application Id:', self.application_id
 
