@@ -207,12 +207,18 @@ class XArrayImpl(XObjectImpl, TracedObject):
         # If the path is a file, look for that file
         # Use type inference to determine the element type.
         # Passed-in dtype is always str and is ignored.
+        new_lineage = {path}
         sc = CommonSparkContext.spark_context()
         if os.path.isdir(path):
             res = XRdd(sc.pickleFile(path))
             metadata_path = os.path.join(path, '_metadata')
             with fileio.open_file(metadata_path) as f:
                 dtype = pickle.load(f)
+            lineage_path = os.path.join(path, '_lineage')
+            if fileio.exists(lineage_path):
+                with fileio.open_file(lineage_path) as f:
+                    lineage = pickle.load(f)
+                    new_lineage |= lineage['table']
         else:
             res = XRdd(sc.textFile(path, use_unicode=False))
             dtype = infer_type(res)
@@ -225,7 +231,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             else:
                 res = res.map(lambda x: dtype(x))
         cls._exit()
-        return cls(res, dtype, {path})
+        return cls(res, dtype, new_lineage)
 
     def get_content_identifier(self):
         """
@@ -249,12 +255,16 @@ class XArrayImpl(XObjectImpl, TracedObject):
             # TODO distinguish between filesystem errors and pickle errors
             raise TypeError('The XArray save failed.')
         metadata = self.elem_type
-        # TODO store lineage metadata
         metadata_path = os.path.join(path, '_metadata')
-        # TODO detect filesystem errors
         with fileio.open_file(metadata_path, 'w') as f:
             # TODO detect filesystem errors
             pickle.dump(metadata, f)
+
+        lineage = {'table': self.table_lineage}
+        lineage_path = os.path.join(path, '_lineage')
+        with fileio.open_file(lineage_path, 'w') as f:
+            # TODO detect filesystem errors
+            pickle.dump(lineage, f)
         self._exit()
 
     def save_as_text(self, path):
@@ -271,10 +281,16 @@ class XArrayImpl(XObjectImpl, TracedObject):
             raise TypeError('The XArray save failed.')
         metadata = self.elem_type
         metadata_path = os.path.join(path, '_metadata')
-        # TODO store lineage metadata
         with fileio.open_file(metadata_path, 'w') as f:
             # TODO detect filesystem errors
             pickle.dump(metadata, f)
+
+        lineage = {'table': self.table_lineage}
+        lineage_path = os.path.join(path, '_lineage')
+        with fileio.open_file(lineage_path, 'w') as f:
+            # TODO detect filesystem errors
+            pickle.dump(lineage, f)
+
         self._exit()
 
     def save_as_csv(self, path, **params):
@@ -347,7 +363,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         Returns the table lineage
         """
         self._entry()
-        self._exit(lineage = self.table_lineage)
+        self._exit(lineage=self.table_lineage)
         return self.table_lineage
 
     # Get Data
@@ -528,7 +544,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         else:
             raise NotImplementedError(op)
         self._exit()
-        return self._rv(res)
+        return self._rv(res, res_type)
 
     def right_scalar_operator(self, other, op):
         """
