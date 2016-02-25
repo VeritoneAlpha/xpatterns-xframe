@@ -921,11 +921,66 @@ class TestXFrameLineage(unittest.TestCase):
         lineage = t.lineage()
         print lineage
 
-    def test_frame_auto_lineage(self):
+    def test_lineage_csv(self):
         path = 'files/test-frame-auto.csv'
         res = XFrame(path)
         lineage = res.lineage()
-        print lineage
+        self.assertEqual(1, len(lineage))
+        item = list(lineage)[0]
+        filename = os.path.basename(item)
+        self.assertEqual('test-frame-auto.csv', filename)
+
+    def test_lineage_transform(self):
+        path = 'files/test-frame-auto.csv'
+        res = XFrame(path).transform_col('val_int', lambda row: row['val_int'] *2)
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        filename = os.path.basename(list(lineage)[0])
+        self.assertEqual('test-frame-auto.csv', filename)
+
+    def test_lineage_rdd(self):
+        sc = XFrame.spark_context()
+        rdd = sc.parallelize([(1, 'a'), (2, 'b'), (3, 'c')])
+        res = XFrame.from_rdd(rdd)
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = list(lineage)[0]
+        self.assertEqual('RDD', item)
+
+    def test_lineage_hive(self):
+        pass
+
+    def test_lineage_pandas_dataframe(self):
+        df = pandas.DataFrame({'id': [1, 2, 3], 'val': [10.0, 20.0, 30.0]})
+        res = XFrame(df)
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = list(lineage)[0]
+        self.assertEqual('PANDAS', item)
+
+    def test_lineage_spark_dataframe(self):
+        pass
+
+    def test_lineage_program_data(self):
+        res = XFrame({'id': [1, 2, 3], 'val': [10.0, 20.0, 30.0]})
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = list(lineage)[0]
+        self.assertEqual('DATA', item)
+
+    def test_lineage_append(self):
+        res1 = XFrame('files/test-frame.csv')
+        res2 = XFrame('files/test-frame.psv')
+        res = res1.append(res2)
+        lineage = res.lineage()
+        self.assertEqual(2, len(lineage))
+        basenames = set([os.path.basename(item) for item in lineage])
+        self.assertTrue('test-frame.csv' in basenames)
+        self.assertTrue('test-frame.psv' in basenames)
+
+    # read from binary file -- metadata
+    # join
+    # add columns
 
 
 class TestXFrameNumRows(unittest.TestCase):
