@@ -1454,7 +1454,7 @@ class XFrame(XObject):
 
     def lineage(self):
         """
-        The table lineage: the tables that went into building this table.
+        The table lineage: the files that went into building this table.
 
         Returns
         -------
