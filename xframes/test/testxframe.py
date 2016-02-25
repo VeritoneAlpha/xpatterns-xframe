@@ -919,7 +919,9 @@ class TestXFrameLineage(unittest.TestCase):
     def test_lineage(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         lineage = t.lineage()
-        print lineage
+        self.assertEqual(1, len(lineage))
+        item = list(lineage)[0]
+        self.assertEqual('PROGRAM', item)
 
     def test_lineage_csv(self):
         path = 'files/test-frame-auto.csv'
@@ -932,7 +934,7 @@ class TestXFrameLineage(unittest.TestCase):
 
     def test_lineage_transform(self):
         path = 'files/test-frame-auto.csv'
-        res = XFrame(path).transform_col('val_int', lambda row: row['val_int'] *2)
+        res = XFrame(path).transform_col('val_int', lambda row: row['val_int'] * 2)
         lineage = res.lineage()
         self.assertEqual(1, len(lineage))
         filename = os.path.basename(list(lineage)[0])
