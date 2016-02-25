@@ -177,6 +177,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         with fileio.open_file(metadata_path) as f:
             names, types = pickle.load(f)
         cls._exit()
+        # TODO read metadata
         return cls(res, names, types, {'METADATA PLACEHOLDER'})
 
     @classmethod
@@ -214,7 +215,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         def row_to_tuple(row):
             return tuple([row[i] for i in range(len(row))])
         rdd = hive_dataframe.map(row_to_tuple)
-        return cls(rdd, xf_names, xf_types)
+        return cls(rdd, xf_names, xf_types, {dataset})
 
     @classmethod
     def load_from_rdd(cls, rdd, names=None, types=None):
@@ -1378,8 +1379,9 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         self._entry()
         res = self._rdd.union(other.rdd())
+        new_lineage = self.table_lineage | other.table_lineage
         self._exit()
-        return self._rv(res)
+        return self._rv(res, table_lineage=new_lineage)
 
     def copy_range(self, start, step, stop):
         """
