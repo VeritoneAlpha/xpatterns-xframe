@@ -65,7 +65,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
     # text processing functions
     # array.array and numpy.array values
 
-    def __init__(self, rdd=None, elem_type=None):
+    def __init__(self, rdd=None, elem_type=None, table_lineage=None):
         # The RDD holds all the data for the XArray.
         # The rows must be of a single type.
         # Types permitted include int, long, float, string, list, and dict.
@@ -73,31 +73,35 @@ class XArrayImpl(XObjectImpl, TracedObject):
         self._entry(elem_type=elem_type)
         super(XArrayImpl, self).__init__(rdd)
         self.elem_type = elem_type
+        self.table_lineage = table_lineage or {}
         self.materialized = False
         self.iter_pos = 0
         self._exit()
 
-    def _rv(self, rdd, typ=None):
+    def _rv(self, rdd, typ=None, table_lineage=None):
         """
         Return a new XArrayImpl containing the rdd and element type
         """
-        return XArrayImpl(rdd, typ or self.elem_type)
+        return XArrayImpl(rdd, typ or self.elem_type, table_lineage or self.table_lineage)
 
     @staticmethod
-    def _rv_frame(rdd, col_names=None, types=None):
+    def _rv_frame(rdd, col_names=None, types=None, table_lineage=None):
         """
         Return a new XFrameImpl containing the rdd, column names, and element types
         """
         # noinspection PyUnresolvedReferences
-        return xframes.xframe_impl.XFrameImpl(rdd, col_names, types)
+        return xframes.xframe_impl.XFrameImpl(rdd, col_names, types, table_lineage)
 
-    def _replace(self, rdd, dtype):
+    def _replace(self, rdd, dtype=None, table_lineage=None):
         self._replace_rdd(rdd)
-        self.elem_type = dtype
+        if dtype is not None:
+            self.elem_type = dtype
+        if table_lineage is not None:
+            self.table_lineage = table_lineage
         self.materialized = False
 
     def _count(self):
-        count = self._rdd.count()     # action
+        count = self._rdd.count()
         self.materialized = True
         return count
 
@@ -117,7 +121,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             step = -1
         sc = CommonSparkContext.spark_context()
         rdd = XRdd(sc.parallelize(range(start, stop, step)))
-        return XArrayImpl(rdd, int)
+        return XArrayImpl(rdd, int, {'RANGE'})
 
     # Load
     @classmethod
@@ -175,7 +179,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
                 raise ValueError
 
         cls._exit()
-        return cls(rdd, dtype)
+        return cls(rdd, dtype, {'PROGRAM'})
 
     @classmethod
     def load_from_const(cls, value, size):
@@ -186,7 +190,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         values = [value for _ in xrange(0, size)]
         sc = CommonSparkContext.spark_context()
         cls._exit()
-        return cls(XRdd(sc.parallelize(values)), type(value))
+        return cls(XRdd(sc.parallelize(values)), type(value), {'CONST'})
 
     @classmethod
     def load_autodetect(cls, path, dtype):
@@ -221,7 +225,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             else:
                 res = res.map(lambda x: dtype(x))
         cls._exit()
-        return cls(res, dtype)
+        return cls(res, dtype, {path})
 
     def get_content_identifier(self):
         """
@@ -245,6 +249,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             # TODO distinguish between filesystem errors and pickle errors
             raise TypeError('The XArray save failed.')
         metadata = self.elem_type
+        # TODO store lineage metadata
         metadata_path = os.path.join(path, '_metadata')
         # TODO detect filesystem errors
         with fileio.open_file(metadata_path, 'w') as f:
@@ -266,6 +271,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             raise TypeError('The XArray save failed.')
         metadata = self.elem_type
         metadata_path = os.path.join(path, '_metadata')
+        # TODO store lineage metadata
         with fileio.open_file(metadata_path, 'w') as f:
             # TODO detect filesystem errors
             pickle.dump(metadata, f)
@@ -316,7 +322,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
 
     @classmethod
     def from_rdd(cls, rdd, dtype):
-        return cls(rdd, dtype)
+        return cls(rdd, dtype, {'RDD'})
 
     # Array Information
     def size(self):
@@ -335,6 +341,14 @@ class XArrayImpl(XObjectImpl, TracedObject):
         self._entry()
         self._exit()
         return self.elem_type
+
+    def lineage(self):
+        """
+        Returns the table lineage
+        """
+        self._entry()
+        self._exit(lineage = self.table_lineage)
+        return self.table_lineage
 
     # Get Data
     def head(self, n):
@@ -400,7 +414,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         RDD, committing all lazy evaluated operations.
         """
         self._entry()
-        self._count()       # action
+        self._count()
         self._exit()
 
     def is_materialized(self):
@@ -475,7 +489,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         else:
             raise NotImplementedError(op)
         self._exit()
-        return self._rv(res, res_type)
+        return self._rv(res, res_type, self.table_lineage | other.table_lineage)
 
     def left_scalar_operator(self, other, op):
         """
@@ -513,7 +527,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         else:
             raise NotImplementedError(op)
         self._exit()
-        return self._rv(res, res_type)
+        return self._rv(res)
 
     def right_scalar_operator(self, other, op):
         """
@@ -676,8 +690,9 @@ class XArrayImpl(XObjectImpl, TracedObject):
         if self.elem_type != other.elem_type:
             raise TypeError('Types must match in append: {} {}'.format(self.elem_type, other.elem_type))
         res = self._rdd.union(other.rdd())
+        new_lineage = self.table_lineage | other.table_lineage
         self._exit()
-        return self._rv(res)
+        return self._rv(res, table_lineage=new_lineage)
 
     # Data Transformation
     def transform(self, fn, dtype, skip_undefined, seed):

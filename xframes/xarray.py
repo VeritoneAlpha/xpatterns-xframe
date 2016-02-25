@@ -690,6 +690,17 @@ class XArray(XObject):
         """
         return self._impl.dtype()
 
+    def lineage(self):
+        """
+        The array lineage: the files that went into building this array.
+
+        Returns
+        -------
+        out : set[filename]
+            The files that were used to the XArray
+        """
+        return self._impl.table_lineage
+
     def head(self, n=10):
         """
         Returns an XArray which contains the first n rows of this XArray.
