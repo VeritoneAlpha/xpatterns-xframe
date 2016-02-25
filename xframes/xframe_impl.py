@@ -840,7 +840,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         name = name or 'X.0'
         col_names = [name]
         col_types = [arry_impl.elem_type]
-        table_lineage = array_impl.table_lineage
+        table_lineage = arry_impl.table_lineage
         rdd = arry_impl.rdd().map(lambda val: (val,))
         cls._exit()
         return XFrameImpl(rdd, col_names, col_types, table_lineage)
@@ -1827,7 +1827,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
         persist(res)
 
-        new_lineage = self._table_lineage.combine(right.table_lineage)
+        new_lineage = self.table_lineage | right.table_lineage
         self._exit(new_col_names=new_col_names, new_col_types=new_col_types, new_lineage=new_lineage)
         return self._rv(res, new_col_names, new_col_types, new_lineage)
 
