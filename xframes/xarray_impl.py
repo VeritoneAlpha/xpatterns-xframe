@@ -73,7 +73,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         self._entry(elem_type=elem_type)
         super(XArrayImpl, self).__init__(rdd)
         self.elem_type = elem_type
-        self.table_lineage = table_lineage or {}
+        self.table_lineage = table_lineage or set()
         self.materialized = False
         self.iter_pos = 0
         self._exit()
@@ -489,7 +489,8 @@ class XArrayImpl(XObjectImpl, TracedObject):
         else:
             raise NotImplementedError(op)
         self._exit()
-        return self._rv(res, res_type, self.table_lineage | other.table_lineage)
+        new_lineage = self.table_lineage | other.table_lineage
+        return self._rv(res, res_type, new_lineage)
 
     def left_scalar_operator(self, other, op):
         """

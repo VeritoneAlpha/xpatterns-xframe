@@ -74,7 +74,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         column_types = column_types or []
         self.col_names = list(col_names)
         self.column_types = list(column_types)
-        self.table_lineage = table_lineage or {}
+        self.table_lineage = table_lineage or set()
         self.iter_pos = None
         self._num_rows = None
 
@@ -98,7 +98,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._rdd = None
         self.col_names = []
         self.column_types = []
-        self.table_lineage = {}
+        self.table_lineage = set()
         self.materialized = False
 
     def _replace(self, rdd, col_names=None, column_types=None, table_lineage=None):
@@ -530,7 +530,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._entry(path=path)
         fileio.delete(path)
         # save rdd
-        self._rdd.saveAsPickleFile(path)        # action ?
+        self._rdd.saveAsPickleFile(path)
         # save metadata in the same directory
         # TODO have to write this with HDFS lib if on hdfs
         metadata_path = os.path.join(path, '_metadata')
@@ -675,16 +675,15 @@ class XFrameImpl(XObjectImpl, TracedObject):
         Returns the column data types in the XFrame.
         """
         self._entry()
-        column_types = self.column_types
-        self._exit(column_types=column_types)
-        return column_types
+        self._exit(column_types=self.column_types)
+        return self.column_types
 
     def lineage(self):
         """
-        Returns the table lineage
+        Returns the table lineage.
         """
         self._entry()
-        self._exit(lineage = self.table_lineage)
+        self._exit(lineage=self.table_lineage)
         return self.table_lineage
 
     # Get Data
@@ -1828,8 +1827,9 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
         persist(res)
 
-        self._exit(new_col_names=new_col_names, new_col_types=new_col_types)
-        return self._rv(res, new_col_names, new_col_types)
+        new_lineage = self._table_lineage.combine(right.table_lineage)
+        self._exit(new_col_names=new_col_names, new_col_types=new_col_types, new_lineage=new_lineage)
+        return self._rv(res, new_col_names, new_col_types, new_lineage)
 
     def unique(self):
         """
