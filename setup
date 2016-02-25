@@ -12,7 +12,9 @@ export XFRAMES_HOME=`pwd`
 
 # PYTHONPATH is used to find the spark libraries and jars
 export SPARK_HOME=~/spark
-export PYTHONPATH=${SPARK_HOME}/python:${SPARK_HOME}/python/lib/py4j-0.8.2.1-src.zip
+#export PYTHONPATH=${SPARK_HOME}/python:${SPARK_HOME}/python/lib/py4j-0.8.2.1-src.zip
+# change to the following for spark 1.6.0
+export PYTHONPATH=${SPARK_HOME}/python:${SPARK_HOME}/python/lib/py4j-0.9-src.zip
 
 # It is a good idea to set the spark conf directory.
 export SPARK_CONF_DIR=$XFRAMES_HOME/xframes/conf
