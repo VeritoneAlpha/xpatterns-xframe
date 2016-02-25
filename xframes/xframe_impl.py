@@ -170,15 +170,20 @@ class XFrameImpl(XObjectImpl, TracedObject):
         Load from a saved xframe.
         """
         cls._entry(path=path)
+        new_lineage = {path}
         sc = cls.spark_context()
         res = sc.pickleFile(path)
         # read metadata from the same directory
         metadata_path = os.path.join(path, '_metadata')
         with fileio.open_file(metadata_path) as f:
             names, types = pickle.load(f)
+        lineage_path = os.path.join(path, '_lineage')
+        if fileio.exists(lineage_path):
+            with fileio.open_file(lineage_path) as f:
+                lineage = pickle.load(f)
+                new_lineage |= lineage['table']
         cls._exit()
-        # TODO read metadata
-        return cls(res, names, types, {'METADATA PLACEHOLDER'})
+        return cls(res, names, types, new_lineage)
 
     @classmethod
     def load_from_spark_dataframe(cls, rdd):
@@ -532,13 +537,18 @@ class XFrameImpl(XObjectImpl, TracedObject):
         # save rdd
         self._rdd.saveAsPickleFile(path)
         # save metadata in the same directory
-        # TODO have to write this with HDFS lib if on hdfs
+
         metadata_path = os.path.join(path, '_metadata')
         metadata = [self.col_names, self.column_types]
-
         with fileio.open_file(metadata_path, 'w') as f:
             # TODO detect filesystem errors
             pickle.dump(metadata, f)
+
+        lineage_path = os.path.join(path, '_lineage')
+        lineage = {'table': self.table_lineage}
+        with fileio.open_file(lineage_path, 'w') as f:
+            # TODO detect filesystem errors
+            pickle.dump(lineage, f)
         self._exit()
 
     # noinspection PyArgumentList
@@ -881,7 +891,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 return tuple(old_val + (new_elem, ))
             res = res.map(lambda pair: move_inside(pair[0], pair[1]))
         self._exit()
-        return self._rv(res, col_names, col_types)
+        new_lineage = self.table_lineage | col.table_lineage
+        return self._rv(res, col_names, col_types, new_lineage)
 
     def add_column_in_place(self, data, name):
         """
