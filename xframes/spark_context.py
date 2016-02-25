@@ -124,7 +124,7 @@ class CommonSparkContext(object):
         self.zip_path = []
         self.version = self._sc.version.split('.')
         self.status_tracker = self._sc.statusTracker()
-        if self.version >= [1, 4, 1]:
+        if cmp(self.version, [1, 4, 1] >= 0):
             self.application_id = self._sc.applicationId
         else:
             self.application_id = None
