@@ -780,6 +780,93 @@ class TestXArrayDtype(unittest.TestCase):
         self.assertEqual(int, t.dtype())
 
 
+class TestXArrayLineage(unittest.TestCase):
+    """
+    Tests XArray lineage operation
+    """
+    def test_lineage_program(self):
+        res = XArray([1, 2, 3])
+        print res.lineage()
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = list(lineage)[0]
+        self.assertEqual('PROGRAM', item)
+
+    def test_lineage_file(self):
+        res = XArray('files/test-array-int')
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = os.path.basename(list(lineage)[0])
+        self.assertEqual('test-array-int', item)
+
+    def test_lineage_apply(self):
+        res = XArray('files/test-array-int').apply(lambda x: -x)
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = os.path.basename(list(lineage)[0])
+        self.assertEqual('test-array-int', item)
+
+    def test_lineage_range(self):
+        res = XArray.from_sequence(100, 200)
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = list(lineage)[0]
+        self.assertEqual('RANGE', item)
+
+    def test_lineage_const(self):
+        res = XArray.from_const(1, 10)
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = list(lineage)[0]
+        self.assertEqual('CONST', item)
+
+    def test_lineage_binary_op(self):
+        res_int = XArray('files/test-array-int')
+        res_float = XArray('files/test-array-float')
+        res = res_int + res_float
+        lineage = res.lineage()
+        self.assertEqual(2, len(lineage))
+        basenames = set([os.path.basename(item) for item in lineage])
+        self.assertTrue('test-array-int' in basenames)
+        self.assertTrue('test-array-float' in basenames)
+
+    def test_lineage_left_op(self):
+        res = XArray('files/test-array-int')
+        res = res + 2
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = os.path.basename(list(lineage)[0])
+        self.assertEqual('test-array-int', item)
+
+    def test_lineage_right_op(self):
+        res = XArray('files/test-array-int')
+        res = 2 + res
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = os.path.basename(list(lineage)[0])
+        self.assertEqual('test-array-int', item)
+
+    def test_lineage_unary(self):
+        res = XArray('files/test-array-int')
+        res = -res
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = os.path.basename(list(lineage)[0])
+        self.assertEqual('test-array-int', item)
+
+    def test_lineage_append(self):
+        res1 = XArray('files/test-array-int')
+        res2 = XArray('files/test-array-float')
+        res3 = res2.apply(lambda x: int(x))
+        res = res1.append(res3)
+        lineage = res.lineage()
+        self.assertEqual(2, len(lineage))
+        basenames = set([os.path.basename(item) for item in lineage])
+        self.assertTrue('test-array-int' in basenames)
+        self.assertTrue('test-array-float' in basenames)
+
+
+
 class TestXArrayHead(unittest.TestCase):
     """
     Tests XArray head operation
