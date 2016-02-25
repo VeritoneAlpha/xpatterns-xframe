@@ -3,6 +3,7 @@ import math
 import os
 import array
 import datetime
+import pickle
 
 # python testxarray.py
 # python -m unittest testxarray
@@ -283,7 +284,7 @@ class TestXArraySaveBinary(unittest.TestCase):
     def test_save_format(self):
         t = XArray([1, 2, 3])
         path = 'tmp/array-binary'
-        t.save(path, format='binary')
+        t.save(path, file_format='binary')
         success_path = os.path.join(path, '_SUCCESS')
         self.assertTrue(os.path.isfile(success_path))
 
@@ -302,7 +303,7 @@ class TestXArraySaveText(unittest.TestCase):
     def test_save_format(self):
         t = XArray([1, 2, 3])
         path = 'tmp/array-text'
-        t.save(path, format='text')
+        t.save(path, file_format='text')
         success_path = os.path.join(path, '_SUCCESS')
         self.assertTrue(os.path.isfile(success_path))
 
@@ -323,7 +324,7 @@ class TestXArraySaveCsv(unittest.TestCase):
     def test_save_format(self):
         t = XArray([1, 2, 3])
         path = 'tmp/array-csv'
-        t.save(path, format='csv')
+        t.save(path, file_format='csv')
         with open(path) as f:
             self.assertEqual('1', f.readline().strip())
             self.assertEqual('2', f.readline().strip())
@@ -786,7 +787,6 @@ class TestXArrayLineage(unittest.TestCase):
     """
     def test_lineage_program(self):
         res = XArray([1, 2, 3])
-        print res.lineage()
         lineage = res.lineage()
         self.assertEqual(1, len(lineage))
         item = list(lineage)[0]
@@ -830,6 +830,7 @@ class TestXArrayLineage(unittest.TestCase):
         self.assertTrue('test-array-int' in basenames)
         self.assertTrue('test-array-float' in basenames)
 
+    # noinspection PyAugmentAssignment,PyUnresolvedReferences
     def test_lineage_left_op(self):
         res = XArray('files/test-array-int')
         res = res + 2
@@ -838,6 +839,7 @@ class TestXArrayLineage(unittest.TestCase):
         item = os.path.basename(list(lineage)[0])
         self.assertEqual('test-array-int', item)
 
+    # noinspection PyAugmentAssignment,PyUnresolvedReferences
     def test_lineage_right_op(self):
         res = XArray('files/test-array-int')
         res = 2 + res
@@ -865,6 +867,44 @@ class TestXArrayLineage(unittest.TestCase):
         self.assertTrue('test-array-int' in basenames)
         self.assertTrue('test-array-float' in basenames)
 
+    def test_lineage_save(self):
+        res = XArray('files/test-array-int')
+        path = '/tmp/xarray'
+        res.save(path, file_format='binary')
+        with open(os.path.join(path, '_metadata')) as f:
+            metadata = pickle.load(f)
+        self.assertEqual(int, metadata)
+        with open(os.path.join(path, '_lineage')) as f:
+            lineage = pickle.load(f)
+            table_lineage = lineage['table']
+            self.assertEqual(1, len(table_lineage))
+            basenames = set([os.path.basename(item) for item in table_lineage])
+            self.assertTrue('test-array-int' in basenames)
+
+    def test_lineage_save_text(self):
+        res = XArray('files/test-array-str')
+        path = '/tmp/xarray'
+        res.save(path, file_format='text')
+        with open(os.path.join(path, '_metadata')) as f:
+            metadata = pickle.load(f)
+        self.assertEqual(str, metadata)
+        with open(os.path.join(path, '_lineage')) as f:
+            lineage = pickle.load(f)
+            table_lineage = lineage['table']
+            self.assertEqual(1, len(table_lineage))
+            basenames = set([os.path.basename(item) for item in table_lineage])
+            self.assertTrue('test-array-str' in basenames)
+
+    def test_lineage_load(self):
+        res = XArray('files/test-array-int')
+        path = 'tmp/array'
+        res.save(path, file_format='binary')
+        res = XArray(path)
+        lineage = res.lineage()
+        self.assertEqual(2, len(lineage))
+        basenames = set([os.path.basename(item) for item in lineage])
+        self.assertTrue('test-array-int' in basenames)
+        self.assertTrue('array' in basenames)
 
 
 class TestXArrayHead(unittest.TestCase):
