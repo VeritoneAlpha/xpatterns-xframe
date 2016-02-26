@@ -3,6 +3,7 @@ import math
 import os
 import array
 import datetime
+import pickle
 
 # python testxarray.py
 # python -m unittest testxarray
@@ -283,7 +284,7 @@ class TestXArraySaveBinary(unittest.TestCase):
     def test_save_format(self):
         t = XArray([1, 2, 3])
         path = 'tmp/array-binary'
-        t.save(path, format='binary')
+        t.save(path, file_format='binary')
         success_path = os.path.join(path, '_SUCCESS')
         self.assertTrue(os.path.isfile(success_path))
 
@@ -302,7 +303,7 @@ class TestXArraySaveText(unittest.TestCase):
     def test_save_format(self):
         t = XArray([1, 2, 3])
         path = 'tmp/array-text'
-        t.save(path, format='text')
+        t.save(path, file_format='text')
         success_path = os.path.join(path, '_SUCCESS')
         self.assertTrue(os.path.isfile(success_path))
 
@@ -323,7 +324,7 @@ class TestXArraySaveCsv(unittest.TestCase):
     def test_save_format(self):
         t = XArray([1, 2, 3])
         path = 'tmp/array-csv'
-        t.save(path, format='csv')
+        t.save(path, file_format='csv')
         with open(path) as f:
             self.assertEqual('1', f.readline().strip())
             self.assertEqual('2', f.readline().strip())
@@ -778,6 +779,132 @@ class TestXArrayDtype(unittest.TestCase):
     def test_dtype(self):
         t = XArray([1, 2, 3])
         self.assertEqual(int, t.dtype())
+
+
+class TestXArrayLineage(unittest.TestCase):
+    """
+    Tests XArray lineage operation
+    """
+    def test_lineage_program(self):
+        res = XArray([1, 2, 3])
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = list(lineage)[0]
+        self.assertEqual('PROGRAM', item)
+
+    def test_lineage_file(self):
+        res = XArray('files/test-array-int')
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = os.path.basename(list(lineage)[0])
+        self.assertEqual('test-array-int', item)
+
+    def test_lineage_apply(self):
+        res = XArray('files/test-array-int').apply(lambda x: -x)
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = os.path.basename(list(lineage)[0])
+        self.assertEqual('test-array-int', item)
+
+    def test_lineage_range(self):
+        res = XArray.from_sequence(100, 200)
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = list(lineage)[0]
+        self.assertEqual('RANGE', item)
+
+    def test_lineage_const(self):
+        res = XArray.from_const(1, 10)
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = list(lineage)[0]
+        self.assertEqual('CONST', item)
+
+    def test_lineage_binary_op(self):
+        res_int = XArray('files/test-array-int')
+        res_float = XArray('files/test-array-float')
+        res = res_int + res_float
+        lineage = res.lineage()
+        self.assertEqual(2, len(lineage))
+        basenames = set([os.path.basename(item) for item in lineage])
+        self.assertTrue('test-array-int' in basenames)
+        self.assertTrue('test-array-float' in basenames)
+
+    # noinspection PyAugmentAssignment,PyUnresolvedReferences
+    def test_lineage_left_op(self):
+        res = XArray('files/test-array-int')
+        res = res + 2
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = os.path.basename(list(lineage)[0])
+        self.assertEqual('test-array-int', item)
+
+    # noinspection PyAugmentAssignment,PyUnresolvedReferences
+    def test_lineage_right_op(self):
+        res = XArray('files/test-array-int')
+        res = 2 + res
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = os.path.basename(list(lineage)[0])
+        self.assertEqual('test-array-int', item)
+
+    def test_lineage_unary(self):
+        res = XArray('files/test-array-int')
+        res = -res
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = os.path.basename(list(lineage)[0])
+        self.assertEqual('test-array-int', item)
+
+    def test_lineage_append(self):
+        res1 = XArray('files/test-array-int')
+        res2 = XArray('files/test-array-float')
+        res3 = res2.apply(lambda x: int(x))
+        res = res1.append(res3)
+        lineage = res.lineage()
+        self.assertEqual(2, len(lineage))
+        basenames = set([os.path.basename(item) for item in lineage])
+        self.assertTrue('test-array-int' in basenames)
+        self.assertTrue('test-array-float' in basenames)
+
+    def test_lineage_save(self):
+        res = XArray('files/test-array-int')
+        path = '/tmp/xarray'
+        res.save(path, file_format='binary')
+        with open(os.path.join(path, '_metadata')) as f:
+            metadata = pickle.load(f)
+        self.assertEqual(int, metadata)
+        with open(os.path.join(path, '_lineage')) as f:
+            lineage = pickle.load(f)
+            table_lineage = lineage['table']
+            self.assertEqual(1, len(table_lineage))
+            basenames = set([os.path.basename(item) for item in table_lineage])
+            self.assertTrue('test-array-int' in basenames)
+
+    def test_lineage_save_text(self):
+        res = XArray('files/test-array-str')
+        path = '/tmp/xarray'
+        res.save(path, file_format='text')
+        with open(os.path.join(path, '_metadata')) as f:
+            metadata = pickle.load(f)
+        self.assertEqual(str, metadata)
+        with open(os.path.join(path, '_lineage')) as f:
+            lineage = pickle.load(f)
+            table_lineage = lineage['table']
+            self.assertEqual(1, len(table_lineage))
+            basenames = set([os.path.basename(item) for item in table_lineage])
+            self.assertTrue('test-array-str' in basenames)
+
+    def test_lineage_load(self):
+        res = XArray('files/test-array-int')
+        path = 'tmp/array'
+        res.save(path, file_format='binary')
+        res = XArray(path)
+        lineage = res.lineage()
+        self.assertEqual(2, len(lineage))
+        basenames = set([os.path.basename(item) for item in lineage])
+        self.assertTrue('test-array-int' in basenames)
+        self.assertTrue('array' in basenames)
 
 
 class TestXArrayHead(unittest.TestCase):

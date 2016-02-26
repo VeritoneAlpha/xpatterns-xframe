@@ -279,7 +279,7 @@ class XArray(XObject):
         return self._impl.get_content_identifier()
 
     # noinspection PyShadowingBuiltins
-    def save(self, filename, format=None):
+    def save(self, filename, file_format=None):
         """
         Saves the XArray to file.
 
@@ -293,7 +293,7 @@ class XArray(XObject):
             saved as a text file. If format is 'binary', a directory will be
             created at the location which will contain the XArray.
 
-        format : {'binary', 'text', 'csv'}, optional
+        file_format : {'binary', 'text', 'csv'}, optional
             Format in which to save the XFrame. Binary saved XArrays can be
             loaded much faster and without any format conversion losses.
             The values 'text' and 'csv' are synonymous: Each XArray row will be written
@@ -303,7 +303,7 @@ class XArray(XObject):
             otherwise save as 'binary' format.
 
         """
-        if format is None:
+        if file_format is None:
             if filename.endswith('.txt'):
                 format = 'text'
             elif filename.endswith('.csv'):
@@ -311,11 +311,11 @@ class XArray(XObject):
             else:
                 format = 'binary'
 
-        if format == 'binary':
+        if file_format == 'binary':
             self._impl.save(make_internal_url(filename))
-        elif format == 'text':
+        elif file_format == 'text':
             self._impl.save_as_text(make_internal_url(filename))
-        elif format == 'csv':
+        elif file_format == 'csv':
             self._impl.save_as_csv(make_internal_url(filename))
 
     def to_rdd(self, number_of_partitions=4):
@@ -689,6 +689,17 @@ class XArray(XObject):
 
         """
         return self._impl.dtype()
+
+    def lineage(self):
+        """
+        The array lineage: the files that went into building this array.
+
+        Returns
+        -------
+        out : set[filename]
+            The files that were used to the XArray
+        """
+        return self._impl.table_lineage
 
     def head(self, n=10):
         """

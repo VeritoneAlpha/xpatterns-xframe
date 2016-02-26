@@ -911,6 +911,121 @@ class TestXFrameDtype(unittest.TestCase):
         self.assertEqual(str, dt[1])
 
 
+class TestXFrameLineage(unittest.TestCase):
+    """
+    Tests XFrame lineage
+    """
+
+    def test_lineage(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        lineage = t.lineage()
+        self.assertEqual(1, len(lineage))
+        item = list(lineage)[0]
+        self.assertEqual('PROGRAM', item)
+
+    def test_lineage_csv(self):
+        path = 'files/test-frame-auto.csv'
+        res = XFrame(path)
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = list(lineage)[0]
+        filename = os.path.basename(item)
+        self.assertEqual('test-frame-auto.csv', filename)
+
+    def test_lineage_transform(self):
+        path = 'files/test-frame-auto.csv'
+        res = XFrame(path).transform_col('val_int', lambda row: row['val_int'] * 2)
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        filename = os.path.basename(list(lineage)[0])
+        self.assertEqual('test-frame-auto.csv', filename)
+
+    def test_lineage_rdd(self):
+        sc = XFrame.spark_context()
+        rdd = sc.parallelize([(1, 'a'), (2, 'b'), (3, 'c')])
+        res = XFrame.from_rdd(rdd)
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = list(lineage)[0]
+        self.assertEqual('RDD', item)
+
+    def test_lineage_hive(self):
+        pass
+
+    def test_lineage_pandas_dataframe(self):
+        df = pandas.DataFrame({'id': [1, 2, 3], 'val': [10.0, 20.0, 30.0]})
+        res = XFrame(df)
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = list(lineage)[0]
+        self.assertEqual('PANDAS', item)
+
+    def test_lineage_spark_dataframe(self):
+        pass
+
+    def test_lineage_program_data(self):
+        res = XFrame({'id': [1, 2, 3], 'val': [10.0, 20.0, 30.0]})
+        lineage = res.lineage()
+        self.assertEqual(1, len(lineage))
+        item = list(lineage)[0]
+        self.assertEqual('PROGRAM', item)
+
+    def test_lineage_append(self):
+        res1 = XFrame('files/test-frame.csv')
+        res2 = XFrame('files/test-frame.psv')
+        res = res1.append(res2)
+        lineage = res.lineage()
+        self.assertEqual(2, len(lineage))
+        basenames = set([os.path.basename(item) for item in lineage])
+        self.assertTrue('test-frame.csv' in basenames)
+        self.assertTrue('test-frame.psv' in basenames)
+
+    def test_lineage_join(self):
+        res1 = XFrame('files/test-frame.csv')
+        res2 = XFrame('files/test-frame.psv').transform_col('val', lambda row: row['val'] + 'xxx')
+        res = res1.join(res2, on='id').sort('id').head()
+        lineage = res.lineage()
+        self.assertEqual(2, len(lineage))
+        basenames = set([os.path.basename(item) for item in lineage])
+        self.assertTrue('test-frame.csv' in basenames)
+        self.assertTrue('test-frame.psv' in basenames)
+
+    def test_lineage_add_column(self):
+        res1 = XFrame('files/test-frame.csv')
+        res2 = XArray('files/test-array-int')
+        res = res1.add_column(res2, 'new-col')
+        lineage = res.lineage()
+        self.assertEqual(2, len(lineage))
+        basenames = set([os.path.basename(item) for item in lineage])
+        self.assertTrue('test-frame.csv' in basenames)
+        self.assertTrue('test-array-int' in basenames)
+
+    def test_lineage_save(self):
+        res = XFrame('files/test-frame.csv')
+        path = 'tmp/frame'
+        res.save(path, file_format='binary')
+        with open(os.path.join(path, '_metadata')) as f:
+            metadata = pickle.load(f)
+        self.assertEqual([['id', 'val'], [int, str]], metadata)
+        with open(os.path.join(path, '_lineage')) as f:
+            lineage = pickle.load(f)
+            table_lineage = lineage['table']
+            self.assertEqual(1, len(table_lineage))
+            basenames = set([os.path.basename(item) for item in table_lineage])
+            self.assertTrue('test-frame.csv' in basenames)
+
+    def test_lineage_load(self):
+        res = XFrame('files/test-frame.csv')
+        path = 'tmp/frame'
+        res.save(path, file_format='binary')
+        res = XFrame(path)
+        lineage = res.lineage()
+        self.assertEqual(2, len(lineage))
+        basenames = set([os.path.basename(item) for item in lineage])
+        self.assertTrue('test-frame.csv' in basenames)
+        self.assertTrue('frame' in basenames)
+
+
 class TestXFrameNumRows(unittest.TestCase):
     """
     Tests XFrame num_rows

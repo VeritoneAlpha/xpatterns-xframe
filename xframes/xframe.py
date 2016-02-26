@@ -1452,6 +1452,17 @@ class XFrame(XObject):
         """
         return self.column_types()
 
+    def lineage(self):
+        """
+        The table lineage: the files that went into building this table.
+
+        Returns
+        -------
+        out : set[filename]
+            The files that were used to the XFrame
+        """
+        return self._impl.table_lineage
+
     def head(self, n=10):
         """
         The first n rows of the XFrame.
