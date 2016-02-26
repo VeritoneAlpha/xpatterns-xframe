@@ -918,7 +918,7 @@ class TestXFrameLineage(unittest.TestCase):
 
     def test_lineage(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
-        lineage = t.lineage()
+        lineage = t.lineage()['table']
         self.assertEqual(1, len(lineage))
         item = list(lineage)[0]
         self.assertEqual('PROGRAM', item)
@@ -926,7 +926,7 @@ class TestXFrameLineage(unittest.TestCase):
     def test_lineage_csv(self):
         path = 'files/test-frame-auto.csv'
         res = XFrame(path)
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(1, len(lineage))
         item = list(lineage)[0]
         filename = os.path.basename(item)
@@ -935,7 +935,7 @@ class TestXFrameLineage(unittest.TestCase):
     def test_lineage_transform(self):
         path = 'files/test-frame-auto.csv'
         res = XFrame(path).transform_col('val_int', lambda row: row['val_int'] * 2)
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(1, len(lineage))
         filename = os.path.basename(list(lineage)[0])
         self.assertEqual('test-frame-auto.csv', filename)
@@ -944,7 +944,7 @@ class TestXFrameLineage(unittest.TestCase):
         sc = XFrame.spark_context()
         rdd = sc.parallelize([(1, 'a'), (2, 'b'), (3, 'c')])
         res = XFrame.from_rdd(rdd)
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(1, len(lineage))
         item = list(lineage)[0]
         self.assertEqual('RDD', item)
@@ -955,7 +955,7 @@ class TestXFrameLineage(unittest.TestCase):
     def test_lineage_pandas_dataframe(self):
         df = pandas.DataFrame({'id': [1, 2, 3], 'val': [10.0, 20.0, 30.0]})
         res = XFrame(df)
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(1, len(lineage))
         item = list(lineage)[0]
         self.assertEqual('PANDAS', item)
@@ -965,7 +965,7 @@ class TestXFrameLineage(unittest.TestCase):
 
     def test_lineage_program_data(self):
         res = XFrame({'id': [1, 2, 3], 'val': [10.0, 20.0, 30.0]})
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(1, len(lineage))
         item = list(lineage)[0]
         self.assertEqual('PROGRAM', item)
@@ -974,7 +974,7 @@ class TestXFrameLineage(unittest.TestCase):
         res1 = XFrame('files/test-frame.csv')
         res2 = XFrame('files/test-frame.psv')
         res = res1.append(res2)
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(2, len(lineage))
         basenames = set([os.path.basename(item) for item in lineage])
         self.assertTrue('test-frame.csv' in basenames)
@@ -984,7 +984,7 @@ class TestXFrameLineage(unittest.TestCase):
         res1 = XFrame('files/test-frame.csv')
         res2 = XFrame('files/test-frame.psv').transform_col('val', lambda row: row['val'] + 'xxx')
         res = res1.join(res2, on='id').sort('id').head()
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(2, len(lineage))
         basenames = set([os.path.basename(item) for item in lineage])
         self.assertTrue('test-frame.csv' in basenames)
@@ -994,7 +994,7 @@ class TestXFrameLineage(unittest.TestCase):
         res1 = XFrame('files/test-frame.csv')
         res2 = XArray('files/test-array-int')
         res = res1.add_column(res2, 'new-col')
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(2, len(lineage))
         basenames = set([os.path.basename(item) for item in lineage])
         self.assertTrue('test-frame.csv' in basenames)
@@ -1019,7 +1019,7 @@ class TestXFrameLineage(unittest.TestCase):
         path = 'tmp/frame'
         res.save(path, file_format='binary')
         res = XFrame(path)
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(2, len(lineage))
         basenames = set([os.path.basename(item) for item in lineage])
         self.assertTrue('test-frame.csv' in basenames)

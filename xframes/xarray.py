@@ -692,14 +692,15 @@ class XArray(XObject):
 
     def lineage(self):
         """
-        The array lineage: the files that went into building this array.
+        The lineage: the files that went into building this array.
 
         Returns
         -------
-        out : set[filename]
-            The files that were used to the XArray
+        out : dict
+            * key 'table': set[filename]
+            The files that were used to build the XArray
         """
-        return self._impl.table_lineage
+        return self._impl.lineage()
 
     def head(self, n=10):
         """

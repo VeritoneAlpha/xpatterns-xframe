@@ -60,7 +60,7 @@ def name_col(existing_col_names, proposed_name):
 class XFrameImpl(XObjectImpl, TracedObject):
     """ Implementation for XFrame. """
 
-    def __init__(self, rdd=None, col_names=None, column_types=None, table_lineage=None):
+    def __init__(self, rdd=None, col_names=None, column_types=None, table_lineage=None, column_lineage=None):
         """ Instantiate a XFrame implementation.
 
         The RDD holds all the data for the XFrame.
@@ -75,13 +75,14 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self.col_names = list(col_names)
         self.column_types = list(column_types)
         self.table_lineage = table_lineage or set()
+        self.column_lineage = {col_name: set() for col_name in self.col_names}
         self.iter_pos = None
         self._num_rows = None
 
         self.materialized = False
         self._exit()
 
-    def _rv(self, rdd, col_names=None, column_types=None, table_lineage=None):
+    def _rv(self, rdd, col_names=None, column_types=None, table_lineage=None, column_lineage=None):
         """
         Return a new XFrameImpl containing the RDD, column names, column types, and lineage.
 
@@ -92,6 +93,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         col_names = self.col_names if col_names is None else col_names
         column_types = self.column_types if column_types is None else column_types
         table_lineage = self.table_lineage if table_lineage is None else table_lineage
+        column_lineage = self.column_lineage if column_lineage is None else column_lineage
         return XFrameImpl(rdd, col_names, column_types, table_lineage)
 
     def _reset(self):
@@ -99,9 +101,10 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self.col_names = []
         self.column_types = []
         self.table_lineage = set()
+        self.column_lineage = {}
         self.materialized = False
 
-    def _replace(self, rdd, col_names=None, column_types=None, table_lineage=None):
+    def _replace(self, rdd, col_names=None, column_types=None, table_lineage=None, column_lineage=None):
         """
         Replaces the existing RDD, column names, column types, and lineage with new values.
 
@@ -115,6 +118,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
             self.column_types = column_types
         if table_lineage is not None:
             self.table_lineage = table_lineage
+        if column_lineage is not None:
+            self.column_lineage = column_lineage
 
         self._num_rows = None
         self.materialized = False
@@ -122,7 +127,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
     def _count(self):
         persist(self._rdd)
-        count = self._rdd.count()     # action
+        count = self._rdd.count()
         self.materialized = True
         return count
 
@@ -694,7 +699,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         self._entry()
         self._exit(lineage=self.table_lineage)
-        return self.table_lineage
+        return {'table': self.table_lineage}
 
     # Get Data
     def head(self, n):

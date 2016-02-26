@@ -1994,15 +1994,15 @@ class XFrame(XObject):
                 raise ValueError('Cast failed: (dict) {}'.format(val))
 
         if new_type is int:
-            return XFrame(impl=self.__impl__.transform_cols([column_name], cast_int, [int], 0))
+            return XFrame(impl=self._impl.transform_cols([column_name], cast_int, [int], 0))
         if new_type is float:
-            return XFrame(impl=self.__impl__.transform_cols([column_name], cast_float, [float], 0))
+            return XFrame(impl=self._impl.transform_cols([column_name], cast_float, [float], 0))
         if new_type is list:
-            return XFrame(impl=self.__impl__.transform_cols([column_name], cast_list, [list], 0))
+            return XFrame(impl=self._impl.transform_cols([column_name], cast_list, [list], 0))
         if new_type is dict:
-            return XFrame(impl=self.__impl__.transform_cols([column_name], cast_dict, [dict], 0))
+            return XFrame(impl=self._impl.transform_cols([column_name], cast_dict, [dict], 0))
         if new_type is datetime.datetime:
-            return XFrame(impl=self.__impl__.transform_cols([column_name], cast_datetime, [datetime.datetime], 0))
+            return XFrame(impl=self._impl.transform_cols([column_name], cast_datetime, [datetime.datetime], 0))
 
         return self
 

@@ -787,35 +787,35 @@ class TestXArrayLineage(unittest.TestCase):
     """
     def test_lineage_program(self):
         res = XArray([1, 2, 3])
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(1, len(lineage))
         item = list(lineage)[0]
         self.assertEqual('PROGRAM', item)
 
     def test_lineage_file(self):
         res = XArray('files/test-array-int')
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(1, len(lineage))
         item = os.path.basename(list(lineage)[0])
         self.assertEqual('test-array-int', item)
 
     def test_lineage_apply(self):
         res = XArray('files/test-array-int').apply(lambda x: -x)
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(1, len(lineage))
         item = os.path.basename(list(lineage)[0])
         self.assertEqual('test-array-int', item)
 
     def test_lineage_range(self):
         res = XArray.from_sequence(100, 200)
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(1, len(lineage))
         item = list(lineage)[0]
         self.assertEqual('RANGE', item)
 
     def test_lineage_const(self):
         res = XArray.from_const(1, 10)
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(1, len(lineage))
         item = list(lineage)[0]
         self.assertEqual('CONST', item)
@@ -824,7 +824,7 @@ class TestXArrayLineage(unittest.TestCase):
         res_int = XArray('files/test-array-int')
         res_float = XArray('files/test-array-float')
         res = res_int + res_float
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(2, len(lineage))
         basenames = set([os.path.basename(item) for item in lineage])
         self.assertTrue('test-array-int' in basenames)
@@ -834,7 +834,7 @@ class TestXArrayLineage(unittest.TestCase):
     def test_lineage_left_op(self):
         res = XArray('files/test-array-int')
         res = res + 2
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(1, len(lineage))
         item = os.path.basename(list(lineage)[0])
         self.assertEqual('test-array-int', item)
@@ -843,7 +843,7 @@ class TestXArrayLineage(unittest.TestCase):
     def test_lineage_right_op(self):
         res = XArray('files/test-array-int')
         res = 2 + res
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(1, len(lineage))
         item = os.path.basename(list(lineage)[0])
         self.assertEqual('test-array-int', item)
@@ -851,7 +851,7 @@ class TestXArrayLineage(unittest.TestCase):
     def test_lineage_unary(self):
         res = XArray('files/test-array-int')
         res = -res
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(1, len(lineage))
         item = os.path.basename(list(lineage)[0])
         self.assertEqual('test-array-int', item)
@@ -861,7 +861,7 @@ class TestXArrayLineage(unittest.TestCase):
         res2 = XArray('files/test-array-float')
         res3 = res2.apply(lambda x: int(x))
         res = res1.append(res3)
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(2, len(lineage))
         basenames = set([os.path.basename(item) for item in lineage])
         self.assertTrue('test-array-int' in basenames)
@@ -900,7 +900,7 @@ class TestXArrayLineage(unittest.TestCase):
         path = 'tmp/array'
         res.save(path, file_format='binary')
         res = XArray(path)
-        lineage = res.lineage()
+        lineage = res.lineage()['table']
         self.assertEqual(2, len(lineage))
         basenames = set([os.path.basename(item) for item in lineage])
         self.assertTrue('test-array-int' in basenames)

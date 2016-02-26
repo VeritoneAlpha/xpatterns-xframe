@@ -364,7 +364,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         """
         self._entry()
         self._exit(lineage=self.table_lineage)
-        return self.table_lineage
+        return {'table': self.table_lineage}
 
     # Get Data
     def head(self, n):
