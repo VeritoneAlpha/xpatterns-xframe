@@ -75,7 +75,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self.col_names = list(col_names)
         self.column_types = list(column_types)
         self.table_lineage = table_lineage or set()
-        self.column_lineage = {col_name: set() for col_name in self.col_names}
+        self.column_lineage = column_lineage or {col_name: set() for col_name in self.col_names}
         self.iter_pos = None
         self._num_rows = None
 
@@ -94,7 +94,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         column_types = self.column_types if column_types is None else column_types
         table_lineage = self.table_lineage if table_lineage is None else table_lineage
         column_lineage = self.column_lineage if column_lineage is None else column_lineage
-        return XFrameImpl(rdd, col_names, column_types, table_lineage)
+        return XFrameImpl(rdd, col_names, column_types, table_lineage, column_lineage)
 
     def _reset(self):
         self._rdd = None
@@ -158,6 +158,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         dtypes = data.dtypes
         column_names = [col for col in columns]
         column_types = [type(numpy.zeros(1, dtype).tolist()[0]) for dtype in dtypes]
+        table_lineage = {'PANDAS'}
 
         res = []
         for row in data.iterrows():
@@ -167,7 +168,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         sc = cls.spark_context()
         rdd = sc.parallelize(res)
         cls._exit()
-        return XFrameImpl(rdd, column_names, column_types, {'PANDAS'})
+        return XFrameImpl(rdd, column_names, column_types, table_lineage)
 
     @classmethod
     def load_from_xframe_index(cls, path):
@@ -175,7 +176,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         Load from a saved xframe.
         """
         cls._entry(path=path)
-        new_lineage = {path}
+        table_lineage = {path}
         sc = cls.spark_context()
         res = sc.pickleFile(path)
         # read metadata from the same directory
@@ -186,9 +187,9 @@ class XFrameImpl(XObjectImpl, TracedObject):
         if fileio.exists(lineage_path):
             with fileio.open_file(lineage_path) as f:
                 lineage = pickle.load(f)
-                new_lineage |= lineage['table']
+                table_lineage |= lineage['table']
         cls._exit()
-        return cls(res, names, types, new_lineage)
+        return cls(res, names, types, table_lineage)
 
     @classmethod
     def load_from_spark_dataframe(cls, rdd):
@@ -199,12 +200,13 @@ class XFrameImpl(XObjectImpl, TracedObject):
         schema = rdd.schema
         xf_names = [str(col.name) for col in schema.fields]
         xf_types = [to_ptype(col.dataType) for col in schema.fields]
+        table_lineage = {'DATAFRAME'}
 
         def row_to_tuple(row):
             return tuple([row[i] for i in range(len(row))])
         xf_rdd = rdd.map(row_to_tuple)
         cls._exit()
-        return cls(xf_rdd, xf_names, xf_types, {'DATAFRAME'})
+        return cls(xf_rdd, xf_names, xf_types, table_lineage)
 
     # noinspection SqlNoDataSourceInspection
     @classmethod
@@ -239,9 +241,10 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 raise ValueError('Length of types does not match RDD.')
         names = names or ['X.{}'.format(i) for i in range(len(first_row))]
         types = types or [type(elem) for elem in first_row]
+        table_lineage = {'RDD'}
         # TODO sniff types using more of the rdd
         cls._exit()
-        return cls(rdd, names, types, {'RDD'})
+        return cls(rdd, names, types, table_lineage)
 
     @classmethod
     def load_from_csv(cls, path, parsing_config, type_hints):
@@ -250,6 +253,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         cls._entry(path=path, parsing_config=parsing_config, type_hints=type_hints)
 
+        table_lineage = {path}
         def get_config(name):
             return parsing_config[name] if name in parsing_config else None
         row_limit = get_config('row_limit')
@@ -484,7 +488,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
         cls._exit()
         # returns a dict of errors and XFrameImpl
-        return errs, XFrameImpl(res, col_names, column_types, {path})
+        return errs, XFrameImpl(res, col_names, column_types, table_lineage)
 
     # noinspection PyUnusedLocal
     @classmethod
@@ -511,8 +515,9 @@ class XFrameImpl(XObjectImpl, TracedObject):
             res = rdd.values().map(lambda line: (fixup_line(line), ))
         col_names = ['text']
         col_types = [str]
+        table_lineage = {path}
         cls._exit()
-        return XFrameImpl(res, col_names, col_types, {path})
+        return XFrameImpl(res, col_names, col_types, table_lineage)
 
     @classmethod
     def load_from_parquet(cls, path):
@@ -525,10 +530,11 @@ class XFrameImpl(XObjectImpl, TracedObject):
         schema = s_rdd.schema
         col_names = [str(col.name) for col in schema.fields]
         col_types = [to_ptype(col.dataType) for col in schema.fields]
+        table_lineage = {path}
 
         rdd = s_rdd.map(lambda row: tuple(row))
         cls._exit()
-        return XFrameImpl(rdd, col_names, col_types, {path})
+        return XFrameImpl(rdd, col_names, col_types, table_lineage)
 
     # Save
     def save(self, path):
@@ -856,9 +862,9 @@ class XFrameImpl(XObjectImpl, TracedObject):
         col_names = [name]
         col_types = [arry_impl.elem_type]
         rdd = arry_impl.rdd().map(lambda val: (val,))
-        new_lineage = arry_impl.table_lineage
+        table_lineage = arry_impl.table_lineage
         cls._exit()
-        return XFrameImpl(rdd, col_names, col_types, new_lineage)
+        return XFrameImpl(rdd, col_names, col_types, table_lineage)
 
     def add_column(self, col, name):
         """
@@ -895,9 +901,9 @@ class XFrameImpl(XObjectImpl, TracedObject):
             def move_inside(old_val, new_elem):
                 return tuple(old_val + (new_elem, ))
             res = res.map(lambda pair: move_inside(pair[0], pair[1]))
-        new_lineage = self.table_lineage | col.table_lineage
+        table_lineage = self.table_lineage | col.table_lineage
         self._exit()
-        return self._rv(res, col_names, col_types, new_lineage)
+        return self._rv(res, col_names, col_types, table_lineage)
 
     def add_column_in_place(self, data, name):
         """
@@ -1394,9 +1400,9 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         self._entry()
         res = self._rdd.union(other.rdd())
-        new_lineage = self.table_lineage | other.table_lineage
+        table_lineage = self.table_lineage | other.table_lineage
         self._exit()
-        return self._rv(res, table_lineage=new_lineage)
+        return self._rv(res, table_lineage=table_lineage)
 
     def copy_range(self, start, step, stop):
         """
@@ -1843,9 +1849,9 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
         persist(res)
 
-        new_lineage = self.table_lineage | right.table_lineage
-        self._exit(new_col_names=new_col_names, new_col_types=new_col_types, new_lineage=new_lineage)
-        return self._rv(res, new_col_names, new_col_types, new_lineage)
+        table_lineage = self.table_lineage | right.table_lineage
+        self._exit(new_col_names=new_col_names, new_col_types=new_col_types, table_lineage=table_lineage)
+        return self._rv(res, new_col_names, new_col_types, table_lineage)
 
     def unique(self):
         """
