@@ -207,7 +207,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         # If the path is a file, look for that file
         # Use type inference to determine the element type.
         # Passed-in dtype is always str and is ignored.
-        new_lineage = {path}
+        table_lineage = {path}
         sc = CommonSparkContext.spark_context()
         if os.path.isdir(path):
             res = XRdd(sc.pickleFile(path))
@@ -218,7 +218,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             if fileio.exists(lineage_path):
                 with fileio.open_file(lineage_path) as f:
                     lineage = pickle.load(f)
-                    new_lineage |= lineage['table']
+                    table_lineage |= lineage['table']
         else:
             res = XRdd(sc.textFile(path, use_unicode=False))
             dtype = infer_type(res)
@@ -231,7 +231,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             else:
                 res = res.map(lambda x: dtype(x))
         cls._exit()
-        return cls(res, dtype, new_lineage)
+        return cls(res, dtype, table_lineage)
 
     def get_content_identifier(self):
         """
@@ -504,9 +504,9 @@ class XArrayImpl(XObjectImpl, TracedObject):
             res_type = int
         else:
             raise NotImplementedError(op)
-        new_lineage = self.table_lineage | other.table_lineage
+        table_lineage = self.table_lineage | other.table_lineage
         self._exit()
-        return self._rv(res, res_type, new_lineage)
+        return self._rv(res, res_type, table_lineage)
 
     def left_scalar_operator(self, other, op):
         """
@@ -707,9 +707,9 @@ class XArrayImpl(XObjectImpl, TracedObject):
         if self.elem_type != other.elem_type:
             raise TypeError('Types must match in append: {} {}'.format(self.elem_type, other.elem_type))
         res = self._rdd.union(other.rdd())
-        new_lineage = self.table_lineage | other.table_lineage
+        table_lineage = self.table_lineage | other.table_lineage
         self._exit()
-        return self._rv(res, table_lineage=new_lineage)
+        return self._rv(res, table_lineage=table_lineage)
 
     # Data Transformation
     def transform(self, fn, dtype, skip_undefined, seed):
