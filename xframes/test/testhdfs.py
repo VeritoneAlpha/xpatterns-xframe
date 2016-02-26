@@ -255,7 +255,7 @@ class TestXFrameReadParquet(unittest.TestCase):
     def test_read_parquet_str(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         path = '{}/tmp/frame-parquet'.format(hdfs_prefix)
-        t.save(path, file_format='parquet')
+        t.save(path, format='parquet')
 
         res = XFrame('{}/tmp/frame-parquet.parquet'.format(hdfs_prefix))
         # results may not come back in the same order
@@ -277,7 +277,7 @@ class TestXFrameSaveBinary(unittest.TestCase):
     def test_save(self):
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
         path = '{}/tmp/frame'.format(hdfs_prefix)
-        t.save(path, file_format='binary')
+        t.save(path, format='binary')
         with fileio.open_file(os.path.join(path, '_metadata')) as f:
             metadata = pickle.load(f)
         self.assertEqual([['id', 'val'], [int, str]], metadata)
@@ -293,7 +293,7 @@ class TestXFrameSaveCsv(unittest.TestCase):
     def test_save(self):
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
         path = '{}/tmp/frame-csv'.format(hdfs_prefix)
-        t.save(path, file_format='csv')
+        t.save(path, format='csv')
 
         with fileio.open_file(path + '.csv') as f:
             heading = f.readline().rstrip()
@@ -311,7 +311,7 @@ class TestXFrameSaveParquet(unittest.TestCase):
     def test_save(self):
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
         path = '{}/tmp/frame-parquet'.format(hdfs_prefix)
-        t.save(path, file_format='parquet')
+        t.save(path, format='parquet')
         # TODO verify
         fileio.delete(path + '.parquet')
 

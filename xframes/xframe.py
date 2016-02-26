@@ -2247,7 +2247,7 @@ class XFrame(XObject):
         xf = self[self[column_name].topk_index(topk=k, reverse=reverse)]
         return xf.sort(column_name, ascending=reverse)
 
-    def save(self, filename, file_format=None):
+    def save(self, filename, format=None):
         """
         Save the XFrame to a file system for later use.
 
@@ -2258,7 +2258,7 @@ class XFrame(XObject):
             remote URL. If the format is 'binary', a directory will be created
             at the location which will contain the xframe.
 
-        file_format : {'binary', 'csv', 'parquet'}, optional
+        format : {'binary', 'csv', 'parquet'}, optional
             Format in which to save the XFrame. Binary saved XFrames can be
             loaded much faster and without any format conversion losses. If not
             given, will try to infer the format from filename given. If file
@@ -2277,43 +2277,43 @@ class XFrame(XObject):
         >>> xf.save('data/training_data_xframe')
 
         >>> # Save the xframe into csv format
-        >>> xf.save('data/training_data.csv', file_format='csv')
+        >>> xf.save('data/training_data.csv', format='csv')
         """
 
-        if file_format is None:
+        if format is None:
             if filename.endswith(('.csv', '.csv.gz')):
-                file_format = 'csv'
+                format = 'csv'
             elif filename.endswith('.parquet'):
-                file_format = 'parquet'
+                format = 'parquet'
             else:
-                file_format = 'binary'
+                format = 'binary'
         else:
-            if file_format is 'csv':
+            if format is 'csv':
                 if not filename.endswith(('.csv', '.csv.gz')):
                     filename += '.csv'
-            elif file_format is 'parquet':
+            elif format is 'parquet':
                 if not filename.endswith('.parquet'):
                     filename += '.parquet'
-            elif file_format is not 'binary':
+            elif format is not 'binary':
                 raise ValueError("Invalid format: {}. Supported formats are 'csv', 'parquet', and 'binary'."
-                                 .format(file_format))
+                                 .format(format))
 
         # Save the XFrame
         url = make_internal_url(filename)
 
-        if file_format is 'binary':
+        if format is 'binary':
             self._impl.save(url)
 
-        elif file_format is 'csv':
+        elif format is 'csv':
             if not filename.endswith(('.csv', '.csv.gz')):
                 raise ValueError('File name must end with .csv or .csv.gz.')
             self._impl.save_as_csv(url)
-        elif file_format is 'parquet':
+        elif format is 'parquet':
             if not filename.endswith('.parquet'):
                 raise ValueError('File name must wnd with .parquet.')
             self._impl.save_as_parquet(url, number_of_partitions=8)
         else:
-            raise ValueError('Unsupported format: {}.'.format(file_format))
+            raise ValueError('Unsupported format: {}.'.format(format))
 
     def select_column(self, column_name):
         """
@@ -2500,10 +2500,6 @@ class XFrame(XObject):
         """
         col_list = cols
         if isinstance(cols, XFrame):
-            other = cols
-            namelist = other.column_names()
-
-            my_columns = set(self.column_names())
             return XFrame(impl=self._impl.add_columns_frame(cols))
         else:
             if not hasattr(col_list, '__iter__'):
@@ -3054,6 +3050,114 @@ class XFrame(XObject):
 
         return XFrame(impl=self._impl.append(other.impl()))
 
+    def _groupby(self, key_columns, operations, *args):
+
+        # TODO: groupby CONCAT produces unicode output from utf8 input
+        # TODO: Preserve character encoding.
+
+        operations = operations or {}
+        # some basic checking first
+        # make sure key_columns is a list
+        if isinstance(key_columns, str):
+            key_columns = [key_columns]
+        # check that every column is a string, and is a valid column name
+        my_column_names = self.column_names()
+        my_column_types = self.column_types()
+        key_columns_array = []
+        for column in key_columns:
+            if not isinstance(column, str):
+                raise TypeError('Column name must be a string.')
+            if column not in my_column_names:
+                raise KeyError("Column '{}' does not exist in XFrame".format(column))
+            col_type = my_column_types[my_column_names.index(column)]
+            if col_type is dict:
+                raise TypeError('Cannot group on a dictionary column.')
+            key_columns_array.append(column)
+
+        group_output_columns = []
+        group_columns = []
+        group_ops = []
+
+        all_ops = [operations] + list(args)
+        for op_entry in all_ops:
+            # if it is not a dict, nor a list, it is just a single aggregator
+            # element (probably COUNT). wrap it in a list so we can reuse the
+            # list processing code
+            operation = op_entry
+            if not (isinstance(operation, list) or isinstance(operation, dict)):
+                operation = [operation]
+            if isinstance(operation, dict):
+                # now sweep the dict and add to group_columns and group_ops
+                for key in operation:
+                    val = operation[key]
+                    if type(val) is tuple:
+                        (op, column) = val
+                        if (op == '__builtin__argmax__' or op == '__builtin__argmin__') \
+                                and (type(column[0]) is tuple) != (type(key) is tuple):
+                            raise TypeError('Output column(s) and aggregate column(s) for ' +
+                                            'aggregate operation should be either all tuple or all string.')
+
+                        if (op == '__builtin__argmax__' or op == '__builtin__argmin__') and type(column[0]) is tuple:
+                            for (col, output) in zip(column[0], key):
+                                group_columns = group_columns + [[col, column[1]]]
+                                group_ops = group_ops + [op]
+                                group_output_columns = group_output_columns + [output]
+                        else:
+                            group_columns = group_columns + [column]
+                            group_ops = group_ops + [op]
+                            group_output_columns = group_output_columns + [key]
+                    elif val == xframes.aggregate.COUNT:
+                        group_output_columns = group_output_columns + [key]
+                        val = xframes.aggregate.COUNT()
+                        (op, column) = val
+                        group_columns = group_columns + [column]
+                        group_ops = group_ops + [op]
+                    else:
+                        raise TypeError("Unexpected type in aggregator definition of output column: '{}'"
+                                        .format(key))
+            elif isinstance(operation, list):
+                # we will be using automatically defined column names
+                for val in operation:
+                    if type(val) is tuple:
+                        (op, column) = val
+                        if (op == '__builtin__argmax__' or op == '__builtin__argmin__') \
+                                and type(column[0]) is tuple:
+                            for col in column[0]:
+                                group_columns = group_columns + [[col, column[1]]]
+                                group_ops = group_ops + [op]
+                                group_output_columns = group_output_columns + ['']
+                        else:
+                            group_columns = group_columns + [column]
+                            group_ops = group_ops + [op]
+                            group_output_columns = group_output_columns + ['']
+                    elif val == xframes.aggregate.COUNT:
+                        group_output_columns = group_output_columns + ['']
+                        val = xframes.aggregate.COUNT()
+                        (op, column) = val
+                        group_columns = group_columns + [column]
+                        group_ops = group_ops + [op]
+                    else:
+                        raise TypeError('Unexpected type in aggregator definition.')
+
+        # let's validate group_columns and group_ops are valid
+        for (cols, op) in zip(group_columns, group_ops):
+            for col in cols:
+                if not isinstance(col, str):
+                    raise TypeError('Column name must be a string.')
+
+            if not isinstance(op, str):
+                raise TypeError('Operation type not recognized.')
+
+            if op is not xframes.aggregate.COUNT()[0]:
+                for col in cols:
+                    if col not in my_column_names:
+                        raise KeyError("Column '{}' does not exist in XFrame.".format(col))
+
+        return XFrame(impl=self._impl.groupby_aggregate(key_columns_array,
+                                                        group_columns,
+                                                        group_output_columns,
+                                                        group_ops))
+
     def groupby(self, key_columns, operations=None, *args):
         """
         Perform a group on the `key_columns` followed by aggregations on the
@@ -3319,112 +3423,7 @@ class XFrame(XObject):
         +---------+--------------+
         [9852 rows x 2 columns]
         """
-
-        # TODO: groupby CONCAT produces unicode output from utf8 input
-        # TODO: Preserve character encoding.
-
-        operations = operations or {}
-        # some basic checking first
-        # make sure key_columns is a list
-        if isinstance(key_columns, str):
-            key_columns = [key_columns]
-        # check that every column is a string, and is a valid column name
-        my_column_names = self.column_names()
-        my_column_types = self.column_types()
-        key_columns_array = []
-        for column in key_columns:
-            if not isinstance(column, str):
-                raise TypeError('Column name must be a string.')
-            if column not in my_column_names:
-                raise KeyError("Column '{}' does not exist in XFrame".format(column))
-            col_type = my_column_types[my_column_names.index(column)]
-            if col_type is dict:
-                raise TypeError('Cannot group on a dictionary column.')
-            key_columns_array.append(column)
-
-        group_output_columns = []
-        group_columns = []
-        group_ops = []
-
-        all_ops = [operations] + list(args)
-        for op_entry in all_ops:
-            # if it is not a dict, nor a list, it is just a single aggregator
-            # element (probably COUNT). wrap it in a list so we can reuse the
-            # list processing code
-            operation = op_entry
-            if not (isinstance(operation, list) or isinstance(operation, dict)):
-                operation = [operation]
-            if isinstance(operation, dict):
-                # now sweep the dict and add to group_columns and group_ops
-                for key in operation:
-                    val = operation[key]
-                    if type(val) is tuple:
-                        (op, column) = val
-                        if (op == '__builtin__argmax__' or op == '__builtin__argmin__') \
-                                and (type(column[0]) is tuple) != (type(key) is tuple):
-                            raise TypeError('Output column(s) and aggregate column(s) for ' +
-                                            'aggregate operation should be either all tuple or all string.')
-
-                        if (op == '__builtin__argmax__' or op == '__builtin__argmin__') and type(column[0]) is tuple:
-                            for (col, output) in zip(column[0], key):
-                                group_columns = group_columns + [[col, column[1]]]
-                                group_ops = group_ops + [op]
-                                group_output_columns = group_output_columns + [output]
-                        else:
-                            group_columns = group_columns + [column]
-                            group_ops = group_ops + [op]
-                            group_output_columns = group_output_columns + [key]
-                    elif val == xframes.aggregate.COUNT:
-                        group_output_columns = group_output_columns + [key]
-                        val = xframes.aggregate.COUNT()
-                        (op, column) = val
-                        group_columns = group_columns + [column]
-                        group_ops = group_ops + [op]
-                    else:
-                        raise TypeError("Unexpected type in aggregator definition of output column: '{}'"
-                                        .format(key))
-            elif isinstance(operation, list):
-                # we will be using automatically defined column names
-                for val in operation:
-                    if type(val) is tuple:
-                        (op, column) = val
-                        if (op == '__builtin__argmax__' or op == '__builtin__argmin__') \
-                                and type(column[0]) is tuple:
-                            for col in column[0]:
-                                group_columns = group_columns + [[col, column[1]]]
-                                group_ops = group_ops + [op]
-                                group_output_columns = group_output_columns + ['']
-                        else:
-                            group_columns = group_columns + [column]
-                            group_ops = group_ops + [op]
-                            group_output_columns = group_output_columns + ['']
-                    elif val == xframes.aggregate.COUNT:
-                        group_output_columns = group_output_columns + ['']
-                        val = xframes.aggregate.COUNT()
-                        (op, column) = val
-                        group_columns = group_columns + [column]
-                        group_ops = group_ops + [op]
-                    else:
-                        raise TypeError('Unexpected type in aggregator definition.')
-
-        # let's validate group_columns and group_ops are valid
-        for (cols, op) in zip(group_columns, group_ops):
-            for col in cols:
-                if not isinstance(col, str):
-                    raise TypeError('Column name must be a string.')
-
-            if not isinstance(op, str):
-                raise TypeError('Operation type not recognized.')
-
-            if op is not xframes.aggregate.COUNT()[0]:
-                for col in cols:
-                    if col not in my_column_names:
-                        raise KeyError("Column '{}' does not exist in XFrame.".format(col))
-
-        return XFrame(impl=self._impl.groupby_aggregate(key_columns_array,
-                                                        group_columns,
-                                                        group_output_columns,
-                                                        group_ops))
+        return self._groupby(key_columns, operations, *args)
 
     def join(self, right, on=None, how='inner'):
         """

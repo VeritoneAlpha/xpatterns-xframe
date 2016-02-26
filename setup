@@ -21,4 +21,3 @@ export SPARK_CONF_DIR=$XFRAMES_HOME/xframes/conf
 
 # This is not needed if xframes is installed in the python path
 export PYTHONPATH=$XFRAMES_HOME:$PYTHONPATH
-

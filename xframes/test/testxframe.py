@@ -313,7 +313,7 @@ class TestXFrameConstructor(unittest.TestCase):
         # make binary file
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         path = 'tmp/frame'
-        t.save(path, file_format='binary')  # File does not necessarily save in order
+        t.save(path, format='binary')  # File does not necessarily save in order
         res = XFrame(path).sort('id')  # so let's sort after we read it back
         self.assertEqual(3, len(res))
         self.assertEqual(['id', 'val'], res.column_names())
@@ -558,7 +558,7 @@ class TestXFrameReadParquet(unittest.TestCase):
     def test_read_parquet_str(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         path = 'tmp/frame-parquet'
-        t.save(path, file_format='parquet')
+        t.save(path, format='parquet')
 
         res = XFrame('tmp/frame-parquet.parquet')
         # results may not come back in the same order
@@ -573,7 +573,7 @@ class TestXFrameReadParquet(unittest.TestCase):
     def test_read_parquet_bool(self):
         t = XFrame({'id': [1, 2, 3], 'val': [True, False, True]})
         path = 'tmp/frame-parquet'
-        t.save(path, file_format='parquet')
+        t.save(path, format='parquet')
 
         res = XFrame('tmp/frame-parquet.parquet')
         res = res.sort('id')
@@ -587,7 +587,7 @@ class TestXFrameReadParquet(unittest.TestCase):
     def test_read_parquet_int(self):
         t = XFrame({'id': [1, 2, 3], 'val': [10, 20, 30]})
         path = 'tmp/frame-parquet'
-        t.save(path, file_format='parquet')
+        t.save(path, format='parquet')
 
         res = XFrame('tmp/frame-parquet.parquet')
         res = res.sort('id')
@@ -601,7 +601,7 @@ class TestXFrameReadParquet(unittest.TestCase):
     def test_read_parquet_float(self):
         t = XFrame({'id': [1, 2, 3], 'val': [1.0, 2.0, 3.0]})
         path = 'tmp/frame-parquet'
-        t.save(path, file_format='parquet')
+        t.save(path, format='parquet')
 
         res = XFrame('tmp/frame-parquet.parquet')
         res = res.sort('id')
@@ -615,7 +615,7 @@ class TestXFrameReadParquet(unittest.TestCase):
     def test_read_parquet_list(self):
         t = XFrame({'id': [1, 2, 3], 'val': [[1, 1], [2, 2], [3, 3]]})
         path = 'tmp/frame-parquet'
-        t.save(path, file_format='parquet')
+        t.save(path, format='parquet')
 
         res = XFrame('tmp/frame-parquet.parquet')
         res = res.sort('id')
@@ -629,7 +629,7 @@ class TestXFrameReadParquet(unittest.TestCase):
     def test_read_parquet_dict(self):
         t = XFrame({'id': [1, 2, 3], 'val': [{1: 1}, {2: 2}, {3: 3}]})
         path = 'tmp/frame-parquet'
-        t.save(path, file_format='parquet')
+        t.save(path, format='parquet')
 
         res = XFrame('tmp/frame-parquet.parquet')
         res = res.sort('id')
@@ -1003,7 +1003,7 @@ class TestXFrameLineage(unittest.TestCase):
     def test_lineage_save(self):
         res = XFrame('files/test-frame.csv')
         path = 'tmp/frame'
-        res.save(path, file_format='binary')
+        res.save(path, format='binary')
         with open(os.path.join(path, '_metadata')) as f:
             metadata = pickle.load(f)
         self.assertEqual([['id', 'val'], [int, str]], metadata)
@@ -1017,7 +1017,7 @@ class TestXFrameLineage(unittest.TestCase):
     def test_lineage_load(self):
         res = XFrame('files/test-frame.csv')
         path = 'tmp/frame'
-        res.save(path, file_format='binary')
+        res.save(path, format='binary')
         res = XFrame(path)
         lineage = res.lineage()['table']
         self.assertEqual(2, len(lineage))
@@ -1443,7 +1443,7 @@ class TestXFrameSaveBinary(unittest.TestCase):
     def test_save(self):
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
         path = 'tmp/frame'
-        t.save(path, file_format='binary')
+        t.save(path, format='binary')
         with open(os.path.join(path, '_metadata')) as f:
             metadata = pickle.load(f)
         self.assertEqual([['id', 'val'], [int, str]], metadata)
@@ -1458,7 +1458,7 @@ class TestXFrameSaveCsv(unittest.TestCase):
     def test_save(self):
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
         path = 'tmp/frame-csv'
-        t.save(path, file_format='csv')
+        t.save(path, format='csv')
 
         with open(path + '.csv') as f:
             heading = f.readline().rstrip()
@@ -1474,10 +1474,15 @@ class TestXFrameSaveParquet(unittest.TestCase):
     """
 
     def test_save(self):
-        t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         path = 'tmp/frame-parquet'
-        t.save(path, file_format='parquet')
-        # TODO verify
+        t.save(path, format='parquet')
+        res = XFrame(path + '.parquet')
+        self.assertEqual(['id', 'val'], res.column_names())
+        self.assertEqual([int, str], res.column_types())
+        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertEqual({'id': 3, 'val': 'c'}, res[2])
 
 
 class TestXFrameSelectColumn(unittest.TestCase):
