@@ -1461,7 +1461,7 @@ class XFrame(XObject):
         out : set[filename]
             The files that were used to the XFrame
         """
-        return self._impl.table_lineage
+        return self._impl.lineage()
 
     def head(self, n=10):
         """
