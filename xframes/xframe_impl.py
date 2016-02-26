@@ -850,10 +850,10 @@ class XFrameImpl(XObjectImpl, TracedObject):
         name = name or 'X.0'
         col_names = [name]
         col_types = [arry_impl.elem_type]
-        table_lineage = arry_impl.table_lineage
         rdd = arry_impl.rdd().map(lambda val: (val,))
+        new_lineage = arry_impl.table_lineage
         cls._exit()
-        return XFrameImpl(rdd, col_names, col_types, table_lineage)
+        return XFrameImpl(rdd, col_names, col_types, new_lineage)
 
     def add_column(self, col, name):
         """
@@ -890,8 +890,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
             def move_inside(old_val, new_elem):
                 return tuple(old_val + (new_elem, ))
             res = res.map(lambda pair: move_inside(pair[0], pair[1]))
-        self._exit()
         new_lineage = self.table_lineage | col.table_lineage
+        self._exit()
         return self._rv(res, col_names, col_types, new_lineage)
 
     def add_column_in_place(self, data, name):

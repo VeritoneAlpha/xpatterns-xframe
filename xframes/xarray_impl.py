@@ -504,8 +504,8 @@ class XArrayImpl(XObjectImpl, TracedObject):
             res_type = int
         else:
             raise NotImplementedError(op)
-        self._exit()
         new_lineage = self.table_lineage | other.table_lineage
+        self._exit()
         return self._rv(res, res_type, new_lineage)
 
     def left_scalar_operator(self, other, op):
