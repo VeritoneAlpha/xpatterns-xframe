@@ -6,15 +6,14 @@ import inspect
 import math
 import datetime
 from sys import stderr
-from collections import Counter, defaultdict
+from collections import Counter
 import copy
-import operator
 
 
 from xframes.dsq import QuantileAccumulator
 from xframes.frequent import FreqSketch
 from xframes import util
-import xframes
+from xframes import xarray_impl
 
 __all__ = ['Sketch']
 
@@ -38,7 +37,6 @@ class SketchImpl(object):
     exit_trace = False
 
     def __init__(self):
-        import xframes.util as util
         self._entry()
         self._rdd = None
         self.defined = None
@@ -129,7 +127,7 @@ class SketchImpl(object):
         delta = 0.01
         accumulator = FreqSketch(num_items, epsilon, delta)
         accumulators = self._rdd.mapPartitions(accumulator.iterate_values)
-        return accumulators.aggregate(FreqSketch.initial_accumulator_value(), 
+        return accumulators.aggregate(FreqSketch.initial_accumulator_value(),
                                       FreqSketch.merge_accumulator_value, 
                                       FreqSketch.merge_accumulators)
 
@@ -216,7 +214,7 @@ class SketchImpl(object):
 
         # build TF
         def build_tf(doc):
-            """ Build term Frequency for a document (cell)"""
+            # Build term Frequency for a document (cell)
             if len(doc) == 0:
                 return {}
             counts = Counter()
@@ -257,7 +255,7 @@ class SketchImpl(object):
         def build_tfidf(tf):
             return {term: tf_count * idf[term] for term, tf_count in tf.iteritems()}
         tfidf = tf.map(build_tfidf)
-        return xframes.xarray_impl.XArrayImpl(tfidf, dict)
+        return xarray_impl.XArrayImpl(tfidf, dict)
 
     def get_quantile(self, quantile_val):
         if self.sketch_type == 'numeric' or self.sketch_type == 'date':
@@ -270,7 +268,7 @@ class SketchImpl(object):
     def frequency_count(self, element):
         if self.frequency_sketch is None:
             self.frequency_sketch = self._create_frequency_sketch()
-        return self.frequency_sketch.get(element)
+        return self.frequency_sketch.get(element, 0)
 
     def element_length_summary(self):
         raise NotImplementedError('element_length_summary not implemented')
