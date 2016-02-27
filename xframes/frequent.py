@@ -1,12 +1,13 @@
 import sys
 import random
-import heapq
-
+from heapdict import HeapDict
 import numpy as np
 
 #
 #    This code is derived from that found on the webpage:
 #         http://tech.shareaholic.com/2012/12/03/the-count-min-sketch-how-to-count-over-large-keyspaces-when-about-right-is-good-enough/
+#    The code there does not properly update self.heap in update_heap -- this bug has been fixed.
+#    Instead of maintaining both a heap and a dict, we use a single heapdict.
 #    The algorithm described above is used in each partition, and then the results are merged using
 #       the methods at the end.
 #
@@ -74,8 +75,7 @@ class FreqSketch(object):
         self.depth = int(np.ceil(np.log(1 / delta)))
         self.hash_function_params = [_generate_hash_function_params() for _ in range(self.depth)]
         self.count = np.zeros((self.depth, self.width), dtype='int32')
-        self.heap = []
-        self.top_k = {}       # top_k => [estimate, key] pairs
+        self.heap = HeapDict()
 
     def _check_compatibility(self, other):
         """Check if another FreqSketch is compatible with this one for merge.
@@ -104,10 +104,15 @@ class FreqSketch(object):
         """
         self.update(key, 1)
 
-    def hash_function(self, x, params):
+    def _hash_function(self, x, params):
         a, b = params
         res = (a * x + b) % BIG_PRIME % self.width
         return res
+
+    def _update_sketch(self, key, increment):
+        for row, hash_function_params in enumerate(self.hash_function_params):
+            column = self._hash_function(abs(hash(key)), hash_function_params)
+            self.count[row, column] += increment
 
     def update(self, key, increment):
         """
@@ -127,10 +132,7 @@ class FreqSketch(object):
         >>> s.update('http://www.cnn.com/', 1)
 
         """
-        for row, hash_function_params in enumerate(self.hash_function_params):
-            column = self.hash_function(abs(hash(key)), hash_function_params)
-            self.count[row, column] += increment
-
+        self._update_sketch(key, increment)
         self.update_heap(key)
 
     def update_heap(self, key):
@@ -150,23 +152,25 @@ class FreqSketch(object):
         """
         estimate = self.get(key)
 
-        if not self.heap or estimate >= self.heap[0][0]:
-            if key in self.top_k:
-                old_pair = self.top_k.get(key)
-                old_pair[0] = estimate
-                heapq.heapify(self.heap)
+        # smallest element is at self.heap[0]
+        if len(self.heap) == 0 or estimate >= self.heap.peekitem()[1][0]:
+            if key in self.heap:
+                # topk does not need to be updated
+                # find the key in the heap and update its estimate
+                pair = self.heap[key]
+                pair[0] = estimate
+                self.heap[key] = pair
             else:
-                if len(self.top_k) < self.k:
-                    heapq.heappush(self.heap, [estimate, key])
-                    self.top_k[key] = [estimate, key]
+                if len(self.heap) < self.k:
+                    self.heap[key] = [estimate, key]
                 else:
                     new_pair = [estimate, key]
-                    old_pair = heapq.heappushpop(self.heap, new_pair)
-                    try: 
-                        del self.top_k[old_pair[1]]
-                    except:
-                        pass
-                    self.top_k[key] = new_pair
+                    self.heap[key] = new_pair
+                    old_pair = self.heap.popitem()
+                    old_estimate = old_pair[0]
+                    old_key = old_pair[1]
+                    # is this part of the algorithm ???
+                    self._update_sketch(old_key, -old_estimate)
 
     def get(self, key):
         """
@@ -193,7 +197,7 @@ class FreqSketch(object):
         """
         value = sys.maxint
         for row, hash_function_params in enumerate(self.hash_function_params):
-            column = self.hash_function(abs(hash(key)), hash_function_params)
+            column = self._hash_function(abs(hash(key)), hash_function_params)
             value = min(self.count[row, column], value)
 
         return value
@@ -204,14 +208,19 @@ class FreqSketch(object):
         
         These are the frequent items from the heap.
         """
-        return {key: self.get(key) for key in self.top_k}
+        return {key: self.get(key) for key in self.heap}
             
     def iterate_values(self, value_iterator):
-        """Makes FreqSketch usable with PySpark .mapPartitions().
+        """Makes FreqSketch usable with PySpark mapPartitions().
         
-        An RDD's .mapPartitions method takes a function that consumes an
+        An RDD's mapPartitions method takes a function that consumes an
         iterator of records and spits out an iterable for the next RDD
         downstream.
+
+        Parameters
+        ----------
+        value_iterator : iterator
+            Produces the values whose frequency is to be counted.
         """
         for value in value_iterator:
             self.increment(value)
@@ -228,14 +237,42 @@ class FreqSketch(object):
     def merge_accumulator_value(acc, value):
         """
         Add an accumulator and a value, for use with aggregate.
+
+        Parameters
+        ----------
+        acc : dict
+            An accumulator of frequent values.
+
+        value : FreqSketch
+            Contains a set of frequent values to merge with acc.
+
+        Returns
+        -------
+        out : dict
+            An accumulator of frequency values.
         """
-        acc2 = value.frequent_items()
-        return FreqSketch.merge_accumulators(acc, acc2)
+        return FreqSketch.merge_accumulators(acc, value.frequent_items())
 
     @staticmethod
     def merge_accumulators(acc1, acc2):
         """
-        Add two accumulators, for use with aggregate.
+        Merge two accumulators, for use with aggregate.
+
+        Parameters
+        ----------
+        acc1 : dict
+            One set of frequent values to merge
+
+        acc2 : dict
+            The other set of frequent values.
+
+        Returns
+        -------
+        out : dict
+            An accumulator of frequency values.
+            The result is one accumulator with all values in both accumulators.  Where there are
+            results in each accumulator, they are summed.
+
 
         Notes
         -----
