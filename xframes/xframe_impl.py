@@ -13,6 +13,8 @@ import shutil
 import re
 import copy
 from sys import stderr
+import datetime
+import dateutil
 
 import numpy
 
@@ -463,6 +465,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
                     return 0
                 if typ is float:
                     return 0.0
+                if typ is datatime.datetime:
+                    return datatime.datetime(1, 1, 1)
                 if typ is str:
                     return ''
                 if typ is dict:
@@ -470,11 +474,15 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 if typ is list:
                     return []
             try:
-                if typ == dict or typ == list:
+                if typ in (dict, list):
                     return ast.literal_eval(val)
+                elif typ is datetime.datetime:
+                    return dateutil.parser.parse(val)
                 return typ(val)
             except ValueError:
                 raise ValueError('Cast failed: ({}) {}  col: {}'.format(typ, val, name))
+            except TypeError:
+                raise TypeError('Cast failed: ({}) {}  col: {}'.format(typ, val, name))
 
         # This is where the result is cast as a tuple
         def cast_row(row, types, names):
