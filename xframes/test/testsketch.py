@@ -125,7 +125,5 @@ class TestSketchConstructor(unittest.TestCase):
         self.assertEqual(0, ss.avg_length())
 
 
-
 if __name__ == '__main__':
     unittest.main()
-

@@ -21,7 +21,16 @@ hdfs_prefix = 'hdfs://localhost:8020'
 # XFrame save as csv
 
 
-class TestXArrayConstructorLoad(unittest.TestCase):
+class XFrameUnitTestCase(unittest.TestCase):
+
+    def assertEqualLen(self, expect, obj):
+        return self.assertEqual(expect, len(obj))
+
+    def assertColumnEqual(self, expect, obj):
+        return self.assertListEqual(expect, list(obj))
+
+
+class TestXArrayConstructorLoad(XFrameUnitTestCase):
     """
     Tests XArray constructors that loads from file.
     """
@@ -29,36 +38,36 @@ class TestXArrayConstructorLoad(unittest.TestCase):
     def test_construct_file_int(self):
         path = '{}/user/xpatterns/files/test-array-int'.format(hdfs_prefix)
         t = XArray(path)
-        self.assertEqual(4, len(t))
-        self.assertEqual(int, t.dtype())
+        self.assertEqualLen(4, t)
+        self.assertIs(int, t.dtype())
         self.assertEqual(1, t[0])
 
     def test_construct_local_file_float(self):
         t = XArray('{}/user/xpatterns/files/test-array-float'.format(hdfs_prefix))
-        self.assertEqual(4, len(t))
-        self.assertEqual(float, t.dtype())
+        self.assertEqualLen(4, t)
+        self.assertIs(float, t.dtype())
         self.assertEqual(1.0, t[0])
 
     def test_construct_local_file_str(self):
         t = XArray('{}/user/xpatterns/files/test-array-str'.format(hdfs_prefix))
-        self.assertEqual(4, len(t))
-        self.assertEqual(str, t.dtype())
+        self.assertEqualLen(4, t)
+        self.assertIs(str, t.dtype())
         self.assertEqual('a', t[0])
 
     def test_construct_local_file_list(self):
         t = XArray('{}/user/xpatterns/files/test-array-list'.format(hdfs_prefix))
-        self.assertEqual(4, len(t))
-        self.assertEqual(list, t.dtype())
-        self.assertEqual([1, 2], t[0])
+        self.assertEqualLen(4, t)
+        self.assertIs(list, t.dtype())
+        self.assertListEqual([1, 2], t[0])
 
     def test_construct_local_file_dict(self):
         t = XArray('{}/user/xpatterns/files/test-array-dict'.format(hdfs_prefix))
-        self.assertEqual(4, len(t))
-        self.assertEqual(dict, t.dtype())
-        self.assertEqual({1: 'a', 2: 'b'}, t[0])
+        self.assertEqualLen(4, t)
+        self.assertIs(dict, t.dtype())
+        self.assertDictEqual({1: 'a', 2: 'b'}, t[0])
 
 
-class TestXArraySaveCsv(unittest.TestCase):
+class TestXArraySaveCsv(XFrameUnitTestCase):
     """
     Tests XArray save csv format
     """
@@ -83,7 +92,7 @@ class TestXArraySaveCsv(unittest.TestCase):
         fileio.delete(path)
 
 
-class TestXArraySaveText(unittest.TestCase):
+class TestXArraySaveText(XFrameUnitTestCase):
     """
     Tests XArray save text format
     """
@@ -104,7 +113,7 @@ class TestXArraySaveText(unittest.TestCase):
         fileio.delete(path)
 
 
-class TestXFrameConstructor(unittest.TestCase):
+class TestXFrameConstructor(XFrameUnitTestCase):
     """
     Tests XFrame constructors that create data from local sources.
     """
@@ -112,58 +121,58 @@ class TestXFrameConstructor(unittest.TestCase):
     def test_construct_auto_dataframe(self):
         path = '{}/user/xpatterns/files/test-frame-auto.csv'.format(hdfs_prefix)
         res = XFrame(path)
-        self.assertEqual(3, len(res))
-        self.assertEqual(['val_int', 'val_int_signed', 'val_float', 'val_float_signed',
-                          'val_str', 'val_list', 'val_dict'], res.column_names())
-        self.assertEqual([int, int, float, float, str, list, dict], res.column_types())
-        self.assertEqual({'val_int': 1, 'val_int_signed': -1, 'val_float': 1.0, 'val_float_signed': -1.0,
-                          'val_str': 'a', 'val_list': ['a'], 'val_dict': {1: 'a'}}, res[0])
-        self.assertEqual({'val_int': 2, 'val_int_signed': -2, 'val_float': 2.0, 'val_float_signed': -2.0,
-                          'val_str': 'b', 'val_list': ['b'], 'val_dict': {2: 'b'}}, res[1])
-        self.assertEqual({'val_int': 3, 'val_int_signed': -3, 'val_float': 3.0, 'val_float_signed': -3.0,
-                          'val_str': 'c', 'val_list': ['c'], 'val_dict': {3: 'c'}}, res[2])
+        self.assertEqualLen(3, res)
+        self.assertListEqual(['val_int', 'val_int_signed', 'val_float', 'val_float_signed',
+                              'val_str', 'val_list', 'val_dict'], res.column_names())
+        self.assertListEqual([int, int, float, float, str, list, dict], res.column_types())
+        self.assertDictEqual({'val_int': 1, 'val_int_signed': -1, 'val_float': 1.0, 'val_float_signed': -1.0,
+                              'val_str': 'a', 'val_list': ['a'], 'val_dict': {1: 'a'}}, res[0])
+        self.assertDictEqual({'val_int': 2, 'val_int_signed': -2, 'val_float': 2.0, 'val_float_signed': -2.0,
+                              'val_str': 'b', 'val_list': ['b'], 'val_dict': {2: 'b'}}, res[1])
+        self.assertDictEqual({'val_int': 3, 'val_int_signed': -3, 'val_float': 3.0, 'val_float_signed': -3.0,
+                              'val_str': 'c', 'val_list': ['c'], 'val_dict': {3: 'c'}}, res[2])
 
     def test_construct_auto_str_csv(self):
         path = '{}/user/xpatterns/files/test-frame.csv'.format(hdfs_prefix)
         res = XFrame(path)
-        self.assertEqual(3, len(res))
-        self.assertEqual(['id', 'val'], res.column_names())
-        self.assertEqual([int, str], res.column_types())
-        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
-        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
-        self.assertEqual({'id': 3, 'val': 'c'}, res[2])
+        self.assertEqualLen(3, res)
+        self.assertListEqual(['id', 'val'], res.column_names())
+        self.assertListEqual([int, str], res.column_types())
+        self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertDictEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertDictEqual({'id': 3, 'val': 'c'}, res[2])
 
     def test_construct_auto_str_tsv(self):
         path = '{}/user/xpatterns/files/test-frame.tsv'.format(hdfs_prefix)
         res = XFrame(path)
-        self.assertEqual(3, len(res))
-        self.assertEqual(['id', 'val'], res.column_names())
-        self.assertEqual([int, str], res.column_types())
-        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
-        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
-        self.assertEqual({'id': 3, 'val': 'c'}, res[2])
+        self.assertEqualLen(3, res)
+        self.assertListEqual(['id', 'val'], res.column_names())
+        self.assertListEqual([int, str], res.column_types())
+        self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertDictEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertDictEqual({'id': 3, 'val': 'c'}, res[2])
 
     def test_construct_auto_str_psv(self):
         path = '{}/user/xpatterns/files/test-frame.psv'.format(hdfs_prefix)
         res = XFrame(path)
-        self.assertEqual(3, len(res))
-        self.assertEqual(['id', 'val'], res.column_names())
-        self.assertEqual([int, str], res.column_types())
-        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
-        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
-        self.assertEqual({'id': 3, 'val': 'c'}, res[2])
+        self.assertEqualLen(3, res)
+        self.assertListEqual(['id', 'val'], res.column_names())
+        self.assertListEqual([int, str], res.column_types())
+        self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertDictEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertDictEqual({'id': 3, 'val': 'c'}, res[2])
 
     def test_construct_auto_str_txt(self):
         # construct and XFrame given a text file
         # interpret as csv
         path = '{}/user/xpatterns/files/test-frame.txt'.format(hdfs_prefix)
         res = XFrame(path)
-        self.assertEqual(3, len(res))
-        self.assertEqual(['id', 'val'], res.column_names())
-        self.assertEqual([int, str], res.column_types())
-        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
-        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
-        self.assertEqual({'id': 3, 'val': 'c'}, res[2])
+        self.assertEqualLen(3, res)
+        self.assertListEqual(['id', 'val'], res.column_names())
+        self.assertListEqual([int, str], res.column_types())
+        self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertDictEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertDictEqual({'id': 3, 'val': 'c'}, res[2])
 
     def test_construct_auto_str_noext(self):
         # construct and XFrame given a text file
@@ -171,51 +180,51 @@ class TestXFrameConstructor(unittest.TestCase):
         path = '{}/user/xpatterns/files/test-frame'.format(hdfs_prefix)
         res = XFrame(path)
         res = res.sort('id')
-        self.assertEqual(3, len(res))
-        self.assertEqual(['id', 'val'], res.column_names())
-        self.assertEqual([int, str], res.column_types())
-        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
-        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
-        self.assertEqual({'id': 3, 'val': 'c'}, res[2])
+        self.assertEqualLen(3, res)
+        self.assertListEqual(['id', 'val'], res.column_names())
+        self.assertListEqual([int, str], res.column_types())
+        self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertDictEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertDictEqual({'id': 3, 'val': 'c'}, res[2])
 
     def test_construct_auto_str_xframe(self):
         # construct an XFrame given a file with unrecognized file extension
         path = '{}/user/xpatterns/files/test-frame'.format(hdfs_prefix)
         res = XFrame(path)
         res = res.sort('id')
-        self.assertEqual(3, len(res))
-        self.assertEqual(['id', 'val'], res.column_names())
-        self.assertEqual([int, str], res.column_types())
-        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
-        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
-        self.assertEqual({'id': 3, 'val': 'c'}, res[2])
+        self.assertEqualLen(3, res)
+        self.assertListEqual(['id', 'val'], res.column_names())
+        self.assertListEqual([int, str], res.column_types())
+        self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertDictEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertDictEqual({'id': 3, 'val': 'c'}, res[2])
 
     def test_construct_str_csv(self):
         # construct and XFrame given a text file
         # interpret as csv
         path = '{}/user/xpatterns/files/test-frame.txt'.format(hdfs_prefix)
         res = XFrame(path, format='csv')
-        self.assertEqual(3, len(res))
-        self.assertEqual(['id', 'val'], res.column_names())
-        self.assertEqual([int, str], res.column_types())
-        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
-        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
-        self.assertEqual({'id': 3, 'val': 'c'}, res[2])
+        self.assertEqualLen(3, res)
+        self.assertListEqual(['id', 'val'], res.column_names())
+        self.assertListEqual([int, str], res.column_types())
+        self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertDictEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertDictEqual({'id': 3, 'val': 'c'}, res[2])
 
     def test_construct_str_xframe(self):
         # construct and XFrame given a saved xframe
         path = '{}/user/xpatterns/files/test-frame'.format(hdfs_prefix)
         res = XFrame(path, format='xframe')
         res = res.sort('id')
-        self.assertEqual(3, len(res))
-        self.assertEqual(['id', 'val'], res.column_names())
-        self.assertEqual([int, str], res.column_types())
-        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
-        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
-        self.assertEqual({'id': 3, 'val': 'c'}, res[2])
+        self.assertEqualLen(3, res)
+        self.assertListEqual(['id', 'val'], res.column_names())
+        self.assertListEqual([int, str], res.column_types())
+        self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertDictEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertDictEqual({'id': 3, 'val': 'c'}, res[2])
 
 
-class TestXFrameReadCsv(unittest.TestCase):
+class TestXFrameReadCsv(XFrameUnitTestCase):
     """
     Tests XFrame read_csv
     """
@@ -223,15 +232,15 @@ class TestXFrameReadCsv(unittest.TestCase):
     def test_read_csv(self):
         path = '{}/user/xpatterns/files/test-frame.csv'.format(hdfs_prefix)
         res = XFrame.read_csv(path)
-        self.assertEqual(3, len(res))
-        self.assertEqual(['id', 'val'], res.column_names())
-        self.assertEqual([int, str], res.column_types())
-        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
-        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
-        self.assertEqual({'id': 3, 'val': 'c'}, res[2])
+        self.assertEqualLen(3, res)
+        self.assertListEqual(['id', 'val'], res.column_names())
+        self.assertListEqual([int, str], res.column_types())
+        self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertDictEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertDictEqual({'id': 3, 'val': 'c'}, res[2])
 
 
-class TestXFrameReadText(unittest.TestCase):
+class TestXFrameReadText(XFrameUnitTestCase):
     """
     Tests XFrame read_text
     """
@@ -239,15 +248,15 @@ class TestXFrameReadText(unittest.TestCase):
     def test_read_text(self):
         path = '{}/user/xpatterns/files/test-frame-text.txt'.format(hdfs_prefix)
         res = XFrame.read_text(path)
-        self.assertEqual(3, len(res))
-        self.assertEqual(['text', ], res.column_names())
-        self.assertEqual([str], res.column_types())
-        self.assertEqual({'text': 'This is a test'}, res[0])
-        self.assertEqual({'text': 'of read_text.'}, res[1])
-        self.assertEqual({'text': 'Here is another sentence.'}, res[2])
+        self.assertEqualLen(3, res)
+        self.assertListEqual(['text', ], res.column_names())
+        self.assertListEqual([str], res.column_types())
+        self.assertDictEqual({'text': 'This is a test'}, res[0])
+        self.assertDictEqual({'text': 'of read_text.'}, res[1])
+        self.assertDictEqual({'text': 'Here is another sentence.'}, res[2])
 
 
-class TestXFrameReadParquet(unittest.TestCase):
+class TestXFrameReadParquet(XFrameUnitTestCase):
     """
     Tests XFrame read_parquet
     """
@@ -260,16 +269,16 @@ class TestXFrameReadParquet(unittest.TestCase):
         res = XFrame('{}/tmp/frame-parquet.parquet'.format(hdfs_prefix))
         # results may not come back in the same order
         res = res.sort('id')
-        self.assertEqual(3, len(res))
-        self.assertEqual(['id', 'val'], res.column_names())
-        self.assertEqual([int, str], res.column_types())
-        self.assertEqual({'id': 1, 'val': 'a'}, res[0])
-        self.assertEqual({'id': 2, 'val': 'b'}, res[1])
-        self.assertEqual({'id': 3, 'val': 'c'}, res[2])
+        self.assertEqualLen(3, res)
+        self.assertListEqual(['id', 'val'], res.column_names())
+        self.assertListEqual([int, str], res.column_types())
+        self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertDictEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertDictEqual({'id': 3, 'val': 'c'}, res[2])
         fileio.delete(path)
 
 
-class TestXFrameSaveBinary(unittest.TestCase):
+class TestXFrameSaveBinary(XFrameUnitTestCase):
     """
     Tests XFrame save binary format
     """
@@ -280,12 +289,12 @@ class TestXFrameSaveBinary(unittest.TestCase):
         t.save(path, format='binary')
         with fileio.open_file(os.path.join(path, '_metadata')) as f:
             metadata = pickle.load(f)
-        self.assertEqual([['id', 'val'], [int, str]], metadata)
+        self.assertListEqual([['id', 'val'], [int, str]], metadata)
         # TODO find some way to check the data
         fileio.delete(path)
 
 
-class TestXFrameSaveCsv(unittest.TestCase):
+class TestXFrameSaveCsv(XFrameUnitTestCase):
     """
     Tests XFrame save csv format
     """
@@ -304,7 +313,7 @@ class TestXFrameSaveCsv(unittest.TestCase):
         fileio.delete(path + '.csv')
 
 
-class TestXFrameSaveParquet(unittest.TestCase):
+class TestXFrameSaveParquet(XFrameUnitTestCase):
     """
     Tests XFrame save for parquet files
     """
