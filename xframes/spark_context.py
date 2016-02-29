@@ -4,9 +4,9 @@ Provides functions to create and maintain the spark context.
 
 import os
 import atexit
-from sys import stderr
 from zipfile import PyZipFile
 from tempfile import NamedTemporaryFile
+import logging
 
 from pyspark import SparkConf, SparkContext, SQLContext, HiveContext
 
@@ -116,7 +116,7 @@ class CommonSparkContext(object):
         config_pairs = [(k, v) for k, v in context.iteritems()]
         self._config = (SparkConf().setAll(config_pairs))
         if verbose:
-            print >> stderr, 'Spark Config:', config_pairs
+            logging.info('Spark Config: {}'.format(config_pairs))
 
         self._sc = SparkContext(conf=self._config)
         self._sqlc = SQLContext(self._sc)
@@ -130,9 +130,9 @@ class CommonSparkContext(object):
             self.application_id = None
 
         if verbose:
-            print 'Spark Version:', '.'.join([str(n) for n in self.version])
+            logging.info('Spark Version: {}'.format('.'.join([str(n) for n in self.version])))
             if self.application_id:
-                print 'Application Id:', self.application_id
+                logging.info('Application Id: {}'.format(self.application_id))
 
         if not context['spark.master'].startswith('local'):
             zip_path = self.build_zip(get_xframes_home())
@@ -263,8 +263,8 @@ class CommonSparkContext(object):
             z.close()
             return tf.name
         except:
-            print >>stderr, 'Zip file distribution failed -- workers will not get xframes code.'
-            print >>stderr, 'Check for unexpected files in xframes directory.'
+            logging.warn('Zip file distribution failed -- workers will not get xframes code.')
+            logging.warn('Check for unexpected files in xframes directory.')
             return None
 
     @staticmethod
@@ -305,6 +305,19 @@ class CommonSparkContext(object):
         """
 
         return CommonSparkContext().sqlc()
+
+    @staticmethod
+    def hive_context():
+        """
+        Returns the hive context.
+
+        Returns
+        -------
+        out : pyspark.sql.HiveContext
+            The Hive object from spark.
+        """
+
+        return CommonSparkContext().hivec()
 
     @staticmethod
     def environment():

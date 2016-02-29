@@ -6,7 +6,7 @@
 
 import ConfigParser
 import os
-from sys import stderr
+import logging
 
 
 class ConfigError(Exception):
@@ -77,12 +77,12 @@ class Environment(object):
         except (ConfigParser.NoSectionError, ConfigParser.NoOptionError) as e:
             if default is not None:
                 return default
-            print >>stderr, "FAILED -- missing section or option: ", section, item
-            print >>stderr, e
+            logging.warn("FAILED -- missing section or option: {} {}".format(section, item))
+            logging.warn(e)
             return None
         except ConfigError as e:
-            print >>stderr, "FAILED -- missing config file"
-            print >>stderr, e
+            logging.warn("FAILED -- missing config file")
+            logging.warn(e)
             return None
 
     def get_config_items(self, section):
