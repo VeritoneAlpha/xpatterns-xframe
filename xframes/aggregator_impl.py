@@ -178,7 +178,8 @@ class AggregatorPropertySet(object):
 
     def get_output_type(self, input_type):
         candidate = self.output_type
-        if type(candidate) is int: return input_type[candidate]
+        if isinstance(candidate, int):
+            return input_type[candidate]
         return candidate
 
 
