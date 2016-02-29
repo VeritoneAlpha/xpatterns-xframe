@@ -2,14 +2,15 @@
 This module provides an implementation of Sketch using pySpark RDDs.
 """
 
-import inspect
 import math
 import datetime
-from sys import stderr
 from collections import Counter
 import copy
+import logging
 
 
+from xframes.xobject_impl import XObjectImpl
+from xframes.traced_object import TracedObject
 from xframes.dsq import QuantileAccumulator
 from xframes.frequent import FreqSketch
 from xframes import util
@@ -21,7 +22,7 @@ __all__ = ['Sketch']
 def is_missing(x):
     if x is None:
         return True
-    if type(x) in (float, int) and (
+    if isinstance(x, (float, int)) and (
             math.isnan(x) or math.isinf(x)):
         return True
     return False
@@ -31,14 +32,13 @@ def normalize_number(x):
     return None if is_missing(x) else x
 
 
-class SketchImpl(object):
+class SketchImpl(XObjectImpl, TracedObject):
 
     entry_trace = False
     exit_trace = False
 
     def __init__(self):
-        self._entry()
-        self._rdd = None
+        super(SketchImpl, self).__init__(None)
         self.defined = None
         self.dtype = None
         self.sketch_type = None
@@ -56,26 +56,9 @@ class SketchImpl(object):
         self.quantile_accumulator = None
         self.frequency_sketch = None
         self.quantile_accum = None
-        self._exit()
-            
-    @staticmethod
-    def _entry(*args):
-        if SketchImpl.entry_trace:
-            print >>stderr, 'Enter sketch', inspect.stack()[1][3], args
-
-    @staticmethod
-    def _exit():
-        if SketchImpl.exit_trace:
-            print >>stderr, 'Exit sketch', inspect.stack()[1][3]
-        pass
-        
-    @classmethod
-    def set_trace(cls, entry_trace=None, exit_trace=None):
-        cls.entry_trace = entry_trace or cls.entry_trace
-        cls.exit_trace = exit_trace or cls.exit_trace
 
     def construct_from_xarray(self, xa, sub_sketch_keys=None):
-        self._entry(sub_sketch_keys)
+        self._entry(sub_sketch_keys=sub_sketch_keys)
         if sub_sketch_keys is not None:
             raise NotImplementedError('sub_sketch_keys mode not implemented')
 
@@ -94,8 +77,6 @@ class SketchImpl(object):
         # compute others later if needed
         self._rdd = xa.to_rdd()
         self.defined = defined
-
-        self._exit()
 
     def _create_stats(self):
         # calculate some basic statistics
@@ -128,7 +109,7 @@ class SketchImpl(object):
         accumulator = FreqSketch(num_items, epsilon, delta)
         accumulators = self._rdd.mapPartitions(accumulator.iterate_values)
         return accumulators.aggregate(FreqSketch.initial_accumulator_value(),
-                                      FreqSketch.merge_accumulator_value, 
+                                      FreqSketch.merge_accumulator_value,
                                       FreqSketch.merge_accumulators)
 
     def size(self):
@@ -202,8 +183,8 @@ class SketchImpl(object):
         def normalize_doc(doc):
             if doc is None:
                 return []
-            if type(doc) != str:
-                print >>stderr, 'Document should be str -- is {}: {}'.format(type(doc).__name__, doc)
+            if not isinstance(doc, str):
+                logging.warn('Document should be str -- is {}: {}'.format(type(doc).__name__, doc))
                 return []
             return doc.strip().lower().split()
         if self.dtype is str:
