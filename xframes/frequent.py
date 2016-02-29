@@ -1,7 +1,9 @@
 import sys
 import random
 from heapdict import HeapDict
-import numpy as np
+import math
+import array
+import itertools
 
 #
 #    This code is derived from that found on the webpage:
@@ -71,15 +73,18 @@ class FreqSketch(object):
             raise ValueError("delta must be between 0 and 1, exclusive")
 
         self.k = k
-        self.width = int(np.ceil(np.exp(1) / epsilon))
-        self.depth = int(np.ceil(np.log(1 / delta)))
+        self.width = int(math.ceil(math.exp(1) / epsilon))
+        self.depth = int(math.ceil(math.log(1 / delta)))
         self.hash_function_params = [_generate_hash_function_params() for _ in range(self.depth)]
-        self.count = np.zeros((self.depth, self.width), dtype='int32')
+        self.count = array.array('i', itertools.repeat(0, self.depth * self.width))
         self.heap = HeapDict()
+
+    def hash_index(self, row, column):
+        return self.depth * row + column
 
     def _check_compatibility(self, other):
         """Check if another FreqSketch is compatible with this one for merge.
-        
+
         Compatibility requires same width, depth, and hash_functions.
         """
         if self.width != other.width or self.depth != other.depth:
@@ -112,7 +117,7 @@ class FreqSketch(object):
     def _update_sketch(self, key, increment):
         for row, hash_function_params in enumerate(self.hash_function_params):
             column = self._hash_function(abs(hash(key)), hash_function_params)
-            self.count[row, column] += increment
+            self.count[self.hash_index(row, column)] += increment
 
     def update(self, key, increment):
         """
@@ -140,9 +145,9 @@ class FreqSketch(object):
         Updates the class's heap that keeps track of the top k items for a
         given key
 
-        For the given key, it checks whether the key is present in the heap,
-        updating accordingly if so, and adding it to the heap if it is
-        absent
+        For the given key, it either adds the key or updates its estimate, if its
+        current estimate is larger then the smallest element in the heap (or if the
+        heap is not already full).
 
         Parameters
         ----------
@@ -152,25 +157,11 @@ class FreqSketch(object):
         """
         estimate = self.get(key)
 
-        # smallest element is at self.heap[0]
-        if len(self.heap) == 0 or estimate >= self.heap.peekitem()[1][0]:
-            if key in self.heap:
-                # topk does not need to be updated
-                # find the key in the heap and update its estimate
-                pair = self.heap[key]
-                pair[0] = estimate
-                self.heap[key] = pair
-            else:
-                if len(self.heap) < self.k:
-                    self.heap[key] = [estimate, key]
-                else:
-                    new_pair = [estimate, key]
-                    self.heap[key] = new_pair
-                    old_pair = self.heap.popitem()
-                    old_estimate = old_pair[0]
-                    old_key = old_pair[1]
-                    # is this part of the algorithm ???
-                    self._update_sketch(old_key, -old_estimate)
+        # smallest element is found by peekitem()
+        if len(self.heap) < self.k or estimate >= self.heap.peekitem()[1][0]:
+            self.heap[key] = [estimate, key]
+            if len(self.heap) > self.k:
+                self.heap.popitem()
 
     def get(self, key):
         """
@@ -198,21 +189,21 @@ class FreqSketch(object):
         value = sys.maxint
         for row, hash_function_params in enumerate(self.hash_function_params):
             column = self._hash_function(abs(hash(key)), hash_function_params)
-            value = min(self.count[row, column], value)
+            value = min(self.count[self.hash_index(row, column)], value)
 
         return value
 
     def frequent_items(self):
         """
         Returns the most frequent items.
-        
+
         These are the frequent items from the heap.
         """
         return {key: self.get(key) for key in self.heap}
-            
+
     def iterate_values(self, value_iterator):
         """Makes FreqSketch usable with PySpark mapPartitions().
-        
+
         An RDD's mapPartitions method takes a function that consumes an
         iterator of records and spits out an iterable for the next RDD
         downstream.
