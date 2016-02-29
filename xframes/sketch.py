@@ -155,7 +155,7 @@ class Sketch(object):
             if not isinstance(array, XArray):
                 raise TypeError("Sketch object can only be constructed from XArrays")
 
-            self._impl.construct_from_xarray(array._impl, sub_sketch_keys)
+            self._impl.construct_from_xarray(array.impl(), sub_sketch_keys)
 
     # noinspection PyBroadException
     def __repr__(self):
