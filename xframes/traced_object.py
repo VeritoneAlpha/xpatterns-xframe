@@ -8,7 +8,6 @@ from sys import stderr
 
 class TracedObject(object):
     entry_trace = False
-    exit_trace = False
     perf_count = None
 
     @classmethod
@@ -43,16 +42,8 @@ class TracedObject(object):
             cls.perf_count[my_fun] += 1
 
     @classmethod
-    def _exit(cls, **kwargs):
-        """ Trace function exit. """
-        if cls.exit_trace:
-            print >>stderr, 'Exit RDD', inspect.stack()[1][3], kwargs
-
-
-    @classmethod
-    def set_trace(cls, entry_trace=None, exit_trace=None):
+    def set_trace(cls, entry_trace=None):
         cls.entry_trace = cls.entry_trace if entry_trace is None else entry_trace
-        cls.exit_trace = cls.exit_trace if exit_trace is None else exit_trace
 
     @classmethod
     def set_perf_count(cls, enable=True):
