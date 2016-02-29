@@ -16,12 +16,12 @@ class XObjectImpl(object):
     @staticmethod
     def _wrap_rdd(rdd):
         if rdd is None:
-            return rdd
+            return None
         if isinstance(rdd, RDD):
             return XRdd(rdd)
         if isinstance(rdd, XRdd):
             return rdd
-        raise TypeError('type is not RDD')
+        raise TypeError('Type is not RDD')
 
     @staticmethod
     def spark_context():
