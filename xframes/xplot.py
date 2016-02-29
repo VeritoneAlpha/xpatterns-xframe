@@ -3,6 +3,7 @@ import traceback
 import operator
 import math
 import datetime
+import logging
 
 from xframes.deps import HAS_MATPLOTLIB
 
@@ -62,9 +63,9 @@ class XPlot(object):
                     plt.title(title)
                 plt.show()
             except Exception as e:
-                print "got an exception!"
-                print traceback.format_exc()
-                print e
+                logging.warn("Make_barh: got an exception!")
+                logging.warn(traceback.format_exc())
+                logging.warn(e)
 
     # noinspection PyShadowingBuiltins
     def make_bar(self, items, xlabel, ylabel, title=None):
@@ -94,9 +95,9 @@ class XPlot(object):
                     plt.title(title)
                 plt.show()
             except Exception as e:
-                print "got an exception!"
-                print traceback.format_exc()
-                print e
+                logging.warn("Make_barh: got an exception!")
+                logging.warn(traceback.format_exc())
+                logging.warn(e)
 
     def top_values(self, x_col, y_col, k=15, title=None, xlabel=None, ylabel=None):
         """
@@ -181,7 +182,7 @@ class XPlot(object):
         interval = max_val - min_val
         n_buckets = bins or 50
         bucket_vals = [0] * n_buckets
-        usetd = type(interval) is datetime.timedelta
+        usetd = isinstance(interval, datetime.timedelta)
         if usetd:
             delta = interval.total_seconds() / n_buckets
             for i in range(0, n_buckets):
@@ -196,7 +197,7 @@ class XPlot(object):
             for val in value_iterator:
                 if val is None:
                     continue
-                if type(val) is float and math.isnan(val):
+                if isinstance(val, float ) and math.isnan(val):
                     continue
                 if usetd:
                     b = int((val - min_val).total_seconds() / delta)
