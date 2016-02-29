@@ -12,13 +12,13 @@ import ast
 import shutil
 import re
 import copy
-from sys import stderr
 import datetime
 import dateutil
 
 import numpy
 
 from xframes.deps import HAS_PANDAS
+from xframes.deps import HAS_NUMPY
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField
 
@@ -36,6 +36,8 @@ from xframes.xarray_impl import XArrayImpl
 from xframes.xrdd import XRdd
 from xframes.cmp_rows import CmpRows
 from xframes.aggregator_impl import aggregator_properties
+
+
 
 # Used to save the original line being parsed.
 # If there are any errors, then the line is picked up from here.
@@ -82,7 +84,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._num_rows = None
 
         self.materialized = False
-        self._exit()
 
     def _rv(self, rdd, col_names=None, column_types=None, table_lineage=None, column_lineage=None):
         """
@@ -153,6 +154,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
         cls._entry()
         if not HAS_PANDAS:
             raise NotImplementedError('Pandas is required.')
+        if not HAS_NUMPY:
+            raise NotImplementedError('Numpy is required.')
 
         # build something we can parallelize
         # list of rows, each row is a tuple
@@ -169,7 +172,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
             res.append(tuple(cols))
         sc = cls.spark_context()
         rdd = sc.parallelize(res)
-        cls._exit()
         return XFrameImpl(rdd, column_names, column_types, table_lineage)
 
     @classmethod
@@ -190,7 +192,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
             with fileio.open_file(lineage_path) as f:
                 lineage = pickle.load(f)
                 table_lineage |= lineage['table']
-        cls._exit()
         return cls(res, names, types, table_lineage)
 
     @classmethod
@@ -207,7 +208,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         def row_to_tuple(row):
             return tuple([row[i] for i in range(len(row))])
         xf_rdd = rdd.map(row_to_tuple)
-        cls._exit()
         return cls(xf_rdd, xf_names, xf_types, table_lineage)
 
     # noinspection SqlNoDataSourceInspection
@@ -245,7 +245,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         types = types or [type(elem) for elem in first_row]
         table_lineage = {'RDD'}
         # TODO sniff types using more of the rdd
-        cls._exit()
         return cls(rdd, names, types, table_lineage)
 
     @classmethod
@@ -263,7 +262,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         comment_char = get_config('comment_char')
         store_errors = get_config('store_errors')
         na_values = get_config('na_values')
-        if not type(na_values) == list:
+        if not isinstance(na_values, list):
             na_values = [na_values]
 
         sc = CommonSparkContext().spark_context()
@@ -333,7 +332,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
             def handle_unicode(_f):
                 # The Python 2 CSV parser can only handle ASCII and UTF-8.
                 for line in _f:
-                    if type(line) is str:
+                    if isinstance(line, str):
                         yield line
                     else:
                         yield line.encode('utf-8')
@@ -494,7 +493,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
             if row_limit is None:
                 persist(res)
 
-        cls._exit()
         # returns a dict of errors and XFrameImpl
         return errs, XFrameImpl(res, col_names, column_types, table_lineage)
 
@@ -524,7 +522,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         col_names = ['text']
         col_types = [str]
         table_lineage = {path}
-        cls._exit()
         return XFrameImpl(res, col_names, col_types, table_lineage)
 
     @classmethod
@@ -541,7 +538,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         table_lineage = {path}
 
         rdd = s_rdd.map(lambda row: tuple(row))
-        cls._exit()
         return XFrameImpl(rdd, col_names, col_types, table_lineage)
 
     # Save
@@ -568,7 +564,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         with fileio.open_file(lineage_path, 'w') as f:
             # TODO detect filesystem errors
             pickle.dump(lineage, f)
-        self._exit()
 
     # noinspection PyArgumentList
     def save_as_csv(self, path, **params):
@@ -610,8 +605,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 shutil.copyfileobj(rd, f)
         fileio.delete(temp_file_name)
 
-        self._exit()
-
     def save_as_parquet(self, url, number_of_partitions):
         """
         Save to a parquet file.
@@ -621,7 +614,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         dataframe = self.to_spark_dataframe(table_name=None,
                                             number_of_partitions=number_of_partitions)
         dataframe.saveAsParquetFile(url)
-        self._exit()
 
     def to_rdd(self, number_of_partitions=None):
         """
@@ -631,7 +623,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         self._entry(number_of_partitions=number_of_partitions)
         res = self._rdd.repartition(number_of_partitions) if number_of_partitions is not None else self._rdd
-        self._exit()
         return res.RDD()
 
     def to_spark_dataframe(self, table_name, number_of_partitions=None):
@@ -654,7 +645,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
             res = sqlc.createDataFrame(rdd.RDD(), schema)
             if table_name is not None:
                 sqlc.registerDataFrameAsTable(res, table_name)
-        self._exit()
         return res
 
     # Table Information
@@ -677,8 +667,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
             return 0
         if self._num_rows is not None:
             return self._num_rows
-        self._num_rows = self._count()      # action
-        self._exit(num_rows=self._num_rows)
+        self._num_rows = self._count()
         return self._num_rows
 
     def num_columns(self):
@@ -687,7 +676,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         self._entry()
         num_cols = len(self.col_names)
-        self._exit(num_cols=num_cols)
         return num_cols
 
     def column_names(self):
@@ -696,7 +684,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         self._entry()
         col_names = self.col_names
-        self._exit(col_names=col_names)
         return col_names
 
     def dtype(self):
@@ -704,7 +691,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         Returns the column data types in the XFrame.
         """
         self._entry()
-        self._exit(column_types=self.column_types)
         return self.column_types
 
     def lineage(self):
@@ -712,7 +698,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         Returns the table lineage.
         """
         self._entry()
-        self._exit(lineage=self.table_lineage)
         return {'table': self.table_lineage}
 
     # Get Data
@@ -729,7 +714,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
             data = self._rdd.take(n)
             sc = self.spark_context()
             res = sc.parallelize(data)
-            self._exit()
             return self._rv(res)
         pairs = self._rdd.zipWithIndex()
         cache(pairs)
@@ -737,14 +721,12 @@ class XFrameImpl(XObjectImpl, TracedObject):
         uncache(pairs)
         res = filtered_pairs.keys()
         self.materialized = True
-        self._exit()
         return self._rv(res)
 
     def head_as_list(self, n):
         # Used in xframe when doing dry runs to determine type
         self._entry(n=n)
         lst = self._rdd.take(n)      # action
-        self._exit()
         return lst
 
     def tail(self, n):
@@ -758,7 +740,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         filtered_pairs = pairs.filter(lambda x: x[1] >= start)
         uncache(pairs)
         res = filtered_pairs.map(lambda x: x[0])
-        self._exit()
         return self._rv(res)
 
     # Sampling
@@ -768,7 +749,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         self._entry(fraction=fraction, seed=seed)
         res = self._rdd.sample(False, fraction, seed)
-        self._exit()
         return self._rv(res)
 
     def random_split(self, fraction, seed):
@@ -790,7 +770,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         rdd1 = labeled_rdd.filter(lambda row: row[1] < fraction).keys()
         rdd2 = labeled_rdd.filter(lambda row: row[1] >= fraction).keys()
         uncache(labeled_rdd)
-        self._exit()
         return self._rv(rdd1), self._rv(rdd2)
 
     # Materialization
@@ -801,7 +780,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         self._entry()
         self._count()
-        self._exit()
 
     def is_materialized(self):
         """
@@ -809,7 +787,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         self._entry()
         materialized = self.materialized
-        self._exit(materialized=materialized)
         return materialized
 
     def has_size(self):
@@ -818,7 +795,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         self._entry()
         materialized = self.materialized
-        self._exit(materialized=materialized)
         return materialized
 
     # Column Manipulation
@@ -834,7 +810,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         col = self.col_names.index(column_name)
         res = self._rdd.map(lambda row: row[col])
         col_type = self.column_types[col]
-        self._exit(col_type=col_type)
         return xframes.xarray_impl.XArrayImpl(res, col_type)
 
     def select_columns(self, keylist):
@@ -850,7 +825,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         names = [self.col_names[col] for col in cols]
         types = [self.column_types[col] for col in cols]
         res = self._rdd.map(lambda row: get_columns(row, cols))
-        self._exit(names=names, types=types)
         return self._rv(res, names, types)
 
     def copy(self):
@@ -860,7 +834,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         The underlying RDD is immutale, so we just need to copy the metadata.
         """
         self._entry()
-        self._exit()
         return self._rv(self._rdd)
 
     @classmethod
@@ -871,7 +844,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         col_types = [arry_impl.elem_type]
         rdd = arry_impl.rdd().map(lambda val: (val,))
         table_lineage = arry_impl.table_lineage
-        cls._exit()
         return XFrameImpl(rdd, col_names, col_types, table_lineage)
 
     def add_column(self, col, name):
@@ -910,7 +882,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 return tuple(old_val + (new_elem, ))
             res = res.map(lambda pair: move_inside(pair[0], pair[1]))
         table_lineage = self.table_lineage | col.table_lineage
-        self._exit()
         return self._rv(res, col_names, col_types, table_lineage)
 
     def add_column_in_place(self, data, name):
@@ -936,7 +907,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
             def move_inside(old_val, new_elem):
                 return tuple(old_val + (new_elem, ))
             res = res.map(lambda pair: move_inside(pair[0], pair[1]))
-        self._exit()
         return self._replace(res)
 
     # noinspection PyProtectedMember
@@ -960,7 +930,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
             def move_inside(old_val, new_elem):
                 return tuple(old_val + (new_elem, ))
             rdd = rdd.map(lambda pair: move_inside(pair[0], pair[1]))
-        self._exit(names=names, types=types)
         return self._rv(rdd, names, types)
 
     def add_columns_array_in_place(self, cols, namelist):
@@ -979,7 +948,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
             def move_inside(old_val, new_elem):
                 return tuple(old_val + (new_elem, ))
             rdd = rdd.map(lambda pair: move_inside(pair[0], pair[1]))
-        self._exit(names=names, types=types)
         return self._replace(rdd, names, types)
 
     def add_columns_frame(self, other):
@@ -1011,7 +979,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
         rdd = self._rdd.zip(other.impl().rdd())
         res = rdd.map(lambda pair: merge(pair[0], pair[1]))
-        self._exit(names=new_names, types=types)
         return self._rv(res, new_names, types)
 
     def add_columns_frame_in_place(self, other):
@@ -1029,7 +996,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
         rdd = self._rdd.zip(other.impl().rdd())
         res = rdd.map(lambda pair: merge(pair[0], pair[1]))
-        self._exit(names=names, types=types)
         return self._replace(res, names, types)
 
     def remove_column(self, name):
@@ -1050,7 +1016,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
             lst.pop(col)
             return tuple(lst)
         res = self._rdd.map(lambda row: pop_col(row, col))
-        self._exit()
         return self._rv(res, col_names, col_types)
 
     def remove_column_in_place(self, name):
@@ -1069,7 +1034,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
             lst.pop(col)
             return tuple(lst)
         res = self._rdd.map(lambda row: pop_col(row, col))
-        self._exit()
         return self._replace(res)
 
     def remove_columns(self, col_names):
@@ -1094,7 +1058,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 lst.pop(col)
             return tuple(lst)
         res = self._rdd.map(lambda row: pop_cols(row, cols))
-        self._exit()
         return self._rv(res, col_names, col_types)
 
     def swap_columns(self, column_1, column_2):
@@ -1119,13 +1082,12 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 lst[col1], lst[col2] = lst[col2], lst[col1]
                 return tuple(lst)
             except IndexError:
-                print >>stderr, 'Swap index error', col1, col2, row, len(row)
+                logging.warn('Swap index error {} {} {} {}'.warn(col1, col2, row, len(row)))
         col1 = self.col_names.index(column_1)
         col2 = self.col_names.index(column_2)
         names = swap_list(self.col_names, col1, col2)
         types = swap_list(self.column_types, col1, col2)
         res = self._rdd.map(lambda row: swap_cols(row, col1, col2))
-        self._exit(names=names, types=types)
         return self._rv(res, names, types)
 
     def reorder_columns(self, column_names):
@@ -1145,7 +1107,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         names = reorder_list(self.col_names, column_indexes)
         types = reorder_list(self.column_types, column_indexes)
         res = self._rdd.map(lambda row: reorder_cols(row, column_indexes))
-        self._exit(names=names, types=types)
         return self._rv(res, names, types)
 
     def replace_column_names(self, new_names):
@@ -1153,7 +1114,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         Return new XFrameImpl, with coluumn names replaced.
         """
         self._entry(new_names=new_names)
-        self._exit()
         return self._rv(self._rdd, new_names)
 
     # Iteration
@@ -1169,7 +1129,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         # has just run?
     def begin_iterator(self):
         self._entry()
-        self._exit()
         self.iter_pos = 0
 
     def iterator_get_next(self, elems_at_a_time):
@@ -1181,7 +1140,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         trimmed_rdd = filtered_rdd.keys()
         iter_buf = trimmed_rdd.collect()
         self.iter_pos += elems_at_a_time
-        self._exit()
         return iter_buf
 
     def add_column_const_in_place(self, name, value):
@@ -1201,7 +1159,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self.col_names.append(name)
         col_type = type(value)
         self.column_types.append(col_type)
-        self._exit()
         return self._replace(res)
 
     def replace_column_const_in_place(self, name, value):
@@ -1221,7 +1178,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
         col_type = type(value)
         self.column_types[col_num] = col_type
-        self._exit()
         return self._replace(res)
 
     def replace_single_column_in_place(self, col):
@@ -1234,7 +1190,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         res = col.impl().rdd().map(lambda item: (item, ))
         col_type = infer_type_of_rdd(col.impl().rdd())
         self.column_types[0] = col_type
-        self._exit()
         return self._replace(res)
 
     def replace_selected_column(self, column_name, col):
@@ -1258,7 +1213,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         col_type = infer_type_of_rdd(col.impl().rdd())
         col_types = copy.copy(self.column_types)
         col_types[col_num] = col_type
-        self._exit()
         return self._rv(res, col_names, col_types)
 
     def replace_selected_column_in_place(self, column_name, col):
@@ -1279,7 +1233,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         res = rdd.map(lambda row_col: replace_col(row_col, col_num))
         col_type = infer_type_of_rdd(col.impl().rdd())
         self.column_types[col_num] = col_type
-        self._exit()
         return self._replace(res)
 
     # Row Manipulation
@@ -1301,7 +1254,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         # fn needs the row as a dict
         res = self._rdd.flatMap(lambda row: fn(dict(zip(names, row))))
         res = res.map(tuple)
-        self._exit(column_names=column_names, column_types=column_types)
         return self._rv(res, column_names, column_types)
 
     def logical_filter(self, other):
@@ -1316,7 +1268,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         pairs = self._rdd.zip(other.rdd())
 
         res = pairs.filter(lambda p: p[1]).map(lambda p: p[0])
-        self._exit()
         return self._rv(res)
 
     def stack_list(self, column_name, new_column_names, new_column_types, drop_na):
@@ -1353,7 +1304,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         column_names[col_num] = new_name
         column_types = list(self.column_types)
         column_types[col_num] = new_column_types[0]
-        self._exit(column_names=column_names, column_types=column_types)
         return self._rv(res, column_names, column_types)
 
     def stack_dict(self, column_name, new_column_names, new_column_types, drop_na):
@@ -1396,7 +1346,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         column_types = list(self.column_types)
         column_types[col_num] = new_column_types[0]
         column_types.insert(col_num + 1, new_column_types[1])
-        self._exit(column_names=column_names, column_types=column_types)
         return self._rv(res, column_names, column_types)
 
     def append(self, other):
@@ -1409,7 +1358,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._entry()
         res = self._rdd.union(other.rdd())
         table_lineage = self.table_lineage | other.table_lineage
-        self._exit()
         return self._rv(res, table_lineage=table_lineage)
 
     def copy_range(self, start, step, stop):
@@ -1424,7 +1372,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
             return (x - start) % step == 0
         pairs = self._rdd.zipWithIndex()
         res = pairs.filter(lambda x: select_row(x[1], start, step, stop)).map(lambda x: x[0])
-        self._exit()
         return self._rv(res)
 
     def drop_missing_values(self, columns, all_behavior, split):
@@ -1457,12 +1404,10 @@ class XFrameImpl(XObjectImpl, TracedObject):
         f = keep_row_all if all_behavior else keep_row_any
         if not split:
             res = self._rdd.filter(lambda row: f(row, cols))
-            self._exit()
             return self._rv(res)
         else:
             res1 = self._rdd.filter(lambda row: f(row, cols))
             res2 = self._rdd.filter(lambda row: not f(row, cols))
-            self._exit()
             return self._rv(res1), self._rv(res2)
 
     def add_row_number(self, column_name, start):
@@ -1484,7 +1429,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         types = list(self.column_types)
         types.insert(0, int)
         res = self._rdd.zipWithIndex().map(lambda row: pull_up(row, start))
-        self._exit(names=names, types=types)
         return self._rv(res, names, types)
 
     # Data Transformations Within Columns
@@ -1541,7 +1485,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
             res = keys.map(lambda row: pack_row_dict(row, dict_keys, fill_na))
         else:
             raise NotImplementedError
-        self._exit(dtype=dtype)
         return xframes.xarray_impl.XArrayImpl(res, dtype)
 
     def transform(self, fn, dtype, seed):
@@ -1566,7 +1509,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 return safe_cast_val(result, dtype)
             return result
         res = self._rdd.map(transformer)
-        self._exit(dtype=dtype)
         return xframes.xarray_impl.XArrayImpl(res, dtype)
 
     def transform_col(self, col, fn, dtype, seed):
@@ -1601,7 +1543,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         res = self._rdd.map(transformer)
         new_col_types = list(self.column_types)
         new_col_types[col_index] = dtype
-        self._exit(new_col_types=new_col_types)
         return self._rv(res, column_types=new_col_types)
 
     def transform_cols(self, cols, fn, dtypes, seed):
@@ -1642,7 +1583,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         new_col_types = list(self.column_types)
         for dtype_index, col_index in enumerate(col_indexes):
             new_col_types[col_index] = dtypes[dtype_index]
-        self._exit(new_col_types=new_col_types)
         return self._rv(res, column_types=new_col_types)
 
     def filter(self, values, column_name, exclude):
@@ -1692,7 +1632,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         new_col_names = unique_col_names
 
         def get_group_types(cols):
-            return [self.column_types[col] if type(col) is int else None for col in cols]
+            return [self.column_types[col] if isinstance(col, int) else None for col in cols]
 
         # make new column types
         new_col_types = [self.column_types[index] for index in key_cols]
@@ -1726,7 +1666,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         res = aggregates.map(lambda pair: concatenate(pair[0], pair[1]))
         res = res.map(tuple)
         persist(res)
-        self._exit(new_col_names=new_col_names, new_col_types=new_col_types)
         return self._rv(res, new_col_names, new_col_types)
 
     def join(self, right, how, join_keys):
@@ -1826,18 +1765,12 @@ class XFrameImpl(XObjectImpl, TracedObject):
             # throw away key in the joined table
             pairs = joined.values()
 
-#            print 'left', keyed_left.collect()
-#            print 'right', keyed_right.collect()
-#            print 'pairs', pairs.collect()
-
             def combine_results(left_row, right_row, left_count, right_count):
                 if left_row is None:
                     left_row = tuple([None] * left_count)
                 if right_row is None:
                     right_row = tuple([None] * right_count)
                 return left_row, right_row
-
-#            print 'res', res.collect()
 
             # remove redundant key fields from the right
             # take into account any missing any missing rows
@@ -1858,7 +1791,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         persist(res)
 
         table_lineage = self.table_lineage | right.table_lineage
-        self._exit(new_col_names=new_col_names, new_col_types=new_col_types, table_lineage=table_lineage)
         return self._rv(res, new_col_names, new_col_types, table_lineage)
 
     def unique(self):
@@ -1871,7 +1803,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         as_json = self._rdd.map(lambda row: json.dumps(row))
         unique_rows = as_json.distinct()
         res = unique_rows.map(lambda s: json.loads(s))
-        self._exit()
         return self._rv(res)
 
     def sort(self, sort_column_names, sort_column_orders):
@@ -1889,7 +1820,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
             return CmpRows(row, sort_column_indexes, sort_column_orders)
 
         res = self._rdd.sortBy(keyfunc=key_fn)
-        self._exit()
         return self._rv(res)
 
     def sql(self, sql_statement, table_name):
@@ -1901,5 +1831,4 @@ class XFrameImpl(XObjectImpl, TracedObject):
         sqlc = self.spark_sql_context()
         s_res = sqlc.sql(sql_statement)
         res = XFrameImpl.load_from_spark_dataframe(s_res)
-        self._exit()
         return res

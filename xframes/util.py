@@ -5,7 +5,6 @@ This module defines top level utility functions for XFrames.
 import math
 import urllib
 import urllib2
-import sys
 import os
 import re
 from zipfile import ZipFile
@@ -18,12 +17,15 @@ import shutil
 import random
 import datetime
 from dateutil import parser
+from sys import stderr
+import logging
 
 import numpy
 
-import logging as _logging
 
 from pyspark import StorageLevel
+
+from xframes.deps import HAS_NUMPY
 
 from pyspark.sql.types import StringType, BooleanType, \
     DoubleType, FloatType, \
@@ -33,8 +35,6 @@ from pyspark.sql.types import StringType, BooleanType, \
 from xframes.spark_context import CommonSparkContext
 from xframes.xobject import XObject
 from xframes import fileio
-
-__LOGGER__ = _logging.getLogger(__name__)
 
 # Not a number singleton
 nan = float('nan')
@@ -202,26 +202,26 @@ def download_dataset(url_str, extract=True, force=False, output_dir="."):
     fname = output_dir + "/" + url_str.split("/")[-1]
     # download the file from the web
     if not os.path.isfile(fname) or force:
-        print "Downloading file from: ", url_str
+        logging.info("Downloading file from: {}".format(url_str))
         urllib.urlretrieve(url_str, fname)
         if extract and fname[-3:] == "zip":
-            print "Decompressing zip archive", fname
+            logging.info("Decompressing zip archive {}".format(fname))
             ZipFile(fname).extractall(output_dir)
         elif extract and fname[-6:] == ".tar.gz":
-            print "Decompressing tar.gz archive", fname
+            logging.info("Decompressing tar.gz archive {}".format(fname))
             tarfile.TarFile(fname).extractall(output_dir)
         elif extract and fname[-7:] == ".tar.bz2":
-            print "Decompressing tar.bz2 archive", fname
+            logging.info("Decompressing tar.bz2 archive {}".format(fname))
             tarfile.TarFile(fname).extractall(output_dir)
         elif extract and fname[-3:] == "bz2":
-            print "Decompressing bz2 archive: ", fname
+            logging.info("Decompressing bz2 archive: {}".format(fname))
             outfile = open(fname.split(".bz2")[0], "w")
-            print "Output file: ", outfile
+            logging.info("Output file: {}".format(outfile))
             for line in _bz2.BZ2File(fname, "r"):
                 outfile.write(line)
             outfile.close()
     else:
-        print "File is already downloaded."
+        logging.info("File is already downloaded {}".format(fname))
 
 
 XFRAMES_CURRENT_VERSION_URL = "http://atigeo.com/files/xframes_current_version"
@@ -247,8 +247,7 @@ def get_newest_version(timeout=5, url=XFRAMES_CURRENT_VERSION_URL):
 
 # noinspection PyBroadException,PyIncorrectDocstring
 def perform_version_check(configfile=(os.path.join(os.path.expanduser("~"), ".xframes", "config")),
-                          url=XFRAMES_CURRENT_VERSION_URL,
-                          _outputstream=sys.stderr):
+                          url=XFRAMES_CURRENT_VERSION_URL):
     """
     Checks if currently running version of XFrames is less than the version
     available from atigeo.com. Prints a message if the atigeo.com servers
@@ -268,7 +267,7 @@ def perform_version_check(configfile=(os.path.join(os.path.expanduser("~"), ".xf
             section = 'Product'
             key = 'skip_version_check'
             skip_version_check = config.getboolean(section, key)
-            __LOGGER__.debug("skip_version_check=%s" % str(skip_version_check))
+            logging.debug("skip_version_check=%s" % str(skip_version_check))
     except Exception:
         # eat all errors
         pass
@@ -283,7 +282,7 @@ def perform_version_check(configfile=(os.path.join(os.path.expanduser("~"), ".xf
                        "You can use pip to upgrade the xframes package. "
                        "For more information see http://atigeo.com/products/xframes/upgrade.").format(
                            latest_version, XObject.version())
-                _outputstream.write(msg)
+                print >>stderr, msg
                 return True
         except:
             # eat all errors
@@ -551,23 +550,31 @@ def infer_types(rdd):
         raise ValueError('rows are not the same length')
 
 
-_numeric_types = (float, int, long, numpy.float64, numpy.int64)
-
-_date_types = [datetime.datetime]
-
-_sortable_types = (str, float, int, long, numpy.float64, numpy.int64, datetime.datetime)
-
-
 def is_numeric_type(typ):
-    return typ in _numeric_types
+    if HAS_NUMPY:
+        numeric_types = (float, int, long, numpy.float64, numpy.int64)
+    else:
+        numeric_types = (float, int, long)
+    if typ is None:
+        return False
+    return issubclass(typ, numeric_types)
 
 
 def is_date_type(typ):
-    return typ in _date_types
+    if typ is None:
+        return False
+    date_types = (datetime.datetime, )
+    return issubclass(typ, date_types)
 
 
 def is_sortable_type(typ):
-    return typ in _sortable_types
+    if typ is None:
+        return False
+    if HAS_NUMPY:
+        sortable_types = (str, float, int, long, numpy.float64, numpy.int64, datetime.datetime)
+    else:
+        sortable_types = (str, float, int, long, datetime.datetime)
+    return issubclass(typ, sortable_types)
 
 
 def infer_type_of_list(data):
@@ -648,7 +655,7 @@ def is_missing(x):
     """
     if x is None:
         return True
-    if type(x) in [str, dict, list] and len(x) == 0:
+    if isinstance(x, (str, dict, list)) and len(x) == 0:
         return True
     if isinstance(x, float) and math.isnan(x):
         return True
@@ -671,13 +678,14 @@ def is_missing_or_empty(val):
     """
     if is_missing(val):
         return True
-    if type(val) in (list, dict):
+    if isinstance(val, (list, dict)):
         if len(val) == 0:
             return True
     return False
 
 
 def pytype_from_dtype(dtype):
+    # Converts from string name of a parquet type to a type.
     if dtype == 'float':
         return float
     if dtype == 'float32':
@@ -704,53 +712,49 @@ def pytype_from_dtype(dtype):
 
 
 def to_ptype(schema_type):
+    # converts a parquet schema type to python type
     if isinstance(schema_type, BooleanType):
         return bool
-    elif isinstance(schema_type, IntegerType):
+    if isinstance(schema_type, (IntegerType, ShortType)):
         return int
-    elif isinstance(schema_type, ShortType):
-        return int
-    elif isinstance(schema_type, LongType):
+    if isinstance(schema_type, LongType):
         return long
-    elif isinstance(schema_type, DoubleType):
+    if isinstance(schema_type, (DoubleType, FloatType)):
         return float
-    elif isinstance(schema_type, FloatType):
-        return float
-    elif isinstance(schema_type, StringType):
+    if isinstance(schema_type, StringType):
         return str
-    elif isinstance(schema_type, ArrayType):
+    if isinstance(schema_type, ArrayType):
         return list
-    elif isinstance(schema_type, MapType):
+    if isinstance(schema_type, MapType):
         return dict
-    elif isinstance(schema_type, TimestampType):
+    if isinstance(schema_type, TimestampType):
         return datetime.datetime
-    else:
-        return str
+    return str
 
 
 def to_schema_type(typ, elem):
-    if typ == str:
+    if issubclass(typ, basestring):
         return StringType()
-    if typ == bool:
+    if issubclass(typ, bool):
         return BooleanType()
-    if typ == float:
+    if issubclass(typ, float):
         return FloatType()
-    if typ == int or typ == long:
+    if issubclass(typ, (int, long)):
         return IntegerType()
-    if typ == list:
+    if issubclass(typ, list):
         if elem is None or len(elem) == 0:
             raise ValueError('frame not compatible with Spark DataFrame')
         a_type = to_schema_type(type(elem[0]), None)
         # todo set valueContainsNull correctly
         return ArrayType(a_type)
-    if typ == dict:
+    if issubclass(typ, dict):
         if elem is None or len(elem) == 0:
             raise ValueError('frame not compatible with Spark DataFrame')
         key_type = to_schema_type(type(elem.keys()[0]), None)
         val_type = to_schema_type(type(elem.values()[0]), None)
         # todo set valueContainsNull correctly
         return MapType(key_type, val_type)
-    if typ == datetime.datetime:
+    if issubclass(typ, datetime.datetime):
         return TimestampType()
     return StringType()
 
@@ -758,24 +762,26 @@ def to_schema_type(typ, elem):
 def safe_cast_val(val, typ):
     if val is None:
         return None
-    if type(val) is str and len(val) == 0:
-        if typ is int:
+    if isinstance(val, basestring) and len(val) == 0:
+        if issubclass(typ, int):
             return 0
-        if typ is float:
+        if issubclass(typ, float):
             return 0.0
-        if typ is str:
+        if issubclass(typ, basestring):
             return ''
-        if typ is dict:
+        if issubclass(typ, dict):
             return {}
-        if typ is list:
+        if issubclass(typ, list):
             return []
+        if issubclass(typ, datetime.datetime):
+            return datetime.datetime(1, 1, 1)
     try:
-        if typ == dict:
+        if issubclass(typ, dict):
             return ast.literal_eval(val)
     except ValueError:
         return {}
     try:
-        if typ == list:
+        if issubclass(typ, list):
             return ast.literal_eval(val)
     except ValueError:
         return []

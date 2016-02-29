@@ -10,7 +10,7 @@ The data is immutable, homogeneous, and is stored in a Spark RDD.
 Copyright (c) 2014, Dato, Inc.
 All rights reserved.
 
-Copyright (c) 2015, Atigeo, Inc.
+Copyright (c) 2016, Atigeo, Inc.
 All rights reserved.
 """
 
@@ -24,6 +24,7 @@ import datetime
 import numpy
 
 from xframes.deps import pandas, HAS_PANDAS
+from xframes.deps import HAS_NUMPY
 from xframes.xobject import XObject
 from xframes.xarray_impl import XArrayImpl
 from xframes.util import make_internal_url, infer_type_of_list, pytype_from_dtype
@@ -140,8 +141,9 @@ class XArray(XObject):
 
         if HAS_PANDAS and isinstance(data, pandas.Series):
             self._impl = XArrayImpl.load_from_iterable(data.values, dtype, ignore_cast_failure)
-        elif isinstance(data, numpy.ndarray) or isinstance(data, list) \
-                or isinstance(data, array.array):
+        elif HAS_NUMPY and isinstance(data, numpy.ndarray):
+            self._impl = XArrayImpl.load_from_iterable(data, dtype, ignore_cast_failure)
+        elif isinstance(data, (list, array.array)):
             self._impl = XArrayImpl.load_from_iterable(data, dtype, ignore_cast_failure)
         elif hasattr(data, '__iter__'):
             self._impl = XArrayImpl.load_from_iterable(data, dtype, ignore_cast_failure)
@@ -151,7 +153,7 @@ class XArray(XObject):
         else:
             raise TypeError('Unexpected data source: {}. '
                             "Possible data source types are: 'list', "
-                            "'numpy.ndarray', 'pandas.Series', and 'string(url)'.".format(type(data)))
+                            "'numpy.ndarray', 'pandas.Series', and 'string(url)'.".format(type(data).__name__))
 
     @staticmethod
     def _classify_auto(data):
@@ -169,7 +171,7 @@ class XArray(XObject):
                 dtype = infer_type_of_list(data)
             return dtype
 
-        elif isinstance(data, numpy.ndarray):
+        elif HAS_NUMPY and isinstance(data, numpy.ndarray):
             # if it is a numpy array, get the dtype of the array
             dtype = pytype_from_dtype(data.dtype)
             if dtype == object:
@@ -221,8 +223,8 @@ class XArray(XObject):
             raise TypeError('Size must be a int.')
         if size <= 0:
             raise ValueError('Size must be positive.')
-        if type(value) not in (int, float, str, array.array, datetime.datetime, list, dict):
-            raise TypeError("Cannot create xarray of value type '{}'.".format(type(value)))
+        if not isinstance(value, (int, float, str, array.array, datetime.datetime, list, dict)):
+            raise TypeError("Cannot create xarray of value type '{}'.".format(type(value).__name__))
         return cls(impl=XArrayImpl.load_from_const(value, size))
 
     @classmethod
@@ -255,8 +257,8 @@ class XArray(XObject):
         >>> XArray(range(10, 1000))
 
         """
-        if type(start) not in (int, ) or (stop is not None and type(stop) not in (int, )):
-            raise TypeError("Expects 'start' and 'stop' to be an int.")
+        if not isinstance(start, int) or (stop is not None and not isinstance(stop, int)):
+            raise TypeError("'Start' and 'stop' must be int.")
         if stop is None:
             return _create_sequential_xarray(start)
 
@@ -279,7 +281,7 @@ class XArray(XObject):
         return self._impl.get_content_identifier()
 
     # noinspection PyShadowingBuiltins
-    def save(self, filename, file_format=None):
+    def save(self, filename, format=None):
         """
         Saves the XArray to file.
 
@@ -293,7 +295,7 @@ class XArray(XObject):
             saved as a text file. If format is 'binary', a directory will be
             created at the location which will contain the XArray.
 
-        file_format : {'binary', 'text', 'csv'}, optional
+        format : {'binary', 'text', 'csv'}, optional
             Format in which to save the XFrame. Binary saved XArrays can be
             loaded much faster and without any format conversion losses.
             The values 'text' and 'csv' are synonymous: Each XArray row will be written
@@ -303,7 +305,7 @@ class XArray(XObject):
             otherwise save as 'binary' format.
 
         """
-        if file_format is None:
+        if format is None:
             if filename.endswith('.txt'):
                 format = 'text'
             elif filename.endswith('.csv'):
@@ -311,11 +313,11 @@ class XArray(XObject):
             else:
                 format = 'binary'
 
-        if file_format == 'binary':
+        if format == 'binary':
             self._impl.save(make_internal_url(filename))
-        elif file_format == 'text':
+        elif format == 'text':
             self._impl.save_as_text(make_internal_url(filename))
-        elif file_format == 'csv':
+        elif format == 'csv':
             self._impl.save_as_csv(make_internal_url(filename))
 
     def to_rdd(self, number_of_partitions=4):
@@ -371,8 +373,9 @@ class XArray(XObject):
         out : string
             A string representation of the XArray.
         """
-        ret = 'dtype: ' + str(self.dtype()) + '\n'
-        ret = ret + 'Rows: ' + str(self.size()) + '\n'
+
+        ret = 'dtype: {}\n'.format(self.dtype().__name__)
+        ret += 'Rows: {}\n'.format(self.size())
         ret += str(self)
         return ret
 
@@ -473,7 +476,7 @@ class XArray(XObject):
         Oher must be a scalar value, raises to the current array to thet power, returning
         the new result.
         """
-        if type(other) in (int, long, float):
+        if isinstance(other, (int, long, float)):
             return XArray(impl=self._impl.left_scalar_operator(other, '**'))
 
     def __lt__(self, other):
@@ -799,7 +802,7 @@ class XArray(XObject):
         [['a'], ['b']]
 
         """
-        if self.dtype() is array.array and self.dtype() is not list:
+        if isinstance(self.dtype(), array.array) and not isinstance(self.dtype(), list):
             raise RuntimeError("Only 'array' and 'list' type can be sliced.")
         if end is None:
             end = start + 1
@@ -837,7 +840,7 @@ class XArray(XObject):
         Rows: 2
         [{'quick': 1, 'brown': 1, 'jumps': 1, 'fox': 1, 'the': 1}, {'word': 5}]
         """
-        if self.dtype() is not str:
+        if not isinstance(self.dtype(), basestring):
             raise TypeError('Only XArray of string type is supported for counting bag of words.')
 
         # construct options, will extend over time
@@ -915,7 +918,7 @@ class XArray(XObject):
         Rows: 1
         {'fun': 2, 'nis': 1, 'sfu': 1, 'isf': 1, 'uni': 1}]
         """
-        if self.dtype() is not str:
+        if not issubclass(self.dtype(), str):
             raise TypeError('Only XArray of string type is supported for counting n-grams.')
 
         if not isinstance(n, int):
@@ -1613,7 +1616,7 @@ class XArray(XObject):
         ----------
         xframes.XArray.str_to_datetime
         """
-        if self.dtype() is not datetime.datetime:
+        if not issubclass(self.dtype(), datetime.datetime):
             raise TypeError('Datetime_to_str expects XArray of datetime as input XArray.')
 
         return XArray(impl=self._impl.datetime_to_str(str_format))
@@ -1652,7 +1655,7 @@ class XArray(XObject):
         ----------
         xframes.XArray.datetime_to_str
         """
-        if self.dtype() is not str:
+        if not issubclass(self.dtype(), basestring):
             raise TypeError("'Str_to_datetime' expects XArray of str as input XArray.")
 
         return XArray(impl=self._impl.str_to_datetime(str_format))
@@ -1933,7 +1936,7 @@ class XArray(XObject):
         """
         from xframes.sketch import Sketch
         if sub_sketch_keys is not None:
-            if self.dtype() not in (dict, array.array):
+            if not issubclass(self.dtype(), (dict, array.array)):
                 raise TypeError("'Sub_sketch'_keys is only supported for " +
                                 'XArray of dictionary or array type')
             if not hasattr(sub_sketch_keys, "__iter__"):
@@ -1942,12 +1945,12 @@ class XArray(XObject):
             if len(value_types) != 1:
                 raise ValueError("'Sub_sketch_keys' member values need to have the same type.")
             value_type = value_types.pop()
-            if self.dtype() is dict and value_type is not str:
+            if issubclass(self.dtype(), dict) and not isinstance(value_type, basestring):
                 raise TypeError("Only string value(s) can be passed to 'sub_sketch_keys' " +
                                 'for XArray of dictionary type. ' +
                                 'For dictionary types, sketch summary is ' +
                                 'computed by casting keys to string values.')
-            if self.dtype() is array.array and value_type is not int:
+            if issubclass(self.dtype(), array.array) and not isinstance(value_type, int):
                 raise TypeError("Only int value(s) can be passed to 'sub_sketch_keys' " +
                                 'for XArray of array type')
 
@@ -2041,7 +2044,7 @@ class XArray(XObject):
         Rows: 6
         [2, 3, 3, 1, 2, None]
         """
-        if self.dtype() not in (str, list, dict, array.array):
+        if not issubclass(self.dtype(), (str, list, dict, array.array)):
             raise TypeError("Item_length() is only applicable for XArray of type 'str', 'list', " +
                             "'dict' and 'array'.")
 
@@ -2098,7 +2101,7 @@ class XArray(XObject):
             +-------+--------+
             [2 rows x 2 columns]
         """
-        if self.dtype() is not datetime.datetime:
+        if not issubclass(self.dtype(), datetime.datetime):
             raise TypeError('Only column of datetime type can be split.')
 
         if column_name_prefix is None:
@@ -2283,8 +2286,9 @@ class XArray(XObject):
 
             return [col_types[key] for key in keys]
 
-        if self.dtype() not in [dict, array.array, list, tuple]:
-            raise TypeError('Only XArray of dict/list/tuple/array type supports unpack: {}.'.format(self.dtype()))
+        if not issubclass(self.dtype(), (dict, array.array, list, tuple)):
+            raise TypeError('Only XArray of dict/list/tuple/array type supports unpack: {}.'.format(
+                self.dtype().__name__))
 
         if column_name_prefix is None:
             column_name_prefix = ""
@@ -2301,7 +2305,7 @@ class XArray(XObject):
                 raise TypeError("'Limit' contains values that are different types.")
 
             # limit value should be numeric if unpacking xarray.array value
-            if self.dtype() is not dict and name_types.pop() is not int:
+            if not issubclass(self.dtype(), dict) and not issubclass(name_types.pop(), int):
                 raise TypeError("'Limit' must contain integer values.")
 
             if len(set(limit)) != len(limit):
@@ -2320,7 +2324,7 @@ class XArray(XObject):
             if limit is not None:
                 if len(limit) != len(column_types):
                     raise ValueError("'Limit' and 'column_types' do not have the same length.")
-            elif self.dtype() is dict:
+            elif issubclass(self.dtype(), dict):
                 raise ValueError("If 'column_types' is given, " +
                                  "'limit' has to be provided to unpack dict type.")
             else:
@@ -2336,7 +2340,7 @@ class XArray(XObject):
 
             # infer column types for dict type at server side,
             # for list and array, infer from client side
-            if self.dtype() is not dict:
+            if not issubclass(self.dtype(), dict):
                 length = max(lengths)
                 if limit is None:
                     limit = range(length)
@@ -2344,7 +2348,7 @@ class XArray(XObject):
                     # adjust the length
                     length = len(limit)
 
-                if self.dtype() is array.array:
+                if issubclass(self.dtype(), array.array):
                     typ = type_from_typecode(head_rows[0].typecode)
                     column_types = [typ for _ in range(length)]
                 else:
@@ -2393,6 +2397,6 @@ class XArray(XObject):
         [1, 2, 3]
 
         """
-        if self.dtype() not in (int, float, str, datetime.datetime):
+        if not issubclass(self.dtype(), (int, float, str, datetime.datetime)):
             raise TypeError("Only xarray with type ('int', 'float', 'str', and 'datetime.datetime)' can be sorted.")
         return XArray(impl=self._impl.sort(ascending))
