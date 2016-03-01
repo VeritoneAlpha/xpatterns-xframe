@@ -1115,7 +1115,7 @@ def main():
     x.reversesort = True
     x.int_format['Area'] = '04d'
     x.float_format = '6.1f'
-    x.align['City name'] = 'l' # Left align city names
+    x.align['City name'] = 'l'    # Left align city names
     x.add_row(['Adelaide', 1295, 1158259, 600.5])
     x.add_row(['Brisbane', 5905, 1857594, 1146.4])
     x.add_row(['Darwin', 112, 120900, 1714.7])
