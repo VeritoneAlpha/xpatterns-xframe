@@ -7,7 +7,6 @@ and is stored as Spark RDDs.
 """
 
 import array
-from prettytable import PrettyTable
 from textwrap import wrap
 import inspect
 import time
@@ -22,6 +21,7 @@ from sys import stderr
 import pyspark
 
 from xframes.deps import pandas, HAS_PANDAS
+from xframes.prettytable import PrettyTable
 from xframes.deps import dataframeplus, HAS_DATAFRAME_PLUS
 from xframes.xobject import XObject
 from xframes.xframe_impl import XFrameImpl
