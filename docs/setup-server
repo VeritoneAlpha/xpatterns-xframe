@@ -86,7 +86,6 @@ pip install pandas
 sudo apt-get install libatlas-base-dev
 pip install scipy
 pip install scikit-learn
-easy_install prettytable
 
 east_install -U distribute
 pip install matplotlib

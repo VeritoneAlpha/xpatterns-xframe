@@ -19,7 +19,6 @@ RUN wget -q http://www.us.apache.org/dist/spark/spark-1.3.1/spark-1.3.1-bin-cdh4
 RUN tar -zxvf /tmp/spark-1.3.1-bin-cdh4.tgz --directory /tmp
 RUN rm /tmp/spark-1.3.1-bin-cdh4.tgz
 RUN mv /tmp/spark-1.3.1-bin-cdh4 /usr/local/spark
-RUN easy_install prettytable
 
 # Setting Environment Variables
 ENV PEM_FILE /key.pem

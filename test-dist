@@ -26,7 +26,6 @@ virtualenv venv
 source venv/bin/activate
 #
 # For now, install dependencies
-pip install prettytables
 pip install numpy
 
 # Install xframes
