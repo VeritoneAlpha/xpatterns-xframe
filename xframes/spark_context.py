@@ -116,7 +116,7 @@ class CommonSparkContext(object):
         config_pairs = [(k, v) for k, v in context.iteritems()]
         self._config = (SparkConf().setAll(config_pairs))
         if verbose:
-            logging.info('Spark Config: {}'.format(config_pairs))
+            print 'Spark Config: {}'.format(config_pairs)
 
         self._sc = SparkContext(conf=self._config)
         self._sqlc = SQLContext(self._sc)
@@ -130,9 +130,9 @@ class CommonSparkContext(object):
             self.application_id = None
 
         if verbose:
-            logging.info('Spark Version: {}'.format('.'.join([str(n) for n in self.version])))
+            print 'Spark Version: {}'.format('.'.join([str(n) for n in self.version]))
             if self.application_id:
-                logging.info('Application Id: {}'.format(self.application_id))
+                print 'Application Id: {}'.format(self.application_id)
 
         if not context['spark.master'].startswith('local'):
             zip_path = self.build_zip(get_xframes_home())
