@@ -20,12 +20,13 @@ from dateutil import parser
 from sys import stderr
 import logging
 
-import numpy
 
 
 from pyspark import StorageLevel
 
 from xframes.deps import HAS_NUMPY
+if HAS_NUMPY:
+    import numpy
 
 from pyspark.sql.types import StringType, BooleanType, \
     DoubleType, FloatType, \

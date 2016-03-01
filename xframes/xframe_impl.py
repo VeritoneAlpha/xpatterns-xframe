@@ -15,10 +15,12 @@ import copy
 import datetime
 import dateutil
 
-import numpy
 
 from xframes.deps import HAS_PANDAS
 from xframes.deps import HAS_NUMPY
+if HAS_NUMPY:
+    import numpy
+
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField
 

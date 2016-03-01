@@ -21,10 +21,10 @@ import array
 import warnings
 import datetime
 
-import numpy
-
 from xframes.deps import pandas, HAS_PANDAS
 from xframes.deps import HAS_NUMPY
+if HAS_NUMPY:
+    import numpy
 from xframes.xobject import XObject
 from xframes.xarray_impl import XArrayImpl
 from xframes.util import make_internal_url, infer_type_of_list, pytype_from_dtype
