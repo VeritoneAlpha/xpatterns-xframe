@@ -190,7 +190,7 @@ def open_file(uri, mode='r'):
 
     parsed_uri = _parse_uri(uri)
     if parsed_uri.scheme == 'file':
-        return open(uri, mode)
+        return open(parsed_uri.path, mode)
     elif parsed_uri.scheme == 'hdfs':
         hdfs_connection = _make_hdfs_connection(parsed_uri)
         if mode.startswith('r'):
