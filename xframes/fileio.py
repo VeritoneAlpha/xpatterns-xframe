@@ -211,7 +211,7 @@ def delete(uri):
     parsed_uri = _parse_uri(uri)
     if parsed_uri.scheme == 'file':
         from xframes.util import delete_file_or_dir
-        delete_file_or_dir(uri)
+        delete_file_or_dir(parsed_uri.path)
     elif parsed_uri.scheme == 'hdfs':
         hdfs_connection = _make_hdfs_connection(parsed_uri)
         hdfs_connection.delete(parsed_uri.path, recursive=True)
