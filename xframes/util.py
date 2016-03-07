@@ -734,6 +734,7 @@ def to_ptype(schema_type):
 
 
 def to_schema_type(typ, elem):
+    # TODO handle python int that is bigger than java int
     if issubclass(typ, basestring):
         return StringType()
     if issubclass(typ, bool):
