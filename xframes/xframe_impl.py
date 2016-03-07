@@ -607,13 +607,19 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 shutil.copyfileobj(rd, f)
         fileio.delete(temp_file_name)
 
-    def save_as_parquet(self, url, number_of_partitions):
+    def save_as_parquet(self, url, column_names=None, column_types=None, number_of_partitions=None):
         """
         Save to a parquet file.
         """
+        column_names = column_names or self.col_names
+        column_types = column_types or self.column_types
+
         self._entry(url=url, number_of_partitions=number_of_partitions)
         fileio.delete(url)
-        dataframe = self.to_spark_dataframe(table_name=None,
+        table_name = None
+        dataframe = self.to_spark_dataframe(table_name,
+                                            column_names=column_names,
+                                            column_types=column_types,
                                             number_of_partitions=number_of_partitions)
         dataframe.saveAsParquetFile(url)
 
@@ -627,7 +633,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         res = self._rdd.repartition(number_of_partitions) if number_of_partitions is not None else self._rdd
         return res.RDD()
 
-    def to_spark_dataframe(self, table_name, number_of_partitions=None):
+    def to_spark_dataframe(self, table_name, column_names=None, column_types=None, number_of_partitions=None):
         """
         Adds column name and type information to the rdd and returns it.
         """
@@ -635,12 +641,26 @@ class XFrameImpl(XObjectImpl, TracedObject):
         #   types for list and dict
 
         self._entry(table_name=table_name, number_of_partitions=number_of_partitions)
+
+        def rename_column(column_name):
+            for c in ' ,;{}()\t\n':
+                column_name = column_name.replace(c, '_')
+            return column_name
+
+        def rename_columns(column_names):
+            # rename columns to be acceptable to parquet
+            return [rename_column(col) for col in column_names]
+
+        column_names = column_names or self.col_names
+        column_names = rename_columns(column_names)
+
+        column_types = column_types or self.column_types
         if isinstance(self._rdd, DataFrame):
             res = self._rdd
         else:
             first_row = self.head_as_list(1)[0]
             fields = [StructField(name, to_schema_type(typ, first_row[i]), True)
-                      for i, (name, typ) in enumerate(zip(self.col_names, self.column_types))]
+                      for i, (name, typ) in enumerate(zip(column_names, column_types))]
             schema = StructType(fields)
             rdd = self._rdd.repartition(number_of_partitions) if number_of_partitions is not None else self._rdd
             sqlc = self.spark_sql_context()

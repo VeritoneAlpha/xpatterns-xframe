@@ -1488,6 +1488,17 @@ class TestXFrameSaveParquet(XFrameUnitTestCase):
         self.assertDictEqual({'id': 2, 'val': 'b'}, res[1])
         self.assertDictEqual({'id': 3, 'val': 'c'}, res[2])
 
+    def test_save_rename(self):
+        t = XFrame({'id col': [1, 2, 3], 'val,col': ['a', 'b', 'c']})
+        path = 'tmp/frame-parquet'
+        t.save(path, format='parquet')
+        res = XFrame(path + '.parquet')
+        self.assertListEqual(['id_col', 'val_col'], res.column_names())
+        self.assertListEqual([int, str], res.column_types())
+        self.assertDictEqual({'id_col': 1, 'val_col': 'a'}, res[0])
+        self.assertDictEqual({'id_col': 2, 'val_col': 'b'}, res[1])
+        self.assertDictEqual({'id_col': 3, 'val_col': 'c'}, res[2])
+
 
 class TestXFrameSelectColumn(XFrameUnitTestCase):
     """
