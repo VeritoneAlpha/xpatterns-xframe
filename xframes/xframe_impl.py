@@ -1849,7 +1849,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         Execute a spark-sql command against a XFrame
         """
         self._entry(sql_statement=sql_statement, table_name=table_name)
-        self.to_spark_dataframe(table_name, 8)  # registers table for use in query
+        self.to_spark_dataframe(table_name, number_of_partitions=8)  # registers table for use in query
         sqlc = self.spark_sql_context()
         s_res = sqlc.sql(sql_statement)
         res = XFrameImpl.load_from_spark_dataframe(s_res)
