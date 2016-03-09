@@ -643,8 +643,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._entry(table_name=table_name, number_of_partitions=number_of_partitions)
 
         def rename_column(column_name):
-            for c in ' ,;{}()\t\n':
-                column_name = column_name.replace(c, '_')
+            column_name = re.sub(r'[\s,;{}()]', '_', column_name)
             return column_name
 
         def rename_columns(column_names):
