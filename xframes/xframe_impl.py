@@ -221,8 +221,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
         cls._entry()
         hc = cls.hive_context()
         # guard agains SQL injection attack
-        if not re.match('[A-Za-z0-9.]+', dataset):
-            raise ValueError('Hive dataset name must contain only alphnum and period.')
+        if not re.match('^[A-Za-z0-9]+(.[A-Za-z0-9]+)?$', dataset):
+            raise ValueError('Hive dataset name must contain only alphanumeric and period.')
         hive_dataframe = hc.sql('SELECT * from {}'.format(dataset))
         xf_names = [str(col) for col in hive_dataframe.columns]
         type_names = [name_type[1] for name_type in hive_dataframe.dtypes]
