@@ -742,7 +742,7 @@ def to_schema_type(typ, elem):
     if issubclass(typ, float):
         return FloatType()
     if issubclass(typ, (int, long)):
-        return IntegerType()
+        return LongType()
     if issubclass(typ, list):
         if elem is None or len(elem) == 0:
             raise ValueError('frame not compatible with Spark DataFrame')
