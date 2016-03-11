@@ -215,6 +215,8 @@ def delete(uri):
     elif parsed_uri.scheme == 'hdfs':
         hdfs_connection = _make_hdfs_connection(parsed_uri)
         hdfs_connection.delete(parsed_uri.path, recursive=True)
+    elif parsed_uri.scheme == 'hive':
+        pass
     else:
         raise UriError('Unknown URI scheme: {}'.format(parsed_uri.scheme))
 
