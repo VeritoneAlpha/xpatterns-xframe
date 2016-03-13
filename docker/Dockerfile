@@ -12,13 +12,11 @@ EXPOSE 80
 
 #xFrames Pre-reqs
 RUN apt-get update --fix-missing
-RUN apt-get install -y --fix-missing wget default-jdk
-RUN apt-get install -y --fix-missing emacs23
-RUN apt-get install -y --fix-missing nginx
-RUN wget -q http://www.us.apache.org/dist/spark/spark-1.3.1/spark-1.3.1-bin-cdh4.tgz -O /tmp/spark-1.3.1-bin-cdh4.tgz
-RUN tar -zxvf /tmp/spark-1.3.1-bin-cdh4.tgz --directory /tmp
-RUN rm /tmp/spark-1.3.1-bin-cdh4.tgz
-RUN mv /tmp/spark-1.3.1-bin-cdh4 /usr/local/spark
+RUN apt-get install -y --fix-missing wget default-jdk emacs23 nginx
+RUN wget -q http://www.us.apache.org/dist/spark/spark-1.6.1/spark-1.6.1-bin-cdh4.tgz -O /tmp/spark-1.6.1-bin-cdh4.tgz && \
+    tar -zxvf /tmp/spark-1.6.1-bin-cdh4.tgz --directory /tmp && \
+    mv /tmp/spark-1.6.1-bin-cdh4 /usr/local/spark && \
+    rm /tmp/spark-1.6.1-bin-cdh4.tgz
 
 # Setting Environment Variables
 ENV PEM_FILE /key.pem
@@ -28,7 +26,7 @@ ENV USE_HTTP 0
 ENV LIB=/notebooks
 ENV SPARK_HOME=/usr/local/spark
 ENV SPARK_CONF_DIR=/notebooks/conf
-ENV PYTHONPATH="/usr/local/spark/python/:/notebooks:/usr/local/spark/python/lib/py4j-0.8.2.1-src.zip"
+ENV PYTHONPATH="/usr/local/spark/python/:/notebooks:/usr/local/spark/python/lib/py4j-0.9-src.zip"
 
 #Build Docs
 RUN pip2.7 install --upgrade sphinx
