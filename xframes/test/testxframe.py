@@ -617,6 +617,20 @@ class TestXFrameReadParquet(XFrameUnitTestCase):
         self.assertDictEqual({'id': 2, 'val': 2.0}, res[1])
         self.assertDictEqual({'id': 3, 'val': 3.0}, res[2])
 
+    def test_read_parquet_long(self):
+        t = XFrame({'id': [1, 2**70, 3], 'val': [10, 20, 30]})
+        path = 'tmp/frame-parquet'
+        t.save(path, format='parquet')
+
+        res = XFrame('tmp/frame-parquet.parquet')
+        res = res.sort('val')
+        self.assertEqualLen(3, res)
+        self.assertListEqual(['id', 'val'], res.column_names())
+        self.assertListEqual([str, int], res.column_types())
+        self.assertDictEqual({'id': '1', 'val': 10}, res[0])
+        self.assertDictEqual({'id': '{}'.format(2**70), 'val': 20}, res[1])
+        self.assertDictEqual({'id': '3', 'val': 30}, res[2])
+
     def test_read_parquet_list(self):
         t = XFrame({'id': [1, 2, 3], 'val': [[1, 1], [2, 2], [3, 3]]})
         path = 'tmp/frame-parquet'
