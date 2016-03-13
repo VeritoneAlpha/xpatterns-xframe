@@ -595,6 +595,14 @@ def infer_type_of_list(data):
     out : type
         The type of values in the list.
     """
+    def most_general(type1, type2):
+        types = {type1, type2}
+        if float in types:
+            return float
+        if long in types:
+            return long
+        return int
+
     candidate = None
     for d in data:
         if d is None:
@@ -604,6 +612,7 @@ def infer_type_of_list(data):
             candidate = d_type
         if d_type != candidate: 
             if is_numeric_type(d_type) and is_numeric_type(candidate):
+                candidate = most_general(d_type, candidate)
                 continue
             raise TypeError('Infer_type_of_list: mixed types in list: {} {}'.format(d_type, candidate))
     return candidate
@@ -741,8 +750,10 @@ def to_schema_type(typ, elem):
         return BooleanType()
     if issubclass(typ, float):
         return FloatType()
-    if issubclass(typ, (int, long)):
-        return LongType()
+    if issubclass(typ, int):
+        return IntegerType()
+    if issubclass(typ, long):    # Long can't be stored in a IntegerType
+        return StringType()
     if issubclass(typ, list):
         if elem is None or len(elem) == 0:
             raise ValueError('frame not compatible with Spark DataFrame')
