@@ -14,6 +14,7 @@ import re
 import copy
 import datetime
 import dateutil
+import logging
 
 
 from xframes.deps import HAS_PANDAS
@@ -621,7 +622,10 @@ class XFrameImpl(XObjectImpl, TracedObject):
                                             column_names=column_names,
                                             column_types=column_types,
                                             number_of_partitions=number_of_partitions)
-        dataframe.saveAsParquetFile(url)
+        if dataframe is None:
+            logging.warn('Save_as_parquet -- dataframe conversion failed.')
+        else:
+            dataframe.saveAsParquetFile(url)
 
     def to_rdd(self, number_of_partitions=None):
         """
@@ -654,10 +658,14 @@ class XFrameImpl(XObjectImpl, TracedObject):
         column_names = rename_columns(column_names)
 
         column_types = column_types or self.column_types
+        # TODO convert int columns with long values into string
         if isinstance(self._rdd, DataFrame):
             res = self._rdd
         else:
-            first_row = self.head_as_list(1)[0]
+            head = self.head_as_list(1)
+            if len(head) == 0:
+                return None
+            first_row = head[0]
             fields = [StructField(name, to_schema_type(typ, first_row[i]), True)
                       for i, (name, typ) in enumerate(zip(column_names, column_types))]
             schema = StructType(fields)
