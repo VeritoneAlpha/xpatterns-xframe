@@ -1513,6 +1513,7 @@ class TestXFrameSaveParquet(XFrameUnitTestCase):
         self.assertDictEqual({'id_col': 2, 'val_col': 'b'}, res[1])
         self.assertDictEqual({'id_col': 3, 'val_col': 'c'}, res[2])
 
+    @unittest.skip('Parquet Writer')
     def test_save_large_int(self):
         t = XFrame({'id': [1, 2**34, 3], 'val': ['a', 'b', 'c']})
         path = 'tmp/frame-parquet'
@@ -1524,6 +1525,7 @@ class TestXFrameSaveParquet(XFrameUnitTestCase):
         self.assertDictEqual({'id': 2**34, 'val': 'b'}, res[1])
         self.assertDictEqual({'id': 3, 'val': 'c'}, res[2])
 
+    @unittest.skip('Parquet Writer')
     def test_save_xlarge_int(self):
         t = XFrame({'id': [1, 2**70, 3], 'val': ['a', 'b', 'c']})
         path = 'tmp/frame-parquet'
