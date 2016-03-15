@@ -1513,6 +1513,28 @@ class TestXFrameSaveParquet(XFrameUnitTestCase):
         self.assertDictEqual({'id_col': 2, 'val_col': 'b'}, res[1])
         self.assertDictEqual({'id_col': 3, 'val_col': 'c'}, res[2])
 
+    def test_save_large_int(self):
+        t = XFrame({'id': [1, 2**34, 3], 'val': ['a', 'b', 'c']})
+        path = 'tmp/frame-parquet'
+        t.save(path, format='parquet')
+        res = XFrame(path + '.parquet')
+        self.assertListEqual(['id', 'val'], res.column_names())
+        self.assertListEqual([long, str], res.column_types())
+        self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertDictEqual({'id': 2**34, 'val': 'b'}, res[1])
+        self.assertDictEqual({'id': 3, 'val': 'c'}, res[2])
+
+    def test_save_xlarge_int(self):
+        t = XFrame({'id': [1, 2**70, 3], 'val': ['a', 'b', 'c']})
+        path = 'tmp/frame-parquet'
+        t.save(path, format='parquet')
+        res = XFrame(path + '.parquet')
+        self.assertListEqual(['id', 'val'], res.column_names())
+        self.assertListEqual([long, str], res.column_types())
+        self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertDictEqual({'id': 2**70, 'val': 'b'}, res[1])
+        self.assertDictEqual({'id': 3, 'val': 'c'}, res[2])
+
 
 class TestXFrameSelectColumn(XFrameUnitTestCase):
     """
