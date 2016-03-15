@@ -753,7 +753,7 @@ def to_schema_type(typ, elem):
     if issubclass(typ, int):
         return IntegerType()
     if issubclass(typ, long):    # Long can't be stored in a IntegerType
-        return StringType()
+        return StringType()      # TODO writer must convert
     if issubclass(typ, list):
         if elem is None or len(elem) == 0:
             raise ValueError('frame not compatible with Spark DataFrame')
