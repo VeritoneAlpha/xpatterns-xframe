@@ -19,8 +19,7 @@ import datetime
 from dateutil import parser
 from sys import stderr
 import logging
-
-
+import types
 
 from pyspark import StorageLevel
 
@@ -30,7 +29,7 @@ if HAS_NUMPY:
 
 from pyspark.sql.types import StringType, BooleanType, \
     DoubleType, FloatType, \
-    ShortType, IntegerType, LongType, \
+    ShortType, IntegerType, LongType, DecimalType, \
     ArrayType, MapType, TimestampType
 
 from xframes.spark_context import CommonSparkContext
@@ -561,6 +560,10 @@ def is_numeric_type(typ):
     return issubclass(typ, numeric_types)
 
 
+def is_numeric_val(val):
+    return is_numeric_type(type(val))
+
+
 def is_date_type(typ):
     if typ is None:
         return False
@@ -599,8 +602,7 @@ def infer_type_of_list(data):
         types = {type1, type2}
         if float in types:
             return float
-        if long in types:
-            return long
+        # Handle long type like an int
         return int
 
     candidate = None
@@ -695,7 +697,7 @@ def is_missing_or_empty(val):
 
 
 def pytype_from_dtype(dtype):
-    # Converts from string name of a parquet type to a type.
+    # Converts from string name of a pandas type to a type.
     if dtype == 'float':
         return float
     if dtype == 'float32':
@@ -725,10 +727,8 @@ def to_ptype(schema_type):
     # converts a parquet schema type to python type
     if isinstance(schema_type, BooleanType):
         return bool
-    if isinstance(schema_type, (IntegerType, ShortType)):
+    if isinstance(schema_type, (IntegerType, ShortType, LongType, DecimalType)):
         return int
-    if isinstance(schema_type, LongType):
-        return long
     if isinstance(schema_type, (DoubleType, FloatType)):
         return float
     if isinstance(schema_type, StringType):
@@ -742,34 +742,73 @@ def to_ptype(schema_type):
     return str
 
 
-def to_schema_type(typ, elem):
-    # TODO handle python int that is bigger than java int
-    if issubclass(typ, basestring):
-        return StringType()
-    if issubclass(typ, bool):
-        return BooleanType()
-    if issubclass(typ, float):
-        return FloatType()
-    if issubclass(typ, int):
+def hint_to_schema_type(hint):
+    # Given a type hint, return the corresponding schema type
+    if hint == 'int':
         return IntegerType()
-    if issubclass(typ, long):    # Long can't be stored in a IntegerType
-        return StringType()      # TODO writer must convert
+    if hint == 'long':
+        return LongType()
+    if hint == 'decimal':
+        return DecimalType()
+    if hint == 'bool':
+        return BooleanType()
+    if hint == 'float':
+        return FloatType()
+    if hint == 'datetime':
+        return TimestampType()
+    if hint == 'str':
+        return StringType()
+    m = re.match(r'list\[\s*(\S+)\s*\]', hint)
+    if m is not None:
+        inner = hint_to_schema_type(m.group(1))
+        if not inner:
+            raise ValueError('List element type is not recognized: {}.'.format(inner))
+        return ArrayType(inner)
+    m = re.match(r'dict\{\s*(\S+)\s*:\s*(\S+)\s*\}', hint)
+    if m is not None:
+        key = hint_to_schema_type(m.group(1))
+        if key is None:
+            raise ValueError('Map key type is not recognized: {}.'.format(key))
+        val = hint_to_schema_type(m.group(2))
+        if val is None:
+            raise ValueError('Map value type is not recognized: {}.'.format(val))
+        return MapType(key, val)
+    return None
+
+
+def to_schema_type(typ, elem):
+    if issubclass(typ, basestring):
+        return hint_to_schema_type('str')
+    if issubclass(typ, bool):
+        return hint_to_schema_type('bool')
+    if issubclass(typ, float):
+        return hint_to_schema_type('float')
+    if issubclass(typ, (int, long)):
+        # Some integers cannot be stored in long, but we cannot tell this
+        #  from the column type.  Let it fail in spark.
+        return hint_to_schema_type('int')
+    if issubclass(typ, datetime.datetime):
+        return hint_to_schema_type('datetime')
     if issubclass(typ, list):
         if elem is None or len(elem) == 0:
-            raise ValueError('frame not compatible with Spark DataFrame')
-        a_type = to_schema_type(type(elem[0]), None)
-        # todo set valueContainsNull correctly
-        return ArrayType(a_type)
+            raise ValueError('Schema type cannot be determined.')
+        elem_type = to_schema_type(type(elem[0]), None)
+        if elem_type is None:
+            raise TypeError('Element type cannot be determined')
+        return ArrayType(elem_type)
     if issubclass(typ, dict):
         if elem is None or len(elem) == 0:
-            raise ValueError('frame not compatible with Spark DataFrame')
+            raise ValueError('Schema type cannot be determined.')
         key_type = to_schema_type(type(elem.keys()[0]), None)
+        if key_type is None:
+            raise TypeError('Key type cannot be determined')
         val_type = to_schema_type(type(elem.values()[0]), None)
-        # todo set valueContainsNull correctly
+        if val_type is None:
+            raise TypeError('Value type cannot be determined')
         return MapType(key_type, val_type)
-    if issubclass(typ, datetime.datetime):
-        return TimestampType()
-    return StringType()
+    if isinstance(typ, types.NoneType):
+        return None
+    return hint_to_schema_type('str')
 
 
 def safe_cast_val(val, typ):
