@@ -806,7 +806,7 @@ def to_schema_type(typ, elem):
         if val_type is None:
             raise TypeError('Value type cannot be determined')
         return MapType(key_type, val_type)
-    if isinstance(typ, types.NoneType):
+    if issubclass(typ, types.NoneType):
         return None
     return hint_to_schema_type('str')
 
