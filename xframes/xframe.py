@@ -1578,14 +1578,46 @@ class XFrame(XObject):
         """
         return self._impl.to_rdd()
 
-    def to_spark_dataframe(self, table_name=None, number_of_partitions=4):
+    def to_spark_dataframe(self,
+                           table_name=None,
+                           column_names=None,
+                           column_type_hints=None,
+                           number_of_partitions=None):
         """
         Convert the current XFrame to a Spark DataFrame.
 
         Parameters
         ----------
         table_name: str, optional
-            If given, name the temporary table.
+            If given, give this name to the temporary table.
+
+        column_names : list, optional
+            A list of the column names to assign.
+            Defaults to the names in the table, edited to fit the Dataframe restrictions.
+
+        column_type_hints: dict, optional
+            Column types must be supplied when creating a DataFrame.  These hints specify these
+            types,  If hints are not given,
+            the column types are derived from the XFrame column types.  The column types in DataFrames are
+            more restricted in XFrames.
+
+            XFrames attempts to supply the correct column types, but
+            cannot always determine the correct settings.  The caller can supply hints to ensure the desired settings, but
+            the caller is still responsible for making sure the values in the XFrame are consistent with these settings.
+            *  Integers: In DataFrames integers must fit in 64 bits.  In python, large integers can be larger.
+               If an XFrame contains such integers, it will fail to store as a DataFrame.  The column can be
+               converted to strings in this case.
+            * Lists must be of a uniform type in a DataFrame.  The caller must convert lists to meet this requirement, and
+               must provide a hint specifying the element type.
+            * Dictionaries must have a uniform key and value type.  The caller must convert dictionaries to meet this
+               requirement and must provide a hint specifying the key and value types.
+
+            Hints are given as a dictionary of column_name: column_hint.  Any column without a hint
+            is handled using the XFrames column type.
+            For simple types, hints are just type names (as strings): int, long float, bool, datetime, or str.
+            For lists, hints are "list[<type>]" where <type> is one of the simple types.
+            For dictionaries, hints are "dict{<key_type>:<value_type>}" where key_type and value_type is one of the
+                simple types.
 
         number_of_partitions: int, optional
             The number of partitions to create.
@@ -1594,8 +1626,7 @@ class XFrame(XObject):
         -------
         out: spark.DataFrame
         """
-        return self._impl.to_spark_dataframe(table_name,
-                                             number_of_partitions=number_of_partitions)
+        return self._impl.to_spark_dataframe(table_name, column_names, column_type_hints, number_of_partitions)
 
     @classmethod
     def from_rdd(cls, rdd, column_names=None, column_types=None):
@@ -2316,10 +2347,17 @@ class XFrame(XObject):
             self._impl.save_as_csv(url)
         elif format is 'parquet':
             if not filename.endswith('.parquet'):
-                raise ValueError('File name must wnd with .parquet.')
+                raise ValueError('File name must end with .parquet.')
             self._impl.save_as_parquet(url, number_of_partitions=8)
         else:
             raise ValueError('Unsupported format: {}.'.format(format))
+
+    def save_as_parquet(self, filename, column_names=None, column_type_hints=None):
+        url = make_internal_url(filename)
+        self._impl.save_as_parquet(url,
+                                   column_names=column_names,
+                                   column_type_hints=column_type_hints,
+                                   number_of_partitions=8)
 
     def select_column(self, column_name):
         """
