@@ -210,7 +210,6 @@ class CommonSparkContext(object):
         out : SparkContext
             The spark context.  There is a single spark context per process.
         """
-
         return self._sc
 
     def sqlc(self):
@@ -222,7 +221,6 @@ class CommonSparkContext(object):
         out : sql.SqlContext
             The spark sql context.
         """
-
         return self._sqlc
 
     def hivec(self):
@@ -234,8 +232,18 @@ class CommonSparkContext(object):
         out : sql.HiveContext
             The hive context.
         """
-
         return self._hivec
+
+    def spark_version(self):
+        """
+        Gets the spark version.
+
+        Returns
+        -------
+        out: lst[int]
+            The spark version, as a list of integers.
+        """
+        return self.version
 
     def jobs(self):
         """
@@ -277,7 +285,6 @@ class CommonSparkContext(object):
         out : pyspark.SparkContext
             The SparkContext object from spark.
         """
-
         return CommonSparkContext().sc()
 
     @staticmethod
@@ -290,7 +297,6 @@ class CommonSparkContext(object):
         out : list
             A list of the key-value pairs stored as tuples, used to initialize the spark context.
         """
-
         return CommonSparkContext().config()
 
     @staticmethod
@@ -303,7 +309,6 @@ class CommonSparkContext(object):
         out : pyspark.sql.SQLContext
             The SQLContext object from spark.
         """
-
         return CommonSparkContext().sqlc()
 
     @staticmethod
@@ -316,9 +321,28 @@ class CommonSparkContext(object):
         out : pyspark.sql.HiveContext
             The Hive object from spark.
         """
-
         return CommonSparkContext().hivec()
 
     @staticmethod
+    def spark_version():
+        """
+        Gets the spark version.
+
+        Returns
+        -------
+        out: lst[int]
+            The spark version, as a list of integers.
+        """
+        return CommonSparkContext().version
+
+    @staticmethod
     def environment():
+        """
+        Gets the config environment.
+
+        Returns
+        -------
+        out : Environment
+            The environment.  This contains all the values from the configuration file(s).
+        """
         return CommonSparkContext().env()
