@@ -27,7 +27,7 @@ if HAS_NUMPY:
     import numpy
 from xframes.xobject import XObject
 from xframes.xarray_impl import XArrayImpl
-from xframes.util import make_internal_url, infer_type_of_list, pytype_from_dtype
+from xframes.util import make_internal_url, infer_type_of_list, pytype_from_dtype, is_numeric_val
 import xframes
 
 __all__ = ['XArray']
@@ -476,7 +476,7 @@ class XArray(XObject):
         Oher must be a scalar value, raises to the current array to thet power, returning
         the new result.
         """
-        if isinstance(other, (int, long, float)):
+        if is_numeric_val(other):
             return XArray(impl=self._impl.left_scalar_operator(other, '**'))
 
     def __lt__(self, other):
@@ -1025,13 +1025,10 @@ class XArray(XObject):
 
         """
 
-        def is_numeric_type(t):
-            return t is int or t is float
-
-        if lower is not None and not is_numeric_type(type(lower)):
+        if lower is not None and not is_numeric_val(lower):
             raise TypeError('Lower bound has to be a numeric value.')
 
-        if upper is not None and not is_numeric_type(type(upper)):
+        if upper is not None and not is_numeric_val(upper):
             raise TypeError('Upper bound has to be a numeric value.')
 
         return XArray(impl=self._impl.dict_trim_by_values(lower, upper))
@@ -1292,7 +1289,7 @@ class XArray(XObject):
         """
         Filter this XArray by a function.
 
-        Returns a new XArray filtered by this XArray.  If `fn` evaluates an
+        Returns a new XArray filtered by a function.  If `fn` evaluates an
         element to true, this element is copied to the new XArray. If not, it
         isn't. Throws an exception if the return type of `fn` is not castable
         to a boolean value.

@@ -20,7 +20,7 @@ from xframes.traced_object import TracedObject
 from xframes.spark_context import CommonSparkContext
 import xframes.fileio as fileio
 from xframes.util import infer_type_of_list, cache, uncache
-from xframes.util import infer_type, infer_types
+from xframes.util import infer_type, infer_types, is_numeric_type
 from xframes.util import is_missing
 from xframes.util import distribute_seed
 from xframes.xrdd import XRdd
@@ -803,6 +803,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
                     if isinstance(res, list) and len(res) > 0:
                         dtype = type(res[0])
                         if dtype in (int, long):
+                            # TODO this could be too long and if so it will fail
                             return array.array('i', res)
                         if dtype is float:
                             return array.array('d', res)
@@ -1033,7 +1034,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         count = self._count()     # action
         if count == 0:     # action
             return None
-        if self.elem_type not in (int, long, float):
+        if not is_numeric_type(self.elem_type):
             raise TypeError('max: non numeric type')
         return self._rdd.max()          # action
 
@@ -1048,7 +1049,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         count = self._count()     # action
         if count == 0:     # action
             return None
-        if self.elem_type not in (int, long, float):
+        if not is_numeric_type(self.elem_type):
             raise TypeError('sum: non numeric type')
         return self._rdd.min()      # action
 
@@ -1067,7 +1068,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         if count == 0:     # action
             return None
 
-        if self.elem_type in (int, long, float, bool):
+        if is_numeric_type(self.elem_type):
             total = self._rdd.sum()    # action
         elif self.elem_type is array.array:
             def array_sum(x, y):
@@ -1101,7 +1102,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         count = self._count()     # action
         if count == 0:     # action
             return None
-        if self.elem_type not in (int, long, float):
+        if not is_numeric_type(self.elem_type):
             raise TypeError('mean: non numeric type')
         return self._rdd.mean()       # action
 
@@ -1116,7 +1117,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         count = self._count()     # action
         if count == 0:      # action
             return None
-        if self.elem_type not in (int, long, float):
+        if not is_numeric_type(self.elem_type):
             raise TypeError('mean: non numeric type')
         if ddof < 0 or ddof > 1 or ddof >= count:
             raise ValueError('std: invalid ddof {}'.format(ddof))
@@ -1137,7 +1138,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         count = self._count()     # action
         if count == 0:      # action
             return None
-        if self.elem_type not in (int, long, float):
+        if not is_numeric_type(self.elem_type):
             raise TypeError('mean: non numeric type')
         if ddof < 0 or ddof > 1 or ddof >= count:
             raise ValueError('std: invalid ddof {}'.format(ddof))
