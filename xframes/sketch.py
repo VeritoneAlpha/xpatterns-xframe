@@ -157,6 +157,40 @@ class Sketch(object):
 
             self._impl.construct_from_xarray(array.impl(), sub_sketch_keys)
 
+    def set_quantile_accumulator_parms(self, num_levels=None, epsilon=None, delta=None):
+        """
+        Set the quantile accumulator accuracy settings.
+
+        Parameters
+        ----------
+        num_levels: int, optional
+            The number of levels of hash map.
+
+        epsilon: float (0 .. 1.0), optional
+            The precision of the result
+
+        delta: float (0 .. 1.0), optional
+            The probability that the precision specified above is not achieved.
+        """
+        self._impl.set_quantile_accumulator_params(num_levels, epsilon, delta)
+
+    def set_frequency_sketch_parms(self, num_items=None, epsilon=None, delta=None):
+        """
+        Set the frequency sketch accuracy settings.
+
+        Parameters
+        ----------
+        num_items: int, optional
+            The number "most frequent" values that are tracked.
+
+        epsilon: float (0 .. 1.0), optional
+            The precision of the result
+
+        delta: float (0 .. 1.0), optional
+            The probability that the precision specified above is not achieved.
+        """
+        self._impl.set_frequency_sketch_params(num_items, epsilon, delta)
+
     # noinspection PyBroadException
     def __repr__(self):
         """

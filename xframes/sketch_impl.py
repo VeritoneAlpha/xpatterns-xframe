@@ -54,8 +54,23 @@ class SketchImpl(XObjectImpl, TracedObject):
         self.num_undefined_val = None
         self.num_unique_val = None
         self.quantile_accumulator = None
+        self.quantile_accumulator_num_levels = None
+        self.quantile_accumulator_epsilon = None
+        self.quantile_accumulator_delta = None
         self.frequency_sketch = None
-        self.quantile_accum = None
+        self.frequency_sketch_num_items = None
+        self.frequency_sketch_epsilon = None
+        self.frequency_sketch_delta = None
+
+    def set_quantile_accumulator_params(self, num_levels, epsilon, delta):
+        self.quantile_accumulator_num_levels = num_levels
+        self.quantile_accumulator_epsilon = epsilon
+        self.quantile_accumulator_delta = delta
+
+    def set_frequency_sketch_params(self, num_items, epsilon, delta):
+        self.frequency_sketch_num_items = num_items
+        self.frequency_sketch_epsilon = epsilon
+        self.frequency_sketch_delta = delta
 
     def construct_from_xarray(self, xa, sub_sketch_keys=None):
         self._entry(sub_sketch_keys=sub_sketch_keys)
@@ -95,17 +110,17 @@ class SketchImpl(XObjectImpl, TracedObject):
                 self.stats = stats
 
     def _create_quantile_accumulator(self):
-        num_levels = 12
-        epsilon = 0.001
-        delta = 0.01
+        num_levels = self.quantile_accumulator_num_levels or 12
+        epsilon = self.quantile_accumulator_epsilon or 0.001
+        delta = self.quantile_accumulator_delta or 0.01
         accumulator = QuantileAccumulator(self.min_val, self.max_val, num_levels, epsilon, delta)
         accumulators = self._rdd.mapPartitions(accumulator)
         return accumulators.reduce(lambda x, y: x.merge(y))
 
     def _create_frequency_sketch(self):
-        num_items = 500
-        epsilon = 0.0001
-        delta = 0.01
+        num_items = self.frequency_sketch_num_items or 500
+        epsilon = self.frequency_sketch_epsilon or 0.0001
+        delta = self.frequency_sketch_delta or 0.01
         accumulator = FreqSketch(num_items, epsilon, delta)
         accumulators = self._rdd.mapPartitions(accumulator.iterate_values)
         return accumulators.aggregate(FreqSketch.initial_accumulator_value(),
