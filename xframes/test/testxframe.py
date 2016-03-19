@@ -617,20 +617,6 @@ class TestXFrameReadParquet(XFrameUnitTestCase):
         self.assertDictEqual({'id': 2, 'val': 2.0}, res[1])
         self.assertDictEqual({'id': 3, 'val': 3.0}, res[2])
 
-    def test_read_parquet_long(self):
-        t = XFrame({'id': [1, 2**70, 3], 'val': [10, 20, 30]})
-        path = 'tmp/frame-parquet'
-        t.save(path, format='parquet')
-
-        res = XFrame('tmp/frame-parquet.parquet')
-        res = res.sort('val')
-        self.assertEqualLen(3, res)
-        self.assertListEqual(['id', 'val'], res.column_names())
-        self.assertListEqual([str, int], res.column_types())
-        self.assertDictEqual({'id': '1', 'val': 10}, res[0])
-        self.assertDictEqual({'id': '{}'.format(2**70), 'val': 20}, res[1])
-        self.assertDictEqual({'id': '3', 'val': 30}, res[2])
-
     def test_read_parquet_list(self):
         t = XFrame({'id': [1, 2, 3], 'val': [[1, 1], [2, 2], [3, 3]]})
         path = 'tmp/frame-parquet'
@@ -732,9 +718,19 @@ class TestXFrameToSparkDataFrame(XFrameUnitTestCase):
         self.assertEqual(1, row.id)
         self.assertListEqual([1, 1], row.val)
 
+    def test_to_spark_dataframe_list_hint(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [[None, 1], [2, 2], [3, 3]]})
+        t.to_spark_dataframe('tmp_tbl', column_type_hints={'val': 'list[int]'})
+        sqlc = XFrame.spark_sql_context()
+        results = sqlc.sql('SELECT * FROM tmp_tbl ORDER BY id')
+        self.assertEqual(3, results.count())
+        row = results.collect()[1]
+        self.assertEqual(2, row.id)
+        self.assertListEqual([2, 2], row.val)
+
     def test_to_spark_dataframe_list_bad(self):
-        t = XFrame({'id': [1, 2, 3], 'val': [[[1], 1], [[2], 2], [[3], 3]]})
-        with self.assertRaises(ValueError):
+        t = XFrame({'id': [1, 2, 3], 'val': [[None, 1], [2, 2], [3, 3]]})
+        with self.assertRaises(TypeError):
             t.to_spark_dataframe('tmp_tbl')
 
     def test_to_spark_dataframe_map(self):
@@ -751,6 +747,46 @@ class TestXFrameToSparkDataFrame(XFrameUnitTestCase):
         t = XFrame({'id': [1, 2, 3], 'val': [None, {'y': 2}, {'z': 3}]})
         with self.assertRaises(ValueError):
             t.to_spark_dataframe('tmp_tbl')
+
+    def test_to_spark_dataframe_map_hint(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [{None: None}, {'y': 2}, {'z': 3}]})
+        t.to_spark_dataframe('tmp_tbl', column_type_hints={'val': 'dict{str: int}'})
+        sqlc = XFrame.spark_sql_context()
+        results = sqlc.sql('SELECT * FROM tmp_tbl ORDER BY id')
+        self.assertEqual(3, results.count())
+        row = results.collect()[1]
+        self.assertEqual(2, row.id)
+        self.assertDictEqual({'y': 2}, row.val)
+
+    def test_to_spark_dataframe_str_rewrite(self):
+        t = XFrame({'id': [1, 2, 3], 'val;1': ['a', 'b', 'c']})
+        t.to_spark_dataframe('tmp_tbl')
+        sqlc = XFrame.spark_sql_context()
+        results = sqlc.sql('SELECT * FROM tmp_tbl ORDER BY id')
+        self.assertEqual(3, results.count())
+        row = results.collect()[0]
+        self.assertEqual(1, row.id)
+        self.assertEqual('a', row.val_1)
+
+    def test_to_spark_dataframe_str_rename(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        t.to_spark_dataframe('tmp_tbl', column_names=['id1', 'val1'])
+        sqlc = XFrame.spark_sql_context()
+        results = sqlc.sql('SELECT * FROM tmp_tbl ORDER BY id1')
+        self.assertEqual(3, results.count())
+        row = results.collect()[0]
+        self.assertEqual(1, row.id1)
+        self.assertEqual('a', row.val1)
+
+    def test_to_spark_dataframe_str_rename_bad_type(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        with self.assertRaises(TypeError):
+            t.to_spark_dataframe('tmp_tbl', column_names='id1')
+
+    def test_to_spark_dataframe_str_rename_bad_len(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        with self.assertRaises(ValueError):
+            t.to_spark_dataframe('tmp_tbl', column_names=['id1'])
 
 
 class TestXFrameToRdd(XFrameUnitTestCase):
@@ -1502,6 +1538,17 @@ class TestXFrameSaveParquet(XFrameUnitTestCase):
         self.assertDictEqual({'id': 2, 'val': 'b'}, res[1])
         self.assertDictEqual({'id': 3, 'val': 'c'}, res[2])
 
+    def test_save_as_parquet(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        path = 'tmp/frame-parquet'
+        t.save_as_parquet(path)
+        res = XFrame(path, format='parquet')
+        self.assertListEqual(['id', 'val'], res.column_names())
+        self.assertListEqual([int, str], res.column_types())
+        self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertDictEqual({'id': 2, 'val': 'b'}, res[1])
+        self.assertDictEqual({'id': 3, 'val': 'c'}, res[2])
+
     def test_save_rename(self):
         t = XFrame({'id col': [1, 2, 3], 'val,col': ['a', 'b', 'c']})
         path = 'tmp/frame-parquet'
@@ -1513,30 +1560,16 @@ class TestXFrameSaveParquet(XFrameUnitTestCase):
         self.assertDictEqual({'id_col': 2, 'val_col': 'b'}, res[1])
         self.assertDictEqual({'id_col': 3, 'val_col': 'c'}, res[2])
 
-    @unittest.skip('Parquet Writer')
-    def test_save_large_int(self):
-        t = XFrame({'id': [1, 2**34, 3], 'val': ['a', 'b', 'c']})
+    def test_save_as_parquet_rename(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         path = 'tmp/frame-parquet'
-        t.save(path, format='parquet')
-        res = XFrame(path + '.parquet')
-        self.assertListEqual(['id', 'val'], res.column_names())
-        self.assertListEqual([long, str], res.column_types())
-        self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
-        self.assertDictEqual({'id': 2**34, 'val': 'b'}, res[1])
-        self.assertDictEqual({'id': 3, 'val': 'c'}, res[2])
-
-    @unittest.skip('Parquet Writer')
-    def test_save_xlarge_int(self):
-        t = XFrame({'id': [1, 2**70, 3], 'val': ['a', 'b', 'c']})
-        path = 'tmp/frame-parquet'
-        t.save(path, format='parquet')
-        res = XFrame(path + '.parquet')
-        self.assertListEqual(['id', 'val'], res.column_names())
-        self.assertListEqual([long, str], res.column_types())
-        self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
-        self.assertDictEqual({'id': 2**70, 'val': 'b'}, res[1])
-        self.assertDictEqual({'id': 3, 'val': 'c'}, res[2])
-
+        t.save_as_parquet(path, column_names=['id1', 'val1'])
+        res = XFrame(path, format='parquet')
+        self.assertListEqual(['id1', 'val1'], res.column_names())
+        self.assertListEqual([int, str], res.column_types())
+        self.assertDictEqual({'id1': 1, 'val1': 'a'}, res[0])
+        self.assertDictEqual({'id1': 2, 'val1': 'b'}, res[1])
+        self.assertDictEqual({'id1': 3, 'val1': 'c'}, res[2])
 
 class TestXFrameSelectColumn(XFrameUnitTestCase):
     """
