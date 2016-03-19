@@ -80,7 +80,7 @@ class FreqSketch(object):
         self.heap = HeapDict()
 
     def hash_index(self, row, column):
-        return self.depth * row + column
+        return self.width * row + column
 
     def _check_compatibility(self, other):
         """Check if another FreqSketch is compatible with this one for merge.
