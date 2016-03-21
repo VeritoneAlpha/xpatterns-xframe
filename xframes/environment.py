@@ -54,6 +54,7 @@ class Environment(object):
         if config_dir:
             files_to_read.append(os.path.join(config_dir, 'config.ini'))
         env = Environment()
+        # We depend on the order of files read, so that config.ini overrides default.ini.
         env._read(files_to_read)
         return env
 
