@@ -9,6 +9,7 @@ export PS1='(xframes) '${PS1}
 
 # XFRAMES_HOME is used to find config.ini and xframes package
 export XFRAMES_HOME=`pwd`
+export XFRAMES_CONFIG_DIR=$XFRAMES_HOME
 
 # PYTHONPATH is used to find the spark libraries and jars
 export SPARK_HOME=~/spark
