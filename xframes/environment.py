@@ -18,6 +18,12 @@ def get_xframes_home():
     return os.path.dirname(xframes.__file__)
 
 
+def get_xframes_config():
+    if 'XFRAMES_CONFIG_DIR' in os.environ:
+        return os.environ['XFRAMES_CONFIG_DIR']
+    return None
+
+
 class Environment(object):
     def __init__(self):
         """ Create an empty environment. """
@@ -28,7 +34,7 @@ class Environment(object):
     @staticmethod
     def create(config_files=None):
         """
-        Create an Environment by reading an ini file and default config files.
+        Create an Environment by reading default config files.
 
         Parameters
         ----------
@@ -41,9 +47,12 @@ class Environment(object):
             The environment resulting from the ini file(s).
 
         """
-        files_to_read = [os.path.join(get_xframes_home(), 'default.ini'), 'config.ini']
+        files_to_read = [os.path.join(get_xframes_home(), 'default.ini')]
         if config_files:
             files_to_read.append(config_files)
+        config_dir = get_xframes_config()
+        if config_dir:
+            files_to_read.append(os.path.join(config_dir, 'config.ini'))
         env = Environment()
         env._read(files_to_read)
         return env
