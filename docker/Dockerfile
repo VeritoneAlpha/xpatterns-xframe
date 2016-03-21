@@ -13,10 +13,15 @@ EXPOSE 80
 #xFrames Pre-reqs
 RUN apt-get update --fix-missing
 RUN apt-get install -y --fix-missing wget default-jdk emacs23 nginx
-RUN wget -q http://www.us.apache.org/dist/spark/spark-1.6.1/spark-1.6.1-bin-cdh4.tgz -O /tmp/spark-1.6.1-bin-cdh4.tgz && \
-    tar -zxvf /tmp/spark-1.6.1-bin-cdh4.tgz --directory /tmp && \
-    mv /tmp/spark-1.6.1-bin-cdh4 /usr/local/spark && \
-    rm /tmp/spark-1.6.1-bin-cdh4.tgz
+
+# This is for spark 1.6.1
+ENV SPARK_VER spark-1.6.1
+ENV PY4J_VER py4j-0.9-src.zip
+ENV SPARK_HOME /opt/spark
+
+RUN wget -q https://s3.amazonaws.com/xpatterns/dependencies/spark/${SPARK_VER}-bin-hadoop2.6.tgz -O /tmp/${SPARK_VER}.tgz && \
+    tar -zxvf /tmp/${SPARK_VER}.tgz --directory /opt
+RUN ln -s /opt/${SPARK_VER}-bin-hadoop2.6 ${SPARK_HOME}
 
 # Setting Environment Variables
 ENV PEM_FILE /key.pem
