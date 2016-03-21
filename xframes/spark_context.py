@@ -105,7 +105,7 @@ class CommonSparkContext(object):
         # if they exist.
         self._env = Environment.create()
         verbose = self._env.get_config('xframes', 'verbose', 'false').lower() == 'true'
-        hdfs_user_name = self._env.get_config('hdfs', 'user', 'hdfs')
+        hdfs_user_name = self._env.get_config('webhdfs', 'user', 'hdfs')
         os.environ['HADOOP_USER_NAME'] = hdfs_user_name
         default_context = {'spark.master': 'local[*]',
                            'spark.app.name': 'xFrames'}

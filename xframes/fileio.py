@@ -67,7 +67,7 @@ def _parse_uri(uri):
 class _HdfsConnection(object):
     def __init__(self):
         env = Environment.create()
-        config_context = env.get_config_items('hdfs')
+        config_context = env.get_config_items('webhdfs')
         if config_context is not None and 'port' in config_context:
             self.port = config_context['port']
             self.user = config_context['user'] if 'user' in config_context else 'root'
