@@ -278,6 +278,7 @@ class XFrame(XObject):
             if data is None:
                 raise ValueError('Empty XFrame')
             url = make_internal_url(data)
+            XFrameImpl.check_input_uri(url)
             self._impl = XFrameImpl.load_from_xframe_index(url)
         elif _format == 'spark.dataframe':
             if data is None:
@@ -522,6 +523,7 @@ class XFrame(XObject):
             parsing_config['row_limit'] = nrows
 
         internal_url = make_internal_url(url)
+        XFrameImpl.check_input_uri(internal_url)
 
         # Attempt to automatically detect the column types. Either produce a
         # list of types; otherwise default to all str types.
@@ -1096,6 +1098,7 @@ class XFrame(XObject):
 
 
         """
+        XFrameImpl.check_input_uri(url)
         return cls(impl=XFrameImpl.read_from_text(url, delimiter=delimiter, nrows=nrows, verbose=verbose))
 
     @classmethod
@@ -1118,6 +1121,7 @@ class XFrame(XObject):
             The constructor can read parquet files.
 
         """
+        XFrameImpl.check_input_uri(url)
         return cls(impl=XFrameImpl.load_from_parquet(url))
 
     def impl(self):
@@ -2337,6 +2341,7 @@ class XFrame(XObject):
 
         # Save the XFrame
         url = make_internal_url(filename)
+        XFrameImpl.check_output_uri(url)
 
         if format is 'binary':
             self._impl.save(url)
@@ -2354,6 +2359,7 @@ class XFrame(XObject):
 
     def save_as_parquet(self, filename, column_names=None, column_type_hints=None):
         url = make_internal_url(filename)
+        XFrameImpl.check_input_uri(url)
         self._impl.save_as_parquet(url,
                                    column_names=column_names,
                                    column_type_hints=column_type_hints,

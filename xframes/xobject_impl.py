@@ -1,10 +1,13 @@
 """
 This object implements the base of the xframes inheritance hierarchy.
 """
+import os
+
 from pyspark import RDD
 
 from xframes.spark_context import CommonSparkContext
 from xframes.xrdd import XRdd
+import xframes.fileio as fileio
 
 
 class XObjectImpl(object):
@@ -34,6 +37,17 @@ class XObjectImpl(object):
     @staticmethod
     def hive_context():
         return CommonSparkContext.hive_context()
+
+    @staticmethod
+    def check_input_uri(uri):
+        if not fileio.exists(uri):
+            raise ValueError('Input file does not exist: {}'.format(uri))
+
+    @staticmethod
+    def check_output_uri(uri):
+        dirname = os.path.dirname(uri)
+        if not fileio.exists(dirname):
+            raise ValueError('Input file does not exist: {}'.format(uri))
 
     def _replace_rdd(self, rdd):
         self._rdd = self._wrap_rdd(rdd)

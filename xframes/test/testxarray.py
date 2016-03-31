@@ -220,6 +220,10 @@ class TestXArrayConstructorLoad(XArrayUnitTestCase):
         self.assertEqual(datetime.datetime(2016, 9, 16), t[1])
         self.assertEqual(datetime.datetime(2017, 10, 17), t[2])
 
+    def test_construct_local_file_not_exist(self):
+        with self.assertRaises(ValueError):
+            _ = XArray('files/does-not-exist')
+
 
 class TestXArrayFromConst(XArrayUnitTestCase):
     """
@@ -292,6 +296,12 @@ class TestXArraySaveBinary(XArrayUnitTestCase):
         t.save(path, format='binary')
         success_path = os.path.join(path, '_SUCCESS')
         self.assertTrue(os.path.isfile(success_path))
+
+    def test_save_not_exist(self):
+        t = XArray([1, 2, 3])
+        path = '/xxx/does-not-exist'
+        with self.assertRaises(ValueError):
+            t.save(path, format='binary')
 
 
 class TestXArraySaveText(XArrayUnitTestCase):

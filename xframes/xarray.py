@@ -149,6 +149,7 @@ class XArray(XObject):
             self._impl = XArrayImpl.load_from_iterable(data, dtype, ignore_cast_failure)
         elif isinstance(data, str):
             internal_url = make_internal_url(data)
+            XArrayImpl.check_input_uri(internal_url)
             self._impl = XArrayImpl.load_autodetect(internal_url, dtype)
         else:
             raise TypeError('Unexpected data source: {}. '
@@ -313,12 +314,15 @@ class XArray(XObject):
             else:
                 format = 'binary'
 
+        url = make_internal_url(filename)
+        XArrayImpl.check_output_uri(url)
+
         if format == 'binary':
-            self._impl.save(make_internal_url(filename))
+            self._impl.save(url)
         elif format == 'text':
-            self._impl.save_as_text(make_internal_url(filename))
+            self._impl.save_as_text(url)
         elif format == 'csv':
-            self._impl.save_as_csv(make_internal_url(filename))
+            self._impl.save_as_csv(url)
 
     def to_rdd(self, number_of_partitions=4):
         """

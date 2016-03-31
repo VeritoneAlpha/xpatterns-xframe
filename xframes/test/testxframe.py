@@ -346,6 +346,11 @@ class TestXFrameConstructor(XFrameUnitTestCase):
         self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
         self.assertDictEqual({'id': 2, 'val': 'b'}, res[1])
 
+    def test_construct_binary_not_exist(self):
+        path = 'does-not-exist'
+        with self.assertRaises(ValueError):
+            _ = XFrame(path)
+
 
 class TestXFrameReadCsvWithErrors(XFrameUnitTestCase):
     """
@@ -388,6 +393,11 @@ class TestXFrameReadCsvWithErrors(XFrameUnitTestCase):
         self.assertEqualLen(1, csv_errs)
         self.assertEqual('id,\x00val', csv_errs[0])
         self.assertEqualLen(0, res)
+
+    def test_read_csv_file_not_exist(self):
+        path = 'files/does-not-exist.csv'
+        with self.assertRaises(ValueError):
+            res, errs = XFrame.read_csv_with_errors(path)
 
     # Cannot figure out how to cause SystemError in csv reader.
     # But it happened one time
@@ -528,6 +538,11 @@ class TestXFrameReadCsv(XFrameUnitTestCase):
         self.assertDictEqual({'id': None, 'val': 'b'}, res[1])
         self.assertDictEqual({'id': 3, 'val': 'c'}, res[2])
 
+    def test_read_csv_file_not_exist(self):
+        path = 'files/does-not-exist.csv'
+        with self.assertRaises(ValueError):
+            _ = XFrame.read_csv(path)
+
 
 class TestXFrameReadText(XFrameUnitTestCase):
     """
@@ -553,6 +568,11 @@ class TestXFrameReadText(XFrameUnitTestCase):
         self.assertDictEqual({'text': 'This is a test of read_text'}, res[0])
         self.assertDictEqual({'text': 'Here is another sentence'}, res[1])
         self.assertDictEqual({'text': ''}, res[2])
+
+    def test_read_text_file_not_exist(self):
+        path = 'files/does-not-exist.txt'
+        with self.assertRaises(ValueError):
+            XFrame.read_text(path)
 
 
 class TestXFrameReadParquet(XFrameUnitTestCase):
@@ -644,6 +664,11 @@ class TestXFrameReadParquet(XFrameUnitTestCase):
         self.assertDictEqual({'id': 1, 'val': {1: 1}}, res[0])
         self.assertDictEqual({'id': 2, 'val': {2: 2}}, res[1])
         self.assertDictEqual({'id': 3, 'val': {3: 3}}, res[2])
+
+    def test_read_parquet_not_exist(self):
+        path = 'files/does-not-exist.parquet'
+        with self.assertRaises(ValueError):
+            _ = XFrame(path)
 
 
 class TestXFrameFromXArray(XFrameUnitTestCase):
@@ -1503,6 +1528,12 @@ class TestXFrameSaveBinary(XFrameUnitTestCase):
         self.assertListEqual([['id', 'val'], [int, str]], metadata)
         # TODO find some way to check the data
 
+    def test_save_not_exist(self):
+        t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
+        path = 'xxx/frame'
+        with self.assertRaises(ValueError):
+            t.save(path, format='binary')
+
 
 class TestXFrameSaveCsv(XFrameUnitTestCase):
     """
@@ -1520,6 +1551,12 @@ class TestXFrameSaveCsv(XFrameUnitTestCase):
             self.assertEqual('30,a', f.readline().rstrip())
             self.assertEqual('20,b', f.readline().rstrip())
             self.assertEqual('10,c', f.readline().rstrip())
+
+    def test_save_not_exist(self):
+        t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
+        path = 'xxx/frame'
+        with self.assertRaises(ValueError):
+            t.save(path, format='csv')
 
 
 class TestXFrameSaveParquet(XFrameUnitTestCase):
@@ -1570,6 +1607,13 @@ class TestXFrameSaveParquet(XFrameUnitTestCase):
         self.assertDictEqual({'id1': 1, 'val1': 'a'}, res[0])
         self.assertDictEqual({'id1': 2, 'val1': 'b'}, res[1])
         self.assertDictEqual({'id1': 3, 'val1': 'c'}, res[2])
+
+    def test_save_not_exist(self):
+        t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
+        path = 'xxx/frame'
+        with self.assertRaises(ValueError):
+            t.save_as_parquet(path)
+
 
 class TestXFrameSelectColumn(XFrameUnitTestCase):
     """
