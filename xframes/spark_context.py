@@ -122,15 +122,15 @@ class CommonSparkContext(object):
         self._sqlc = SQLContext(self._sc)
         self._hivec = HiveContext(self._sc)
         self.zip_path = []
-        self.version = [int(n) for n in self._sc.version.split('.')]
+        version = [int(n) for n in self._sc.version.split('.')]
         self.status_tracker = self._sc.statusTracker()
-        if cmp(self.version, [1, 4, 1]) >= 0:
+        if cmp(version, [1, 4, 1]) >= 0:
             self.application_id = self._sc.applicationId
         else:
             self.application_id = None
 
         if verbose:
-            print 'Spark Version: {}'.format('.'.join([str(n) for n in self.version]))
+            print 'Spark Version: {}'.format(self._sc.version)
             if self.application_id:
                 print 'Application Id: {}'.format(self.application_id)
 
@@ -243,7 +243,7 @@ class CommonSparkContext(object):
         out: lst[int]
             The spark version, as a list of integers.
         """
-        return self.version
+        return [int(n) for n in self._sc.version.split('.')]
 
     def jobs(self):
         """
@@ -257,6 +257,20 @@ class CommonSparkContext(object):
             A map of the active job IDs and their corresponding job info
         """
         return {job_id: self.status_tracker.getJobInfo(job_id) for job_id in self.status_tracker.getActiveJobIds()}
+
+    def cluster_mode(self):
+        """
+        Get the cluster mode of the spark cluster.
+
+        Returns
+        -------
+        out: boolean
+            True if spark is running in cluster mode.  Cluster mode means that spark is running on a platform separate
+            the program.  In practice, cluster mode means that file arguments must be located on
+            a network filesystem such as HDFS or NFS.
+        """
+        return not self._config.get('spark.master').startswith('local')
+
 
     # noinspection PyBroadException
     @staticmethod
@@ -330,19 +344,21 @@ class CommonSparkContext(object):
 
         Returns
         -------
-        out: lst[int]
+        out: list[int]
             The spark version, as a list of integers.
         """
-        return CommonSparkContext().version
+        return CommonSparkContext().version()
 
     @staticmethod
-    def environment():
+    def spark_cluster_mode():
         """
-        Gets the config environment.
+        Gets the ccluster mode
 
         Returns
         -------
-        out : Environment
-            The environment.  This contains all the values from the configuration file(s).
+        out: boolean
+            True if spark is running in cluster mode.  Cluster mode means that spark is running on a platform separate
+            the program.  In practice, cluster mode means that file arguments must be located on
+            a network filesystem such as HDFS or NFS.
         """
-        return CommonSparkContext().env()
+        return CommonSparkContext().cluster_mode()
