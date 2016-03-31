@@ -234,7 +234,7 @@ class CommonSparkContext(object):
         """
         return self._hivec
 
-    def spark_version(self):
+    def version(self):
         """
         Gets the spark version.
 
