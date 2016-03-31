@@ -100,14 +100,14 @@ def make_internal_url_simple(url):
         If a bad url is provided.
     """
     if not url:
-        raise ValueError('Invalid url: %s' % url)
+        raise ValueError('Invalid url: {}'.format(url))
 
     # Try to split the url into (protocol, path).
     urlsplit = url.split("://")
     if len(urlsplit) == 2:
         protocol, path = urlsplit
         if not path:
-            raise ValueError('Invalid url: %s' % url)
+            raise ValueError('Invalid url: {}'.format(url))
         if protocol in ['http', 'https']:
             # protocol is a remote url not on server, just return
             return url
@@ -267,7 +267,7 @@ def perform_version_check(configfile=(os.path.join(os.path.expanduser("~"), ".xf
             section = 'Product'
             key = 'skip_version_check'
             skip_version_check = config.getboolean(section, key)
-            logging.debug("skip_version_check=%s" % str(skip_version_check))
+            logging.debug("skip_version_check={}".format(skip_version_check))
     except Exception:
         # eat all errors
         pass
@@ -344,7 +344,7 @@ def get_archive_type(path):
     Returns a string of: sframe, sgraph, raises TypeError for anything else
     """
     if not is_directory_archive(path):
-        raise TypeError('Unable to determine the type of archive at path: %s' % path)
+        raise TypeError('Unable to determine the type of archive at path: {}'.format(path))
 
     try:
         ini_path = os.path.join(path, 'dir_archive.ini')
@@ -354,7 +354,7 @@ def get_archive_type(path):
         contents = parser.get('metadata', 'contents')
         return contents
     except Exception as e:
-        raise TypeError('Unable to determine type of archive for path: %s' % path, e)
+        raise TypeError('Unable to determine type of archive for path: {}'.format(path), e)
 
 
 GLOB_RE = re.compile("""[*?]""")
