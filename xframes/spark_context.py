@@ -352,7 +352,7 @@ class CommonSparkContext(object):
     @staticmethod
     def spark_cluster_mode():
         """
-        Gets the ccluster mode
+        Gets the cluster mode
 
         Returns
         -------
