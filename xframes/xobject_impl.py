@@ -40,8 +40,13 @@ class XObjectImpl(object):
 
     @staticmethod
     def check_input_uri(uri):
-        if not fileio.exists(uri):
-            raise ValueError('Input file does not exist: {}'.format(uri))
+        if ',' in uri:
+            uri_list = uri.split(',')
+        else:
+            uri_list = [uri]
+        for path in uri_list:
+            if not fileio.exists(path):
+                raise ValueError('Input file does not exist: {}'.format(path))
 
     @staticmethod
     def check_output_uri(uri):
