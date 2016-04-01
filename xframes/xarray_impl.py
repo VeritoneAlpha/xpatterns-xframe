@@ -266,10 +266,9 @@ class XArrayImpl(XObjectImpl, TracedObject):
         Saves the RDD to file as text.
         """
         self._entry(path=path)
-        # this only works for local files
         fileio.delete(path)
         try:
-            self._rdd.saveAsTextFile(path)           # action ?
+            self._rdd.saveAsTextFile(path)
         except:
             # TODO distinguish between filesystem errors and pickle errors
             raise TypeError('The XArray save failed.')
