@@ -2359,7 +2359,7 @@ class XFrame(XObject):
 
     def save_as_parquet(self, filename, column_names=None, column_type_hints=None):
         url = make_internal_url(filename)
-        XFrameImpl.check_input_uri(url)
+        XFrameImpl.check_output_uri(url)
         self._impl.save_as_parquet(url,
                                    column_names=column_names,
                                    column_type_hints=column_type_hints,
