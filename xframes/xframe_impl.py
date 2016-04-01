@@ -188,6 +188,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         res = sc.pickleFile(path)
         # read metadata from the same directory
         metadata_path = os.path.join(path, '_metadata')
+        XFrameImpl.check_input_uri(metadata_path)
         with fileio.open_file(metadata_path) as f:
             names, types = pickle.load(f)
         lineage_path = os.path.join(path, '_lineage')
