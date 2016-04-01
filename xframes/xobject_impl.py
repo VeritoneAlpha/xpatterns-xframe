@@ -52,7 +52,7 @@ class XObjectImpl(object):
     def check_output_uri(uri):
         dirname = os.path.dirname(uri)
         if not fileio.exists(dirname):
-            raise ValueError('Input file does not exist: {}'.format(uri))
+            raise ValueError('Output directory does not exist: {}'.format(dirname))
 
     def _replace_rdd(self, rdd):
         self._rdd = self._wrap_rdd(rdd)
