@@ -891,7 +891,7 @@ class TestXArrayLineage(XArrayUnitTestCase):
         self.assertIs(int, metadata)
         with open(os.path.join(path, '_lineage')) as f:
             lineage = pickle.load(f)
-            table_lineage = lineage['table']
+            table_lineage = lineage[0]
             self.assertEqualLen(1, table_lineage)
             basenames = set([os.path.basename(item) for item in table_lineage])
             self.assertIn('test-array-int', basenames)
@@ -905,7 +905,7 @@ class TestXArrayLineage(XArrayUnitTestCase):
         self.assertIs(str, metadata)
         with open(os.path.join(path, '_lineage')) as f:
             lineage = pickle.load(f)
-            table_lineage = lineage['table']
+            table_lineage = lineage[0]
             self.assertEqualLen(1, table_lineage)
             basenames = set([os.path.basename(item) for item in table_lineage])
             self.assertIn('test-array-str', basenames)
@@ -916,10 +916,9 @@ class TestXArrayLineage(XArrayUnitTestCase):
         res.save(path, format='binary')
         res = XArray(path)
         lineage = res.lineage()['table']
-        self.assertEqualLen(2, lineage)
+        self.assertEqualLen(1, lineage)
         basenames = set([os.path.basename(item) for item in lineage])
         self.assertIn('test-array-int', basenames)
-        self.assertIn('array', basenames)
 
 
 class TestXArrayHead(XArrayUnitTestCase):

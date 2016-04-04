@@ -1088,7 +1088,7 @@ class TestXFrameLineage(XFrameUnitTestCase):
         self.assertListEqual([['id', 'val'], [int, str]], metadata)
         with open(os.path.join(path, '_lineage')) as f:
             lineage = pickle.load(f)
-            table_lineage = lineage['table']
+            table_lineage = lineage[0]
             self.assertEqualLen(1, table_lineage)
             basenames = set([os.path.basename(item) for item in table_lineage])
             self.assertTrue('test-frame.csv' in basenames)
@@ -1099,10 +1099,9 @@ class TestXFrameLineage(XFrameUnitTestCase):
         res.save(path, format='binary')
         res = XFrame(path)
         lineage = res.lineage()['table']
-        self.assertEqualLen(2, lineage)
+        self.assertEqualLen(1, lineage)
         basenames = set([os.path.basename(item) for item in lineage])
         self.assertTrue('test-frame.csv' in basenames)
-        self.assertTrue('frame' in basenames)
 
 
 class TestXFrameNumRows(XFrameUnitTestCase):

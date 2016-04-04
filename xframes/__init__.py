@@ -6,6 +6,8 @@ from xframes.xframe import XFrame
 from xframes.xrdd import XRdd
 from xframes.sketch import Sketch
 from xframes.xplot import XPlot
+from xframes.lineage import Lineage
+
 from xframes.deps import HAS_NUMPY
 if HAS_NUMPY:
     from xframes.toolkit import recommend as recommender
