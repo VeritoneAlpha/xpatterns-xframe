@@ -19,8 +19,6 @@ import logging
 
 from xframes.deps import HAS_PANDAS
 from xframes.deps import HAS_NUMPY
-if HAS_NUMPY:
-    import numpy
 
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField
@@ -34,12 +32,15 @@ from xframes.util import cache, uncache, persist, unpersist
 from xframes.util import is_missing, is_missing_or_empty
 from xframes.util import to_ptype, to_schema_type, hint_to_schema_type, pytype_from_dtype, safe_cast_val
 from xframes.util import distribute_seed
+from xframes.lineage import Lineage
 import xframes
 from xframes.xarray_impl import XArrayImpl
 from xframes.xrdd import XRdd
 from xframes.cmp_rows import CmpRows
 from xframes.aggregator_impl import aggregator_properties
 
+if HAS_NUMPY:
+    import numpy
 
 
 # Used to save the original line being parsed.
@@ -67,7 +68,7 @@ def name_col(existing_col_names, proposed_name):
 class XFrameImpl(XObjectImpl, TracedObject):
     """ Implementation for XFrame. """
 
-    def __init__(self, rdd=None, col_names=None, column_types=None, table_lineage=None, column_lineage=None):
+    def __init__(self, rdd=None, col_names=None, column_types=None, lineage=None):
         """ Instantiate a XFrame implementation.
 
         The RDD holds all the data for the XFrame.
@@ -75,20 +76,19 @@ class XFrameImpl(XObjectImpl, TracedObject):
         Each column must be of uniform type.
         Types permitted include int, long, float, string, list, and dict.
         """
-        self._entry(col_names=col_names, column_types=column_types)
+        self._entry(col_names=col_names, column_types=column_types, lineage=lineage)
         super(XFrameImpl, self).__init__(rdd)
         col_names = col_names or []
         column_types = column_types or []
         self.col_names = list(col_names)
         self.column_types = list(column_types)
-        self.table_lineage = table_lineage or set()
-        self.column_lineage = column_lineage or {col_name: set() for col_name in self.col_names}
+        self.lineage = lineage or Lineage.init_frame_lineage(set(), self.col_names)
         self.iter_pos = None
         self._num_rows = None
 
         self.materialized = False
 
-    def _rv(self, rdd, col_names=None, column_types=None, table_lineage=None, column_lineage=None):
+    def _rv(self, rdd, col_names=None, column_types=None, lineage=None):
         """
         Return a new XFrameImpl containing the RDD, column names, column types, and lineage.
 
@@ -98,19 +98,17 @@ class XFrameImpl(XObjectImpl, TracedObject):
         # only use defaults if values are None, not []
         col_names = self.col_names if col_names is None else col_names
         column_types = self.column_types if column_types is None else column_types
-        table_lineage = self.table_lineage if table_lineage is None else table_lineage
-        column_lineage = self.column_lineage if column_lineage is None else column_lineage
-        return XFrameImpl(rdd, col_names, column_types, table_lineage, column_lineage)
+        lineage = lineage or self.lineage
+        return XFrameImpl(rdd, col_names, column_types, lineage)
 
     def _reset(self):
         self._rdd = None
         self.col_names = []
         self.column_types = []
-        self.table_lineage = set()
-        self.column_lineage = {}
+        self.table_lineage = Lineage.init_frame_lineage(set(), self.col_names)
         self.materialized = False
 
-    def _replace(self, rdd, col_names=None, column_types=None, table_lineage=None, column_lineage=None):
+    def _replace(self, rdd, col_names=None, column_types=None, lineage=None):
         """
         Replaces the existing RDD, column names, column types, and lineage with new values.
 
@@ -122,10 +120,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
             self.col_names = col_names
         if column_types is not None:
             self.column_types = column_types
-        if table_lineage is not None:
-            self.table_lineage = table_lineage
-        if column_lineage is not None:
-            self.column_lineage = column_lineage
+        if lineage is not None:
+            self.lineage = lineage
 
         self._num_rows = None
         self.materialized = False
@@ -166,7 +162,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         dtypes = data.dtypes
         column_names = [col for col in columns]
         column_types = [type(numpy.zeros(1, dtype).tolist()[0]) for dtype in dtypes]
-        table_lineage = {'PANDAS'}
+        lineage = Lineage.init_frame_lineage({'PANDAS'}, column_names)
 
         res = []
         for row in data.iterrows():
@@ -175,7 +171,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
             res.append(tuple(cols))
         sc = cls.spark_context()
         rdd = sc.parallelize(res)
-        return XFrameImpl(rdd, column_names, column_types, table_lineage)
+        return XFrameImpl(rdd, column_names, column_types, lineage)
 
     @classmethod
     def load_from_xframe_index(cls, path):
@@ -183,7 +179,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         Load from a saved xframe.
         """
         cls._entry(path=path)
-        table_lineage = {path}
         sc = cls.spark_context()
         res = sc.pickleFile(path)
         # read metadata from the same directory
@@ -193,10 +188,10 @@ class XFrameImpl(XObjectImpl, TracedObject):
             names, types = pickle.load(f)
         lineage_path = os.path.join(path, '_lineage')
         if fileio.exists(lineage_path):
-            with fileio.open_file(lineage_path) as f:
-                lineage = pickle.load(f)
-                table_lineage |= lineage['table']
-        return cls(res, names, types, table_lineage)
+            lineage = Lineage.load(lineage_path)
+        else:
+            lineage = Lineage.init_frame_lineage({path}, names)
+        return cls(res, names, types, lineage)
 
     @classmethod
     def load_from_spark_dataframe(cls, rdd):
@@ -207,12 +202,12 @@ class XFrameImpl(XObjectImpl, TracedObject):
         schema = rdd.schema
         xf_names = [str(col.name) for col in schema.fields]
         xf_types = [to_ptype(col.dataType) for col in schema.fields]
-        table_lineage = {'DATAFRAME'}
+        lineage = Lineage.init_frame_lineage({'DATAFRAME'}, xf_names)
 
         def row_to_tuple(row):
             return tuple([row[i] for i in range(len(row))])
         xf_rdd = rdd.map(row_to_tuple)
-        return cls(xf_rdd, xf_names, xf_types, table_lineage)
+        return cls(xf_rdd, xf_names, xf_types, lineage)
 
     # noinspection SqlNoDataSourceInspection
     @classmethod
@@ -247,9 +242,9 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 raise ValueError('Length of types does not match RDD.')
         names = names or ['X.{}'.format(i) for i in range(len(first_row))]
         types = types or [type(elem) for elem in first_row]
-        table_lineage = {'RDD'}
+        lineage = Lineage.init_frame_lineage({'RDD'}, names)
         # TODO sniff types using more of the rdd
-        return cls(rdd, names, types, table_lineage)
+        return cls(rdd, names, types, lineage)
 
     @classmethod
     def load_from_csv(cls, path, parsing_config, type_hints):
@@ -259,6 +254,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         cls._entry(path=path, parsing_config=parsing_config, type_hints=type_hints)
 
         table_lineage = {path}
+
         def get_config(name):
             return parsing_config[name] if name in parsing_config else None
         row_limit = get_config('row_limit')
@@ -497,8 +493,10 @@ class XFrameImpl(XObjectImpl, TracedObject):
             if row_limit is None:
                 persist(res)
 
+        lineage = Lineage.init_frame_lineage({path}, col_names)
+
         # returns a dict of errors and XFrameImpl
-        return errs, XFrameImpl(res, col_names, column_types, table_lineage)
+        return errs, XFrameImpl(res, col_names, column_types, lineage)
 
     # noinspection PyUnusedLocal
     @classmethod
@@ -525,8 +523,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
             res = rdd.values().map(lambda line: (fixup_line(line), ))
         col_names = ['text']
         col_types = [str]
-        table_lineage = {path}
-        return XFrameImpl(res, col_names, col_types, table_lineage)
+        lineage = Lineage.init_frame_lineage({path}, col_names)
+        return XFrameImpl(res, col_names, col_types, lineage)
 
     @classmethod
     def load_from_parquet(cls, path):
@@ -543,10 +541,10 @@ class XFrameImpl(XObjectImpl, TracedObject):
         schema = s_rdd.schema
         col_names = [str(col.name) for col in schema.fields]
         col_types = [to_ptype(col.dataType) for col in schema.fields]
-        table_lineage = {path}
+        lineage = Lineage.init_frame_lineage({path}, col_names)
 
         rdd = s_rdd.map(lambda row: tuple(row))
-        return XFrameImpl(rdd, col_names, col_types, table_lineage)
+        return XFrameImpl(rdd, col_names, col_types, lineage)
 
     # Save
     def save(self, path):
@@ -568,10 +566,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
             pickle.dump(metadata, f)
 
         lineage_path = os.path.join(path, '_lineage')
-        lineage = {'table': self.table_lineage}
-        with fileio.open_file(lineage_path, 'w') as f:
-            # TODO detect filesystem errors
-            pickle.dump(lineage, f)
+        self.lineage.save(lineage_path)
 
     # noinspection PyArgumentList
     def save_as_csv(self, path, **params):
@@ -613,13 +608,16 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 shutil.copyfileobj(rd, f)
         fileio.delete(temp_file_name)
 
-    def save_as_parquet(self, url, column_names=None, column_types=None, column_type_hints=None, number_of_partitions=None):
+    def save_as_parquet(self, url, column_names=None, column_type_hints=None, number_of_partitions=None):
         """
         Save to a parquet file.
         """
         column_names = column_names or self.col_names
 
-        self._entry(url=url, number_of_partitions=number_of_partitions)
+        self._entry(url=url,
+                    column_names=column_names,
+                    column_type_hints=column_type_hints,
+                    number_of_partitions=number_of_partitions)
         fileio.delete(url)
         table_name = None
         dataframe = self.to_spark_dataframe(table_name,
@@ -628,6 +626,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
                                             number_of_partitions=number_of_partitions)
         if dataframe is None:
             logging.warn('Save_as_parquet -- dataframe conversion failed.')
+            return
         else:
             spark_ver = CommonSparkContext.spark_version()
         if spark_ver >= [1, 6, 0]:
@@ -747,12 +746,13 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._entry()
         return self.column_types
 
-    def lineage(self):
+    def lineage_as_dict(self):
         """
-        Returns the table lineage.
+        Returns the lineage.
         """
         self._entry()
-        return {'table': self.table_lineage}
+        return {'table': self.lineage.table_lineage,
+                'column': self.lineage.column_lineage}
 
     # Get Data
     def head(self, n):
@@ -897,8 +897,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
         col_names = [name]
         col_types = [arry_impl.elem_type]
         rdd = arry_impl.rdd().map(lambda val: (val,))
-        table_lineage = arry_impl.table_lineage
-        return XFrameImpl(rdd, col_names, col_types, table_lineage)
+        lineage = Lineage.from_array_lineage(arry_impl.lineage, name)
+        return XFrameImpl(rdd, col_names, col_types, lineage)
 
     def add_column(self, col, name):
         """
@@ -935,8 +935,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
             def move_inside(old_val, new_elem):
                 return tuple(old_val + (new_elem, ))
             res = res.map(lambda pair: move_inside(pair[0], pair[1]))
-        table_lineage = self.table_lineage | col.table_lineage
-        return self._rv(res, col_names, col_types, table_lineage)
+        lineage = self.lineage.add_column(col.lineage, new_name)
+        return self._rv(res, col_names, col_types, lineage)
 
     def add_column_in_place(self, data, name):
         """
@@ -1411,8 +1411,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         self._entry()
         res = self._rdd.union(other.rdd())
-        table_lineage = self.table_lineage | other.table_lineage
-        return self._rv(res, table_lineage=table_lineage)
+        lineage = self.lineage.merge(other.lineage)
+        return self._rv(res, lineage=lineage)
 
     def copy_range(self, start, step, stop):
         """
@@ -1844,8 +1844,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
         persist(res)
 
-        table_lineage = self.table_lineage | right.table_lineage
-        return self._rv(res, new_col_names, new_col_types, table_lineage)
+        lineage = self.lineage.merge(right.lineage)     # TODO need to use renamed cols (both self and right)
+        return self._rv(res, new_col_names, new_col_types, lineage)
 
     def unique(self):
         """

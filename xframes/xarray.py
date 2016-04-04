@@ -6,14 +6,6 @@ XArray acts similarly to pandas.Series but without indexing.
 The data is immutable, homogeneous, and is stored in a Spark RDD.
 """
 
-"""
-Copyright (c) 2014, Dato, Inc.
-All rights reserved.
-
-Copyright (c) 2016, Atigeo, Inc.
-All rights reserved.
-"""
-
 import inspect
 import math
 import time
@@ -23,12 +15,22 @@ import datetime
 
 from xframes.deps import pandas, HAS_PANDAS
 from xframes.deps import HAS_NUMPY
-if HAS_NUMPY:
-    import numpy
 from xframes.xobject import XObject
 from xframes.xarray_impl import XArrayImpl
 from xframes.util import make_internal_url, infer_type_of_list, pytype_from_dtype, is_numeric_val
 import xframes
+
+if HAS_NUMPY:
+    import numpy
+
+"""
+Copyright (c) 2014, Dato, Inc.
+All rights reserved.
+
+Copyright (c) 2016, Atigeo, Inc.
+All rights reserved.
+"""
+
 
 __all__ = ['XArray']
 
@@ -705,9 +707,11 @@ class XArray(XObject):
         -------
         out : dict
             * key 'table': set[filename]
-            The files that were used to build the XArray
+                The files that were used to build the XArray
+            * key 'column': dict{col_name: set[filename]}
+                The set of files that were used to build each column
         """
-        return self._impl.lineage()
+        return self._impl.lineage_as_dict()
 
     def head(self, n=10):
         """
@@ -2137,6 +2141,7 @@ class XArray(XObject):
 
         return xframes.XFrame(impl=self._impl.split_datetime(column_name_prefix, limit, column_types))
 
+    # noinspection PyTypeChecker
     def unpack(self, column_name_prefix='X', column_types=None, na_value=None, limit=None):
         """
         Convert an XArray of list, array, or dict type to an XFrame with

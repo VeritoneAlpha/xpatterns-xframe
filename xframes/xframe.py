@@ -1467,10 +1467,13 @@ class XFrame(XObject):
 
         Returns
         -------
-        out : set[filename]
-            The files that were used to the XFrame
+        out : dict
+            * key 'table': set[filename]
+                The files that were used to build the XArray
+            * key 'column': dict{col_name: set[filename]}
+                The set of files that were used to build each column
         """
-        return self._impl.lineage()
+        return self._impl.lineage_as_dict()
 
     def head(self, n=10):
         """
