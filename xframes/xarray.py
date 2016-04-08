@@ -17,7 +17,7 @@ from xframes.deps import pandas, HAS_PANDAS
 from xframes.deps import HAS_NUMPY
 from xframes.xobject import XObject
 from xframes.xarray_impl import XArrayImpl
-from xframes.util import make_internal_url, infer_type_of_list, pytype_from_dtype, is_numeric_val
+from xframes.util import make_internal_url, infer_type_of_list, pytype_from_dtype, is_numeric_val, classify_auto
 import xframes
 
 if HAS_NUMPY:
@@ -139,7 +139,7 @@ class XArray(XObject):
             return
 
         # we need to perform type inference
-        dtype = dtype or self._classify_auto(data)
+        dtype = dtype or classify_auto(data)
 
         if HAS_PANDAS and isinstance(data, pandas.Series):
             self._impl = XArrayImpl.load_from_iterable(data.values, dtype, ignore_cast_failure)
@@ -157,44 +157,6 @@ class XArray(XObject):
             raise TypeError('Unexpected data source: {}. '
                             "Possible data source types are: 'list', "
                             "'numpy.ndarray', 'pandas.Series', and 'string(url)'.".format(type(data).__name__))
-
-    @staticmethod
-    def _classify_auto(data):
-        if isinstance(data, list):
-            # if it is a list, Get the first type and make sure
-            # the remaining items are all of the same type
-            return infer_type_of_list(data)
-        elif isinstance(data, array.array):
-            return infer_type_of_list(data)
-        elif HAS_PANDAS and isinstance(data, pandas.Series):
-            # if it is a pandas series get the dtype of the series
-            dtype = pytype_from_dtype(data.dtype)
-            if dtype == object:
-                # we need to get a bit more fine grained than that
-                dtype = infer_type_of_list(data)
-            return dtype
-
-        elif HAS_NUMPY and isinstance(data, numpy.ndarray):
-            # if it is a numpy array, get the dtype of the array
-            dtype = pytype_from_dtype(data.dtype)
-            if dtype == object:
-                # we need to get a bit more fine grained than that
-                dtype = infer_type_of_list(data)
-            if len(data.shape) == 2:
-                # we need to make it an array or a list
-                if dtype == float or dtype == int:
-                    dtype = array.array
-                else:
-                    dtype = list
-                return dtype
-            elif len(data.shape) > 2:
-                raise TypeError('Cannot convert Numpy arrays of greater than 2 dimensions.')
-
-        elif isinstance(data, str):
-            # if it is a file, we default to string
-            return str
-        else:
-            return None
 
     def dump_debug_info(self):
         """

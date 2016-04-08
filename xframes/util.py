@@ -10,6 +10,7 @@ import re
 from zipfile import ZipFile
 import bz2 as _bz2
 import ast
+import array
 import tarfile
 import ConfigParser
 import itertools
@@ -22,15 +23,16 @@ import logging
 import types
 
 from pyspark import StorageLevel
+from pyspark.sql.types import StringType, BooleanType, \
+    DoubleType, FloatType, \
+    ShortType, IntegerType, LongType, DecimalType, \
+    ArrayType, MapType, TimestampType
 
 from xframes.deps import HAS_NUMPY
 if HAS_NUMPY:
     import numpy
 
-from pyspark.sql.types import StringType, BooleanType, \
-    DoubleType, FloatType, \
-    ShortType, IntegerType, LongType, DecimalType, \
-    ArrayType, MapType, TimestampType
+from xframes.deps import pandas, HAS_PANDAS
 
 from xframes.spark_context import CommonSparkContext
 from xframes.xobject import XObject
@@ -622,6 +624,44 @@ def infer_type_of_list(data):
 
 def infer_type_of_rdd(rdd):
     return infer_type_of_list(rdd.take(100))
+
+
+def classify_auto(data):
+    if isinstance(data, list):
+        # if it is a list, Get the first type and make sure
+        # the remaining items are all of the same type
+        return infer_type_of_list(data)
+    elif isinstance(data, array.array):
+        return infer_type_of_list(data)
+    elif HAS_PANDAS and isinstance(data, pandas.Series):
+        # if it is a pandas series get the dtype of the series
+        dtype = pytype_from_dtype(data.dtype)
+        if dtype == object:
+            # we need to get a bit more fine grained than that
+            dtype = infer_type_of_list(data)
+        return dtype
+
+    elif HAS_NUMPY and isinstance(data, numpy.ndarray):
+        # if it is a numpy array, get the dtype of the array
+        dtype = pytype_from_dtype(data.dtype)
+        if dtype == object:
+            # we need to get a bit more fine grained than that
+            dtype = infer_type_of_list(data)
+        if len(data.shape) == 2:
+            # we need to make it an array or a list
+            if dtype == float or dtype == int:
+                dtype = array.array
+            else:
+                dtype = list
+            return dtype
+        elif len(data.shape) > 2:
+            raise TypeError('Cannot convert Numpy arrays of greater than 2 dimensions.')
+
+    elif isinstance(data, str):
+        # if it is a file, we default to string
+        return str
+    else:
+        return None
 
 
 # Random seed
