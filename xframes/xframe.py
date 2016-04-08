@@ -1829,7 +1829,7 @@ class XFrame(XObject):
                 return row[col]
         elif not inspect.isfunction(fn):
             raise TypeError('Input must be a function.')
-        if isinstance(use_columns, basestr):
+        if isinstance(use_columns, basestring):
             use_columns = [use_columns]
         rows = self._impl.head_as_list(10)
         names = self._impl.column_names()
