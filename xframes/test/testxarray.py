@@ -145,10 +145,12 @@ class TestXArrayConstructorRange(XArrayUnitTestCase):
         with self.assertRaises(TypeError):
             XArray.from_sequence()
 
+    # noinspection PyTypeChecker
     def test_construct_nonint_stop(self):
         with self.assertRaises(TypeError):
             XArray.from_sequence(1.0)
 
+    # noinspection PyTypeChecker
     def test_construct_nonint_start(self):
         with self.assertRaises(TypeError):
             XArray.from_sequence(1.0, 10.0)
@@ -270,6 +272,7 @@ class TestXArrayFromConst(XArrayUnitTestCase):
         with self.assertRaises(ValueError):
             XArray.from_const(1, -10)
 
+    # noinspection PyTypeChecker
     def test_from_const_nonint(self):
         with self.assertRaises(TypeError):
             XArray.from_const(1, 'a')
@@ -425,6 +428,7 @@ class TestXArrayAddScalar(XArrayUnitTestCase):
     Tests XArray Scalar Addition
     """
     # noinspection PyAugmentAssignment
+    # noinspection PyTypeChecker
     def test_add_scalar(self):
         t = XArray([1, 2, 3])
         self.assertEqualLen(3, t)
@@ -464,6 +468,7 @@ class TestXArrayOpScalar(XArrayUnitTestCase):
     """
     Tests XArray Scalar operations other than addition
     """
+    # noinspection PyTypeChecker
     def test_sub_scalar(self):
         t = XArray([1, 2, 3])
         res = t - 1
@@ -471,6 +476,7 @@ class TestXArrayOpScalar(XArrayUnitTestCase):
         self.assertEqual(1, res[1])
         self.assertEqual(2, res[2])
 
+    # noinspection PyTypeChecker
     def test_mul_scalar(self):
         t = XArray([1, 2, 3])
         res = t * 2
@@ -478,6 +484,7 @@ class TestXArrayOpScalar(XArrayUnitTestCase):
         self.assertEqual(4, res[1])
         self.assertEqual(6, res[2])
 
+    # noinspection PyTypeChecker
     def test_div_scalar(self):
         t = XArray([1, 2, 3])
         res = t / 2
@@ -485,6 +492,7 @@ class TestXArrayOpScalar(XArrayUnitTestCase):
         self.assertEqual(1, res[1])
         self.assertEqual(1, res[2])
 
+    # noinspection PyTypeChecker
     def test_pow_scalar(self):
         t = XArray([1, 2, 3])
         res = t ** 2
@@ -524,6 +532,7 @@ class TestXArrayOpScalar(XArrayUnitTestCase):
         self.assertFalse(res[1])
         self.assertTrue(res[2])
 
+    # noinspection PyTypeChecker
     def test_radd_scalar(self):
         t = XArray([1, 2, 3])
         res = 1 + t
@@ -547,6 +556,7 @@ class TestXArrayOpScalar(XArrayUnitTestCase):
         self.assertEqual(4, res[1])
         self.assertEqual(6, res[2])
 
+    # noinspection PyTypeChecker
     def test_rdiv_scalar(self):
         t = XArray([1, 2, 3])
         res = 12 / t
@@ -1689,6 +1699,7 @@ class TestXArrayAstype(XArrayUnitTestCase):
         self.assertIs(dict, res.dtype())
         self.assertDictEqual({'a': 1, 'b': 2}, res[0])
 
+    # noinspection PyTypeChecker
     def test_astype_str_array(self):
         t = XArray(['[1, 2, 3]', '[4, 5, 6]'])
         res = t.astype(array)
@@ -1707,6 +1718,7 @@ class TestXArrayClip(XArrayUnitTestCase):
     """
     Tests XArray clip
     """
+    # noinspection PyTypeChecker
     def test_clip_int_nan(self):
         nan = float('nan')
         t = XArray([1, 2, 3])
@@ -1723,6 +1735,7 @@ class TestXArrayClip(XArrayUnitTestCase):
         res = t.clip()
         self.assertColumnEqual([1, 2, 3], res)
 
+    # noinspection PyTypeChecker
     def test_clip_float_nan(self):
         nan = float('nan')
         t = XArray([1.0, 2.0, 3.0])
@@ -1744,6 +1757,7 @@ class TestXArrayClip(XArrayUnitTestCase):
         res = t.clip(1, 3)
         self.assertColumnEqual([1, 2, 3], res)
 
+    # noinspection PyTypeChecker
     def test_clip_float_all(self):
         t = XArray([1.0, 2.0, 3.0])
         res = t.clip(1.0, 3.0)
@@ -1754,11 +1768,13 @@ class TestXArrayClip(XArrayUnitTestCase):
         res = t.clip(2, 2)
         self.assertColumnEqual([2, 2, 2], res)
 
+    # noinspection PyTypeChecker
     def test_clip_float_clip(self):
         t = XArray([1.0, 2.0, 3.0])
         res = t.clip(2.0, 2.0)
         self.assertColumnEqual([2.0, 2.0, 2.0], res)
 
+    # noinspection PyTypeChecker
     def test_clip_list_nan(self):
         nan = float('nan')
         t = XArray([[1, 2, 3]])
@@ -2256,6 +2272,7 @@ class TestXArraySplitDatetime(XArrayUnitTestCase):
         with self.assertRaises(TypeError):
             t.split_datetime('date')
 
+    # noinspection PyTypeChecker
     def test_split_datetime_bad_prefix_type(self):
         t = XArray([datetime.datetime(2011, 1, 1),
                     datetime.datetime(2011, 2, 2),
@@ -2270,6 +2287,7 @@ class TestXArraySplitDatetime(XArrayUnitTestCase):
         with self.assertRaises(ValueError):
             t.split_datetime('date', limit='xx')
 
+    # noinspection PyTypeChecker
     def test_split_datetime_bad_limit_type(self):
         t = XArray([datetime.datetime(2011, 1, 1),
                     datetime.datetime(2011, 2, 2),
@@ -2294,11 +2312,13 @@ class TestXArrayUnpackErrors(XArrayUnitTestCase):
         with self.assertRaises(TypeError):
             t.unpack()
 
+    # noinspection PyTypeChecker
     def test_unpack_bad_prefix(self):
         t = XArray([[1, 2, 3], [4, 5, 6]])
         with self.assertRaises(TypeError):
             t.unpack(column_name_prefix=1)
 
+    # noinspection PyTypeChecker
     def test_unpack_bad_limit_type(self):
         t = XArray([[1, 2, 3], [4, 5, 6]])
         with self.assertRaises(TypeError):
@@ -2314,11 +2334,13 @@ class TestXArrayUnpackErrors(XArrayUnitTestCase):
         with self.assertRaises(ValueError):
             t.unpack(limit=[1, 1])
 
+    # noinspection PyTypeChecker
     def test_unpack_bad_column_types(self):
         t = XArray([[1, 2, 3], [4, 5, 6]])
         with self.assertRaises(TypeError):
             t.unpack(column_types=1)
 
+    # noinspection PyTypeChecker
     def test_unpack_bad_column_types_bool(self):
         t = XArray([[1, 2, 3], [4, 5, 6]])
         with self.assertRaises(TypeError):
@@ -2442,7 +2464,7 @@ class TestXArrayUnpack(XArrayUnitTestCase):
         self.assertListEqual(['X.count'], res.column_names())
         self.assertDictEqual({'X.count': 1}, res[0])
         self.assertDictEqual({'X.count': 2}, res[1])
-        self.assertDictEqual({ 'X.count': 3}, res[2])
+        self.assertDictEqual({'X.count': 3}, res[2])
         self.assertDictEqual({'X.count': 4}, res[3])
 
     def test_unpack_dict_incomplete(self):
