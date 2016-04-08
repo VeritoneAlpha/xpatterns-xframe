@@ -90,6 +90,17 @@ class SparkInitContext:
         CommonSparkContext()
 
 
+def create_spark_config(env):
+    # Create the context for configuring spark
+    default_context = {'spark.master': 'local[*]',
+                       'spark.app.name': 'xFrames'}
+    # get values from [spark] section
+    config_context = env.get_config_items('spark')
+    context = merge_dicts(default_context, config_context)
+    context = merge_dicts(context, SparkInitContext.context)
+    return context
+
+
 class CommonSparkContext(object):
     __metaclass__ = Singleton
 
@@ -104,15 +115,10 @@ class CommonSparkContext(object):
         # This reads from default.ini and then xframes/config.ini
         # if they exist.
         self._env = Environment.create()
+        context = create_spark_config(self._env)
         verbose = self._env.get_config('xframes', 'verbose', 'false').lower() == 'true'
         hdfs_user_name = self._env.get_config('webhdfs', 'user', 'hdfs')
         os.environ['HADOOP_USER_NAME'] = hdfs_user_name
-        default_context = {'spark.master': 'local[*]',
-                           'spark.app.name': 'xFrames'}
-        # get values from [spark] section
-        config_context = self._env.get_config_items('spark')
-        context = merge_dicts(default_context, config_context)
-        context = merge_dicts(context, SparkInitContext.context)
         config_pairs = [(k, v) for k, v in context.iteritems()]
         self._config = (SparkConf().setAll(config_pairs))
         if verbose:
@@ -271,7 +277,6 @@ class CommonSparkContext(object):
         """
         return not self._config.get('spark.master').startswith('local')
 
-
     # noinspection PyBroadException
     @staticmethod
     def build_zip(module_dir):
@@ -361,4 +366,6 @@ class CommonSparkContext(object):
             the program.  In practice, cluster mode means that file arguments must be located on
             a network filesystem such as HDFS or NFS.
         """
-        return CommonSparkContext().cluster_mode()
+        env = Environment.create()
+        config = create_spark_config(env)
+        return not config.get('spark.master').startswith('local')
