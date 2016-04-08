@@ -314,6 +314,12 @@ class TestXFrameConstructor(XFrameUnitTestCase):
         self.assertListEqual([int, str], t.column_types())
         self.assertListEqual(['id', 'val'], t.column_names())
 
+    def test_construct_dict_int_str_bad_len(self):
+        # construct an XFrame from a dict of int and str with different lengths
+        with self.assertRaises(ValueError):
+            XFrame({'id': [1, 2, 3], 'val': ['a', 'b']})
+
+
     def test_construct_binary(self):
         # make binary file
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
@@ -397,7 +403,7 @@ class TestXFrameReadCsvWithErrors(XFrameUnitTestCase):
     def test_read_csv_file_not_exist(self):
         path = 'files/does-not-exist.csv'
         with self.assertRaises(ValueError):
-            res, errs = XFrame.read_csv_with_errors(path)
+            XFrame.read_csv_with_errors(path)
 
     # Cannot figure out how to cause SystemError in csv reader.
     # But it happened one time
@@ -508,6 +514,7 @@ class TestXFrameReadCsv(XFrameUnitTestCase):
         self.assertDictEqual({'id': '2', 'val1': 'b', 'val2': 20}, res[1])
         self.assertDictEqual({'id': '3', 'val1': 'c', 'val2': 30}, res[2])
 
+    # noinspection PyTypeChecker
     def test_read_csv_hints_dict(self):
         path = 'files/test-frame-extra.csv'
         res = XFrame.read_csv(path, column_type_hints={'val2': int})
@@ -676,6 +683,7 @@ class TestXFrameFromXArray(XFrameUnitTestCase):
     Tests XFrame from_xarray
     """
 
+    # noinspection PyUnresolvedReferences
     def test_from_xarray(self):
         a = XArray([1, 2, 3])
         res = XFrame.from_xarray(a, 'id')
@@ -843,7 +851,7 @@ class TestXFrameFromRdd(XFrameUnitTestCase):
     def test_from_rdd_names(self):
         sc = XFrame.spark_context()
         rdd = sc.parallelize([(1, 'a'), (2, 'b'), (3, 'c')])
-        res = XFrame.from_rdd(rdd, column_names=('id', 'val'))
+        res = XFrame.from_rdd(rdd, column_names=['id', 'val'])
         self.assertEqualLen(3, res)
         self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
         self.assertDictEqual({'id': 2, 'val': 'b'}, res[1])
@@ -851,7 +859,7 @@ class TestXFrameFromRdd(XFrameUnitTestCase):
     def test_from_rdd_types(self):
         sc = XFrame.spark_context()
         rdd = sc.parallelize([(None, 'a'), (2, 'b'), (3, 'c')])
-        res = XFrame.from_rdd(rdd, column_types=(int, str))
+        res = XFrame.from_rdd(rdd, column_types=[int, str])
         self.assertEqualLen(3, res)
         self.assertListEqual([int, str], res.column_types())
         self.assertDictEqual({'X.0': None, 'X.1': 'a'}, res[0])
@@ -860,7 +868,7 @@ class TestXFrameFromRdd(XFrameUnitTestCase):
     def test_from_rdd_names_types(self):
         sc = XFrame.spark_context()
         rdd = sc.parallelize([(None, 'a'), (2, 'b'), (3, 'c')])
-        res = XFrame.from_rdd(rdd, column_names=('id', 'val'), column_types=(int, str))
+        res = XFrame.from_rdd(rdd, column_names=['id', 'val'], column_types=[int, str])
         self.assertEqualLen(3, res)
         self.assertListEqual([int, str], res.column_types())
         self.assertDictEqual({'id': None, 'val': 'a'}, res[0])
@@ -1634,6 +1642,7 @@ class TestXFrameSelectColumn(XFrameUnitTestCase):
         with self.assertRaises(ValueError):
             t.select_column('xx')
 
+    # noinspection PyTypeChecker
     def test_select_column_bad_type(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         with self.assertRaises(TypeError):
@@ -1655,6 +1664,7 @@ class TestXFrameSelectColumns(XFrameUnitTestCase):
         res = t.select_columns(['id'])
         self.assertTrue([1], res[0])
 
+    # noinspection PyTypeChecker
     def test_select_columns_not_iterable(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'another': [3.0, 2.0, 1.0]})
         with self.assertRaises(TypeError):
@@ -1727,11 +1737,13 @@ class TestXFrameAddColumnsArray(XFrameUnitTestCase):
         with self.assertRaises(TypeError):
             tf.add_columns([ta1, ta2])
 
+    # noinspection PyTypeChecker
     def test_add_columns_data_not_iterable(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         with self.assertRaises(TypeError):
             tf.add_columns(1, namelist=[])
 
+    # noinspection PyTypeChecker
     def test_add_columns_namelist_not_iterable(self):
         tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         ta1 = XArray([3.0, 2.0, 1.0])
@@ -1788,22 +1800,24 @@ class TestXFrameReplaceColumn(XFrameUnitTestCase):
         self.assertListEqual(['id', 'val'], res.column_names())
         self.assertDictEqual({'id': 1, 'val': 'x'}, res[0])
 
+    # noinspection PyTypeChecker
     def test_replace_column_bad_col_type(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         with self.assertRaises(TypeError):
-            _ = t.replace_column('val', ['x', 'y', 'z'])
+            t.replace_column('val', ['x', 'y', 'z'])
 
     def test_replace_column_bad_name(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         a = XArray(['x', 'y', 'z'])
         with self.assertRaises(ValueError):
-            _ = t.replace_column('xx', a)
+            t.replace_column('xx', a)
 
+    # noinspection PyTypeChecker
     def test_replace_column_bad_name_type(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         a = XArray(['x', 'y', 'z'])
         with self.assertRaises(TypeError):
-            _ = t.replace_column(2, a)
+            t.replace_column(2, a)
 
 
 class TestXFrameRemoveColumn(XFrameUnitTestCase):
@@ -1910,6 +1924,7 @@ class TestXFrameRename(XFrameUnitTestCase):
         self.assertListEqual(['id', 'val'], t.column_names())
         self.assertDictEqual({'new_id': 1, 'val': 'a'}, res[0])
 
+    # noinspection PyTypeChecker
     def test_rename_arg_not_dict(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         with self.assertRaises(TypeError):
@@ -2122,6 +2137,7 @@ class TestXFrameRange(XFrameUnitTestCase):
         self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
         self.assertDictEqual({'id': 2, 'val': 'b'}, res[1])
 
+    # noinspection PyTypeChecker
     def test_range_bad_type(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         with self.assertRaises(TypeError):
@@ -2141,6 +2157,7 @@ class TestXFrameAppend(XFrameUnitTestCase):
         self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
         self.assertDictEqual({'id': 10, 'val': 'aa'}, res[3])
 
+    # noinspection PyTypeChecker
     def test_append_bad_type(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         with self.assertRaises(RuntimeError):
@@ -2216,6 +2233,7 @@ class TestXFrameGroupby(XFrameUnitTestCase):
         self.assertDictEqual({'id': 2}, res[1])
         self.assertDictEqual({'id': 3}, res[2])
 
+    # noinspection PyTypeChecker
     def test_groupby_bad_col_name_type(self):
         t = XFrame({'id': [1, 2, 3, 1, 2, 1],
                     'val': ['a', 'b', 'c', 'd', 'e', 'f'],
@@ -2223,6 +2241,7 @@ class TestXFrameGroupby(XFrameUnitTestCase):
         with self.assertRaises(TypeError):
             t.groupby(1, {})
 
+    # noinspection PyTypeChecker
     def test_groupby_bad_col_name_list_type(self):
         t = XFrame({'id': [1, 2, 3, 1, 2, 1],
                     'val': ['a', 'b', 'c', 'd', 'e', 'f'],
@@ -2238,7 +2257,7 @@ class TestXFrameGroupby(XFrameUnitTestCase):
             t.groupby('xx', {})
 
     def test_groupby_bad_group_type(self):
-        t = XFrame({'id': [{1: 'a', 2: 'b'}],
+        t = XFrame({'id': [{1: 'a', 2: 'b'}, {3: 'c'}],
                     'val': ['a', 'b']})
         with self.assertRaises(TypeError):
             t.groupby('id', {})
@@ -2572,6 +2591,7 @@ class TestXFrameGroupbyAggregatorsWithMissingValues(XFrameUnitTestCase):
     Tests XFrame groupby aggregators with missing values
     """
 
+    # noinspection PyTypeChecker
     def test_groupby_count(self):
         t = XFrame({'id': [1, 2, 3, None, None, 1],
                     'val': ['a', 'b', 'c', 'd', 'e', 'f'],
@@ -2787,6 +2807,7 @@ class TestXFrameGroupbyAggregatorsEmpty(XFrameUnitTestCase):
     Tests XFrame groupby aggregators with missing values
     """
 
+    # noinspection PyTypeChecker
     def test_groupby_count(self):
         t = XFrame({'id': [1, 2, None, None, None, 1],
                     'val': ['a', 'b', 'c', 'd', 'e', 'f'],
@@ -3136,6 +3157,7 @@ class TestXFrameJoin(XFrameUnitTestCase):
         with self.assertRaises(ValueError):
             t1.join(t2, how='xx')
 
+    # noinspection PyTypeChecker
     def test_join_bad_right(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         with self.assertRaises(TypeError):
@@ -3147,6 +3169,7 @@ class TestXFrameJoin(XFrameUnitTestCase):
         with self.assertRaises(TypeError):
             t1.join(t2, on=['id', 1])
 
+    # noinspection PyTypeChecker
     def test_join_bad_on_type(self):
         t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         t2 = XFrame({'id': [1, 2, 3], 'doubled': ['aa', 'bb', 'cc']})
@@ -3171,8 +3194,8 @@ class TestXFrameSplitDatetime(XFrameUnitTestCase):
                                              datetime(2013, 3, 3)]})
         res = t.split_datetime('val')
         self.assertListEqual(['id',
-                          'val.year', 'val.month', 'val.day',
-                          'val.hour', 'val.minute', 'val.second'], res.column_names())
+                              'val.year', 'val.month', 'val.day',
+                              'val.hour', 'val.minute', 'val.second'], res.column_names())
         self.assertListEqual([int, int, int, int, int, int, int], res.column_types())
         self.assertEqualLen(3, res)
         self.assertColumnEqual([1, 2, 3], res['id'])
@@ -3183,6 +3206,7 @@ class TestXFrameSplitDatetime(XFrameUnitTestCase):
         self.assertColumnEqual([0, 0, 0], res['val.minute'])
         self.assertColumnEqual([0, 0, 0], res['val.second'])
 
+    # noinspection PyTypeChecker
     def test_split_datetime_col_conflict(self):
         t = XFrame({'id': [1, 2, 3],
                     'val.year': ['x', 'y', 'z'],
@@ -3299,6 +3323,7 @@ class TestXFrameFilterby(XFrameUnitTestCase):
         self.assertDictEqual({'id': 4, 'val': 'd'}, res[1])
         self.assertColumnEqual([2, 4], res['id'])
 
+    # noinspection PyTypeChecker
     def test_filterby_bad_column_name_type(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         with self.assertRaises(TypeError):
@@ -3416,11 +3441,13 @@ class TestXFramePackColumnsList(XFrameUnitTestCase):
         self.assertDictEqual({'another': 10, 'x': [1, 'a']}, res[0])
         self.assertDictEqual({'another': 20, 'x': [2, 'b']}, res[1])
 
+    # noinspection PyTypeChecker
     def test_pack_columns_bad_col_spec(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         with self.assertRaises(ValueError):
             t.pack_columns(columns='id', column_prefix='val')
 
+    # noinspection PyTypeChecker
     def test_pack_columns_bad_col_prefix_type(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         with self.assertRaises(TypeError):
@@ -3446,11 +3473,13 @@ class TestXFramePackColumnsList(XFrameUnitTestCase):
         with self.assertRaises(ValueError):
             t.pack_columns(columns=['id'])
 
+    # noinspection PyTypeChecker
     def test_pack_columns_bad_dtype(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         with self.assertRaises(ValueError):
             t.pack_columns(columns=['id', 'val'], dtype=int)
 
+    # noinspection PyTypeChecker
     def test_pack_columns_bad_new_col_name_type(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         with self.assertRaises(TypeError):
@@ -3560,7 +3589,7 @@ class TestXFramePackColumnsArray(XFrameUnitTestCase):
             t.pack_columns(columns=['id', 'val'], new_column_name='new', dtype=array.array, fill_na='a')
 
     def test_pack_columns_bad_not_numeric(self):
-        t = XFrame({'id': [1, 2, 3, 4], 'val': ['a' 'b' 'c', 'd']})
+        t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         with self.assertRaises(TypeError):
             t.pack_columns(columns=['id', 'val'], new_column_name='new', dtype=array.array)
 
@@ -3727,6 +3756,7 @@ class TestXFrameStackList(XFrameUnitTestCase):
         with self.assertRaises(TypeError):
             t.stack('val')
 
+    # noinspection PyTypeChecker
     def test_stack_bad_new_col_name_type(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         with self.assertRaises(TypeError):
@@ -3783,6 +3813,7 @@ class TestXFrameStackDict(XFrameUnitTestCase):
         with self.assertRaises(ValueError):
             t.stack('xx')
 
+    # noinspection PyTypeChecker
     def test_stack_bad_new_col_name_type(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': [{'a': 3, 'b': 2}, {'a': 2, 'c': 2}, {'c': 1, 'd': 3}, {}]})
         with self.assertRaises(TypeError):
@@ -3986,6 +4017,7 @@ class TestXFrameDropna(XFrameUnitTestCase):
         self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
         self.assertDictEqual({'id': 2, 'val': None}, res[1])
 
+    # noinspection PyTypeChecker
     def test_dropna_bad_col_arg(self):
         t = XFrame({'id': [1, 2, None], 'val': ['a', None, 'c']})
         with self.assertRaises(TypeError):
@@ -4052,6 +4084,7 @@ class TestXFrameFillna(XFrameUnitTestCase):
         with self.assertRaises(ValueError):
             t.fillna('xx', 0)
 
+    # noinspection PyTypeChecker
     def test_fillna_bad_arg_type(self):
         t = XFrame({'id': [1, None, None], 'val': ['a', 'b', 'c']})
         with self.assertRaises(TypeError):
