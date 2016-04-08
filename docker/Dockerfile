@@ -14,6 +14,10 @@ EXPOSE 80
 RUN apt-get update --fix-missing
 RUN apt-get install -y --fix-missing wget default-jdk emacs23 nginx
 
+# This is for spark 1.3.1
+#ENV SPARK_VER spark-1.3.1
+#ENV PY4J_VER py4j-0.8.2.1-src.zip
+
 # This is for spark 1.6.1
 ENV SPARK_VER spark-1.6.1
 ENV PY4J_VER py4j-0.9-src.zip
