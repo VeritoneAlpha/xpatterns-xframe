@@ -27,7 +27,7 @@ from xframes.xobject import XObject
 from xframes.xframe_impl import XFrameImpl
 from xframes.xplot import XPlot
 from xframes.xarray_impl import infer_type_of_list
-from xframes.util import make_internal_url, classify_type
+from xframes.util import make_internal_url, classify_type, classify_auto
 from xframes.xarray import XArray
 import xframes
 import util
@@ -203,6 +203,69 @@ class XFrame(XObject):
         _format = self._classify_auto(data) if format == 'auto' else format
         # print >>stderr, 'format', _format
 
+        def construct_array(data):
+            if len(data) > 0:
+                unique_types = set([type(x) for x in data if x is not None])
+                if len(unique_types) == 1 and XArray in unique_types:
+                    xf = XFrameImpl()
+                    for arr in data:
+                        xf = xf.add_column(arr.impl(), '')
+                    return xf
+                if XArray in unique_types:
+                    raise ValueError('Cannot create XFrame from mix of regular values and XArrays.')
+                return XFrameImpl.from_xarray(XArray(data).impl())
+            return XFrameImpl()
+
+        def construct_dict(data):
+            if not isinstance(data, dict):
+                raise ValueError('Data is not dictionary')
+
+            # special case if all are regular lists
+            all_list = True
+            list_len = None
+            for val in data.itervalues():
+                if not isinstance(val, list):
+                    all_list = False
+                    break
+                if list_len is None:
+                    list_len = len(val)
+                if len(val) != list_len:
+                    raise ValueError('Cannot create XFrame from dict of lists of different lengths.')
+            if all_list:
+                column_names = []
+                cols = []
+                for key, val in iter(sorted(data.iteritems())):
+                    column_names.append(key)
+                    cols.append(val)
+                rows = [row for row in zip(*cols)]
+                column_types = [classify_auto(col) for col in cols]
+                return XFrameImpl.load_from_tuple_list(rows, column_names, column_types)
+            # General case
+            xf = XFrameImpl()
+            for key, val in iter(sorted(data.iteritems())):
+                if isinstance(val, XArray):
+                    xf = xf.add_column(val.impl(), key)
+                else:
+                    xf = xf.add_column(XArray(val).impl(), key)
+            return xf
+
+        def construct_iteritems(data):
+            if data is None:
+                raise ValueError('Empty iterable')
+            xf = XFrameImpl()
+            for key, val in iter(sorted(data.iteritems())):
+                if not hasattr(val, '__iter__'):
+                    raise TypeError('Iterator values must be iterable.')
+                xf = xf.add_column(XArray(val).impl(), key)
+            return xf
+
+        def construct_csv(data, delimiter):
+            if not isinstance(data, basestring):
+                raise ValueError('Path is not a string: {}'.format(type(path).__name__))
+            url = make_internal_url(data)
+            tmpxf = XFrame.read_csv(url, delimiter=delimiter, header=True, verbose=verbose)
+            return tmpxf.impl()
+
         if _format == 'pandas.dataframe':
             if not isinstance(data, pandas.DataFrame):
                 raise ValueError('Data is not pandas.DataFrame')
@@ -216,61 +279,22 @@ class XFrame(XObject):
                 raise ValueError('Data is not XArray')
             self._impl = XFrameImpl.from_xarray(data.impl())
         elif _format == 'array':
-            if len(data) > 0:
-                unique_types = set([type(x) for x in data if x is not None])
-                if len(unique_types) == 1 and XArray in unique_types:
-                    xf = XFrameImpl()
-                    for arr in data:
-                        xf = xf.add_column(arr.impl(), '')
-                    self._impl = xf
-                elif XArray in unique_types:
-                    raise ValueError('Cannot create XFrame from mix of regular values and XArrays.')
-                else:
-                    self._impl = XFrameImpl.from_xarray(XArray(data).impl())
-            else:
-                self._impl = XFrameImpl()
+            self._impl = construct_array(data)
         elif _format == 'iter':
             self._impl = XFrameImpl.from_xarray(XArray(data).impl())
         elif _format == 'dict':
-            if not isinstance(data, dict):
-                raise ValueError('Data is not dictionary')
-            xf = XFrameImpl()
-            for key, val in iter(sorted(data.iteritems())):
-                if isinstance(val, XArray):
-                    xf = xf.add_column(val.impl(), key)
-                else:
-                    xf = xf.add_column(XArray(val).impl(), key)
-            self._impl = xf
+            self._impl = construct_dict(data)
         elif _format == 'iteritems':
-            if data is None:
-                raise ValueError('Empty iterable')
-            xf = XFrameImpl()
-            for key, val in iter(sorted(data.iteritems())):
-                if not hasattr(val, '__iter__'):
-                    raise TypeError('Iterator values must be iterable.')
-                xf = xf.add_column(XArray(val).impl(), key)
-            self._impl = xf
+            self._impl = construct_iteritems(data)
         elif _format == 'csv':
-            if not isinstance(data, basestring):
-                raise ValueError('Csv path is not a string')
-            url = make_internal_url(data)
-            tmpxf = XFrame.read_csv(url, delimiter=',', header=True, verbose=verbose)
-            self._impl = tmpxf.impl()
+            self._impl = construct_csv(data, ',')
         elif _format == 'tsv':
-            if not isinstance(data, basestring):
-                raise ValueError('Tsv path is not a string')
-            url = make_internal_url(data)
-            tmpxf = XFrame.read_csv(url, delimiter='\t', header=True, verbose=verbose)
-            self._impl = tmpxf.impl()
+            self._impl = construct_csv(data, '\t')
         elif _format == 'psv':
-            if not isinstance(data, basestring):
-                raise ValueError('Psv path is not a string')
-            url = make_internal_url(data)
-            tmpxf = XFrame.read_csv(url, delimiter='|', header=True, verbose=verbose)
-            self._impl = tmpxf.impl()
+            self._impl = construct_csv(data, '|')
         elif _format == 'parquet':
             if not isinstance(data, basestring):
-                raise ValueError('Parquet path is not a string')
+                raise ValueError('Parquet path is not a string: {}'.format(type(data).__name__))
             url = make_internal_url(data)
             tmpxf = XFrame.read_parquet(url)
             self._impl = tmpxf.impl()
@@ -286,7 +310,7 @@ class XFrame(XObject):
             self._impl = XFrameImpl.load_from_spark_dataframe(data)
         elif _format == 'hive':
             if not isinstance(data, basestring):
-                raise ValueError('Hive path is not a string')
+                raise ValueError('Hive path is not a string: {}'.format(type(data).__name__))
             self._impl = XFrameImpl.load_from_hive(data)
         elif _format == 'rdd':
             if data is None:
@@ -307,6 +331,10 @@ class XFrame(XObject):
             return 'xarray'
         if isinstance(data, XFrame):
             return 'xframe_obj'
+        if isinstance(data, dict):
+            return 'dict'
+        if isinstance(data, array.array):
+            return 'array'
         if hasattr(data, 'iteritems'):
             return 'iteritems'
         if hasattr(data, '__iter__'):
@@ -652,7 +680,7 @@ class XFrame(XObject):
         skip_initial_space : bool, optional
             Ignore extra spaces at the start of a field
 
-        column_type_hints : None, type, list[type], dict[string, type], optional
+        column_type_hints : None, type, list[type], dict{string: type}, optional
             This provides type hints for each column. By default, this method
             attempts to detect the type of each column automatically.
 
@@ -1679,7 +1707,7 @@ class XFrame(XObject):
             raise ValueError('Argument is not an RDD.')
         return xf
 
-    def apply(self, fn, dtype=None, seed=None):
+    def apply(self, fn, dtype=None, use_columns=None, seed=None):
         """
         Transform each row to an :class:`~xframes.XArray` according to a
         specified function. Returns a new XArray of `dtype` where each element
@@ -1699,6 +1727,10 @@ class XFrame(XObject):
             The `dtype` of the new XArray. If None, the first 100
             elements of the array are used to guess the target
             data type.
+
+        use_columns : str | list[str], optional
+            The column or list of columns to be supplied in the row passed to the function.
+            If not given, all columns wll be used to build the row.
 
         seed : int, optional
             Used as the seed if a random number generator is included in `fn`.
@@ -1722,8 +1754,13 @@ class XFrame(XObject):
         """
         if not inspect.isfunction(fn):
             raise TypeError('Input must be a function.')
+        if isinstance(use_columns, basestring):
+            use_columns = [use_columns]
         rows = self._impl.head_as_list(10)
         names = self._impl.column_names()
+        if use_columns:
+            rows = [{k: v for k, v in row.iteritems() if k in use_columns} for row in rows]
+            names = [name for name in names if name in use_columns]
         dryrun = [fn(dict(zip(names, row))) for row in rows]
         if dtype is None:
             dtype = infer_type_of_list(dryrun)
@@ -1731,9 +1768,9 @@ class XFrame(XObject):
         if not seed:
             seed = int(time.time())
 
-        return XArray(impl=self._impl.transform(fn, dtype, seed))
+        return XArray(impl=self._impl.apply(fn, dtype, use_columns, seed))
 
-    def transform_col(self, col, fn=None, dtype=None, seed=None):
+    def transform_col(self, col, fn=None, dtype=None, use_columns=None, seed=None):
         """
         Transform a single column according to a specified function. 
         The remaining columns are not modified.
@@ -1758,6 +1795,10 @@ class XFrame(XObject):
             The column data type of the new XArray. If None, the first 100
             elements of the array are used to guess the target
             data type.
+
+        use_columns : str | list[str], optional
+            The column or list of columns to be supplied in the row passed to the function.
+            If not given, all columns wll be used to build the row.
 
         seed : int, optional
             Used as the seed if a random number generator is included in `fn`.
@@ -1788,8 +1829,13 @@ class XFrame(XObject):
                 return row[col]
         elif not inspect.isfunction(fn):
             raise TypeError('Input must be a function.')
+        if isinstance(use_columns, basestr):
+            use_columns = [use_columns]
         rows = self._impl.head_as_list(10)
         names = self._impl.column_names()
+        if use_columns:
+            rows = [{k: v for k, v in row.iteritems() if k in use_columns} for row in rows]
+            names = [name for name in names if name in use_columns]
         # do the dryrun so we can see some diagnostic output
         dryrun = [fn(dict(zip(names, row))) for row in rows]
         if dtype is None:
@@ -1797,8 +1843,9 @@ class XFrame(XObject):
         if not seed:
             seed = int(time.time())
 
-        return XFrame(impl=self._impl.transform_col(col, fn, dtype, seed))
+        return XFrame(impl=self._impl.transform_col(col, fn, dtype, use_columns, seed))
 
+    # noinspection PyTypeChecker
     def transform_cols(self, cols, fn=None, dtypes=None, seed=None):
         """
         Transform multiple columns according to a specified function. 
@@ -2049,7 +2096,7 @@ class XFrame(XObject):
 
         return self
 
-    def flat_map(self, column_names, fn, column_types='auto', seed=None):
+    def flat_map(self, column_names, fn, column_types='auto', use_columns=None, seed=None):
         """
         Map each row of the XFrame to multiple rows in a new XFrame via a
         function.
@@ -2072,9 +2119,10 @@ class XFrame(XObject):
             The column names for the returned XFrame.
 
         fn : function
-            The function that maps each of the xframe row into multiple rows,
+            The function that maps each of the xframe rows into multiple rows,
             returning ``list[list[...]]``.  All output rows must have the same
-            length and order of types.
+            length and order of types.  The function is passed a dictionary
+            of column name: value for each row.
 
         column_types : list[type], optional
             The column types of the output XFrame. Default value
@@ -2114,12 +2162,17 @@ class XFrame(XObject):
             raise TypeError('Input must be a function')
         if not seed:
             seed = int(time.time())
+        if isinstance(use_columns, basestring):
+            use_columns = [use_columns]
 
         # determine the column_types
         if column_types == 'auto':
             types = set()
             rows = self._impl.head_as_list(10)
             names = self._impl.column_names()
+            if use_columns:
+                rows = [{k: v for k, v in row.iteritems() if k in use_columns} for row in rows]
+                names = [name for name in names if name in use_columns]
             results = [fn(dict(zip(names, row))) for row in rows]
             if not (results is None or isinstance(results, list)):
                 raise TypeError('Output type of the lambda function must be a list of lists.')
@@ -2140,7 +2193,7 @@ class XFrame(XObject):
             raise TypeError('Column_types must be a list: {} {}.'.format(type(column_types).__name__, column_types))
         if not len(column_types) == len(column_names):
             raise ValueError('Number of output columns must match the size of column names.')
-        return XFrame(impl=self._impl.flat_map(fn, column_names, column_types, seed))
+        return XFrame(impl=self._impl.flat_map(fn, column_names, column_types, use_columns, seed))
 
     def sample(self, fraction, seed=None):
         """
@@ -2551,23 +2604,23 @@ class XFrame(XObject):
         +----+-----+-----+---------+
         [3 rows x 4 columns]
         """
-        col_list = cols
         if isinstance(cols, XFrame):
-            return XFrame(impl=self._impl.add_columns_frame(cols))
+            return XFrame(impl=self._impl.add_columns_frame(cols._impl))
         else:
-            if not hasattr(col_list, '__iter__'):
+            if not hasattr(cols, '__iter__'):
                 raise TypeError('Column list must be an iterable.')
             if not hasattr(namelist, '__iter__'):
                 raise TypeError('Namelist must be an iterable.')
 
-            if not all([isinstance(x, XArray) for x in col_list]):
+            if not all([isinstance(x, XArray) for x in cols]):
                 raise TypeError('Must give column as XArray.')
             if not all([isinstance(x, str) for x in namelist]):
                 raise TypeError("Invalid column name in list : must all be 'str'.")
-            if len(namelist) != len(col_list):
+            if len(namelist) != len(cols):
                 raise ValueError('Namelist length mismatch.')
 
-            return XFrame(impl=self._impl.add_columns_array(col_list, namelist))
+            cols_impl = [col._impl for col in cols]
+            return XFrame(impl=self._impl.add_columns_array(cols_impl, namelist))
 
     def replace_column(self, name, col):
         """
@@ -2611,7 +2664,7 @@ class XFrame(XObject):
             raise TypeError('Invalid column name: must be str.')
         if name not in self.column_names():
             raise ValueError('Column name must be in XFrame')
-        return XFrame(impl=self._impl.replace_selected_column(name, col))
+        return XFrame(impl=self._impl.replace_selected_column(name, col._impl))
 
     def remove_column(self, name):
         """
@@ -2889,7 +2942,7 @@ class XFrame(XObject):
                 for name in value.column_names():
                     if name in self.column_names():
                         raise ValueError("Column '{}' already exists in current XFrame.".format(name))
-                self._impl.add_columns_frame_in_place(value)
+                self._impl.add_columns_frame_in_place(value._impl)
             else:
                 if not hasattr(col_list, '__iter__'):
                     raise TypeError('Column list must be an iterable.')
@@ -2901,7 +2954,8 @@ class XFrame(XObject):
                     raise TypeError("Invalid column name in list : must all be 'str'.")
                 if len(key) != len(col_list):
                     raise ValueError('Namelist length mismatch.')
-                self._impl.add_columns_array_in_place(col_list, key)
+                cols_impl = [ col._impl for col in col_list]
+                self._impl.add_columns_array_in_place(cols_impl, key)
         elif isinstance(key, str):
             if isinstance(value, XArray):
                 sa_value = value
@@ -2933,9 +2987,9 @@ class XFrame(XObject):
                 # implementation.
                 single_column = (self.num_columns() == 1)
                 if single_column:
-                    self._impl.replace_single_column_in_place(sa_value)
+                    self._impl.replace_single_column_in_place(sa_value._impl)
                 else:
-                    self._impl.replace_selected_column_in_place(key, sa_value)
+                    self._impl.replace_selected_column_in_place(key, sa_value._impl)
 
         else:
             raise TypeError('Cannot set column with key type {}.'.format(type(key).__name__))

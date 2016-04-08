@@ -75,32 +75,30 @@ class XArrayImpl(XObjectImpl, TracedObject):
         self._entry(elem_type=elem_type)
         super(XArrayImpl, self).__init__(rdd)
         self.elem_type = elem_type
-        self.lineage = lineage or Lineage.init_array_lineage(set())
+        self.lineage = lineage or Lineage.init_array_lineage()
         self.materialized = False
         self.iter_pos = 0
 
     def _rv(self, rdd, typ=None, lineage=None):
         """
-        Return a new XArrayImpl containing the rdd and element type
+        Return a new XArrayImpl containing the rdd,element type, and lineage.
         """
         return XArrayImpl(rdd, typ or self.elem_type, lineage or self.lineage)
 
     @staticmethod
-    def _rv_frame(rdd, col_names=None, types=None, lineage=None):
+    def _rv_frame(rdd, col_names=None, col_types=None, lineage=None):
         """
         Return a new XFrameImpl containing the rdd, column names, and element types
         """
         # noinspection PyUnresolvedReferences
-        return xframes.xframe_impl.XFrameImpl(rdd,
-                                              col_names,
-                                              types,
-                                              lineage or Lineage.init_frame_lineage({'RDD'}, col_names))
+        lineage = lineage or Lineage.init_frame_lineage(Lineage.RDD, col_names)
+        return xframes.xframe_impl.XFrameImpl(rdd, col_names, col_types, lineage)
 
-    def _replace(self, rdd, dtype=None, lineage=None):
-        self._replace_rdd(rdd)
-        self.elem_type = self.elem_type or dtype
-        self.lineage = lineage or self.lineage
-        self.materialized = False
+#    def _replace(self, rdd, dtype=None, lineage=None):
+#        self._replace_rdd(rdd)
+#        self.elem_type = dtype or self.elem_type
+#        self.lineage = lineage or self.lineage
+#        self.materialized = False
 
     def _count(self):
         count = self._rdd.count()
@@ -123,7 +121,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             step = -1
         sc = CommonSparkContext.spark_context()
         rdd = XRdd(sc.parallelize(range(start, stop, step)))
-        return XArrayImpl(rdd, int, Lineage.init_array_lineage({'RANGE'}))
+        return XArrayImpl(rdd, int, Lineage.init_array_lineage(Lineage.RANGE))
 
     # Load
     @classmethod
@@ -179,7 +177,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             if errs:
                 raise ValueError
 
-        return cls(rdd, dtype, Lineage.init_array_lineage({'PROGRAM'}))
+        return cls(rdd, dtype, Lineage.init_array_lineage(Lineage.PROGRAM))
 
     @classmethod
     def load_from_const(cls, value, size):
@@ -189,7 +187,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         cls._entry(value=value, size=size)
         values = [value for _ in xrange(0, size)]
         sc = CommonSparkContext.spark_context()
-        return cls(XRdd(sc.parallelize(values)), type(value), Lineage.init_array_lineage({'CONST'}))
+        return cls(XRdd(sc.parallelize(values)), type(value), Lineage.init_array_lineage(Lineage.CONST))
 
     @classmethod
     def load_autodetect(cls, path, dtype):
@@ -206,7 +204,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         # If the path is a file, look for that file
         # Use type inference to determine the element type.
         # Passed-in dtype is always str and is ignored.
-        lineage = Lineage.init_array_lineage(({path}))
+        lineage = Lineage.init_array_lineage(path)
         sc = CommonSparkContext.spark_context()
         if os.path.isdir(path):
             res = XRdd(sc.pickleFile(path))
@@ -321,7 +319,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
 
     @classmethod
     def from_rdd(cls, rdd, dtype):
-        return cls(rdd, dtype, {'RDD'})
+        return cls(rdd, dtype, Lineage.init_array_lineage(Lineage.RDD))
 
     # Array Information
     def size(self):
@@ -477,7 +475,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             res_type = int
         else:
             raise NotImplementedError(op)
-        lineage = self.lineage.merge(other.lineage)
+        lineage = self.lineage.merge(other.lineage)  # TODO lineage
         return self._rv(res, res_type, lineage)
 
     def left_scalar_operator(self, other, op):
@@ -583,7 +581,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             return (x - start) % step == 0
         pairs = self._rdd.zipWithIndex()
         res = pairs.filter(lambda x: select_row(x[1], start, step, stop)).map(lambda x: x[0])
-        return self._rv(res)
+        return self._rv(res)  # TODO lineage
 
     def vector_slice(self, start, end):
         """
@@ -930,7 +928,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         res = res.map(lambda row: narrow(row, n_cols))
         res = res.map(lambda row: cast_row(row, column_types))
         res = res.map(tuple)
-        return self._rv_frame(res, column_names, column_types)
+        return self._rv_frame(res, column_names, column_types)  # TODO lineage
 
     def sort(self, ascending):
         """
@@ -953,7 +951,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         """
         self._entry()
         if self.elem_type is dict:
-            raise TypeError('unique: type is dict')
+            raise TypeError('Unique: cannot take unique of dict type.')
         res = self._rdd.distinct()
         return self._rv(res)
 

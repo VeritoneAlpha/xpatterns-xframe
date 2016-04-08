@@ -82,7 +82,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         column_types = column_types or []
         self.col_names = list(col_names)
         self.column_types = list(column_types)
-        self.lineage = lineage or Lineage.init_frame_lineage(set(), self.col_names)
+        self.lineage = lineage or Lineage.init_frame_lineage(Lineage.EMPTY, self.col_names)
         self.iter_pos = None
         self._num_rows = None
 
@@ -105,7 +105,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._rdd = None
         self.col_names = []
         self.column_types = []
-        self.table_lineage = Lineage.init_frame_lineage(set(), self.col_names)
+        self.table_lineage = Lineage.init_frame_lineage(None, self.col_names)
         self.materialized = False
 
     def _replace(self, rdd, col_names=None, column_types=None, lineage=None):
@@ -146,6 +146,13 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
     # Load
     @classmethod
+    def load_from_tuple_list(cls, data, column_names, column_types):
+        sc = cls.spark_context()
+        rdd = sc.parallelize(data)
+        lineage = Lineage.init_frame_lineage(Lineage.PROGRAM, column_names)
+        return XFrameImpl(rdd, column_names, column_types, lineage)
+
+    @classmethod
     def load_from_pandas_dataframe(cls, data):
         """
         Load from a pandas.DataFrame.
@@ -162,7 +169,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         dtypes = data.dtypes
         column_names = [col for col in columns]
         column_types = [type(numpy.zeros(1, dtype).tolist()[0]) for dtype in dtypes]
-        lineage = Lineage.init_frame_lineage({'PANDAS'}, column_names)
+        lineage = Lineage.init_frame_lineage(Lineage.PANDAS, column_names)
 
         res = []
         for row in data.iterrows():
@@ -190,7 +197,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         if fileio.exists(lineage_path):
             lineage = Lineage.load(lineage_path)
         else:
-            lineage = Lineage.init_frame_lineage({path}, names)
+            lineage = Lineage.init_frame_lineage(path, names)
         return cls(res, names, types, lineage)
 
     @classmethod
@@ -202,7 +209,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         schema = rdd.schema
         xf_names = [str(col.name) for col in schema.fields]
         xf_types = [to_ptype(col.dataType) for col in schema.fields]
-        lineage = Lineage.init_frame_lineage({'DATAFRAME'}, xf_names)
+        lineage = Lineage.init_frame_lineage(Lineage.DATAFRAME, xf_names)
 
         def row_to_tuple(row):
             return tuple([row[i] for i in range(len(row))])
@@ -228,7 +235,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
         def row_to_tuple(row):
             return tuple([row[i] for i in range(len(row))])
         rdd = hive_dataframe.map(row_to_tuple)
-        return cls(rdd, xf_names, xf_types, {dataset})
+        lineage = Lineage.init_frame_lineage(dataset, xf_names)
+        return cls(rdd, xf_names, xf_types, lineage)
 
     @classmethod
     def load_from_rdd(cls, rdd, names=None, types=None):
@@ -242,7 +250,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 raise ValueError('Length of types does not match RDD.')
         names = names or ['X.{}'.format(i) for i in range(len(first_row))]
         types = types or [type(elem) for elem in first_row]
-        lineage = Lineage.init_frame_lineage({'RDD'}, names)
+        lineage = Lineage.init_frame_lineage(Lineage.RDD, names)
         # TODO sniff types using more of the rdd
         return cls(rdd, names, types, lineage)
 
@@ -252,8 +260,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         Load RDD from a csv file and return a XFrameImpl
         """
         cls._entry(path=path, parsing_config=parsing_config, type_hints=type_hints)
-
-        table_lineage = {path}
 
         def get_config(name):
             return parsing_config[name] if name in parsing_config else None
@@ -493,7 +499,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
             if row_limit is None:
                 persist(res)
 
-        lineage = Lineage.init_frame_lineage({path}, col_names)
+        lineage = Lineage.init_frame_lineage(path, col_names)
 
         # returns a dict of errors and XFrameImpl
         return errs, XFrameImpl(res, col_names, column_types, lineage)
@@ -523,7 +529,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
             res = rdd.values().map(lambda line: (fixup_line(line), ))
         col_names = ['text']
         col_types = [str]
-        lineage = Lineage.init_frame_lineage({path}, col_names)
+        lineage = Lineage.init_frame_lineage(path, col_names)
         return XFrameImpl(res, col_names, col_types, lineage)
 
     @classmethod
@@ -541,7 +547,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         schema = s_rdd.schema
         col_names = [str(col.name) for col in schema.fields]
         col_types = [to_ptype(col.dataType) for col in schema.fields]
-        lineage = Lineage.init_frame_lineage({path}, col_names)
+        lineage = Lineage.init_frame_lineage(path, col_names)
 
         rdd = s_rdd.map(lambda row: tuple(row))
         return XFrameImpl(rdd, col_names, col_types, lineage)
@@ -864,7 +870,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
         col = self.col_names.index(column_name)
         res = self._rdd.map(lambda row: row[col])
         col_type = self.column_types[col]
-        return xframes.xarray_impl.XArrayImpl(res, col_type)
+        lineage = self.lineage.to_array_lineage(column_name)
+        return xframes.xarray_impl.XArrayImpl(res, col_type, lineage)
 
     def select_columns(self, keylist):
         """
@@ -879,7 +886,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
         names = [self.col_names[col] for col in cols]
         types = [self.column_types[col] for col in cols]
         res = self._rdd.map(lambda row: get_columns(row, cols))
-        return self._rv(res, names, types)
+        lineage = self.lineage.select_columns(names)
+        return self._rv(res, names, types, lineage)
 
     def copy(self):
         """
@@ -902,7 +910,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
     def add_column(self, col, name):
         """
-        Create a new xFrame with one additional column.
+        Create a new xFrame with one additional column (an XArray).
 
         The number of elements in the data given
         must match the length of every other column of the XFrame. If no
@@ -935,12 +943,12 @@ class XFrameImpl(XObjectImpl, TracedObject):
             def move_inside(old_val, new_elem):
                 return tuple(old_val + (new_elem, ))
             res = res.map(lambda pair: move_inside(pair[0], pair[1]))
-        lineage = self.lineage.add_column(col.lineage, new_name)
+        lineage = self.lineage.add_column(col, new_name)
         return self._rv(res, col_names, col_types, lineage)
 
-    def add_column_in_place(self, data, name):
+    def add_column_in_place(self, col, name):
         """
-        Add a column to this XFrame.
+        Add a column (as XArray) to this XFrame.
 
         This operation modifies the current XFrame in place and returns self.
         """
@@ -951,19 +959,19 @@ class XFrameImpl(XObjectImpl, TracedObject):
         if name in self.col_names:
             raise ValueError("Column name already exists: '{}'.".format(name))
         self.col_names.append(name)
-        self.column_types.append(data.elem_type)
+        self.column_types.append(col.elem_type)
         # zip the data into the rdd, then shift into the tuple
         if self._rdd is None:
-            res = data.rdd().map(lambda x: (x, ))
+            res = col.rdd().map(lambda x: (x, ))
         else:
-            res = self._rdd.zip(data.rdd())
+            res = self._rdd.zip(col.rdd())
 
             def move_inside(old_val, new_elem):
                 return tuple(old_val + (new_elem, ))
             res = res.map(lambda pair: move_inside(pair[0], pair[1]))
-        return self._replace(res)
+        lineage = self.lineage.add_column(col, name)
+        return self._replace(res, lineage=lineage)
 
-    # noinspection PyProtectedMember
     def add_columns_array(self, cols, namelist):
         """
         Adds multiple columns to this XFrame.
@@ -976,15 +984,16 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         self._entry(namelist=namelist)
         names = self.col_names + namelist
-        types = self.column_types + [col.impl().elem_type for col in cols]
+        types = self.column_types + [col.elem_type for col in cols]
         rdd = self._rdd
         for col in cols:
-            rdd = rdd.zip(col.impl().rdd())
+            rdd = rdd.zip(col.rdd())
 
             def move_inside(old_val, new_elem):
                 return tuple(old_val + (new_elem, ))
             rdd = rdd.map(lambda pair: move_inside(pair[0], pair[1]))
-        return self._rv(rdd, names, types)
+        lineage = self.lineage.add_columns(cols, namelist)
+        return self._rv(rdd, names, types, lineage)
 
     def add_columns_array_in_place(self, cols, namelist):
         """
@@ -994,15 +1003,16 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         self._entry(namelist=namelist)
         names = self.col_names + namelist
-        types = self.column_types + [col.impl().elem_type for col in cols]
+        types = self.column_types + [col.elem_type for col in cols]
         rdd = self._rdd
         for col in cols:
-            rdd = rdd.zip(col.impl().rdd())
+            rdd = rdd.zip(col.rdd())
 
             def move_inside(old_val, new_elem):
                 return tuple(old_val + (new_elem, ))
             rdd = rdd.map(lambda pair: move_inside(pair[0], pair[1]))
-        return self._replace(rdd, names, types)
+        lineage = self.lineage.add_columns(cols, namelist)
+        return self._replace(rdd, names, types, lineage)
 
     def add_columns_frame(self, other):
         """
@@ -1015,9 +1025,11 @@ class XFrameImpl(XObjectImpl, TracedObject):
         This operation returns a new XFrame.
         """
         self._entry()
-        names = self.col_names + other.impl().col_names
+        names = self.col_names + other.col_names
         new_names = []
+        name_map = {}
         for name in names:
+            old_name = name
             if name in new_names:
                 col_index = 1
                 name = '{}.{}'.format(name, col_index)
@@ -1025,15 +1037,17 @@ class XFrameImpl(XObjectImpl, TracedObject):
                     col_index += 1
                     name = '{}.{}'.format(name, col_index)
             new_names.append(name)
+            name_map[old_name] = name
 
-        types = self.column_types + other.impl().column_types
+        types = self.column_types + other.column_types
 
         def merge(old_cols, new_cols):
             return old_cols + new_cols
 
-        rdd = self._rdd.zip(other.impl().rdd())
+        rdd = self._rdd.zip(other.rdd())
         res = rdd.map(lambda pair: merge(pair[0], pair[1]))
-        return self._rv(res, new_names, types)
+        lineage = self.lineage.merge(other.lineage.replace_column_names(name_map))  ##
+        return self._rv(res, new_names, types, lineage)
 
     def add_columns_frame_in_place(self, other):
         """
@@ -1042,15 +1056,16 @@ class XFrameImpl(XObjectImpl, TracedObject):
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry()
-        names = self.col_names + other.impl().col_names
-        types = self.column_types + other.impl().column_types
+        names = self.col_names + other.col_names
+        types = self.column_types + other.column_types
 
         def merge(old_cols, new_cols):
             return old_cols + new_cols
 
-        rdd = self._rdd.zip(other.impl().rdd())
+        rdd = self._rdd.zip(other.rdd())
         res = rdd.map(lambda pair: merge(pair[0], pair[1]))
-        return self._replace(res, names, types)
+        lineage = self.lineage.merge(other.lineage)
+        return self._replace(res, names, types, lineage)
 
     def remove_column(self, name):
         """
@@ -1070,7 +1085,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
             lst.pop(col)
             return tuple(lst)
         res = self._rdd.map(lambda row: pop_col(row, col))
-        return self._rv(res, col_names, col_types)
+        lineage = self.lineage.remove_column(name)
+        return self._rv(res, col_names, col_types, lineage)
 
     def remove_column_in_place(self, name):
         """
@@ -1088,7 +1104,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
             lst.pop(col)
             return tuple(lst)
         res = self._rdd.map(lambda row: pop_col(row, col))
-        return self._replace(res)
+        lineage = self.lineage.remove_column(name)
+        return self._replace(res, lineage=lineage)
 
     def remove_columns(self, col_names):
         """
@@ -1112,7 +1129,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 lst.pop(col)
             return tuple(lst)
         res = self._rdd.map(lambda row: pop_cols(row, cols))
-        return self._rv(res, col_names, col_types)
+        lineage = self.lineage.remove_columns(col_names)
+        return self._rv(res, col_names, col_types, lineage)
 
     def swap_columns(self, column_1, column_2):
         """
@@ -1165,12 +1183,14 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
     def replace_column_names(self, new_names):
         """
-        Return new XFrameImpl, with coluumn names replaced.
+        Return new XFrameImpl, with column names replaced.
         """
         self._entry(new_names=new_names)
-        return self._rv(self._rdd, new_names)
+        name_map = {k: v for k, v in zip(self.col_names, new_names)}
+        lineage = self.lineage.replace_column_names(name_map)
+        return self._rv(self._rdd, new_names, lineage=lineage)
 
-    # Iteration
+        # Iteration
 
     # Begin_iterator is called by a generator function, local to __iter__.
         # It calls iterator_get_next to fetch a group of items, then returns them one by one
@@ -1213,7 +1233,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self.col_names.append(name)
         col_type = type(value)
         self.column_types.append(col_type)
-        return self._replace(res)
+        lineage = self.lineage.add_col_const(name)
+        return self._replace(res, lineage=lineage)
 
     def replace_column_const_in_place(self, name, value):
         """
@@ -1232,7 +1253,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
         col_type = type(value)
         self.column_types[col_num] = col_type
-        return self._replace(res)
+        lineage = self.lineage.add_col_const(name)
+        return self._replace(res, lineage=lineage)
 
     def replace_single_column_in_place(self, col):
         """
@@ -1241,10 +1263,11 @@ class XFrameImpl(XObjectImpl, TracedObject):
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry()
-        res = col.impl().rdd().map(lambda item: (item, ))
-        col_type = infer_type_of_rdd(col.impl().rdd())
+        res = col.rdd().map(lambda item: (item, ))
+        col_type = infer_type_of_rdd(col.rdd())
         self.column_types[0] = col_type
-        return self._replace(res)
+        lineage = col.lineage
+        return self._replace(res, lineage=lineage)
 
     def replace_selected_column(self, column_name, col):
         """
@@ -1253,7 +1276,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         This operation returns a new XFrame.
         """
         self._entry(column_name=column_name)
-        rdd = self._rdd.zip(col.impl().rdd())
+        rdd = self._rdd.zip(col.rdd())
         col_num = self.col_names.index(column_name)
 
         def replace_col(row_col, col_num):
@@ -1264,10 +1287,11 @@ class XFrameImpl(XObjectImpl, TracedObject):
         res = rdd.map(lambda row_col: replace_col(row_col, col_num))
         col_names = copy.copy(self.column_names())
         col_names[col_num] = column_name
-        col_type = infer_type_of_rdd(col.impl().rdd())
+        col_type = infer_type_of_rdd(col.rdd())
         col_types = copy.copy(self.column_types)
         col_types[col_num] = col_type
-        return self._rv(res, col_names, col_types)
+        lineage = self.lineage.replace_column(col, column_name)
+        return self._rv(res, col_names, col_types, lineage)
 
     def replace_selected_column_in_place(self, column_name, col):
         """
@@ -1276,7 +1300,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         This operation modifies the current XFrame in place and returns self.
         """
         self._entry(column_name=column_name)
-        rdd = self._rdd.zip(col.impl().rdd())
+        rdd = self._rdd.zip(col.rdd())
         col_num = self.col_names.index(column_name)
 
         def replace_col(row_col, col_num):
@@ -1285,12 +1309,13 @@ class XFrameImpl(XObjectImpl, TracedObject):
             row[col_num] = col
             return tuple(row)
         res = rdd.map(lambda row_col: replace_col(row_col, col_num))
-        col_type = infer_type_of_rdd(col.impl().rdd())
+        col_type = infer_type_of_rdd(col.rdd())
         self.column_types[col_num] = col_type
-        return self._replace(res)
+        lineage = self.lineage.replace_column(col, column_name)
+        return self._replace(res, lineage=lineage)
 
     # Row Manipulation
-    def flat_map(self, fn, column_names, column_types, seed):
+    def flat_map(self, fn, column_names, column_types, use_columns, seed):
         """
         Map each row of the RDD to multiple rows in a new RDD via a
         function.
@@ -1305,10 +1330,16 @@ class XFrameImpl(XObjectImpl, TracedObject):
             distribute_seed(self._rdd, seed)
             random.seed(seed)
         names = self.col_names
+
         # fn needs the row as a dict
-        res = self._rdd.flatMap(lambda row: fn(dict(zip(names, row))))
+        def build_row(names, row):
+            if use_columns:
+                names = [name for name in names if name in use_columns]
+                row = {k: v for k, v in row if k in use_columns}
+            return dict(zip(names, row))
+        res = self._rdd.flatMap(lambda row: fn(build_row(names, row)))
         res = res.map(tuple)
-        return self._rv(res, column_names, column_types)
+        return self._rv(res, column_names, column_types)  # TODO lineage
 
     def logical_filter(self, other):
         """
@@ -1358,7 +1389,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         column_names[col_num] = new_name
         column_types = list(self.column_types)
         column_types[col_num] = new_column_types[0]
-        return self._rv(res, column_names, column_types)
+        return self._rv(res, column_names, column_types)  # TODO lineage
 
     def stack_dict(self, column_name, new_column_names, new_column_types, drop_na):
         """
@@ -1400,7 +1431,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         column_types = list(self.column_types)
         column_types[col_num] = new_column_types[0]
         column_types.insert(col_num + 1, new_column_types[1])
-        return self._rv(res, column_names, column_types)
+        return self._rv(res, column_names, column_types)  # TODO lineage
 
     def append(self, other):
         """
@@ -1483,7 +1514,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
         types = list(self.column_types)
         types.insert(0, int)
         res = self._rdd.zipWithIndex().map(lambda row: pull_up(row, start))
-        return self._rv(res, names, types)
+        lineage = self.lineage.add_col_index(column_name)
+        return self._rv(res, names, types, lineage)
 
     # Data Transformations Within Columns
     def pack_columns(self, columns, dict_keys, dtype, fill_na):
@@ -1539,9 +1571,10 @@ class XFrameImpl(XObjectImpl, TracedObject):
             res = keys.map(lambda row: pack_row_dict(row, dict_keys, fill_na))
         else:
             raise NotImplementedError
-        return xframes.xarray_impl.XArrayImpl(res, dtype)
+        lineage = self.lineage.pack_columns(columns)
+        return xframes.xarray_impl.XArrayImpl(res, dtype, lineage)
 
-    def transform(self, fn, dtype, seed):
+    def apply(self, fn, dtype, use_columns, seed):
         """
         Transform each row to an XArray according to a
         specified function. Returns a array RDD of ``dtype`` where each element
@@ -1556,16 +1589,22 @@ class XFrameImpl(XObjectImpl, TracedObject):
         names = self.col_names
         # fn needs the row as a dict
 
+        # fn needs the row as a dict
+        def build_row(names, row):
+            if use_columns:
+                names = [name for name in names if name in use_columns]
+                row = {k: v for k, v in row if k in use_columns}
+            return dict(zip(names, row))
+
         def transformer(row):
-            row_as_dict = dict(zip(names, row))
-            result = fn(row_as_dict)
+            result = fn(build_row(names, row))
             if not isinstance(result, dtype):
                 return safe_cast_val(result, dtype)
             return result
         res = self._rdd.map(transformer)
-        return xframes.xarray_impl.XArrayImpl(res, dtype)
+        return xframes.xarray_impl.XArrayImpl(res, dtype)  # TODO lineage
 
-    def transform_col(self, col, fn, dtype, seed):
+    def transform_col(self, col, fn, dtype, use_columns, seed):
         """
         Transform a single column according to a specified function. 
         The remaining columns are not modified.
@@ -1585,9 +1624,15 @@ class XFrameImpl(XObjectImpl, TracedObject):
         col_index = self.col_names.index(col)
         names = self.col_names
 
+        # fn needs the row as a dict
+        def build_row(names, row):
+            if use_columns:
+                names = [name for name in names if name in use_columns]
+                row = {k: v for k, v in row if k in use_columns}
+            return dict(zip(names, row))
+
         def transformer(row):
-            row_as_dict = dict(zip(names, row))
-            result = fn(row_as_dict)
+            result = fn(build_row(names, row))
             if not isinstance(result, dtype):
                 result = dtype(result)
             lst = list(row)
@@ -1597,7 +1642,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         res = self._rdd.map(transformer)
         new_col_types = list(self.column_types)
         new_col_types[col_index] = dtype
-        return self._rv(res, column_types=new_col_types)
+        return self._rv(res, column_types=new_col_types)  # TODO lineage
 
     def transform_cols(self, cols, fn, dtypes, seed):
         """
@@ -1637,7 +1682,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         new_col_types = list(self.column_types)
         for dtype_index, col_index in enumerate(col_indexes):
             new_col_types[col_index] = dtypes[dtype_index]
-        return self._rv(res, column_types=new_col_types)
+        return self._rv(res, column_types=new_col_types)  # TODO lineage
 
     def filter(self, values, column_name, exclude):
         """
@@ -1720,7 +1765,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
         res = aggregates.map(lambda pair: concatenate(pair[0], pair[1]))
         res = res.map(tuple)
         persist(res)
-        return self._rv(res, new_col_names, new_col_types)
+        lineage = self.lineage.groupby(key_columns_array, group_columns, group_output_columns)
+        return self._rv(res, new_col_names, new_col_types, lineage)
 
     def join(self, right, how, join_keys):
         """
@@ -1740,17 +1786,40 @@ class XFrameImpl(XObjectImpl, TracedObject):
         # these are the positions of the key columns in left and right
         # put the pieces together
         # one of the pairs may be None in all cases except inner
-        if how == 'cartesian':
-            # outer join is substantially different
-            # so do it separately
+        def process_column_names(right_col_names, right_col_types):
+            # make a list of the result column names and types
+            # rename duplicate names
             new_col_names = list(self.col_names)
             new_col_types = list(self.column_types)
-            for col in right.col_names:
-                new_col_names.append(name_col(new_col_names, col))
-            for t in right.column_types:
+            name_map = {}
+            for col in right_col_names:
+                new_name = name_col(new_col_names, col)
+                new_col_names.append(new_name)
+                name_map[col] = new_name
+            right_lineage = right.lineage.replace_column_names(name_map)
+            for t in right_col_types:
                 new_col_types.append(t)
             left_count = len(self.col_names)
             right_count = len(right.col_names)
+            return new_col_names, new_col_types, left_count, right_count, right_lineage
+
+        if how == 'cartesian':
+            new_col_names, new_col_types, left_count, right_count, right_lineage = \
+                process_column_names(right.col_names, right.column_types)
+            # outer join is substantially different
+            # so do it separately
+#            new_col_names = list(self.col_names)
+#            new_col_types = list(self.column_types)
+#            name_map = {}
+#            for col in right.col_names:
+#                new_name = name_col(new_col_names, col)
+#                new_col_names.append(new_name)
+#                name_map[col] = new_name
+#            right_lineage = right.lineage.replace_column_names(name_map)
+#            for t in right.column_types:
+#                new_col_types.append(t)
+#            left_count = len(self.col_names)
+#            right_count = len(right.col_names)
             pairs = self._rdd.cartesian(right.rdd())
 
             def combine_results(left_row, right_row, left_count, right_count):
@@ -1782,14 +1851,21 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
             # make a list of the result column names and types
             # rename duplicate names
-            new_col_names = list(self.col_names)
-            new_col_types = list(self.column_types)
-            for col in right_col_names:
-                new_col_names.append(name_col(new_col_names, col))
-            for t in right_col_types:
-                new_col_types.append(t)
-            left_count = len(self.col_names)
-            right_count = len(right.col_names)
+                new_col_names, new_col_types, left_count, right_count, right_lineage = \
+                    process_column_names(right_col_names, right_col_types)
+
+#            new_col_names = list(self.col_names)
+#            new_col_types = list(self.column_types)
+#            name_map = {}
+#            for col in right_col_names:
+#                new_name = name_col(new_col_names, col)
+#                new_col_names.append(new_name)
+#                name_map[col] = new_name
+#            right_lineage = right.lineage.replace_column_names(name_map)
+#            for t in right_col_types:
+#                new_col_types.append(t)
+#            left_count = len(self.col_names)
+#            right_count = len(right.col_names)
 
             # build a key from the column values
             # spark cannot handle tuples as keys, so make it a string using json
@@ -1844,7 +1920,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
         persist(res)
 
-        lineage = self.lineage.merge(right.lineage)     # TODO need to use renamed cols (both self and right)
+        lineage = self.lineage.merge(right_lineage)
         return self._rv(res, new_col_names, new_col_types, lineage)
 
     def unique(self):
