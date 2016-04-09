@@ -9,17 +9,11 @@ def merge_column_lineage(lin1, lin2):
     # returns column lineage, where result has a element for
     #   every key in lin1 or lin2, and values are the set
     #   union of lin1 and lin2
-    res = {}
-    keys = list(set(lin1.keys()) | set(lin2.keys()))
-    for key in keys:
-        s = set()
-        if key in lin1:
-            s |= lin1[key]
-        if key in lin2:
-            s |= lin2[key]
-        res[key] = frozenset(s)
-    return res
+    s = frozenset()
+    return {key: lin1.get(key, s) | lin2.get(key, s) for key in set(lin1.keys()) | set(lin2.keys())}
 
+# TODO remove assertions
+# TODO write unit tests
 
 class Lineage(object):
     """
