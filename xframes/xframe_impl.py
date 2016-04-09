@@ -1808,18 +1808,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 process_column_names(right.col_names, right.column_types)
             # outer join is substantially different
             # so do it separately
-#            new_col_names = list(self.col_names)
-#            new_col_types = list(self.column_types)
-#            name_map = {}
-#            for col in right.col_names:
-#                new_name = name_col(new_col_names, col)
-#                new_col_names.append(new_name)
-#                name_map[col] = new_name
-#            right_lineage = right.lineage.replace_column_names(name_map)
-#            for t in right.column_types:
-#                new_col_types.append(t)
-#            left_count = len(self.col_names)
-#            right_count = len(right.col_names)
             pairs = self._rdd.cartesian(right.rdd())
 
             def combine_results(left_row, right_row, left_count, right_count):
@@ -1851,21 +1839,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
             # make a list of the result column names and types
             # rename duplicate names
-                new_col_names, new_col_types, left_count, right_count, right_lineage = \
-                    process_column_names(right_col_names, right_col_types)
-
-#            new_col_names = list(self.col_names)
-#            new_col_types = list(self.column_types)
-#            name_map = {}
-#            for col in right_col_names:
-#                new_name = name_col(new_col_names, col)
-#                new_col_names.append(new_name)
-#                name_map[col] = new_name
-#            right_lineage = right.lineage.replace_column_names(name_map)
-#            for t in right_col_types:
-#                new_col_types.append(t)
-#            left_count = len(self.col_names)
-#            right_count = len(right.col_names)
+            new_col_names, new_col_types, left_count, right_count, right_lineage = \
+                process_column_names(right_col_names, right_col_types)
 
             # build a key from the column values
             # spark cannot handle tuples as keys, so make it a string using json
