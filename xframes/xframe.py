@@ -1377,32 +1377,6 @@ class XFrame(XObject):
         """
         return XFrame(impl=self._impl.copy())
 
-    def _row_selector(self, other):
-        """
-        Selects rows of the XFrame where the XArray evaluates to True.
-        """
-        if not isinstance(other, XArray):
-            raise ValueError('Argument must be an XArray')
-        return XFrame(impl=self._impl.logical_filter(other.impl()))
-
-    def select_rows(self, xa):
-        """
-        Selects rows of the XFrame where the XArray evaluates to True.
-
-        Parameters
-        ----------
-        xa : XArray
-            Must be the same length as the XFRame. The filter values.
-
-        Returns
-        -------
-        out : XFrame
-            A new XFrame which contains the rows of the XFrame where the XArray is True.  The truth
-            test is the same as in python, so non-zero values are considered true.
-
-        """
-        return self._row_selector(xa)
-
     def width(self):
         """
         Diagnostic: the number of elements in each tuple of the RDD.
@@ -1706,6 +1680,26 @@ class XFrame(XObject):
         else:
             raise ValueError('Argument is not an RDD.')
         return xf
+
+    def select_rows(self, xa):
+        """
+        Selects rows of the XFrame where the XArray evaluates to True.
+
+        Parameters
+        ----------
+        xa : XArray
+            Must be the same length as the XFrame. The filter values.
+
+        Returns
+        -------
+        out : XFrame
+            A new XFrame which contains the rows of the XFrame where the XArray is True.  The truth
+            test is the same as in python, so non-zero values are considered true.
+
+        """
+        if not isinstance(xa, XArray):
+            raise ValueError('Argument must be an XArray')
+        return XFrame(impl=self._impl.logical_filter(xa.impl()))
 
     def apply(self, fn, dtype=None, use_columns=None, seed=None):
         """
@@ -2892,7 +2886,7 @@ class XFrame(XObject):
                 Returns an XFrame including only the sliced rows.
         """
         if isinstance(key, XArray):
-            return self._row_selector(key)
+            return self.select_rows(key)
         if isinstance(key, list):
             return self.select_columns(key)
         if isinstance(key, str):
