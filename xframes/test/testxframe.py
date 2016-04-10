@@ -1598,8 +1598,7 @@ class TestXFrameSaveBinary(XFrameUnitTestCase):
     def test_save_not_exist(self):
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
         path = 'xxx/frame'
-        with self.assertRaises(ValueError):
-            t.save(path, format='binary')
+        t.save(path, format='binary')
 
 
 class TestXFrameSaveCsv(XFrameUnitTestCase):
@@ -1622,8 +1621,7 @@ class TestXFrameSaveCsv(XFrameUnitTestCase):
     def test_save_not_exist(self):
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
         path = 'xxx/frame'
-        with self.assertRaises(ValueError):
-            t.save(path, format='csv')
+        t.save(path, format='csv')
 
 
 class TestXFrameSaveParquet(XFrameUnitTestCase):
@@ -1678,8 +1676,7 @@ class TestXFrameSaveParquet(XFrameUnitTestCase):
     def test_save_not_exist(self):
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
         path = 'xxx/frame'
-        with self.assertRaises(ValueError):
-            t.save_as_parquet(path)
+        t.save_as_parquet(path)
 
 
 class TestXFrameSelectColumn(XFrameUnitTestCase):
