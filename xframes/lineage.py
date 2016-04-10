@@ -430,6 +430,25 @@ class Lineage(object):
 
         return Lineage(table_lineage=table_lineage, column_lineage=column_lineage)
 
+    def unpack_array(self, column_names):
+        """
+        Create a new lineage by unpacking the xarray lineage
+
+        Parameters
+        ----------
+        column_names : list[str]
+            These are the new column names, whose lineage is the same as the existing xarray
+
+        Returns
+        -------
+            out : Lineage
+        """
+        assert isinstance(column_names, list)
+        table_lineage = self.table_lineage
+        col_lineage_value = self.column_lineage[Lineage.XARRAY]
+        column_lineage = {k: col_lineage_value for k in column_names}
+        return Lineage(table_lineage=table_lineage, column_lineage=column_lineage)
+
     @staticmethod
     def load(path):
         """
