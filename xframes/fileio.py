@@ -276,7 +276,7 @@ def make_dir(uri):
         os.makedirs(parsed_uri.path)
     elif parsed_uri.scheme == 'hdfs':
         hdfs_connection = _make_hdfs_connection(parsed_uri)
-        status = hdfs_connection.make_dir(parsed_uri.path)
+        status = hdfs_connection.makedirs(parsed_uri.path)
         return status is not None
     else:
         raise UriError('Unknown scheme: {}'.format(parsed_uri.scheme))
