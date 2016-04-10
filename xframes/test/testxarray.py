@@ -303,8 +303,7 @@ class TestXArraySaveBinary(XArrayUnitTestCase):
     def test_save_not_exist(self):
         t = XArray([1, 2, 3])
         path = '/xxx/does-not-exist'
-        with self.assertRaises(ValueError):
-            t.save(path, format='binary')
+        t.save(path, format='binary')
 
 
 class TestXArraySaveText(XArrayUnitTestCase):
