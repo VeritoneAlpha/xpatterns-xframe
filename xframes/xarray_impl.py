@@ -475,7 +475,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             res_type = int
         else:
             raise NotImplementedError(op)
-        lineage = self.lineage.merge(other.lineage)  # TODO lineage
+        lineage = self.lineage.merge(other.lineage)
         return self._rv(res, res_type, lineage)
 
     def left_scalar_operator(self, other, op):
@@ -581,7 +581,8 @@ class XArrayImpl(XObjectImpl, TracedObject):
             return (x - start) % step == 0
         pairs = self._rdd.zipWithIndex()
         res = pairs.filter(lambda x: select_row(x[1], start, step, stop)).map(lambda x: x[0])
-        return self._rv(res)  # TODO lineage
+        lineage = Lineage.init_array_lineage(Lineage.RANGE)
+        return self._rv(res, lineage=lineage)
 
     def vector_slice(self, start, end):
         """
@@ -928,7 +929,8 @@ class XArrayImpl(XObjectImpl, TracedObject):
         res = res.map(lambda row: narrow(row, n_cols))
         res = res.map(lambda row: cast_row(row, column_types))
         res = res.map(tuple)
-        return self._rv_frame(res, column_names, column_types)  # TODO lineage
+        lineage = self.lineage.unpack_array(column_names)
+        return self._rv_frame(res, column_names, column_types, lineage)
 
     def sort(self, ascending):
         """
