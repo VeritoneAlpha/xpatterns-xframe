@@ -105,7 +105,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         self._rdd = None
         self.col_names = []
         self.column_types = []
-        self.table_lineage = Lineage.init_frame_lineage(None, self.col_names)
+        self.table_lineage = Lineage.init_frame_lineage(Lineage.Empty, self.col_names)
         self.materialized = False
 
     def _replace(self, rdd, col_names=None, column_types=None, lineage=None):
@@ -1046,7 +1046,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
         rdd = self._rdd.zip(other.rdd())
         res = rdd.map(lambda pair: merge(pair[0], pair[1]))
-        lineage = self.lineage.merge(other.lineage.replace_column_names(name_map))  ##
+        lineage = self.lineage.merge(other.lineage.replace_column_names(name_map))
         return self._rv(res, new_names, types, lineage)
 
     def add_columns_frame_in_place(self, other):
