@@ -998,9 +998,9 @@ class TestXFrameDtype(XFrameUnitTestCase):
         self.assertIs(str, dt[1])
 
 
-class TestXFrameLineage(XFrameUnitTestCase):
+class TestXFrameTableLineage(XFrameUnitTestCase):
     """
-    Tests XFrame lineage
+    Tests XFrame table lineage
     """
 
     def test_lineage(self):
@@ -1110,6 +1110,60 @@ class TestXFrameLineage(XFrameUnitTestCase):
         self.assertEqualLen(1, lineage)
         basenames = set([os.path.basename(item) for item in lineage])
         self.assertTrue('test-frame.csv' in basenames)
+
+
+class TestXFrameColumnLineage(XFrameUnitTestCase):
+    """
+    Tests XFrame column lineage
+    """
+
+    def test_lineage(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        lineage = t.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], lineage.keys())
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
+
+    # Empty ctor
+    # ctor tuple list
+    # pandas
+    # saved xframe
+    # spark dataframe
+    # hive
+    # rdd
+    # csv -- check filename on each col
+    # text file
+    # parquet file
+    # save
+    # sample (same)
+    # select_column
+    # select_columns
+    # copy (same)
+    # from xarray
+    # add_column
+    # add_column_in_place
+    # add_columns_array
+    # add_columns_arrayin_place
+    # add_columns_frame
+    # add_columns_frame_in_place
+    # remove_column
+    # remove_column_in_place
+    # remove_columns
+    # swap_columns (same)
+    # reorder_columns (same)
+    # replace_column_names
+    # add_column_const_in_place
+    # replace_column_const_in_place
+    # replace_single_column_in_place
+    # replace_selected_column
+    # replace_selected_column_in_place
+    # flat_map
+    # logical_filter (same)
+    # stack_list
+    # stack_dict
+    # append
+    # copy_range (same)
 
 
 class TestXFrameNumRows(XFrameUnitTestCase):
@@ -1294,6 +1348,8 @@ class TestXFrameApply(XFrameUnitTestCase):
         self.assertIs(str, res.dtype())
         self.assertColumnEqual(['2', '4', '6'], res)
 
+    # TODO lineage
+
 
 class TestXFrameTransformCol(XFrameUnitTestCase):
     """
@@ -1332,6 +1388,8 @@ class TestXFrameTransformCol(XFrameUnitTestCase):
         self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
         self.assertDictEqual({'id': 2, 'val': 'b'}, res[1])
 
+    # TODO lineage
+
 
 class TestXFrameTransformCols(XFrameUnitTestCase):
     """
@@ -1369,6 +1427,8 @@ class TestXFrameTransformCols(XFrameUnitTestCase):
         self.assertListEqual([int, str, str], res.dtype())
         self.assertDictEqual({'other': 'x', 'id': 1, 'val': '10'}, res[0])
         self.assertDictEqual({'other': 'y', 'id': 2, 'val': '20'}, res[1])
+
+    # TODO lineage
 
 
 class TestXFrameFlatMap(XFrameUnitTestCase):
@@ -2585,6 +2645,8 @@ class TestXFrameGroupbyAggregators(XFrameUnitTestCase):
         # not implemented
         pass
 
+    # TODO lineage
+
 
 class TestXFrameGroupbyAggregatorsWithMissingValues(XFrameUnitTestCase):
     """
@@ -3182,6 +3244,8 @@ class TestXFrameJoin(XFrameUnitTestCase):
         with self.assertRaises(ValueError):
             t1.join(t2, on='xx')
 
+    # TODO lineage
+
 
 class TestXFrameSplitDatetime(XFrameUnitTestCase):
     """
@@ -3351,6 +3415,8 @@ class TestXFrameFilterby(XFrameUnitTestCase):
         with self.assertRaises(TypeError):
             t.filterby(a, 'val')
 
+    # TODO lineage
+
 
 class TestXFramePackColumnsList(XFrameUnitTestCase):
     """
@@ -3497,6 +3563,8 @@ class TestXFramePackColumnsList(XFrameUnitTestCase):
         self.assertDictEqual({'id': [1, 'a']}, res[0])
         self.assertDictEqual({'id': [2, 'b']}, res[1])
 
+    # TODO lineage
+
 
 class TestXFramePackColumnsDict(XFrameUnitTestCase):
     """
@@ -3567,6 +3635,8 @@ class TestXFramePackColumnsDict(XFrameUnitTestCase):
         self.assertDictEqual({'new': {'id': 99, 'val': 'c'}}, res[2])
         self.assertDictEqual({'new': {'id': 4, 'val': 99}}, res[3])
 
+    # TODO lineage
+
 
 class TestXFramePackColumnsArray(XFrameUnitTestCase):
     """
@@ -3592,6 +3662,8 @@ class TestXFramePackColumnsArray(XFrameUnitTestCase):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         with self.assertRaises(TypeError):
             t.pack_columns(columns=['id', 'val'], new_column_name='new', dtype=array.array)
+
+    # TODO list
 
 
 class TestXFrameUnpackList(XFrameUnitTestCase):
@@ -3947,6 +4019,8 @@ class TestXFrameSort(XFrameUnitTestCase):
         self.assertColumnEqual([1, 1, 2, 3], res['id'])
         self.assertColumnEqual(['b', 'a', 'b', 'c'], res['val'])
 
+    # TODO lineage
+
 
 class TestXFrameDropna(XFrameUnitTestCase):
     """
@@ -4033,6 +4107,7 @@ class TestXFrameDropna(XFrameUnitTestCase):
         with self.assertRaises(ValueError):
             t.dropna(how='xx')
 
+    # TODO drop_missing
 
 class TestXFrameDropnaSplit(XFrameUnitTestCase):
     """
@@ -4119,6 +4194,8 @@ class TestXFrameAddRowNumber(XFrameUnitTestCase):
         self.assertDictEqual({'row_number': 0, 'id': 1, 'val': 'a'}, res[0])
         self.assertDictEqual({'row_number': 1, 'id': 2, 'val': 'b'}, res[1])
         self.assertDictEqual({'row_number': 2, 'id': 3, 'val': 'c'}, res[2])
+
+    # TODO lineage
 
 
 class TestXFrameShape(XFrameUnitTestCase):
