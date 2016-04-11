@@ -12,6 +12,7 @@ import pickle
 
 from xframes import XArray
 from xframes import XFrame
+from xframes.fileio import UriError
 
 
 class XArrayUnitTestCase(unittest.TestCase):
@@ -303,7 +304,8 @@ class TestXArraySaveBinary(XArrayUnitTestCase):
     def test_save_not_exist(self):
         t = XArray([1, 2, 3])
         path = '/xxx/does-not-exist'
-        t.save(path, format='binary')
+        with self.assertRaises(UriError):
+            t.save(path, format='binary')
 
 
 class TestXArraySaveText(XArrayUnitTestCase):
