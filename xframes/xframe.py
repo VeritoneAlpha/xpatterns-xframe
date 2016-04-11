@@ -16,6 +16,7 @@ import datetime
 import copy
 import ast
 import logging
+import types
 from sys import stderr
 
 import pyspark
@@ -259,10 +260,10 @@ class XFrame(XObject):
                 xf = xf.add_column(XArray(val).impl(), key)
             return xf
 
-        def construct_csv(data, delimiter):
-            if not isinstance(data, basestring):
+        def construct_csv(path, delimiter):
+            if not isinstance(path, basestring):
                 raise ValueError('Path is not a string: {}'.format(type(path).__name__))
-            url = make_internal_url(data)
+            url = make_internal_url(path)
             tmpxf = XFrame.read_csv(url, delimiter=delimiter, header=True, verbose=verbose)
             return tmpxf.impl()
 
@@ -1050,14 +1051,14 @@ class XFrame(XObject):
         return XFrame(impl=XFrameImpl.from_xarray(arry.impl(), name))
 
     @classmethod
-    def read_text(cls, url, delimiter=None, nrows=None, verbose=False):
+    def read_text(cls, path, delimiter=None, nrows=None, verbose=False):
         """
         Constructs an XFrame from a text file or a path to multiple text files.
 
         Parameters
         ----------
-        url : string
-            Location of the text file or directory to load. If URL is a directory
+        path : string
+            Location of the text file or directory to load. If 'path' is a directory
             or a "glob" pattern, all matching files will be loaded.
 
         delimiter : string, optional
@@ -1079,8 +1080,8 @@ class XFrame(XObject):
 
         Read a regular text file, with default options.
 
-        >>> url = 'http://s3.amazonaws.com/gl-testdata/rating_data_example.csv'
-        >>> xf = xframes.XFrame.read_text(url)
+        >>> path = 'http://s3.amazonaws.com/gl-testdata/rating_data_example.csv'
+        >>> xf = xframes.XFrame.read_text(path)
         >>> xf
         +-------
         | text |
@@ -1096,7 +1097,7 @@ class XFrame(XObject):
 
         Read only the first 100 lines of the text file:
 
-        >>> xf = xframes.XFrame.read_text(url, nrows=100)
+        >>> xf = xframes.XFrame.read_text(path, nrows=100)
         >>> xf
         Rows: 100
         +---------+
@@ -1111,7 +1112,7 @@ class XFrame(XObject):
 
         Read using a given delimiter.
 
-        >>> xf = xframes.XFrame.read_text(url, delimiter='.')
+        >>> xf = xframes.XFrame.read_text(path, delimiter='.')
         >>> xf
         Rows: 250
         +---------+
@@ -1126,7 +1127,8 @@ class XFrame(XObject):
 
 
         """
-        XFrameImpl.check_input_uri(url)
+        XFrameImpl.check_input_uri(path)
+        url = make_internal_url(path)
         return cls(impl=XFrameImpl.read_from_text(url, delimiter=delimiter, nrows=nrows, verbose=verbose))
 
     @classmethod
@@ -1762,6 +1764,9 @@ class XFrame(XObject):
         if not seed:
             seed = int(time.time())
 
+        if not use_columns:
+            use_columns = self.column_names()
+
         return XArray(impl=self._impl.apply(fn, dtype, use_columns, seed))
 
     def transform_col(self, col, fn=None, dtype=None, use_columns=None, seed=None):
@@ -1837,10 +1842,13 @@ class XFrame(XObject):
         if not seed:
             seed = int(time.time())
 
+        if not use_columns:
+            use_columns = self.column_names()
+
         return XFrame(impl=self._impl.transform_col(col, fn, dtype, use_columns, seed))
 
     # noinspection PyTypeChecker
-    def transform_cols(self, cols, fn=None, dtypes=None, seed=None):
+    def transform_cols(self, cols, fn=None, dtypes=None, use_columns=None, seed=None):
         """
         Transform multiple columns according to a specified function. 
         The remaining columns are not modified.
@@ -1867,6 +1875,10 @@ class XFrame(XObject):
             for each column in cols.  If not supplied, the first 100
             elements of the array are used to guess the target
             data types.
+
+        use_columns : str | list[str], optional
+            The column or list of columns to be supplied in the row passed to the function.
+            If not given, all columns wll be used to build the row.
 
         seed : int, optional
             Used as the seed if a random number generator is included in `fn`.
@@ -1899,6 +1911,9 @@ class XFrame(XObject):
             raise TypeError('Input must be a function: {}: {}.'.format(fn, type(fn).__name__))
         rows = self._impl.head_as_list(10)
         names = self._impl.column_names()
+        if use_columns:
+            rows = [{k: v for k, v in row.iteritems() if k in use_columns} for row in rows]
+            names = [name for name in names if name in use_columns]
         # do the dryrun so we can see some diagnostic output
         dryrun = [fn(dict(zip(names, row))) for row in rows]
         if dtypes is None:
@@ -1914,7 +1929,10 @@ class XFrame(XObject):
         if not seed:
             seed = int(time.time())
 
-        return XFrame(impl=self._impl.transform_cols(cols, fn, dtypes, seed))
+        if not use_columns:
+            use_columns = self.column_names()
+
+        return XFrame(impl=self._impl.transform_cols(cols, fn, dtypes, use_columns, seed))
 
     def detect_type(self, column_name):
         """
@@ -2182,6 +2200,9 @@ class XFrame(XObject):
                 raise TypeError('Mapped rows must have the same length and types.')
 
             column_types = list(types.pop())
+
+        if not use_columns:
+            use_columns = self.column_names()
 
         if not isinstance(column_types, list):
             raise TypeError('Column_types must be a list: {} {}.'.format(type(column_types).__name__, column_types))
@@ -3040,7 +3061,7 @@ class XFrame(XObject):
 
     def range(self, key):
         """
-        Extracts and returns rowsf the XFrame.
+        Extracts and returns rows of the XFrame.
 
         Parameters
         ----------
@@ -3754,10 +3775,13 @@ class XFrame(XObject):
 
         Parameters
         ----------
-        values : value, XArray | list |tuple | set | iterable | numpy.ndarray | pandas.Series | str
+        values : XArray | list |tuple | set | iterable | numpy.ndarray | pandas.Series | str | function
             The values to use to filter the XFrame.  The resulting XFrame will
             only include rows that have one of these values in the given
             column.
+            If this is f function, it is called on each row and is passed the value in the
+            column given by 'column_name'.  The result includes
+            rows where the function returns True.
 
         column_name : str
             The column of the XFrame to match with the given `values`.
@@ -3802,6 +3826,9 @@ class XFrame(XObject):
             raise KeyError("Column '{}' not in XFrame.".format(column_name))
 
         existing_type = self.column_types()[existing_columns.index(column_name)]
+
+        if isinstance(values, types.FunctionType):
+            return XFrame(impl=self._impl.filter_by_function(values, column_name, exclude))
 
         # If we are given the values directly, use filter.
         if not isinstance(values, XArray):
@@ -3849,7 +3876,7 @@ class XFrame(XObject):
             tmp = XFrame(impl=self._impl.join(value_xf._impl,
                                               'left',
                                               {column_name: column_name}))
-            # DO NOT CHANGE the next line -- it in xArray operator
+            # DO NOT CHANGE the next line -- it is xArray operator
             ret_xf = tmp[tmp[id_name] == None]
             del ret_xf[id_name]
             return ret_xf

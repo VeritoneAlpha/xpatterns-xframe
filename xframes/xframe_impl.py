@@ -1115,13 +1115,13 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         self._entry(col_names=col_names)
         cols = [self.col_names.index(name) for name in col_names]
-        # pop from highets to lowest does not foul up indexes
+        # pop from highest to lowest does not foul up indexes
         cols.sort(reverse=True)
-        col_names = copy.copy(self.col_names)
-        col_types = copy.copy(self.column_types)
+        remaining_col_names = copy.copy(self.col_names)
+        remaining_col_types = copy.copy(self.column_types)
         for col in cols:
-            col_names.pop(col)
-            col_types.pop(col)
+            remaining_col_names.pop(col)
+            remaining_col_types.pop(col)
 
         def pop_cols(row, cols):
             lst = list(row)
@@ -1130,7 +1130,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
             return tuple(lst)
         res = self._rdd.map(lambda row: pop_cols(row, cols))
         lineage = self.lineage.remove_columns(col_names)
-        return self._rv(res, col_names, col_types, lineage)
+        return self._rv(res, remaining_col_names, remaining_col_types, lineage)
 
     def swap_columns(self, column_1, column_2):
         """
@@ -1325,21 +1325,23 @@ class XFrameImpl(XObjectImpl, TracedObject):
         will be a single row in the new output, and the collection of these
         rows within the outer list make up the data for the output RDD.
         """
-        self._entry(column_names=column_names, column_types=column_types, seed=seed)
+        self._entry(column_names=column_names, column_types=column_types, use_coluns=use_columns, seed=seed)
         if seed:
             distribute_seed(self._rdd, seed)
             random.seed(seed)
         names = self.col_names
+        use_columns_index = [names.index(col) for col in use_columns]
 
         # fn needs the row as a dict
         def build_row(names, row):
             if use_columns:
                 names = [name for name in names if name in use_columns]
-                row = {k: v for k, v in row if k in use_columns}
+                row = [row[i] for i in use_columns_index]
             return dict(zip(names, row))
         res = self._rdd.flatMap(lambda row: fn(build_row(names, row)))
         res = res.map(tuple)
-        return self._rv(res, column_names, column_types)  # TODO lineage
+        lineage = self.lineage.flat_map(column_names, use_columns)
+        return self._rv(res, column_names, column_types, lineage)
 
     def logical_filter(self, other):
         """
@@ -1360,7 +1362,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         Convert a "wide" list column of an XFrame to one or two "tall" columns by
         stacking all values.
         
-        new_column_names and new_column_types are lists of 1 or 2 items
+        new_column_names and new_column_types are lists of 1 item
         """
         self._entry(column_name=column_name, new_column_names=new_column_names,
                     new_column_types=new_column_types, drop_na=drop_na)
@@ -1389,7 +1391,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
         column_names[col_num] = new_name
         column_types = list(self.column_types)
         column_types[col_num] = new_column_types[0]
-        return self._rv(res, column_names, column_types)  # TODO lineage
+        lineage = self.lineage.stack(column_name, [new_name])
+        return self._rv(res, column_names, column_types, lineage)
 
     def stack_dict(self, column_name, new_column_names, new_column_types, drop_na):
         """
@@ -1427,11 +1430,13 @@ class XFrameImpl(XObjectImpl, TracedObject):
         new_name_v = new_column_names[1]
         if new_name_v == '':
             new_name_v = name_col(column_names, 'V')
+        new_names = [new_name_k, new_name_v]
         column_names.insert(col_num + 1, new_name_v)
         column_types = list(self.column_types)
         column_types[col_num] = new_column_types[0]
         column_types.insert(col_num + 1, new_column_types[1])
-        return self._rv(res, column_names, column_types)  # TODO lineage
+        lineage = self.lineage.stack(column_name, new_names)
+        return self._rv(res, column_names, column_types, lineage)
 
     def append(self, other):
         """
@@ -1582,18 +1587,18 @@ class XFrameImpl(XObjectImpl, TracedObject):
         the xframe represented as a dictionary.  The ``fn`` should return
         exactly one value which is or can be cast into type ``dtype``. 
         """
-        self._entry(dtype=dtype, seed=seed)
+        self._entry(dtype=dtype, use_columns=use_columns, seed=seed)
         if seed:
             distribute_seed(self._rdd, seed)
             random.seed(seed)
         names = self.col_names
-        # fn needs the row as a dict
+        use_columns_index = [names.index(col) for col in use_columns]
 
         # fn needs the row as a dict
         def build_row(names, row):
             if use_columns:
                 names = [name for name in names if name in use_columns]
-                row = {k: v for k, v in row if k in use_columns}
+                row = [row[i] for i in use_columns_index]
             return dict(zip(names, row))
 
         def transformer(row):
@@ -1615,7 +1620,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         not specified, the first 100 rows of the XFrame are used to make a guess
         of the target data type.
         """
-        self._entry(col=col, dtype=dtype, seed=seed)
+        self._entry(col=col, dtype=dtype, use_columns=use_columns, seed=seed)
         if col not in self.col_names:
             raise ValueError("Column name does not exist: '{}'.".format(col))
         if seed:
@@ -1623,12 +1628,13 @@ class XFrameImpl(XObjectImpl, TracedObject):
             random.seed(seed)
         col_index = self.col_names.index(col)
         names = self.col_names
+        use_columns_index = [names.index(col) for col in use_columns]
 
         # fn needs the row as a dict
         def build_row(names, row):
             if use_columns:
                 names = [name for name in names if name in use_columns]
-                row = {k: v for k, v in row if k in use_columns}
+                row = [row[i] for i in use_columns_index]
             return dict(zip(names, row))
 
         def transformer(row):
@@ -1644,7 +1650,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         new_col_types[col_index] = dtype
         return self._rv(res, column_types=new_col_types)  # TODO lineage
 
-    def transform_cols(self, cols, fn, dtypes, seed):
+    def transform_cols(self, cols, fn, dtypes, use_columns, seed):
         """
         Transform multiple columns according to a specified function. 
         The remaining columns are not modified.
@@ -1664,10 +1670,17 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 raise ValueError("Column name does not exist: '{}'.".format(col))
         col_indexes = [self.col_names.index(col) for col in cols]
         names = self.col_names
+        use_columns_index = [names.index(col) for col in use_columns]
+
+
+        def build_row(names, row):
+            if use_columns:
+                names = [name for name in names if name in use_columns]
+                row = [row[i] for i in use_columns_index]
+            return dict(zip(names, row))
 
         def transformer(row):
-            row_as_dict = dict(zip(names, row))
-            result = fn(row_as_dict)
+            result = fn(build_row(names, row))
             lst = list(row)
             for dtype_index, col_index in enumerate(col_indexes):
                 dtype = dtypes[dtype_index]
@@ -1694,6 +1707,19 @@ class XFrameImpl(XObjectImpl, TracedObject):
         def filter_fun(row):
             val = row[col_index]
             return val not in values if exclude else val in values
+
+        res = self._rdd.filter(filter_fun)
+        return self._rv(res)
+
+    def filter_by_function(self, fn, column_name, exclude):
+        """
+        Perform filtering on a single column by a function
+        """
+        col_index = self.col_names.index(column_name)
+
+        def filter_fun(row):
+            res = fn(row[col_index])
+            return not res if exclude else res
 
         res = self._rdd.filter(filter_fun)
         return self._rv(res)
