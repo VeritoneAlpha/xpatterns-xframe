@@ -274,6 +274,31 @@ class Lineage(object):
         column_lineage = {k: v for k, v in self.column_lineage.iteritems() if k in column_names}
         return Lineage(table_lineage=table_lineage, column_lineage=column_lineage)
 
+    def flat_map(self, column_names, use_columns):
+        """
+        Create a new lineage containing the use columns for every column
+
+        Parameters
+        ----------
+        column_names : list[str]
+            These are the column names in the output
+
+        use_columns: list[str]
+            The columns that are passed to the fn.
+
+        Returns
+        -------
+            out : Lineage
+        """
+        assert isinstance(column_names, list)
+        assert isinstance(use_columns, list)
+        table_lineage = self.table_lineage
+        col_lineage = frozenset()
+        for col in use_columns:
+            col_lineage |= self.column_lineage[col]
+        column_lineage = {col: col_lineage for col in column_names}
+        return Lineage(table_lineage=table_lineage, column_lineage=column_lineage)
+
     def merge(self, other):
         """
         Merge the lineage of two XFrame lineages.
@@ -447,6 +472,31 @@ class Lineage(object):
         table_lineage = self.table_lineage
         col_lineage_value = self.column_lineage[Lineage.XARRAY]
         column_lineage = {k: col_lineage_value for k in column_names}
+        return Lineage(table_lineage=table_lineage, column_lineage=column_lineage)
+
+    def stack(self, column_name, new_column_names):
+        """
+        Create a new lineage by replacing column_name by column_names
+
+        Parameters
+        ----------
+        column_name: str
+            The column name this is being eliminated
+        new_column_names : list[str]
+            These are the new column names, whose lineage is the same as the existing column_name
+
+        Returns
+        -------
+            out : Lineage
+        """
+        assert isinstance(column_name, basestring)
+        assert isinstance(new_column_names, list)
+        table_lineage = self.table_lineage
+        col_lineage_value = self.column_lineage[column_name]
+        column_lineage = copy.copy(self.column_lineage)
+        del column_lineage[column_name]
+        for name in new_column_names:
+            column_lineage[name] = col_lineage_value
         return Lineage(table_lineage=table_lineage, column_lineage=column_lineage)
 
     @staticmethod
