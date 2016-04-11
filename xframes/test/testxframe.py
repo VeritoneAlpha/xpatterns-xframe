@@ -203,7 +203,7 @@ class TestXFrameConstructor(XFrameUnitTestCase):
         with self.assertRaises(TypeError):
             _ = XFrame(MyIter())
 
-    def test_construct_none(self):
+    def test_construct_empty(self):
         # construct an empty XFrame
         t = XFrame()
         self.assertEqualLen(0, t)
@@ -318,7 +318,6 @@ class TestXFrameConstructor(XFrameUnitTestCase):
         # construct an XFrame from a dict of int and str with different lengths
         with self.assertRaises(ValueError):
             XFrame({'id': [1, 2, 3], 'val': ['a', 'b']})
-
 
     def test_construct_binary(self):
         # make binary file
@@ -1121,49 +1120,433 @@ class TestXFrameColumnLineage(XFrameUnitTestCase):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         lineage = t.lineage()['column']
         self.assertEqual(2, len(lineage))
-        self.assertListEqual(['id', 'val'], lineage.keys())
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
         self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
         self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
 
-    # Empty ctor
+    # zzz
+    def test_construct_empty(self):
+        # construct an empty XFrame
+        t = XFrame()
+        lineage = t.lineage()['column']
+        self.assertEqual(0, len(lineage))
+
     # ctor tuple list
-    # pandas
-    # saved xframe
-    # spark dataframe
+    # TODO test
+
+    def test_construct_auto_pandas_dataframe(self):
+        df = pandas.DataFrame({'id': [1, 2, 3], 'val': [10.0, 20.0, 30.0]})
+        res = XFrame(df)
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PANDAS', 'id')}, lineage['id'])
+        self.assertSetEqual({('PANDAS', 'val')}, lineage['val'])
+
+    def test_lineage_load(self):
+        inpath = 'files/test-frame.csv'
+        real_inpath = os.path.realpath(inpath)
+        res = XFrame(inpath)
+        path = 'tmp/frame'
+        res.save(path, format='binary')
+        res = XFrame(path)
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({(real_inpath, 'id')}, lineage['id'])
+        self.assertSetEqual({(real_inpath, 'val')}, lineage['val'])
+
+    def test_construct_auto_dataframe(self):
+        path = 'files/test-frame-auto.csv'
+        real_path = os.path.realpath(path)
+        res = XFrame(path)
+        lineage = res.lineage()['column']
+        self.assertEqual(7, len(lineage))
+        self.assertIn('val_int', lineage)
+        self.assertIn('val_str',  lineage)
+        self.assertSetEqual({(real_path, 'val_int')}, lineage['val_int'])
+        self.assertSetEqual({(real_path, 'val_str')}, lineage['val_str'])
+
     # hive
-    # rdd
-    # csv -- check filename on each col
-    # text file
-    # parquet file
-    # save
-    # sample (same)
-    # select_column
-    # select_columns
-    # copy (same)
-    # from xarray
-    # add_column
+    # TODO test
+
+    def test_from_rdd(self):
+        sc = XFrame.spark_context()
+        rdd = sc.parallelize([(1, 'a'), (2, 'b'), (3, 'c')])
+        res = XFrame.from_rdd(rdd, column_names=['id', 'val'])
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('RDD', 'id')}, lineage['id'])
+        self.assertSetEqual({('RDD', 'val')}, lineage['val'])
+
+    def test_construct_auto_str_csv(self):
+        path = 'files/test-frame.csv'
+        real_path = os.path.realpath(path)
+        res = XFrame(path)
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({(real_path, 'id')}, lineage['id'])
+        self.assertSetEqual({(real_path, 'val')}, lineage['val'])
+
+    def test_read_text(self):
+        path = 'files/test-frame-text.txt'
+        real_path = os.path.realpath(path)
+        res = XFrame.read_text(path)
+        lineage = res.lineage()['column']
+        self.assertEqual(1, len(lineage))
+        self.assertListEqual(['text'], lineage.keys())
+        self.assertSetEqual({(real_path, 'text')}, lineage['text'])
+
+    def test_read_parquet_str(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        path = 'tmp/frame-parquet'
+        t.save(path, format='parquet')
+        inpath = 'tmp/frame-parquet.parquet'
+        real_path = os.path.realpath(inpath)
+        res = XFrame(inpath)
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({(real_path, 'id')}, lineage['id'])
+        self.assertSetEqual({(real_path, 'val')}, lineage['val'])
+
+    def test_save(self):
+        t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
+        path = 'tmp/frame'
+        t.save(path, format='binary')
+        lineage = t.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
+
+    def test_sample(self):
+        t = XFrame({'id': [1, 2, 3, 4, 5], 'val': ['a', 'b', 'c', 'd', 'e']})
+        res = t.sample(0.2, 2)
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
+
+    def test_select_column(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.select_column('id')
+        lineage = res.lineage()['column']
+        self.assertEqual(1, len(lineage))
+        self.assertListEqual(['_XARRAY'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['_XARRAY'])
+
+    def test_select_columns(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'another': [3.0, 2.0, 1.0]})
+        res = t.select_columns(['id', 'val'])
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
+
+    def test_copy(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = copy.copy(t)
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
+
+    def test_from_xarray(self):
+        a = XArray([1, 2, 3])
+        res = XFrame.from_xarray(a, 'id')
+        lineage = res.lineage()['column']
+        self.assertEqual(1, len(lineage))
+        self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['id'])
+
+    def test_add_column(self):
+        tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        ta = XArray([3.0, 2.0, 1.0])
+        res = tf.add_column(ta, name='another')
+        lineage = res.lineage()['column']
+        self.assertEqual(3, len(lineage))
+        self.assertListEqual(['another', 'id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
+        self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['another'])
+
     # add_column_in_place
-    # add_columns_array
-    # add_columns_arrayin_place
-    # add_columns_frame
+    # TODO test
+
+    def test_add_columns_array(self):
+        tf = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        ta1 = XArray([3.0, 2.0, 1.0])
+        ta2 = XArray([30.0, 20.0, 10.0])
+        res = tf.add_columns([ta1, ta2], namelist=['new1', 'new2'])
+        lineage = res.lineage()['column']
+        self.assertEqual(4, len(lineage))
+        self.assertListEqual(['id', 'new1', 'new2', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
+        self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['new1'])
+        self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['new2'])
+
+    # add_columns_array_in_place
+    # TODO test
+
+    def test_add_columns_frame(self):
+        tf1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        tf2 = XFrame({'new1': [3.0, 2.0, 1.0], 'new2': [30.0, 20.0, 10.0]})
+        res = tf1.add_columns(tf2)
+        lineage = res.lineage()['column']
+        self.assertEqual(4, len(lineage))
+        self.assertListEqual(['id', 'new1', 'new2', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
+        self.assertSetEqual({('PROGRAM', 'new1')}, lineage['new1'])
+        self.assertSetEqual({('PROGRAM', 'new2')}, lineage['new2'])
+
     # add_columns_frame_in_place
-    # remove_column
+    # TODO test
+
+    def test_remove_column(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'another': [3.0, 2.0, 1.0]})
+        res = t.remove_column('another')
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
+
     # remove_column_in_place
-    # remove_columns
-    # swap_columns (same)
-    # reorder_columns (same)
-    # replace_column_names
+    # TODO test
+
+    def test_remove_columns(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'new1': [3.0, 2.0, 1.0], 'new2': [30.0, 20.0, 10.0]})
+        res = t.remove_columns(['new1', 'new2'])
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
+
+    def test_swap_columns(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'x': [3.0, 2.0, 1.0]})
+        res = t.swap_columns('val', 'x')
+        lineage = res.lineage()['column']
+        self.assertEqual(3, len(lineage))
+        self.assertListEqual(['id', 'val', 'x'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
+        self.assertSetEqual({('PROGRAM', 'x')}, lineage['x'])
+
+    def test_reorder_columns(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'x': [3.0, 2.0, 1.0]})
+        res = t.reorder_columns(['val', 'x', 'id'])
+        lineage = res.lineage()['column']
+        self.assertEqual(3, len(lineage))
+        self.assertListEqual(['id', 'val', 'x'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
+        self.assertSetEqual({('PROGRAM', 'x')}, lineage['x'])
+
     # add_column_const_in_place
+    # TODO test
     # replace_column_const_in_place
+    # TODO test
     # replace_single_column_in_place
-    # replace_selected_column
+    # TODO test
+
+    def test_replace_column(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        a = XArray(['x', 'y', 'z'])
+        res = t.replace_column('val', a)
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['val'])
+
     # replace_selected_column_in_place
-    # flat_map
-    # logical_filter (same)
-    # stack_list
-    # stack_dict
-    # append
-    # copy_range (same)
+    # TODO test
+
+    def test_flat_map(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.flat_map(['number', 'letter'],
+                         lambda row: [list(row.itervalues()) for _ in range(0, row['id'])],
+                         column_types=[int, str])
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['letter', 'number'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id'), ('PROGRAM', 'val')}, lineage['number'])
+        self.assertSetEqual({('PROGRAM', 'id'), ('PROGRAM', 'val')}, lineage['letter'])
+
+    def test_flat_map_use_columns(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'another': [10, 20, 30]})
+        res = t.flat_map(['number', 'letter'],
+                         lambda row: [list(row.itervalues()) for _ in range(0, row['id'])],
+                         column_types=[int, str], use_columns=['id', 'val'])
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['letter', 'number'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id'), ('PROGRAM', 'val')}, lineage['number'])
+        self.assertSetEqual({('PROGRAM', 'id'), ('PROGRAM', 'val')}, lineage['letter'])
+
+    def test_filterby_xarray(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        a = XArray([1, 3])
+        res = t.filterby(a, 'id').sort('id')
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id'), ('PROGRAM', '_XARRAY')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
+
+    def test_stack_list(self):
+        t = XFrame({'id': [1, 2, 3], 'val': [['a1', 'b1', 'c1'], ['a2', 'b2'], ['a3', 'b3', 'c3', None]]})
+        res = t.stack('val', 'new-val')
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'new-val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['new-val'])
+
+    def test_stack_dict(self):
+        t = XFrame({'id': [1, 2, 3, 4], 'val': [{'a': 3, 'b': 2}, {'a': 2, 'c': 2}, {'c': 1, 'd': 3}, {}]})
+        res = t.stack('val', ['stack-key', 'stack-val'])
+        lineage = res.lineage()['column']
+        self.assertEqual(3, len(lineage))
+        self.assertListEqual(['id', 'stack-key', 'stack-val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['stack-key'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['stack-val'])
+
+    def test_append(self):
+        t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        t2 = XFrame({'id': [10, 20, 30], 'val': ['aa', 'bb', 'cc']})
+        res = t1.append(t2)
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
+
+    def test_range_slice(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.range(slice(0, 2))
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
+
+    def test_dropna(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.dropna()
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
+
+    def test_add_row_number(self):
+        t = XFrame({'ident': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.add_row_number()
+        lineage = res.lineage()['column']
+        self.assertEqual(3, len(lineage))
+        self.assertListEqual(['id', 'ident', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'ident')}, lineage['ident'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
+        self.assertSetEqual({('INDEX', 'id')}, lineage['id'])
+
+    # pack_columns
+    def test_pack_columns(self):
+        t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
+        res = t.pack_columns(columns=['id', 'val'], new_column_name='new')
+        lineage = res.lineage()['column']
+        print lineage
+        # TODO test
+
+
+    # apply
+    def test_apply(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.apply(lambda row: row['id'] * 2)
+        lineage = res.lineage()['column']
+        print lineage
+        # TODO test
+
+
+    # test_apply with use_cols
+
+    # transform_col
+    def test_transform_col_lambda(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.transform_col('id', lambda row: row['id'] * 2)
+        lineage = res.lineage()['column']
+        print lineage
+        # TODO test
+
+
+    # transform_col with use_cols
+
+    # transform_cols
+    def test_transform_cols_lambda(self):
+        t = XFrame({'other': ['x', 'y', 'z'], 'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.transform_cols(['id', 'val'], lambda row: [row['id'] * 2, row['val'] + 'x'])
+        lineage = res.lineage()['column']
+        print lineage
+        # TODO test
+
+    # transform_cols with use_cols
+    # TODO test
+
+    def test_filterby_int_id(self):
+        t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
+        res = t.filterby(1, 'id').sort('id')
+        lineage = res.lineage()['column']
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
+
+    # group_by_aggregate
+    def test_groupby_count(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, 30, 40, 50, 60]})
+        res = t.groupby('id', {'count': COUNT})
+        lineage = res.lineage()['column']
+        print lineage
+        # TODO test
+
+    def test_groupby_sum(self):
+        t = XFrame({'id': [1, 2, 3, 1, 2, 1],
+                    'val': ['a', 'b', 'c', 'd', 'e', 'f'],
+                    'another': [10, 20, 30, 40, 50, 60]})
+        res = t.groupby('id', {'sum': SUM('another')})
+        lineage = res.lineage()['column']
+        print lineage
+        # TODO test
+
+    # join
+    def test_join(self):
+        t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        t2 = XFrame({'id': [1, 2, 3], 'doubled': ['aa', 'bb', 'cc']})
+        res = t1.join(t2).sort('id').head()
+        lineage = res.lineage()['column']
+        print lineage
+        # TODO test
+
+    def test_sort(self):
+        t = XFrame({'id': [3, 2, 1], 'val': ['c', 'b', 'a']})
+        res = t.sort('id')
+        lineage = res.lineage()['column']
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
 
 
 class TestXFrameNumRows(XFrameUnitTestCase):
@@ -1348,8 +1731,6 @@ class TestXFrameApply(XFrameUnitTestCase):
         self.assertIs(str, res.dtype())
         self.assertColumnEqual(['2', '4', '6'], res)
 
-    # TODO lineage
-
 
 class TestXFrameTransformCol(XFrameUnitTestCase):
     """
@@ -1388,8 +1769,6 @@ class TestXFrameTransformCol(XFrameUnitTestCase):
         self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
         self.assertDictEqual({'id': 2, 'val': 'b'}, res[1])
 
-    # TODO lineage
-
 
 class TestXFrameTransformCols(XFrameUnitTestCase):
     """
@@ -1427,8 +1806,6 @@ class TestXFrameTransformCols(XFrameUnitTestCase):
         self.assertListEqual([int, str, str], res.dtype())
         self.assertDictEqual({'other': 'x', 'id': 1, 'val': '10'}, res[0])
         self.assertDictEqual({'other': 'y', 'id': 2, 'val': '20'}, res[1])
-
-    # TODO lineage
 
 
 class TestXFrameFlatMap(XFrameUnitTestCase):
@@ -2642,8 +3019,6 @@ class TestXFrameGroupbyAggregators(XFrameUnitTestCase):
         # not implemented
         pass
 
-    # TODO lineage
-
 
 class TestXFrameGroupbyAggregatorsWithMissingValues(XFrameUnitTestCase):
     """
@@ -3241,8 +3616,6 @@ class TestXFrameJoin(XFrameUnitTestCase):
         with self.assertRaises(ValueError):
             t1.join(t2, on='xx')
 
-    # TODO lineage
-
 
 class TestXFrameSplitDatetime(XFrameUnitTestCase):
     """
@@ -3362,6 +3735,22 @@ class TestXFrameFilterby(XFrameUnitTestCase):
         self.assertDictEqual({'id': 3, 'val': 'c'}, res[1])
         self.assertColumnEqual([1, 3], res['id'])
 
+    def test_filterby_function(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.filterby(lambda x: x != 2, 'id').sort('id')
+        self.assertEqualLen(2, res)
+        self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertDictEqual({'id': 3, 'val': 'c'}, res[1])
+        self.assertColumnEqual([1, 3], res['id'])
+
+    def test_filterby_function_exclude(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.filterby(lambda x: x == 2, 'id', exclude=True).sort('id')
+        self.assertEqualLen(2, res)
+        self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertDictEqual({'id': 3, 'val': 'c'}, res[1])
+        self.assertColumnEqual([1, 3], res['id'])
+
     def test_filterby_list_exclude(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         res = t.filterby([1, 3], 'id', exclude=True).sort('id')
@@ -3411,8 +3800,6 @@ class TestXFrameFilterby(XFrameUnitTestCase):
         a = XArray([])
         with self.assertRaises(TypeError):
             t.filterby(a, 'val')
-
-    # TODO lineage
 
 
 class TestXFramePackColumnsList(XFrameUnitTestCase):
@@ -3560,8 +3947,6 @@ class TestXFramePackColumnsList(XFrameUnitTestCase):
         self.assertDictEqual({'id': [1, 'a']}, res[0])
         self.assertDictEqual({'id': [2, 'b']}, res[1])
 
-    # TODO lineage
-
 
 class TestXFramePackColumnsDict(XFrameUnitTestCase):
     """
@@ -3631,8 +4016,6 @@ class TestXFramePackColumnsDict(XFrameUnitTestCase):
         self.assertDictEqual({'new': {'id': 2, 'val': 'b'}}, res[1])
         self.assertDictEqual({'new': {'id': 99, 'val': 'c'}}, res[2])
         self.assertDictEqual({'new': {'id': 4, 'val': 99}}, res[3])
-
-    # TODO lineage
 
 
 class TestXFramePackColumnsArray(XFrameUnitTestCase):
@@ -4016,8 +4399,6 @@ class TestXFrameSort(XFrameUnitTestCase):
         self.assertColumnEqual([1, 1, 2, 3], res['id'])
         self.assertColumnEqual(['b', 'a', 'b', 'c'], res['val'])
 
-    # TODO lineage
-
 
 class TestXFrameDropna(XFrameUnitTestCase):
     """
@@ -4191,8 +4572,6 @@ class TestXFrameAddRowNumber(XFrameUnitTestCase):
         self.assertDictEqual({'row_number': 0, 'id': 1, 'val': 'a'}, res[0])
         self.assertDictEqual({'row_number': 1, 'id': 2, 'val': 'b'}, res[1])
         self.assertDictEqual({'row_number': 2, 'id': 3, 'val': 'c'}, res[2])
-
-    # TODO lineage
 
 
 class TestXFrameShape(XFrameUnitTestCase):
