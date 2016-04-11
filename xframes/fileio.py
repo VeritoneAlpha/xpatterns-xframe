@@ -273,7 +273,10 @@ def exists(uri):
 def make_dir(uri):
     parsed_uri = _parse_uri(uri)
     if parsed_uri.scheme == 'file':
-        os.makedirs(parsed_uri.path)
+        try:
+            os.makedirs(parsed_uri.path)
+        except OSError:
+            raise UriError('Cannot make directory: {}'.format(uri))
     elif parsed_uri.scheme == 'hdfs':
         hdfs_connection = _make_hdfs_connection(parsed_uri)
         status = hdfs_connection.makedirs(parsed_uri.path)
