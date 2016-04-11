@@ -1771,7 +1771,7 @@ class XFrame(XObject):
 
     def transform_col(self, col, fn=None, dtype=None, use_columns=None, seed=None):
         """
-        Transform a single column according to a specified function. 
+        Transform a single column according to a specified function.
         The remaining columns are not modified.
         The type of the transformed column types becomes `dtype`, with
         the new value being the result of `fn(x)`, where `x` is a single row in
@@ -1850,7 +1850,7 @@ class XFrame(XObject):
     # noinspection PyTypeChecker
     def transform_cols(self, cols, fn=None, dtypes=None, use_columns=None, seed=None):
         """
-        Transform multiple columns according to a specified function. 
+        Transform multiple columns according to a specified function.
         The remaining columns are not modified.
         The type of the transformed column types are given by  `dtypes`, with
         the new values being the result of `fn(x)` where `x` is a single row in

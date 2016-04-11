@@ -1361,7 +1361,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         """
         Convert a "wide" list column of an XFrame to one or two "tall" columns by
         stacking all values.
-        
+
         new_column_names and new_column_types are lists of 1 item
         """
         self._entry(column_name=column_name, new_column_names=new_column_names,
@@ -1585,7 +1585,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         specified function. Returns a array RDD of ``dtype`` where each element
         in this array RDD is transformed by `fn(x)` where `x` is a single row in
         the xframe represented as a dictionary.  The ``fn`` should return
-        exactly one value which is or can be cast into type ``dtype``. 
+        exactly one value which is or can be cast into type ``dtype``.
         """
         self._entry(dtype=dtype, use_columns=use_columns, seed=seed)
         if seed:
@@ -1652,7 +1652,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
 
     def transform_cols(self, cols, fn, dtypes, use_columns, seed):
         """
-        Transform multiple columns according to a specified function. 
+        Transform multiple columns according to a specified function.
         The remaining columns are not modified.
         The type of the transformed column types are given by  ``dtypes``, with
         the new values being the result of `fn(x)` where `x` is a single row in
