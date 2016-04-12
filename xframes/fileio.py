@@ -48,6 +48,7 @@ class Singleton(object):
     def __instancecheck__(self, inst):
         return isinstance(inst, self._decorated)
 
+
 class UriError(Exception):
     pass
 
@@ -307,7 +308,7 @@ def m_time(uri):
         return os.stat(parsed_uri.path).st_mtime
     elif parsed_uri.scheme == 'hdfs':
         hdfs_connection = _make_hdfs_connection(parsed_uri)
-        file_time = hdfs_connection.status(parsed_uri.path)['modificationTime']/1000.0
+        file_time = hdfs_connection.status(parsed_uri.path)['modificationTime'] / 1000.0
         return file_time
     else:
         raise UriError('Unknown scheme: {}'.format(parsed_uri.scheme))
@@ -319,6 +320,7 @@ def length(uri):
         if os.path.isdir(parsed_uri.path):
             # a dir
             files = os.listdir(parsed_uri.path)
+
             def file_len(filename):
                 return os.stat(os.path.join(parsed_uri.path, filename)).st_size
             lengths = [file_len(f) for f in files]
@@ -334,7 +336,7 @@ def length(uri):
         if status['type'] == 'DIRECTORY':
             # a dir
             files = hdfs_connection.list(parsed_uri.path, status=True)
-            lengths = [file[1] for file in files]
+            lengths = [f[1] for f in files]
             return sum(lengths)
         else:
             # a file
