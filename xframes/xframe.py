@@ -1834,7 +1834,8 @@ class XFrame(XObject):
         rows = self._impl.head_as_list(10)
         names = self._impl.column_names()
         if use_columns:
-            rows = [{k: v for k, v in row.iteritems() if k in use_columns} for row in rows]
+            col_indexes = [self.column_names().index(col_name) for col_name in use_columns]
+            rows = [[row[i] for i in col_indexes] for row in rows]
             names = [name for name in names if name in use_columns]
         # do the dryrun so we can see some diagnostic output
         dryrun = [fn(dict(zip(names, row))) for row in rows]
@@ -1862,7 +1863,7 @@ class XFrame(XObject):
 
         Parameters
         ----------
-        cols : list of string
+        cols : list [str]
             The names of the column to transform.
 
         fn : function, optional
@@ -1871,7 +1872,7 @@ class XFrame(XObject):
             each type should be convertible to the corresponding `dtype` if `dtype` is not None.
             If the function is not given, an identity function is used.
 
-        dtypes : list of dtype, optional
+        dtypes : list[type], optional
             The data types of the new columns. There must be one data type
             for each column in cols.  If not supplied, the first 100
             elements of the array are used to guess the target
@@ -1913,7 +1914,8 @@ class XFrame(XObject):
         rows = self._impl.head_as_list(10)
         names = self._impl.column_names()
         if use_columns:
-            rows = [{k: v for k, v in row.iteritems() if k in use_columns} for row in rows]
+            col_indexes = [self.column_names().index(col_name) for col_name in use_columns]
+            rows = [[row[i] for i in col_indexes] for row in rows]
             names = [name for name in names if name in use_columns]
         # do the dryrun so we can see some diagnostic output
         dryrun = [fn(dict(zip(names, row))) for row in rows]
