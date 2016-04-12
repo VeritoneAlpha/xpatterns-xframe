@@ -5,6 +5,7 @@ import copy
 from datetime import datetime
 import array
 import pickle
+import shutil
 
 from pyspark.sql.types import StructType, StructField, IntegerType, StringType
 
@@ -19,6 +20,13 @@ from xframes import XArray
 from xframes import XFrame
 from xframes.aggregate import SUM, ARGMAX, ARGMIN, MAX, MIN, COUNT, MEAN, \
     VARIANCE, STDV, SELECT_ONE, CONCAT
+
+
+def delete_file_or_dir(path):
+    if os.path.isdir(path):
+        shutil.rmtree(path, ignore_errors=True)
+    elif os.path.isfile(path):
+        os.remove(path)
 
 
 class XFrameUnitTestCase(unittest.TestCase):
@@ -1480,32 +1488,45 @@ class TestXFrameColumnLineage(XFrameUnitTestCase):
         self.assertListEqual(['_XARRAY'], sorted(lineage.keys()))
         self.assertSetEqual({('PROGRAM', 'id'), ('PROGRAM', 'val')}, lineage['_XARRAY'])
 
-    # transform_col
-    def test_transform_col_lambda(self):
+    def test_transform_col(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         res = t.transform_col('id', lambda row: row['id'] * 2)
         lineage = res.lineage()['column']
-        print lineage
-        # TODO test
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id'), ('PROGRAM', 'val')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
 
-    # transform_col with use_cols
-    # TODO test
+    def test_transform_col_with_use_cols(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'another': [10, 20, 30]})
+        res = t.transform_col('id', lambda row: row['id'] * 2, use_columns=['id', 'val'])
+        lineage = res.lineage()['column']
+        self.assertEqual(3, len(lineage))
+        self.assertListEqual(['another', 'id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id'), ('PROGRAM', 'val')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
 
-    # transform_cols
-    def test_transform_cols_lambda(self):
+    def test_transform_cols(self):
         t = XFrame({'other': ['x', 'y', 'z'], 'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         res = t.transform_cols(['id', 'val'], lambda row: [row['id'] * 2, row['val'] + 'x'])
         lineage = res.lineage()['column']
-        print lineage
-        # TODO test
+        self.assertEqual(3, len(lineage))
+        self.assertListEqual(['id', 'other', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id'), ('PROGRAM', 'val'), ('PROGRAM', 'other')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'id'), ('PROGRAM', 'val'), ('PROGRAM', 'other')}, lineage['val'])
 
-    # transform_cols with use_cols
-    # TODO test
+    def test_transform_cols_with_use_cols(self):
+        t = XFrame({'other': ['x', 'y', 'z'], 'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.transform_cols(['id', 'val'], lambda row: [row['id'] * 2, row['val'] + 'x'], use_columns=['id', 'val'])
+        lineage = res.lineage()['column']
+        self.assertEqual(3, len(lineage))
+        self.assertListEqual(['id', 'other', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id'), ('PROGRAM', 'val')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'id'), ('PROGRAM', 'val')}, lineage['val'])
 
     def test_filterby_int_id(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         res = t.filterby(1, 'id').sort('id')
-        lineage = res.lineage()['column']
         lineage = res.lineage()['column']
         self.assertEqual(2, len(lineage))
         self.assertListEqual(['id', 'val'], sorted(lineage.keys()))
@@ -1518,8 +1539,11 @@ class TestXFrameColumnLineage(XFrameUnitTestCase):
                     'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', {'count': COUNT})
+        print res
         lineage = res.lineage()['column']
         print lineage
+        self.assertEqual(2, len(lineage))
+#        self.assertListEqual(['count', 'id'], sorted(lineage.keys()))
         # TODO test
 
     def test_groupby_sum(self):
@@ -1527,6 +1551,7 @@ class TestXFrameColumnLineage(XFrameUnitTestCase):
                     'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', {'sum': SUM('another')})
+        print res
         lineage = res.lineage()['column']
         print lineage
         # TODO test
@@ -1976,6 +2001,8 @@ class TestXFrameSaveBinary(XFrameUnitTestCase):
     def test_save_not_exist(self):
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
         path = 'xxx/frame'
+        delete_file_or_dir('xxx')
+        t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
         t.save(path, format='binary')
 
 
@@ -1999,6 +2026,8 @@ class TestXFrameSaveCsv(XFrameUnitTestCase):
     def test_save_not_exist(self):
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
         path = 'xxx/frame'
+        delete_file_or_dir('xxx')
+        t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
         t.save(path, format='csv')
 
 
