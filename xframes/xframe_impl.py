@@ -1629,7 +1629,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
             random.seed(seed)
         col_index = self.col_names.index(col)
         names = self.col_names
-        use_columns_index = [names.index(col) for col in use_columns]
+        use_columns_index = [names.index(col_name) for col_name in use_columns]
 
         # fn needs the row as a dict
         def build_row(names, row):
@@ -1649,7 +1649,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
         res = self._rdd.map(transformer)
         new_col_types = list(self.column_types)
         new_col_types[col_index] = dtype
-        return self._rv(res, column_types=new_col_types)  # TODO lineage
+        lineage = self.lineage.transform_col(col, use_columns)
+        return self._rv(res, column_types=new_col_types, lineage=lineage)
 
     def transform_cols(self, cols, fn, dtypes, use_columns, seed):
         """
@@ -1695,7 +1696,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
         new_col_types = list(self.column_types)
         for dtype_index, col_index in enumerate(col_indexes):
             new_col_types[col_index] = dtypes[dtype_index]
-        return self._rv(res, column_types=new_col_types)  # TODO lineage
+        lineage = self.lineage.transform_cols(cols, use_columns)
+        return self._rv(res, column_types=new_col_types, lineage=lineage)
 
     def filter(self, values, column_name, exclude):
         """
