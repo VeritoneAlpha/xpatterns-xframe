@@ -18,7 +18,7 @@ from xframes.traced_object import TracedObject
 # noinspection PyPep8Naming,PyProtectedMember
 class XRdd(TracedObject):
 
-    def __init__(self, rdd, structure_id=None):
+    def __init__(self, rdd=None, structure_id=None):
         """
         Create a new XRdd.
 

@@ -141,7 +141,9 @@ class XArray(XObject):
         # we need to perform type inference
         dtype = dtype or classify_auto(data)
 
-        if HAS_PANDAS and isinstance(data, pandas.Series):
+        if data is None:
+            self._impl = XArrayImpl()
+        elif HAS_PANDAS and isinstance(data, pandas.Series):
             self._impl = XArrayImpl.load_from_iterable(data.values, dtype, ignore_cast_failure)
         elif HAS_NUMPY and isinstance(data, numpy.ndarray):
             self._impl = XArrayImpl.load_from_iterable(data, dtype, ignore_cast_failure)

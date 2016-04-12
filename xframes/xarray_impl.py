@@ -73,9 +73,12 @@ class XArrayImpl(XObjectImpl, TracedObject):
         # Types permitted include int, long, float, string, list, and dict.
         # We record the element type here.
         self._entry(elem_type=elem_type)
+        if rdd is None:
+            sc = CommonSparkContext.spark_context()
+            rdd = XRdd(sc.parallelize([]))
         super(XArrayImpl, self).__init__(rdd)
         self.elem_type = elem_type
-        self.lineage = lineage or Lineage.init_array_lineage()
+        self.lineage = lineage or Lineage.init_array_lineage(Lineage.EMPTY)
         self.materialized = False
         self.iter_pos = 0
 
@@ -93,12 +96,6 @@ class XArrayImpl(XObjectImpl, TracedObject):
         # noinspection PyUnresolvedReferences
         lineage = lineage or Lineage.init_frame_lineage(Lineage.RDD, col_names)
         return xframes.xframe_impl.XFrameImpl(rdd, col_names, col_types, lineage)
-
-#    def _replace(self, rdd, dtype=None, lineage=None):
-#        self._replace_rdd(rdd)
-#        self.elem_type = dtype or self.elem_type
-#        self.lineage = lineage or self.lineage
-#        self.materialized = False
 
     def _count(self):
         count = self._rdd.count()
