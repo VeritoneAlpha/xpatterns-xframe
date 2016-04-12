@@ -1160,7 +1160,7 @@ class TestXFrameColumnLineage(XFrameUnitTestCase):
         lineage = res.lineage()['column']
         self.assertEqual(7, len(lineage))
         self.assertIn('val_int', lineage)
-        self.assertIn('val_str',  lineage)
+        self.assertIn('val_str', lineage)
         self.assertSetEqual({(real_path, 'val_int')}, lineage['val_int'])
         self.assertSetEqual({(real_path, 'val_str')}, lineage['val_str'])
 
@@ -1487,7 +1487,6 @@ class TestXFrameColumnLineage(XFrameUnitTestCase):
         lineage = res.lineage()['column']
         print lineage
         # TODO test
-
 
     # transform_col with use_cols
     # TODO test
