@@ -285,13 +285,17 @@ def make_dir(uri):
         raise UriError('Unknown scheme: {}'.format(parsed_uri.scheme))
 
 
-def list_dir(uri):
+def list_dir(uri, status=False):
     parsed_uri = _parse_uri(uri)
     if parsed_uri.scheme == 'file':
-        return os.listdir(parsed_uri.path)
+        if status:
+            files = os.listdir(parsed_uri.path)
+            return [(f, os.stat(f)) for f in files]
+        else:
+            return os.listdir(parsed_uri.path)
     elif parsed_uri.scheme == 'hdfs':
         hdfs_connection = _make_hdfs_connection(parsed_uri)
-        files = hdfs_connection.list(parsed_uri.path)
+        files = hdfs_connection.list(parsed_uri.path, status=status)
         return files
     else:
         raise UriError('Unknown scheme: {}'.format(parsed_uri.scheme))
@@ -305,5 +309,35 @@ def m_time(uri):
         hdfs_connection = _make_hdfs_connection(parsed_uri)
         file_time = hdfs_connection.status(parsed_uri.path)['modificationTime']/1000.0
         return file_time
+    else:
+        raise UriError('Unknown scheme: {}'.format(parsed_uri.scheme))
+
+
+def length(uri):
+    parsed_uri = _parse_uri(uri)
+    if parsed_uri.scheme == 'file':
+        if os.path.isdir(parsed_uri.path):
+            # a dir
+            files = os.listdir(parsed_uri.path)
+            def file_len(filename):
+                return os.stat(os.path.join(parsed_uri.path, filename)).st_size
+            lengths = [file_len(f) for f in files]
+            return sum(lengths)
+        else:
+            # a file
+            return os.stat(parsed_uri.path).st_size
+    elif parsed_uri.scheme == 'hdfs':
+        hdfs_connection = _make_hdfs_connection(parsed_uri)
+        status = hdfs_connection.status(parsed_uri.path, strict=False)
+        if status is None:
+            return 0
+        if status['type'] == 'DIRECTORY':
+            # a dir
+            files = hdfs_connection.list(parsed_uri.path, status=True)
+            lengths = [file[1] for file in files]
+            return sum(lengths)
+        else:
+            # a file
+            return hdfs_connection.status(parsed_uri.path)['length']
     else:
         raise UriError('Unknown scheme: {}'.format(parsed_uri.scheme))
