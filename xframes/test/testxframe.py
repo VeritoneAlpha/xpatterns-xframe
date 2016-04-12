@@ -1125,14 +1125,11 @@ class TestXFrameColumnLineage(XFrameUnitTestCase):
         self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
 
     # zzz
+
     def test_construct_empty(self):
-        # construct an empty XFrame
         t = XFrame()
         lineage = t.lineage()['column']
         self.assertEqual(0, len(lineage))
-
-    # ctor tuple list
-    # TODO test
 
     def test_construct_auto_pandas_dataframe(self):
         df = pandas.DataFrame({'id': [1, 2, 3], 'val': [10.0, 20.0, 30.0]})
@@ -1459,25 +1456,29 @@ class TestXFrameColumnLineage(XFrameUnitTestCase):
         self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
         self.assertSetEqual({('INDEX', 'id')}, lineage['id'])
 
-    # pack_columns
     def test_pack_columns(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         res = t.pack_columns(columns=['id', 'val'], new_column_name='new')
         lineage = res.lineage()['column']
-        print lineage
-        # TODO test
+        self.assertEqual(1, len(lineage))
+        self.assertListEqual(['new'], lineage.keys())
+        self.assertSetEqual({('PROGRAM', 'id'), ('PROGRAM', 'val')}, lineage['new'])
 
-
-    # apply
     def test_apply(self):
         t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
         res = t.apply(lambda row: row['id'] * 2)
         lineage = res.lineage()['column']
-        print lineage
-        # TODO test
+        self.assertEqual(1, len(lineage))
+        self.assertListEqual(['_XARRAY'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id'), ('PROGRAM', 'val')}, lineage['_XARRAY'])
 
-
-    # test_apply with use_cols
+    def test_apply_with_use_columns(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c'], 'another': [10, 20, 30]})
+        res = t.apply(lambda row: row['id'] * 2, use_columns=['id', 'val'])
+        lineage = res.lineage()['column']
+        self.assertEqual(1, len(lineage))
+        self.assertListEqual(['_XARRAY'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id'), ('PROGRAM', 'val')}, lineage['_XARRAY'])
 
     # transform_col
     def test_transform_col_lambda(self):
@@ -1489,6 +1490,7 @@ class TestXFrameColumnLineage(XFrameUnitTestCase):
 
 
     # transform_col with use_cols
+    # TODO test
 
     # transform_cols
     def test_transform_cols_lambda(self):
