@@ -815,9 +815,9 @@ class TestXArrayDtype(XArrayUnitTestCase):
         self.assertIs(int, t.dtype())
 
 
-class TestXArrayLineage(XArrayUnitTestCase):
+class TestXArrayTableLineage(XArrayUnitTestCase):
     """
-    Tests XArray lineage operation
+    Tests XArray ltable ineage operation
     """
     def test_lineage_program(self):
         res = XArray([1, 2, 3])
@@ -939,6 +939,79 @@ class TestXArrayLineage(XArrayUnitTestCase):
         basenames = set([os.path.basename(item) for item in lineage])
         self.assertIn('test-array-int', basenames)
 
+
+class TestXArrayColumnLineage(XArrayUnitTestCase):
+    """
+    Tests XArray column lineage operation
+    """
+    # zzz
+    # default ctor
+    def test_construct_empty(self):
+        t = XArray()
+        lineage = t.lineage()['column']
+        self.assertEqual(1, len(lineage))
+        self.assertListEqual(['_XARRAY'], lineage.keys())
+        self.assertSetEqual({('EMPTY', '_XARRAY')}, lineage['_XARRAY'])
+
+    def test_construct_from_xarrayt(self):
+        t = XArray([1, 2, 3])
+        res = XArray(t)
+        lineage = res.lineage()['column']
+        self.assertEqual(1, len(lineage))
+        self.assertListEqual(['_XARRAY'], lineage.keys())
+        self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
+
+    def test_construct_list_int(self):
+        t = XArray([1, 2, 3])
+        lineage = t.lineage()['column']
+        self.assertEqual(1, len(lineage))
+        self.assertListEqual(['_XARRAY'], lineage.keys())
+        self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
+
+    def test_construct_from_const(self):
+        t = XArray.from_const(1, 3)
+        lineage = t.lineage()['column']
+        self.assertEqual(1, len(lineage))
+        self.assertListEqual(['_XARRAY'], lineage.keys())
+        self.assertSetEqual({('CONST', '_XARRAY')}, lineage['_XARRAY'])
+
+    # load from file
+    def test_lineage_file(self):
+        path = 'files/test-array-int'
+        realpath = os.path.realpath(path)
+        res = XArray(path)
+        lineage = res.lineage()['column']
+        print lineage
+        self.assertEqual(1, len(lineage))
+        self.assertSetEqual({(realpath, '_XARRAY')}, lineage['_XARRAY'])
+
+    # save
+    # save as text
+    # from RDD
+    # topk
+    # vector operations
+    # left, right, unary operations
+    # sample
+    # logical filter
+    # copy range
+    # vector slice
+    # filter
+    # drop missing
+    # append
+    # transform
+    # flat map
+    # astype
+    # clip
+    # fill missing values
+    # unpack
+    # sort
+    # unique
+    # all
+    # any
+    # split_datetime
+    # datetime_to_str str_to_datetime
+    # dict_trim_by_keys dict_trim_by_values
+    # dict_keys dict_values dict_has_any_keys dict_has_all_keys
 
 class TestXArrayHead(XArrayUnitTestCase):
     """
