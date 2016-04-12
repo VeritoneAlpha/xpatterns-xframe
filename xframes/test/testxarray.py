@@ -4,6 +4,7 @@ import os
 import array
 import datetime
 import pickle
+import shutil
 
 # python testxarray.py
 # python -m unittest testxarray
@@ -12,7 +13,13 @@ import pickle
 
 from xframes import XArray
 from xframes import XFrame
-from xframes.fileio import UriError
+
+
+def delete_file_or_dir(path):
+    if os.path.isdir(path):
+        shutil.rmtree(path, ignore_errors=True)
+    elif os.path.isfile(path):
+        os.remove(path)
 
 
 class XArrayUnitTestCase(unittest.TestCase):
@@ -303,9 +310,10 @@ class TestXArraySaveBinary(XArrayUnitTestCase):
 
     def test_save_not_exist(self):
         t = XArray([1, 2, 3])
-        path = '/xxx/does-not-exist'
-        with self.assertRaises(UriError):
-            t.save(path, format='binary')
+        path = 'xxx/does-not-exist'
+        delete_file_or_dir('xxx')
+        t.save(path, format='binary')
+        self.assertTrue(os.path.isdir(path))
 
 
 class TestXArraySaveText(XArrayUnitTestCase):
