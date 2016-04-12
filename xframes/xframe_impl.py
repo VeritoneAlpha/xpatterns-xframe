@@ -1607,7 +1607,8 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 return safe_cast_val(result, dtype)
             return result
         res = self._rdd.map(transformer)
-        return xframes.xarray_impl.XArrayImpl(res, dtype)  # TODO lineage
+        lineage = self.lineage.apply(use_columns)
+        return xframes.xarray_impl.XArrayImpl(res, dtype, lineage)
 
     def transform_col(self, col, fn, dtype, use_columns, seed):
         """
@@ -1671,7 +1672,6 @@ class XFrameImpl(XObjectImpl, TracedObject):
         col_indexes = [self.col_names.index(col) for col in cols]
         names = self.col_names
         use_columns_index = [names.index(col) for col in use_columns]
-
 
         def build_row(names, row):
             if use_columns:
