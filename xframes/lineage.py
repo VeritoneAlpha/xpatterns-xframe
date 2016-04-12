@@ -448,6 +448,8 @@ class Lineage(object):
         # filter out all but key columns
         column_lineage = {k: v for k, v in self.column_lineage.iteritems() if k in key_columns}
         # copy over group columns --> group_output_columns
+        # group_columns is a list of list of column name
+        # group_otput_columns is a list of str
         for old_list, new_list in zip(group_columns, group_output_columns):
             for old, new in zip(old_list, new_list):
                 if old == '':
@@ -520,6 +522,58 @@ class Lineage(object):
         for col in use_columns:
             col_lineage |= self.column_lineage[col]
         column_lineage = {self.XARRAY: col_lineage}
+        return Lineage(table_lineage=table_lineage, column_lineage=column_lineage)
+
+    def transform_col(self, column_name, use_columns):
+        """
+        Create a new lineage where col_name is transformed and uses columns use_columns.
+
+        Parameters
+        ----------
+        column_name : str
+            This column is transformed using call the columns in use_columns
+        use_columns: list[str]
+            The columns that are passed to the fn.
+
+        Returns
+        -------
+            out : Lineage
+        """
+        assert isinstance(column_name, str)
+        assert isinstance(use_columns, list)
+        table_lineage = self.table_lineage
+        col_lineage = frozenset()
+        for col in use_columns:
+            col_lineage |= self.column_lineage[col]
+        column_lineage = copy.copy(self.column_lineage)
+        column_lineage[column_name] = col_lineage
+        return Lineage(table_lineage=table_lineage, column_lineage=column_lineage)
+
+    def transform_cols(self, column_names, use_columns):
+        """
+        Create a new lineage where col_name is transformed and uses columns use_columns.
+
+        Parameters
+        ----------
+        column_names : list[str]
+            This column is transformed using call the columns in use_columns.
+
+        use_columns: list[str]
+            The columns that are passed to the fn.
+
+        Returns
+        -------
+            out : Lineage
+        """
+        assert isinstance(column_names, list)
+        assert isinstance(use_columns, list)
+        table_lineage = self.table_lineage
+        col_lineage = frozenset()
+        for col in use_columns:
+            col_lineage |= self.column_lineage[col]
+        column_lineage = copy.copy(self.column_lineage)
+        for column_name in column_names:
+            column_lineage[column_name] = col_lineage
         return Lineage(table_lineage=table_lineage, column_lineage=column_lineage)
 
     @staticmethod
