@@ -1132,8 +1132,6 @@ class TestXFrameColumnLineage(XFrameUnitTestCase):
         self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
         self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
 
-    # zzz
-
     def test_construct_empty(self):
         t = XFrame()
         lineage = t.lineage()['column']
