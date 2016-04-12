@@ -416,8 +416,10 @@ class Lineage(object):
         """
         assert isinstance(columns, list)
         table_lineage = copy.copy(self.table_lineage)
-        s = {self.column_lineage[col] for col in columns}
-        column_lineage = {Lineage.XARRAY: frozenset(s)}
+        s = frozenset()
+        for col in columns:
+            s |= self.column_lineage[col]
+        column_lineage = {Lineage.XARRAY: s}
         return Lineage(table_lineage=table_lineage, column_lineage=column_lineage)
 
     def groupby(self, key_columns, group_columns, group_output_columns):
@@ -497,6 +499,27 @@ class Lineage(object):
         del column_lineage[column_name]
         for name in new_column_names:
             column_lineage[name] = col_lineage_value
+        return Lineage(table_lineage=table_lineage, column_lineage=column_lineage)
+
+    def apply(self, use_columns):
+        """
+        Create a new lineage containing con column formed from all use_columns.
+
+        Parameters
+        ----------
+        use_columns: list[str]
+            The columns that are passed to the fn.
+
+        Returns
+        -------
+            out : Lineage
+        """
+        assert isinstance(use_columns, list)
+        table_lineage = self.table_lineage
+        col_lineage = frozenset()
+        for col in use_columns:
+            col_lineage |= self.column_lineage[col]
+        column_lineage = {self.XARRAY: col_lineage}
         return Lineage(table_lineage=table_lineage, column_lineage=column_lineage)
 
     @staticmethod
