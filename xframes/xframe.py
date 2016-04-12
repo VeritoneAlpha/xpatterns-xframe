@@ -1755,7 +1755,8 @@ class XFrame(XObject):
         rows = self._impl.head_as_list(10)
         names = self._impl.column_names()
         if use_columns:
-            rows = [{k: v for k, v in row.iteritems() if k in use_columns} for row in rows]
+            col_indexes = [self.column_names().index(col) for col in use_columns]
+            rows = [[row[i] for i in col_indexes] for row in rows]
             names = [name for name in names if name in use_columns]
         dryrun = [fn(dict(zip(names, row))) for row in rows]
         if dtype is None:
