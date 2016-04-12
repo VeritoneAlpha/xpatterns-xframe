@@ -1533,37 +1533,39 @@ class TestXFrameColumnLineage(XFrameUnitTestCase):
         self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
         self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
 
-    # group_by_aggregate
     def test_groupby_count(self):
         t = XFrame({'id': [1, 2, 3, 1, 2, 1],
                     'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', {'count': COUNT})
-        print res
         lineage = res.lineage()['column']
-        print lineage
         self.assertEqual(2, len(lineage))
-#        self.assertListEqual(['count', 'id'], sorted(lineage.keys()))
-        # TODO test
+        self.assertListEqual(['count', 'id'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('COUNT', '')}, lineage['count'])
 
     def test_groupby_sum(self):
         t = XFrame({'id': [1, 2, 3, 1, 2, 1],
                     'val': ['a', 'b', 'c', 'd', 'e', 'f'],
                     'another': [10, 20, 30, 40, 50, 60]})
         res = t.groupby('id', {'sum': SUM('another')})
-        print res
         lineage = res.lineage()['column']
-        print lineage
-        # TODO test
+        self.assertEqual(2, len(lineage))
+        self.assertListEqual(['id', 'sum'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
+        self.assertSetEqual({('PROGRAM', 'another')}, lineage['sum'])
 
-    # join
     def test_join(self):
-        t1 = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        path = 'files/test-frame.csv'
+        real_path = os.path.realpath(path)
+        t1 = XFrame(path)
         t2 = XFrame({'id': [1, 2, 3], 'doubled': ['aa', 'bb', 'cc']})
         res = t1.join(t2).sort('id').head()
         lineage = res.lineage()['column']
-        print lineage
-        # TODO test
+        self.assertListEqual(['doubled', 'id', 'val'], sorted(lineage.keys()))
+        self.assertSetEqual({('PROGRAM', 'id'), (real_path, 'id')}, lineage['id'])
+        self.assertSetEqual({(real_path, 'val')}, lineage['val'])
+        self.assertSetEqual({('PROGRAM', 'doubled')}, lineage['doubled'])
 
     def test_sort(self):
         t = XFrame({'id': [3, 2, 1], 'val': ['c', 'b', 'a']})

@@ -1793,7 +1793,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         res = aggregates.map(lambda pair: concatenate(pair[0], pair[1]))
         res = res.map(tuple)
         persist(res)
-        lineage = self.lineage.groupby(key_columns_array, group_columns, group_output_columns)
+        lineage = self.lineage.groupby(key_columns_array, group_output_columns, group_columns)
         return self._rv(res, new_col_names, new_col_types, lineage)
 
     def join(self, right, how, join_keys):

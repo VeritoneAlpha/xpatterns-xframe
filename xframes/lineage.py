@@ -422,7 +422,7 @@ class Lineage(object):
         column_lineage = {Lineage.XARRAY: s}
         return Lineage(table_lineage=table_lineage, column_lineage=column_lineage)
 
-    def groupby(self, key_columns, group_columns, group_output_columns):
+    def groupby(self, key_columns, group_output_columns, group_columns_args):
         """
         Groupby operation creates new columns from existing columns.
 
@@ -431,31 +431,31 @@ class Lineage(object):
         key_columns : list[str]
             The grouping columns.  These will be carried forward as is.
 
-        group_columns : list[str]
-            The columns that are being aggregated over.
-
         group_output_columns : list[str]
             The new columns that result from aggregation.
+
+        group_column_args : list[str]
+            The column name arguments for each of the aggregators.
 
         Returns
         -------
             out : Lineage
         """
         assert isinstance(key_columns, list)
-        assert isinstance(group_columns, list)
         assert isinstance(group_output_columns, list)
+        assert isinstance(group_columns_args, list)
         table_lineage = self.table_lineage
-        # filter out all but key columns
+        # use the key columns
         column_lineage = {k: v for k, v in self.column_lineage.iteritems() if k in key_columns}
-        # copy over group columns --> group_output_columns
-        # group_columns is a list of list of column name
-        # group_otput_columns is a list of str
-        for old_list, new_list in zip(group_columns, group_output_columns):
-            for old, new in zip(old_list, new_list):
-                if old == '':
-                    column_lineage[new] = frozenset([(Lineage.COUNT, old)])
+
+        for out_col, args in zip(group_output_columns, group_columns_args):
+            col_lineage = frozenset()
+            for arg in args:
+                if arg == '':
+                    col_lineage |= {(Lineage.COUNT, '')}
                 else:
-                    column_lineage[new] = self.column_lineage[old]
+                    col_lineage |= self.column_lineage[arg]
+            column_lineage[out_col] = col_lineage
 
         return Lineage(table_lineage=table_lineage, column_lineage=column_lineage)
 
