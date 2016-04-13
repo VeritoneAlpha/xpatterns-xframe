@@ -15,6 +15,7 @@ def merge_column_lineage(lin1, lin2):
 # TODO remove assertions
 # TODO write unit tests
 
+
 class Lineage(object):
     """
     Create a new column lineage object.
@@ -335,6 +336,7 @@ class Lineage(object):
             out : Lineage
         """
         assert isinstance(name_map, dict)
+
         def map_name(name):
             return name_map[name] if name in name_map else name
         table_lineage = copy.copy(self.table_lineage)
@@ -434,7 +436,7 @@ class Lineage(object):
         group_output_columns : list[str]
             The new columns that result from aggregation.
 
-        group_column_args : list[str]
+        group_columns_args : list[str]
             The column name arguments for each of the aggregators.
 
         Returns
