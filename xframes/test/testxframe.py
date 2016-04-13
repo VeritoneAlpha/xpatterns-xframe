@@ -1260,6 +1260,7 @@ class TestXFrameColumnLineage(XFrameUnitTestCase):
         self.assertSetEqual({('PROGRAM', 'id')}, lineage['id'])
         self.assertSetEqual({('PROGRAM', 'val')}, lineage['val'])
 
+    # noinspection PyUnresolvedReferences
     def test_from_xarray(self):
         a = XArray([1, 2, 3])
         res = XFrame.from_xarray(a, 'id')
@@ -1999,7 +2000,6 @@ class TestXFrameSaveBinary(XFrameUnitTestCase):
         # TODO find some way to check the data
 
     def test_save_not_exist(self):
-        t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
         path = 'xxx/frame'
         delete_file_or_dir('xxx')
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
@@ -2024,7 +2024,6 @@ class TestXFrameSaveCsv(XFrameUnitTestCase):
             self.assertEqual('10,c', f.readline().rstrip())
 
     def test_save_not_exist(self):
-        t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
         path = 'xxx/frame'
         delete_file_or_dir('xxx')
         t = XFrame({'id': [30, 20, 10], 'val': ['a', 'b', 'c']})
@@ -4516,6 +4515,7 @@ class TestXFrameDropna(XFrameUnitTestCase):
             t.dropna(how='xx')
 
     # TODO drop_missing
+
 
 class TestXFrameDropnaSplit(XFrameUnitTestCase):
     """
