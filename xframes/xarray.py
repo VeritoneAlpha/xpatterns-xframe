@@ -17,7 +17,7 @@ from xframes.deps import pandas, HAS_PANDAS
 from xframes.deps import HAS_NUMPY
 from xframes.xobject import XObject
 from xframes.xarray_impl import XArrayImpl
-from xframes.util import make_internal_url, infer_type_of_list, pytype_from_dtype, is_numeric_val, classify_auto
+from xframes.util import make_internal_url, infer_type_of_list, is_numeric_val, classify_auto
 import xframes
 
 if HAS_NUMPY:
