@@ -88,6 +88,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         """
         return XArrayImpl(rdd, typ or self.elem_type, lineage or self.lineage)
 
+    # noinspection PyUnresolvedReferences
     @staticmethod
     def _rv_frame(rdd, col_names=None, col_types=None, lineage=None):
         """
