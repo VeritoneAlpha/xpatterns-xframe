@@ -53,6 +53,7 @@ class UriError(Exception):
     pass
 
 
+# noinspection PyArgumentList
 def _parse_uri(uri):
     parsed = urlparse.urlparse(uri)
     if parsed.scheme == 'hdfs':
