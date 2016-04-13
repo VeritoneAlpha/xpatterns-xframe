@@ -944,175 +944,157 @@ class TestXArrayColumnLineage(XArrayUnitTestCase):
     """
     Tests XArray column lineage operation
     """
+
+    # helper function
+    def get_column_lineage(self, xa, keys=None):
+        lineage = xa.lineage()['column']
+        keys = keys or ['_XARRAY']
+        keys = sorted(keys)
+        count = len(keys)
+        self.assertEqual(count, len(lineage))
+        self.assertListEqual(keys, sorted(lineage.keys()))
+        return lineage
+
     def test_construct_empty(self):
         t = XArray()
-        lineage = t.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
+        lineage = self.get_column_lineage(t)
         self.assertSetEqual({('EMPTY', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_construct_from_xarrayt(self):
         t = XArray([1, 2, 3])
         res = XArray(t)
-        lineage = res.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
+        lineage = self.get_column_lineage(res)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_construct_list_int(self):
         t = XArray([1, 2, 3])
-        lineage = t.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
+        lineage = self.get_column_lineage(t)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_construct_from_const(self):
         t = XArray.from_const(1, 3)
-        lineage = t.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
+        lineage = self.get_column_lineage(t)
         self.assertSetEqual({('CONST', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_lineage_file(self):
         path = 'files/test-array-int'
         realpath = os.path.realpath(path)
         res = XArray(path)
-        lineage = res.lineage()['column']
-        self.assertEqual(1, len(lineage))
+        lineage = self.get_column_lineage(res)
         self.assertSetEqual({(realpath, '_XARRAY')}, lineage['_XARRAY'])
 
     def test_save(self):
         t = XArray([1, 2, 3])
         path = 'tmp/array-binary'
         t.save(path)
-        lineage = t.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
+        lineage = self.get_column_lineage(t)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
 
-    # save as text
-    # TODO test
+    def test_save_as_text(self):
+        t = XArray([1, 2, 3])
+        path = 'tmp/array-text'
+        t.save(path, format='text')
+        lineage = self.get_column_lineage(t)
+        self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
 
-    # from RDD
-    # TODO test
+    def test_from_rdd(self):
+        t = XArray([1, 2, 3])
+        rdd = t.to_rdd()
+        res = XArray.from_rdd(rdd, int)
+        lineage = self.get_column_lineage(res)
+        self.assertSetEqual({('RDD', '_XARRAY')}, lineage['_XARRAY'])
 
-    def test_topk_index_0(self):
+    def test_topk_index(self):
         t = XArray([1, 2, 3])
         res = t.topk_index(0)
-        lineage = res.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
+        lineage = self.get_column_lineage(res)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_add_vector(self):
         t1 = XArray([1, 2, 3])
         t2 = XArray([4, 5, 6])
-        t = t1 + t2
-        lineage = t.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
+        res = t1 + t2
+        lineage = self.get_column_lineage(res)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
 
+    # noinspection PyTypeChecker
     def test_add_scalar(self):
         t = XArray([1, 2, 3])
         self.assertEqualLen(3, t)
         self.assertEqual(1, t[0])
         self.assertIs(int, t.dtype())
-        t = t + 2
-        lineage = t.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
+        res = t + 2
+        lineage = self.get_column_lineage(res)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_sample_no_seed(self):
         t = XArray(range(10))
         res = t.sample(0.3)
         self.assertTrue(len(res) < 10)
-        lineage = res.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
+        lineage = self.get_column_lineage(res)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_logical_filter_array(self):
         t1 = XArray([1, 2, 3])
         t2 = XArray([1, 0, 1])
         res = t1[t2]
-        lineage = res.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
+        lineage = self.get_column_lineage(res)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
+
+    def test_from_sequence(self):
+        res = XArray.from_sequence(100, 200)
+        lineage = self.get_column_lineage(res)
+        self.assertSetEqual({('RANGE', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_range(self):
         t = XArray([1, 2, 3])
         res = t[1:2]
-        lineage = res.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
+        lineage = self.get_column_lineage(res)
         self.assertSetEqual({('RANGE', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_filter(self):
         t = XArray([1, 2, 3])
         res = t.filter(lambda x: x == 2)
-        lineage = res.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
-        self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
-
-    def test_dropna_not(self):
-        t = XArray([1, None, 3])
-        res = t.dropna()
-        lineage = res.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
+        lineage = self.get_column_lineage(res)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_append(self):
         t = XArray([1, None, 3])
-        u = XArray([10, 20, 30])
+        path = 'files/test-array-int'
+        realpath = os.path.realpath(path)
+        u = XArray(path)
         res = t.append(u)
-        lineage = res.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
-        self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
+        lineage = self.get_column_lineage(res)
+        self.assertSetEqual({('PROGRAM', '_XARRAY'), (realpath, '_XARRAY')}, lineage['_XARRAY'])
 
     def test_apply(self):
         t = XArray([1, 2, 3])
         res = t.apply(lambda x: x * 2)
-        lineage = res.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
+        lineage = self.get_column_lineage(res)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_flat_map(self):
         t = XArray([[1], [1, 2], [1, 2, 3]])
         res = t.flat_map(lambda x: x)
-        lineage = res.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
+        lineage = self.get_column_lineage(res)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_astype_int_float(self):
         t = XArray([1, 2, 3])
         res = t.astype(float)
-        lineage = res.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
+        lineage = self.get_column_lineage(res)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_clip_int_clip(self):
         t = XArray([1, 2, 3])
         res = t.clip(2, 2)
-        lineage = res.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
+        lineage = self.get_column_lineage(res)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_fillna(self):
         t = XArray([1, 2, 3])
         res = t.fillna(10)
-        lineage = res.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
+        lineage = self.get_column_lineage(res)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_unpack_list(self):
@@ -1120,8 +1102,7 @@ class TestXArrayColumnLineage(XArrayUnitTestCase):
                     [1, 1, 1],
                     [0, 1]])
         res = t.unpack()
-        lineage = res.lineage()['column']
-        self.assertEqual(3, len(lineage))
+        lineage = self.get_column_lineage(res, ['X.0', 'X.1', 'X.2'])
         self.assertIn('X.0', lineage)
         self.assertIn('X.1', lineage)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['X.0'])
@@ -1130,9 +1111,7 @@ class TestXArrayColumnLineage(XArrayUnitTestCase):
     def test_sort(self):
         t = XArray([3, 2, 1])
         res = t.sort()
-        lineage = res.lineage()['column']
-        self.assertEqual(1, len(lineage))
-        self.assertListEqual(['_XARRAY'], lineage.keys())
+        lineage = self.get_column_lineage(res)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_split_datetime_all(self):
@@ -1140,8 +1119,8 @@ class TestXArrayColumnLineage(XArrayUnitTestCase):
                     datetime.datetime(2012, 2, 2, 2, 2, 2),
                     datetime.datetime(2013, 3, 3, 3, 3, 3)])
         res = t.split_datetime('date')
-        lineage = res.lineage()['column']
-        self.assertEqual(6, len(lineage))
+        lineage = self.get_column_lineage(res, ['date.year', 'date.month', 'date.day',
+                                                'date.hour', 'date.minute', 'date.second'])
         self.assertIn('date.year', lineage)
         self.assertIn('date.month', lineage)
         self.assertIn('date.day', lineage)
@@ -1154,32 +1133,31 @@ class TestXArrayColumnLineage(XArrayUnitTestCase):
                     datetime.datetime(2016, 9, 22),
                     datetime.datetime(2017, 10, 23)])
         res = t.datetime_to_str('%Y %m %d')
-        lineage = res.lineage()['column']
+        lineage = self.get_column_lineage(res)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_str_to_datetime(self):
         t = XArray(['2015 08 21', '2015 08 22', '2015 08 23'])
         res = t.str_to_datetime('%Y %m %d')
-        lineage = res.lineage()['column']
+        lineage = self.get_column_lineage(res)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_dict_trim_by_keys_include(self):
         t = XArray([{'a': 0, 'b': 0, 'c': 0}, {'x': 1}])
         res = t.dict_trim_by_keys(['a'], exclude=False)
-        lineage = res.lineage()['column']
+        lineage = self.get_column_lineage(res)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_dict_trim_by_values(self):
         t = XArray([{'a': 0, 'b': 1, 'c': 2, 'd': 3}, {'x': 1}])
         res = t.dict_trim_by_values(1, 2)
-        lineage = res.lineage()['column']
+        lineage = self.get_column_lineage(res)
         self.assertSetEqual({('PROGRAM', '_XARRAY')}, lineage['_XARRAY'])
 
     def test_dict_keys(self):
         t = XArray([{'a': 0, 'b': 0, 'c': 0}, {'x': 1, 'y': 2, 'z': 3}])
         res = t.dict_keys()
-        lineage = res.lineage()['column']
-        self.assertEqual(3, len(lineage))
+        lineage = self.get_column_lineage(res, ['X.0', 'X.1', 'X.2'])
         self.assertIn('X.0', lineage)
         self.assertIn('X.1', lineage)
         self.assertIn('X.2', lineage)
@@ -1189,8 +1167,7 @@ class TestXArrayColumnLineage(XArrayUnitTestCase):
     def test_values(self):
         t = XArray([{'a': 0, 'b': 1, 'c': 2}, {'x': 10, 'y': 20, 'z': 30}])
         res = t.dict_values()
-        lineage = res.lineage()['column']
-        self.assertEqual(3, len(lineage))
+        lineage = self.get_column_lineage(res, ['X.0', 'X.1', 'X.2'])
         self.assertIn('X.0', lineage)
         self.assertIn('X.1', lineage)
         self.assertIn('X.2', lineage)
@@ -1445,14 +1422,6 @@ class TestXArraySample(XArrayUnitTestCase):
         t = XArray(range(10))
         with self.assertRaises(ValueError):
             t.sample(-0.5, seed=1)
-
-
-class TestXArraySaveAsText(XArrayUnitTestCase):
-    """
-    Tests XArray save_as_text
-    """
-    def test_save_as_text(self):
-        pass
 
 
 class TestXArrayAll(XArrayUnitTestCase):
