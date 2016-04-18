@@ -337,7 +337,7 @@ def length(uri):
         if status['type'] == 'DIRECTORY':
             # a dir
             files = hdfs_connection.list(parsed_uri.path, status=True)
-            lengths = [f[1] for f in files]
+            lengths = [f[1]['length'] for f in files]
             return sum(lengths)
         else:
             # a file
