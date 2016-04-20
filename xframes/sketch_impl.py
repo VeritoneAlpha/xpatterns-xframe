@@ -110,7 +110,7 @@ class SketchImpl(XObjectImpl, TracedObject):
                 self.stats = stats
 
     def _create_quantile_accumulator(self):
-        num_levels = self.quantile_accumulator_num_levels or 12
+        num_levels = self.quantile_accumulator_num_levels or 10
         epsilon = self.quantile_accumulator_epsilon or 0.001
         delta = self.quantile_accumulator_delta or 0.01
         accumulator = QuantileAccumulator(self.min_val, self.max_val, num_levels, epsilon, delta)
