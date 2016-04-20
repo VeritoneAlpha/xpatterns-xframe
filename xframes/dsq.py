@@ -64,7 +64,7 @@ class CMSketch(object):
 
     def counts(self):
         return self._counts
-    
+
     def increment(self, key):
         """Increment counter for hashable object key."""
         for (i, mask) in enumerate(self._masks):
@@ -78,7 +78,7 @@ class CMSketch(object):
 
     def merge(self, other):
         """Merge other CMSketch with this CMSketch.
-        
+
         The width, depth, and hash_state must be identical.
         """
         self._check_compatibility(other)
@@ -87,30 +87,30 @@ class CMSketch(object):
                 ix = self.hash_index(i, j)
                 self._counts[ix] += other.counts()[ix]
         return self
-    
+
     def _check_compatibility(self, other):
         """Check if another CMSketch is compatible with this one for merge.
-        
+
         Compatibility requires same width, depth, and hash_state.
         """
         if self.width != other.width or self.depth != other.depth:
             raise ValueError("CMSketch dimensions do not match.")
         if self.hash_state != other.hash_state:
             raise ValueError("CMSketch hashes do not match")
-    
+
     @staticmethod
     def generate_hash_state(num_hashes, seed=1729):
         """Generate some random ints suitable to be a hash_state."""
         random.seed(seed)
         return tuple([random.randint(0, sys.maxint)
                       for _ in xrange(num_hashes)])
-    
+
     @staticmethod
     def generate_mask(state):
         """Generate a mask to be used for a random hash fn, given state (int).
-        
+
         Returns mask, which contains random bits. Define a hash fn like so:
-        
+
             def myhash(x):
                 return hash(x) ^ mask
         """
