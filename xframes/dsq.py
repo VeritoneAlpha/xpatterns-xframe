@@ -20,10 +20,15 @@
 This is a Python implementation of distributed streaming quantiles using the
 count-min sketch.  It is suitable for using in a distributed computing
 environment, like Spark.
+
+Modifications by Charles Hayden at Atigeo.
+  Use array instead of list for counts.
 """
 
 import sys
 import random
+import array
+import itertools
 from math import isnan, ceil, log, e as euler
 
 
@@ -51,8 +56,11 @@ class CMSketch(object):
         self.width = width
         self.depth = depth
         self.hash_state = hash_state
-        self._counts = [[0] * self.width for _ in xrange(self.depth)]
+        self._counts = array.array('i', itertools.repeat(0, self.width * self.depth))
         self._masks = [CMSketch.generate_mask(n) for n in self.hash_state]
+
+    def hash_index(self, row, column):
+        return (self.width * row) + (column % self.width)
 
     def counts(self):
         return self._counts
@@ -60,15 +68,14 @@ class CMSketch(object):
     def increment(self, key):
         """Increment counter for hashable object key."""
         for (i, mask) in enumerate(self._masks):
-            # hash(key) ^ mask is the i-th hash fn
-            j = (hash(key) ^ mask) % self.width
-            self._counts[i][j] += 1
-    
+            j = hash(key) ^ mask
+            self._counts[self.hash_index(i, j)] += 1
+
     def get(self, key):
         """Get estimated count for hashable object key."""
-        return min([self._counts[i][(hash(key) ^ mask) % self.width]
-                    for (i, mask) in enumerate(self._masks)])
-    
+        return min([self._counts[self.hash_index(i, hash(key) ^ mask)]
+                    for i, mask in enumerate(self._masks)])
+
     def merge(self, other):
         """Merge other CMSketch with this CMSketch.
         
@@ -77,7 +84,8 @@ class CMSketch(object):
         self._check_compatibility(other)
         for i in xrange(self.depth):
             for j in xrange(self.width):
-                self._counts[i][j] += other.counts()[i][j]
+                ix = self.hash_index(i, j)
+                self._counts[ix] += other.counts()[ix]
         return self
     
     def _check_compatibility(self, other):
@@ -96,20 +104,6 @@ class CMSketch(object):
         random.seed(seed)
         return tuple([random.randint(0, sys.maxint)
                       for _ in xrange(num_hashes)])
-    
-    @staticmethod
-    def generate_hash(state):
-        """Generate a random hash function, given state (int).
-        
-        Returns a function that takes a hashable object and returns a hash
-        value.
-        """
-        random.seed(state)
-        mask = random.getrandbits(32)
-
-        def myhash(x):
-            return hash(x) ^ mask
-        return myhash
     
     @staticmethod
     def generate_mask(state):
