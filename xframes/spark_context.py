@@ -8,7 +8,10 @@ from zipfile import PyZipFile
 from tempfile import NamedTemporaryFile
 import logging
 
-from pyspark import SparkConf, SparkContext, SQLContext, HiveContext
+try:
+    from pyspark import SparkConf, SparkContext, SQLContext, HiveContext
+except:
+    pass
 
 from xframes.environment import Environment
 from xframes.xrdd import XRdd
