@@ -8,11 +8,6 @@ from zipfile import PyZipFile
 from tempfile import NamedTemporaryFile
 import logging
 
-try:
-    from pyspark import SparkConf, SparkContext, SQLContext, HiveContext
-except:
-    pass
-
 from xframes.environment import Environment
 from xframes.xrdd import XRdd
 
@@ -115,6 +110,8 @@ class CommonSparkContext(object):
         the values set in SparkInitContext.set() if this has been called.
         """
 
+        # This is placed here because otherwise it causes an error when used in a spark slave.
+        from pyspark import SparkConf, SparkContext, SQLContext, HiveContext
         # This reads from default.ini and then xframes/config.ini
         # if they exist.
         self._env = Environment.create()
