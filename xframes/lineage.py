@@ -97,6 +97,36 @@ class Lineage(object):
         column_lineage = {col_name: xa_lineage.column_lineage[Lineage.XARRAY]}
         return Lineage(table_lineage=table_lineage, column_lineage=column_lineage)
 
+    def as_dict(self):
+        """
+        Return a dictionary representation of the lineage.
+
+        Returns
+        -------
+        out : dict
+            The lineage contains keys 'table' and 'column'.
+
+        """
+        return {'table': self.table_lineage,
+                'column': self.column_lineage}
+
+    @staticmethod
+    def from_dict(lineage):
+        """
+        Create Lineage from dictionary representation.
+
+        The function `as_dict` provides lineage dictionary representation.
+        This creates a new Lineage from that representation.
+
+        Parameters
+        ----------
+        lineage : dict
+            Dict must contain keys 'table' and 'column'.
+        """
+        if 'table' not in lineage or 'column' not in lineage:
+            raise ValueError("Lineage must contain 'table' and 'column'.")
+        return Lineage(table_lineage=lineage['table'], column_lineage=lineage['column'])
+
     def to_array_lineage(self, col_name):
         """
         Create an XArray lineage from one column of an existing lineage.
