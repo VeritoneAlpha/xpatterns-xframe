@@ -165,7 +165,7 @@ class XArray(XObject):
         Print information about the Spark RDD associated with this XArray.
         """
         return self._impl.dump_debug_info()
-        
+
     @classmethod
     def read_text(cls, path, delimiter=None, nrows=None, verbose=False):
         """
