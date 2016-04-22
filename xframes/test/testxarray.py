@@ -235,6 +235,17 @@ class TestXArrayConstructorLoad(XArrayUnitTestCase):
             _ = XArray('files/does-not-exist')
 
 
+class TestXArrayReadText(XArrayUnitTestCase):
+    """
+    Tests XArray read_text class method
+    """
+
+    def test_read_text(self):
+        t = XArray.read_text('files/test-array-int')
+        self.assertEqual(4, len(t))
+        self.assertListEqual(['1', '2', '3', '4'], list(t))
+
+
 class TestXArrayFromConst(XArrayUnitTestCase):
     """
     Tests XArray constructed from const.
