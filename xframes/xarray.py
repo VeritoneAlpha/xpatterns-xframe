@@ -381,7 +381,7 @@ class XArray(XObject):
             This incorporates the given RDD.
 
         """
-        return cls(impl=XArrayImpl.from_rdd(rdd, dtype, lineage=Lineage(lineage)))
+        return cls(impl=XArrayImpl.from_rdd(rdd, dtype, lineage=lineage))
 
     def __repr__(self):
         """
