@@ -360,7 +360,7 @@ class XArray(XObject):
         return self._impl.to_rdd(number_of_partitions)
 
     @classmethod
-    def from_rdd(cls, rdd, dtype):
+    def from_rdd(cls, rdd, dtype, lineage=None):
         """
         Convert a Spark RDD into an XArray
 
@@ -372,13 +372,16 @@ class XArray(XObject):
         dtype : type
             The values in `rdd` should have the data type `dtype`.
 
+        lineage: dict, optional
+            The lineage to apply to the rdd.
+
         Returns
         -------
         out : XArray
             This incorporates the given RDD.
 
         """
-        return cls(impl=XArrayImpl.from_rdd(rdd, dtype))
+        return cls(impl=XArrayImpl.from_rdd(rdd, dtype, lineage=Lineage(lineage)))
 
     def __repr__(self):
         """
