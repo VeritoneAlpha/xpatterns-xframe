@@ -225,6 +225,32 @@ class XArrayImpl(XObjectImpl, TracedObject):
                 res = res.map(lambda x: dtype(x))
         return cls(res, dtype, lineage)
 
+    # noinspection PyUnusedLocal
+    @classmethod
+    def read_from_text(cls, path, delimiter, nrows, verbose):
+        """
+        Load RDD from a text file
+        """
+        # TODO handle nrows, verbose
+        cls._entry(path=path, delimiter=delimiter, nrows=nrows)
+        sc = CommonSparkContext.spark_context()
+        if delimiter is None:
+            rdd = sc.textFile(path)
+            res = rdd.map(lambda line: line.encode('utf-8'))
+        else:
+            conf = {'textinputformat.record.delimiter': delimiter}
+            rdd = sc.newAPIHadoopFile(path,
+                                      "org.apache.hadoop.mapreduce.lib.input.TextInputFormat",
+                                      "org.apache.hadoop.io.Text",
+                                      "org.apache.hadoop.io.Text",
+                                      conf=conf)
+
+            def fixup_line(line):
+                return str(line).replace('\n', ' ').strip()
+            res = rdd.values().map(lambda line: fixup_line(line))
+        lineage = Lineage.init_array_lineage(path)
+        return XArrayImpl(res, str, lineage)
+
     def get_content_identifier(self):
         """
         Returns the unique identifier of the content that backs the XArray

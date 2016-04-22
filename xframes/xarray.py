@@ -167,6 +167,52 @@ class XArray(XObject):
         return self._impl.dump_debug_info()
         
     @classmethod
+    def read_text(cls, path, delimiter=None, nrows=None, verbose=False):
+        """
+        Constructs an XArray from a text file or a path to multiple text files.
+
+        Parameters
+        ----------
+        path : string
+            Location of the text file or directory to load. If 'path' is a directory
+            or a "glob" pattern, all matching files will be loaded.
+
+        delimiter : string, optional
+            This describes the delimiter used for separating records. Must be a
+            single character.  Defaults to newline.
+
+        nrows : int, optional
+            If set, only this many rows will be read from the file.
+
+        verbose : bool, optional
+            If True, print the progress while reading files.
+
+        Returns
+        -------
+        out : XArray
+
+        Examples
+        --------
+
+        Read a regular text file, with default options.
+
+        >>> path = 'http://s3.amazonaws.com/gl-testdata/rating_data_example.csv'
+        >>> xa = xframes.XArray.read_text(path)
+        >>> xa
+        [25904, 25907, 25923, 25924, 25928,  ... ]
+
+        Read only the first 100 lines of the text file:
+
+        >>> xa = xframes.XArray.read_text(path, nrows=100)
+        >>> xa
+        [25904, 25907, 25923, 25924, 25928,  ... ]
+
+        """
+        XArrayImpl.check_input_uri(path)
+        url = make_internal_url(path)
+        return cls(impl=XArrayImpl.read_from_text(url, delimiter=delimiter, nrows=nrows, verbose=verbose))
+
+    @classmethod
     def from_const(cls, value, size):
         """
         Constructs an XArray of size with a const value.

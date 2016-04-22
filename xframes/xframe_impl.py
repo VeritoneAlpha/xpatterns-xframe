@@ -515,7 +515,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         sc = CommonSparkContext.spark_context()
         if delimiter is None:
             rdd = sc.textFile(path)
-            res = rdd.map(lambda line: [line.encode('utf-8')])
+            res = rdd.map(lambda line: (line.encode('utf-8'), ))
         else:
             conf = {'textinputformat.record.delimiter': delimiter}
             rdd = sc.newAPIHadoopFile(path,
