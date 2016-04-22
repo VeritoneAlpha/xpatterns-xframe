@@ -366,8 +366,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         Returns the lineage as a dictionary
         """
         self._entry()
-        return {'table': self.lineage.table_lineage,
-                'column': self.lineage.column_lineage}
+        return self.lineage.as_dict()
 
     # Get Data
     def head(self, n):
