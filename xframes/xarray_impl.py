@@ -342,7 +342,9 @@ class XArrayImpl(XObjectImpl, TracedObject):
         return res
 
     @classmethod
-    def from_rdd(cls, rdd, dtype):
+    def from_rdd(cls, rdd, dtype, lineage=None):
+        if lineage:
+            cls(rdd, dtype, lineage=Lineage.from_dict(lineage))
         return cls(rdd, dtype, Lineage.init_array_lineage(Lineage.RDD))
 
     # Array Information
