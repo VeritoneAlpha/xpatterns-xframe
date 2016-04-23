@@ -2213,7 +2213,7 @@ class XFrame(XObject):
             raise ValueError('Number of output columns must match the size of column names.')
         return XFrame(impl=self._impl.flat_map(fn, column_names, column_types, use_columns, seed))
 
-    def sample(self, fraction, seed=None):
+    def sample(self, fraction, max_partitions=None, seed=None):
         """
         Sample the current XFrame's rows.
 
@@ -2223,6 +2223,10 @@ class XFrame(XObject):
             Approximate fraction of the rows to fetch. Must be between 0 and 1.
             The number of rows returned is approximately the fraction times the
             number of rows.
+
+        max_partitions : int, optional
+            After sampling, coalesce to this number of partition.  If not given,
+            do not perform this step.
 
         seed : int, optional
             Seed for the random number generator used to sample.
@@ -2254,7 +2258,7 @@ class XFrame(XObject):
         if self.num_rows() == 0 or self.num_columns() == 0:
             return XFrame(impl=self._impl.copy())
         else:
-            return XFrame(impl=self._impl.sample(fraction, seed))
+            return XFrame(impl=self._impl.sample(fraction, max_partitions, seed))
 
     def random_split(self, fraction, seed=None):
         """

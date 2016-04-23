@@ -573,12 +573,14 @@ class XArrayImpl(XObjectImpl, TracedObject):
         return self._rv(res)
 
     # Sample
-    def sample(self, fraction, seed):
+    def sample(self, fraction, max_partitions, seed):
         """
         Create an RDD which contains a subsample of the current RDD.
         """
-        self._entry(fraction=fraction, seed=seed)
+        self._entry(fraction=fraction, max_partitions=max_partitions, seed=seed)
         res = self._rdd.sample(False, fraction, seed)
+        if max_partitions is not None and max_partitions < res.getNumPartitions():
+            res = res.coalesce(max_partitions)
         return self._rv(res)
 
     # Row Manipulation

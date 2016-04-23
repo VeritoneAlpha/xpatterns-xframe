@@ -1348,7 +1348,7 @@ class XArray(XObject):
 
         return XArray(impl=self._impl.filter(fn, skip_undefined, seed))
 
-    def sample(self, fraction, seed=None):
+    def sample(self, fraction, max_partitions=None, seed=None):
         """
         Create an XArray which contains a subsample of the current XArray.
 
@@ -1356,6 +1356,10 @@ class XArray(XObject):
         ----------
         fraction : float
             The fraction of the rows to fetch. Must be between 0 and 1.
+
+        max_partitions : int, optional
+            After sampling, coalesce to this number of partition.  If not given,
+            do not perform this step.
 
         seed : int
             The random seed for the random number generator.

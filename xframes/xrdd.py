@@ -253,6 +253,15 @@ class XRdd(TracedObject):
         res = self._rdd.sample(with_replacement, fraction, seed)
         return XRdd(res)
 
+    def coalesce(self, num_partitions, shuffle=False):
+        self._entry(num_partitions=num_partitions, shuffle=shuffle)
+        res = self._rdd.coalesce(num_partitions, shuffle)
+        return XRdd(res)
+
+    def getNumPartitions(self):
+        self._entry()
+        return self._rdd.getNumPartitions()
+
     def union(self, other):
         self._entry()
         res = self._rdd.union(other._rdd)
