@@ -1385,7 +1385,7 @@ class XArray(XObject):
         if not seed:
             seed = int(time.time())
 
-        return XArray(impl=self._impl.sample(fraction, seed))
+        return XArray(impl=self._impl.sample(fraction, max_partitions, seed))
 
     def _save_as_text(self, url):
         """
