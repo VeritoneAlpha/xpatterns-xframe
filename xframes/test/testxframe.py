@@ -3780,6 +3780,14 @@ class TestXFrameFilterby(XFrameUnitTestCase):
         self.assertDictEqual({'id': 3, 'val': 'c'}, res[1])
         self.assertColumnEqual([1, 3], res['id'])
 
+    def test_filterby_function_row(self):
+        t = XFrame({'id': [1, 2, 3], 'val': ['a', 'b', 'c']})
+        res = t.filterby(lambda row: row['id'] != 2, None).sort('id')
+        self.assertEqualLen(2, res)
+        self.assertDictEqual({'id': 1, 'val': 'a'}, res[0])
+        self.assertDictEqual({'id': 3, 'val': 'c'}, res[1])
+        self.assertColumnEqual([1, 3], res['id'])
+
     def test_filterby_list_exclude(self):
         t = XFrame({'id': [1, 2, 3, 4], 'val': ['a', 'b', 'c', 'd']})
         res = t.filterby([1, 3], 'id', exclude=True).sort('id')

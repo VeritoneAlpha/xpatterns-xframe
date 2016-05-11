@@ -3790,8 +3790,9 @@ class XFrame(XObject):
             column given by 'column_name'.  The result includes
             rows where the function returns True.
 
-        column_name : str
-            The column of the XFrame to match with the given `values`.
+        column_name : str | None
+            The column of the XFrame to match with the given `values`.  This can only be None if the values
+            argument is a function.  In this case, the function is passed the whole row.
 
         exclude : bool
             If True, the result XFrame will contain all rows EXCEPT those that
@@ -3825,17 +3826,20 @@ class XFrame(XObject):
         +-------------+----+--------+
         [2 rows x 3 columns]
         """
+        if isinstance(values, types.FunctionType) and column_name is None:
+            return XFrame(impl=self._impl.filter_by_function_row(values, exclude))
+
         if not isinstance(column_name, str):
-            raise TypeError('Must pass a str as column_name.')
+            raise TypeError('Column_name must be a string.')
 
         existing_columns = self.column_names()
         if column_name not in existing_columns:
             raise KeyError("Column '{}' not in XFrame.".format(column_name))
 
-        existing_type = self.column_types()[existing_columns.index(column_name)]
-
         if isinstance(values, types.FunctionType):
             return XFrame(impl=self._impl.filter_by_function(values, column_name, exclude))
+
+        existing_type = self.column_types()[existing_columns.index(column_name)]
 
         # If we are given the values directly, use filter.
         if not isinstance(values, XArray):

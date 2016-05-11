@@ -1728,6 +1728,20 @@ class XFrameImpl(XObjectImpl, TracedObject):
         res = self._rdd.filter(filter_fun)
         return self._rv(res)
 
+    def filter_by_function_row(self, fn, exclude):
+        """
+        Perform filtering on all columns by a function
+        """
+        # fn needs the row as a dict
+        col_names = self.col_names
+
+        def filter_fun(row):
+            res = fn(dict(zip(col_names, row)))
+            return not res if exclude else res
+
+        res = self._rdd.filter(filter_fun)
+        return self._rv(res)
+
     def groupby_aggregate(self, key_columns_array, group_columns, group_output_columns, group_ops):
         """
         Perform a group on the key_columns followed by aggregations on the
