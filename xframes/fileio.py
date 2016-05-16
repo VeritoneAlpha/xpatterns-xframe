@@ -73,15 +73,21 @@ class _HdfsConnection(object):
         if config_context is not None and 'port' in config_context:
             self.port = config_context['port']
             self.user = config_context['user'] if 'user' in config_context else 'root'
+            self.use_kerberos = config_context['kerberos']
         else:
             self.port = None
             self.user = None
+            self.kerberos_flag = None
 
     def hdfs_connection(self, parsed_uri):
         # uses the hostname in the uri, replaces port by configured port
         client_uri = 'http://{}:{}'.format(parsed_uri.hostname, self.port)
-        from hdfs import client as hdfs_client
-        return hdfs_client.InsecureClient(client_uri, user=self.user)
+        if self.use_kerberos:
+            from hdfs.ext import kerberos as hdfs_client
+            return hdfs_client.KerberosClient(client_uri, user=self.user)
+        else:
+            from hdfs import client as hdfs_client
+            return hdfs_client.InsecureClient(client_uri)
 
     def has_hdfs(self):
         return self.port is not None
