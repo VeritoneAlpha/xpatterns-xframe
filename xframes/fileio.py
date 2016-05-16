@@ -84,7 +84,7 @@ class _HdfsConnection(object):
         client_uri = 'http://{}:{}'.format(parsed_uri.hostname, self.port)
         if self.use_kerberos:
             from hdfs.ext import kerberos as hdfs_client
-            return hdfs_client.KerberosClient(client_uri, user=self.user)
+            return hdfs_client.KerberosClient(client_uri)
         else:
             from hdfs import client as hdfs_client
             return hdfs_client.InsecureClient(client_uri)
