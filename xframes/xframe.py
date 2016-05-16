@@ -1217,7 +1217,10 @@ class XFrame(XObject):
             # repr adds the escape characters. but also adds quotes around
             # the string
             if len(s) >= 2:
-                s = s[1:-1]
+                if s[0] == 'u':
+                    s = s[2:-1]
+                else:
+                    s = s[1:-1]
             if len(s) <= max_column_width:
                 return unicode(s, errors='replace')
             else:
