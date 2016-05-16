@@ -26,7 +26,7 @@ from pyspark import StorageLevel
 from pyspark.sql.types import StringType, BooleanType, \
     DoubleType, FloatType, \
     ShortType, IntegerType, LongType, DecimalType, \
-    ArrayType, MapType, TimestampType
+    ArrayType, MapType, TimestampType, NullType
 
 from xframes.deps import HAS_NUMPY
 if HAS_NUMPY:
@@ -784,6 +784,9 @@ def to_ptype(schema_type):
 
 def hint_to_schema_type(hint):
     # Given a type hint, return the corresponding schema type
+    if hint == 'None':
+        # this does not work -- gives an exception
+        return NullType()
     if hint == 'int':
         return IntegerType()
     if hint == 'long':
@@ -817,6 +820,8 @@ def hint_to_schema_type(hint):
 
 
 def to_schema_type(typ, elem):
+    if typ is None:
+        return hint_to_schema_type('None')
     if issubclass(typ, basestring):
         return hint_to_schema_type('str')
     if issubclass(typ, bool):
