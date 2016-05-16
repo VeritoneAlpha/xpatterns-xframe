@@ -668,7 +668,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         if not isinstance(column_names, list):
             raise TypeError('Column names must be a list.')
         if len(column_names) != len(self.col_names):
-            raise ValueError('Column names ist must match number of columns: actual: {}, expected: {}'
+            raise ValueError('Column names list must match number of columns: actual: {}, expected: {}'
                              .format(len(column_names), len(self.col_names)))
 
         if isinstance(self._rdd, DataFrame):
@@ -1688,7 +1688,9 @@ class XFrameImpl(XObjectImpl, TracedObject):
             for dtype_index, col_index in enumerate(col_indexes):
                 dtype = dtypes[dtype_index]
                 result_item = result[dtype_index]
-                if isinstance(result_item, dtype):
+                if dtype is None:
+                    lst[col_index] = None
+                elif isinstance(result_item, dtype):
                     lst[col_index] = result_item
                 else:
                     lst[col_index] = safe_cast_val(result_item, dtype)
