@@ -558,6 +558,11 @@ class XFrameImpl(XObjectImpl, TracedObject):
         Save to a file.
 
         Saved in an efficient internal format, intended for reading back into an RDD.
+
+        Note: do not save over the old file name of an XFrame.  The lazy evaluator is
+        triggered by the save operation, and still needs to read from the old file to generate
+        the data for the file to be saved.  Instead, save to a temp file, then delete the old file
+        and rename the temp file.
         """
         self._entry(path=path)
         fileio.delete(path)
