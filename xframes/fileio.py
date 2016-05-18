@@ -226,8 +226,21 @@ def delete(uri):
     elif parsed_uri.scheme == 'hive':
         pass
     else:
-        raise UriError('Unknown URI scheme: {}'.format(parsed_uri.scheme))
+        raise UriError('Invalid URI scheme: {}'.format(parsed_uri.scheme))
 
+
+def rename(old_name, new_name):
+    parsed_old_name = _parse_uri(old_name)
+    parsed_new_name = _parse_uri(new_name)
+    if parsed_old_name.scheme != parsed_new_name.scheme:
+        raise ValueError('rename: uri schemes must match: {} {}'.format(parsed_old_name.scheme, parsed_new_name.scheme))
+    if parsed_old_name.scheme == 'file':
+        return os.rename(parsed_old_name.path, parsed_new_name.path)
+    elif parsed_old_name.scheme == 'hdfs':
+        hdfs_connection = _make_hdfs_connection(parsed_old_name)
+        hdfs_connection.rename_file_dir(parsed_old_name, parsed_new_name)
+    else:
+        raise UriError('Invalid URI scheme: {}'.format(parsed_old_name.scheme))
 
 def temp_file_name(uri):
     # make it on the same filesystem as path
