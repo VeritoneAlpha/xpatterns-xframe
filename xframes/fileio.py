@@ -75,11 +75,11 @@ class _HdfsConnection(object):
         if config_context is not None and 'port' in config_context:
             self.port = config_context['port']
             self.user = config_context['user'] if 'user' in config_context else 'root'
-            self.use_kerberos = config_context['kerberos']
+            self.use_kerberos = config_context['kerberos'].lower() == 'true'
         else:
             self.port = None
             self.user = None
-            self.kerberos_flag = None
+            self.use_kerberos = False
 
     def hdfs_connection(self, parsed_uri):
         # uses the hostname in the uri, replaces port by configured port
@@ -196,7 +196,7 @@ def has_hdfs():
 
 
 def open_file(uri, mode='r'):
-    """ pens a file for read or write
+    """ Opens a file for read or write
     The caller should wrapped this in with statement to make sure it is closed after use. """
 
     parsed_uri = _parse_uri(uri)
@@ -243,7 +243,7 @@ def rename(old_name, new_name):
         return os.rename(parsed_old_name.path, parsed_new_name.path)
     elif parsed_old_name.scheme == 'hdfs':
         hdfs_connection = _make_hdfs_connection(parsed_old_name)
-        hdfs_connection.rename_file_dir(parsed_old_name, parsed_new_name)
+        hdfs_connection.rename(parsed_old_name.path, parsed_new_name.path)
     else:
         raise UriError('Invalid URI scheme: {}'.format(parsed_old_name.scheme))
 
