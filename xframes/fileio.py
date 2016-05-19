@@ -55,6 +55,7 @@ class UriError(Exception):
 
 # noinspection PyArgumentList
 def _parse_uri(uri):
+    """ Parse the uri. """
     parsed = urlparse.urlparse(uri)
     if parsed.scheme == 'hdfs':
         if parsed.hostname == '' or parsed.port == '':
@@ -67,6 +68,7 @@ def _parse_uri(uri):
 
 @Singleton
 class _HdfsConnection(object):
+    """ Allows the program to talk to hdfs through webhdfs API, """
     def __init__(self):
         env = Environment.create()
         config_context = env.get_config_items('webhdfs')
@@ -149,7 +151,7 @@ _name_sequence = None
 
 
 def _get_candidate_names():
-    """Common setup sequence for all user-callable interfaces."""
+    """ Common setup sequence for all user-callable interfaces."""
     global _name_sequence
     if _name_sequence is None:
         _once_lock.acquire()
@@ -189,12 +191,13 @@ def _named_temp_file(parsed_uri, directory=None, prefix=None, suffix=None):
 
 
 def has_hdfs():
+    """ Test if the system has access to hdfs. """
     return _HdfsConnection.Instance().has_hdfs()
 
 
 def open_file(uri, mode='r'):
-    # Opens a file for read or write
-    # The caller should wrapped this in with statement to make sure it is closed after use
+    """ pens a file for read or write
+    The caller should wrapped this in with statement to make sure it is closed after use. """
 
     parsed_uri = _parse_uri(uri)
     if parsed_uri.scheme == 'file':
@@ -216,6 +219,7 @@ def open_file(uri, mode='r'):
 
 
 def delete(uri):
+    """ Delete a file or directory. """
     parsed_uri = _parse_uri(uri)
     if parsed_uri.scheme == 'file':
         from xframes.util import delete_file_or_dir
@@ -230,6 +234,7 @@ def delete(uri):
 
 
 def rename(old_name, new_name):
+    """ Rename a file or directory. """
     parsed_old_name = _parse_uri(old_name)
     parsed_new_name = _parse_uri(new_name)
     if parsed_old_name.scheme != parsed_new_name.scheme:
@@ -243,7 +248,7 @@ def rename(old_name, new_name):
         raise UriError('Invalid URI scheme: {}'.format(parsed_old_name.scheme))
 
 def temp_file_name(uri):
-    # make it on the same filesystem as path
+    """ make a temporary file on the same filesystem as path. """
     parsed_uri = _parse_uri(uri)
     if parsed_uri.scheme == 'file':
         temp_file = NamedTemporaryFile(delete=True)
@@ -256,6 +261,7 @@ def temp_file_name(uri):
 
 
 def is_file(uri):
+    """ Test if a pathname points to a file. """
     parsed_uri = _parse_uri(uri)
     if parsed_uri.scheme == 'file':
         return os.path.isfile(parsed_uri.path)
@@ -268,6 +274,7 @@ def is_file(uri):
 
 
 def is_dir(uri):
+    """ Test if a pathname points to a directory. """
     parsed_uri = _parse_uri(uri)
     if parsed_uri.scheme == 'file':
         return os.path.isdir(parsed_uri.path)
@@ -280,6 +287,7 @@ def is_dir(uri):
 
 
 def exists(uri):
+    """ Test if a file or directory exists. """
     parsed_uri = _parse_uri(uri)
     if parsed_uri.scheme == 'file':
         return os.path.exists(parsed_uri.path)
@@ -292,6 +300,7 @@ def exists(uri):
 
 
 def make_dir(uri):
+    """ Make a directory at the specified path. """
     parsed_uri = _parse_uri(uri)
     if parsed_uri.scheme == 'file':
         try:
@@ -307,6 +316,7 @@ def make_dir(uri):
 
 
 def list_dir(uri, status=False):
+    """ List the entries in a directory. """
     parsed_uri = _parse_uri(uri)
     if parsed_uri.scheme == 'file':
         if status:
@@ -323,6 +333,7 @@ def list_dir(uri, status=False):
 
 
 def m_time(uri):
+    """ Get a file or directory modification time. """
     parsed_uri = _parse_uri(uri)
     if parsed_uri.scheme == 'file':
         return os.stat(parsed_uri.path).st_mtime
@@ -335,6 +346,7 @@ def m_time(uri):
 
 
 def length(uri):
+    """ Get the length of a file, or the sum of lengths of files in a directory. """
     parsed_uri = _parse_uri(uri)
     if parsed_uri.scheme == 'file':
         if os.path.isdir(parsed_uri.path):
