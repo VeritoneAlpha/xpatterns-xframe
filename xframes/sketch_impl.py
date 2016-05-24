@@ -8,6 +8,7 @@ from collections import Counter
 import copy
 import logging
 
+import py4j
 
 from xframes.xobject_impl import XObjectImpl
 from xframes.traced_object import TracedObject
@@ -97,8 +98,14 @@ class SketchImpl(XObjectImpl, TracedObject):
         # calculate some basic statistics
         if self.stats is None:
             if util.is_date_type(self.dtype):
-                self.min_val = normalize_number(self.defined.min())
-                self.max_val = normalize_number(self.defined.max())
+                try:
+                    self.min_val = normalize_number(self.defined.min())
+                    self.max_val = normalize_number(self.defined.max())
+                except py4j.protocol.Py4JJavaError as e:
+                    self.min_val = None
+                    self.max_val = None
+                    logging.warn('Datetime max or min did not compute.  ' +
+                                 'Possible mixture of offset-native and offset-aware times.')
             else:
                 stats = self.defined.stats()
                 self.min_val = normalize_number(stats.min())
