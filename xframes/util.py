@@ -786,14 +786,16 @@ def hint_to_schema_type(hint):
     # Given a type hint, return the corresponding schema type
     if hint == 'None':
         # this does not work -- gives an exception
-#        return NullType()
+        # use string type instead
         return StringType()
     if hint == 'int':
         return IntegerType()
     if hint == 'long':
         return LongType()
     if hint == 'decimal':
-        return DecimalType()
+        # this does not work -- gives an excepton
+        # use string type instead
+        return StringType()
     if hint == 'bool':
         return BooleanType()
     if hint == 'float':
