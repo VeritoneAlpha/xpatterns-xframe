@@ -1648,7 +1648,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
         def transformer(row):
             result = fn(build_row(names, row))
             if not isinstance(result, dtype):
-                result = dtype(result)
+                result = safe_cast_val(result, dtype)
             lst = list(row)
             lst[col_index] = result
             return tuple(lst)
