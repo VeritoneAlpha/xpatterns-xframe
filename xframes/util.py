@@ -889,3 +889,5 @@ def safe_cast_val(val, typ):
         return typ(val)
     except UnicodeEncodeError:
         return ''
+    except TypeError:
+        return None
