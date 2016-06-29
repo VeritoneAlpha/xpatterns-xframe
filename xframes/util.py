@@ -17,7 +17,7 @@ import itertools
 import shutil
 import random
 import datetime
-from dateutil import parser
+from dateutil import parser as date_parser
 from sys import stderr
 import logging
 import types
@@ -469,7 +469,7 @@ def possible_date(dt_str):
     if len(dt_str) == 0 or dt_str.isdigit() or dt_str.replace('.', '', 1).isdigit():
         return False
     try:
-        dt = parser.parse(dt_str, default=datetime.datetime(1, 1, 1, 0, 0, 0))
+        dt = date_parser.parse(dt_str, default=datetime.datetime(1, 1, 1, 0, 0, 0))
         if dt.year == 1:
             return False
         return dt

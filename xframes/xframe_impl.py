@@ -13,7 +13,7 @@ import shutil
 import re
 import copy
 import datetime
-import dateutil
+from dateutil import parser as date_parser
 import logging
 
 
@@ -482,7 +482,7 @@ class XFrameImpl(XObjectImpl, TracedObject):
                 if typ in (dict, list):
                     return ast.literal_eval(val)
                 elif typ is datetime.datetime:
-                    return dateutil.parser.parse(val)
+                    return date_parser.parse(val)
                 return typ(val)
             except ValueError:
                 raise ValueError('Cast failed: ({}) {}  col: {}'.format(typ, val, name))

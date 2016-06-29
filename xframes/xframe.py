@@ -11,7 +11,7 @@ from textwrap import wrap
 import inspect
 import time
 import itertools
-from dateutil import parser
+from dateutil import parser as date_parser
 import datetime
 import copy
 import ast
@@ -1976,7 +1976,7 @@ class XFrame(XObject):
             if s.startswith('-'):
                 s = s[1:]
             try:
-                dt = parser.parse(s, default=datetime.datetime(1, 1, 1, 0, 0, 0))
+                dt = date_parser.parse(s, default=datetime.datetime(1, 1, 1, 0, 0, 0))
                 if not s.isdigit() and dt.year != 1:
                     return 'datetime'
             except ValueError:
@@ -2072,7 +2072,7 @@ class XFrame(XObject):
             if len(val) == 0:
                 return [None]
             try:
-                dt = parser.parse(val)
+                dt = date_parser.parse(val)
                 return [dt]
             except ValueError:
                 raise ValueError('Cast failed: (datetime) {}'.format(val))

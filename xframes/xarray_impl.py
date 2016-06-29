@@ -11,7 +11,7 @@ import copy
 import StringIO
 import random
 import datetime
-from dateutil import parser
+from dateutil import parser as date_parser
 import logging
 
 from xframes.lineage import Lineage
@@ -159,7 +159,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             if is_missing(x):
                 return x
             if isinstance(x, str) and dtype is datetime.datetime:
-                return parser.parse(x)
+                return date_parser.parse(x)
             if isinstance(x, dtype):
                 return x
             try:
@@ -220,7 +220,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
             if dtype in (list, dict):
                 res = res.map(lambda x: ast.literal_eval(x))
             elif dtype is datetime.datetime:
-                res = res.map(lambda x: parser.parse(x))
+                res = res.map(lambda x: date_parser.parse(x))
             else:
                 res = res.map(lambda x: dtype(x))
         return cls(res, dtype, lineage)
@@ -809,7 +809,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
                 if dtype is str:
                     return dtype(x)
                 if dtype is datetime.datetime:
-                    dt = parser.parse(x)
+                    dt = date_parser.parse(x)
                     if isinstance(dt, datetime.datetime):
                         return dt
                     raise ValueError
@@ -1258,7 +1258,7 @@ class XArrayImpl(XObjectImpl, TracedObject):
         """
         self._entry(str_format=str_format)
         if str_format is None:
-            res = self._rdd.map(lambda x: parser.parse(x))
+            res = self._rdd.map(lambda x: date_parser.parse(x))
         else:
             res = self._rdd.map(lambda x: datetime.datetime.strptime(x, str_format))
         return self._rv(res, datetime.datetime)
