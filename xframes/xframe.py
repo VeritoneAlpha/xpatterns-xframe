@@ -1914,15 +1914,16 @@ class XFrame(XObject):
                 return [row[col] for col in cols]
         elif not inspect.isfunction(fn):
             raise TypeError('Input must be a function: {}: {}.'.format(fn, type(fn).__name__))
-        rows = self._impl.head_as_list(10)
-        names = self._impl.column_names()
-        if use_columns:
-            col_indexes = [self.column_names().index(col_name) for col_name in use_columns]
-            rows = [[row[i] for i in col_indexes] for row in rows]
-            names = [name for name in names if name in use_columns]
-        # do the dryrun so we can see some diagnostic output
-        dryrun = [fn(dict(zip(names, row))) for row in rows]
         if dtypes is None:
+            rows = self._impl.head_as_list(10)
+            names = self._impl.column_names()
+            if use_columns:
+                col_indexes = [self.column_names().index(col_name) for col_name in use_columns]
+                rows = [[row[i] for i in col_indexes] for row in rows]
+                names = [name for name in names if name in use_columns]
+            # do the dryrun so we can get column types
+            dryrun = [fn(dict(zip(names, row))) for row in rows]
+
             if len(dryrun[0]) != len(cols):
                 raise ValueError('Function return length must match number of cols.')
             dtypes = []
